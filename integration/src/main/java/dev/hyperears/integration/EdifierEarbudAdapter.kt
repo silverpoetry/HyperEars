@@ -172,6 +172,37 @@ class EdifierEvoProAdapter : EdifierEarbudAdapter() {
     }
 }
 
+/**
+ * Concrete model adapter for Edifier FitClip Ultra.
+ *
+ * FitClip Ultra is an open-ear clip TWS. Live on-device probing (RFCOMM to the shared Edifier
+ * BES SPP service `EDF00000-...`) confirms:
+ *
+ *  - Battery is delivered by the TWS device-state command `0xF2` as independent left/right
+ *    levels (the legacy aggregate battery command `0xD0` is not answered).
+ *  - The device has no ANC: the `0xCC` ANC-state query is not answered and the headset drops
+ *    the RFCOMM channel when probed. The adapter therefore disables ANC discovery entirely so
+ *    the handshake never emits `0xCC`.
+ */
+class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
+    override val id: String = ID
+    override val displayName: String = "Edifier FitClip Ultra"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+    override val wireConfig: EdifierWireConfig = EdifierWireConfig(
+        batteryQueries = listOf(EdifierBatteryQuery.DEVICE_STATE),
+        batteryProjection = EdifierBatteryProjection.TWS_AGGREGATE,
+        ancDialects = emptyList(),
+    )
+
+    override fun matches(identity: EarbudIdentity): Boolean =
+        super.matches(identity) &&
+            "fitclip" in normalizeDeviceName(identity.deviceName.orEmpty())
+
+    companion object {
+        const val ID = "edifier-fitclip-ultra"
+    }
+}
+
 object EdifierMiLinkPresentationIds {
     val FOUR_MODE = MiLinkCardPresentationId("edifier-four-mode")
 }
@@ -277,14 +308,18 @@ private class EdifierProtocolSession(
 
     override fun initialReadCommands(): List<ByteArray> = buildList {
         addAll(configuration.batteryQueries.map { batteryQueryPacket(it) })
-        add(EdifierWireCodec.queryAnc)
+        if (configuration.ancDialects.isNotEmpty()) {
+            add(EdifierWireCodec.queryAnc)
+        }
         add(EdifierWireCodec.queryFunction)
     }
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
         request === StandardControlRequest.Refresh -> buildList {
             addAll(configuration.batteryQueries.map { batteryQueryPacket(it) })
-            add(EdifierWireCodec.queryAnc)
+            if (configuration.ancDialects.isNotEmpty()) {
+                add(EdifierWireCodec.queryAnc)
+            }
         }
         request is StandardControlRequest.SetNoiseMode -> {
             val dialect = activeAncDialect
