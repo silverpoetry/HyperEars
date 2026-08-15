@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### MOONDROP Pudding
+
+- 新增 MOONDROP Pudding（蓝牙名称 `MOONDROP Pudding`）具体型号适配：使用与 Robin 相同的
+  `0A 03 00` 严格握手确认协议，帧格式与模式命令同构（子命令 `40/41`、操作码 `03/04`）。
+  协议确认后开放降噪、关闭、通透三态切换与私有左右耳、充电盒电量（查询 `1D 1A 01`，
+  响应与主动推送 `01 <左> 02 <右> 03 <盒>`，`FF` 盒值为不可读）；确认前电量沿用 Android
+  系统整机。协议细节见
+  [`docs/moondrop-pudding-protocol.md`](docs/moondrop-pudding-protocol.md)。
+- Pudding 声明水月雨官方 App（`com.moondroplab.moondrop.moondrop_app`）为控制 App：
+  “更多设置”可跳转、运行时退避与“停止厂商应用”对其生效，并加入 LSPosed 可选作用域。
+- Pudding 单耳佩戴（左右耳电量一空一实）时拒绝噪声模式切换请求；双耳电量恢复后
+  自动放行，电量未知与系统整机阶段不受影响。
+- 帧载荷之外的尾字节不参与任何解析校验。
+
 ## [2.3.2] - 2026-08-14
 
 本版修复 ROSE Ceramics Ultra（琉璃 Ultra）的模式识别与组件电量，并为未知 MiLink
