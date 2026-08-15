@@ -29,6 +29,7 @@ Sony | Headphones Connect。
 | ROSESELSA / 弱水时砂 | ROSELINK | `cn.ikaile.ruoshui.client` | 1 |
 | StarRing / 籁特易耳 | LightYear | `cn.lightyeartech.android` | 1 |
 | NiceHCK / YuanDao | 原道 | `com.yuandao.nicehck` | 1 |
+| MOONDROP Pudding | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
 | QCY | QCY | `com.qcymall.googleearphonesetup` | 1 |
 | Sony | Sony \| Sound Connect | `com.sony.songpal.mdr` | 1 |
 
