@@ -1,6 +1,7 @@
 package dev.hyperears.integration
 
 import dev.hyperears.protocol.edifier.EdifierWireCodec
+import dev.hyperears.protocol.huawei.HuaweiFreebudsSppCodec
 import dev.hyperears.protocol.oppo.OppoWireCodec
 import dev.hyperears.protocol.vivo.VivoTwsProtocol
 import org.junit.Assert.assertEquals
@@ -34,6 +35,8 @@ class EarbudAdapterHierarchyTest {
         assertTrue(resolve("OPPO Enco Air2 Pro", standard = true) is OppoEncoAir2ProAdapter)
         assertTrue(resolve("OPPO Enco Buds2", standard = true) is OppoEarbudAdapter)
         assertTrue(resolve("漫步者・花再 Evo Pro", standard = true) is EdifierEvoProAdapter)
+        assertTrue(resolve("HUAWEI FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
+        assertTrue(resolve("FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
         assertTrue(resolve("Unknown headset", standard = true) is StandardEarbudAdapter)
     }
 
@@ -729,6 +732,150 @@ class EarbudAdapterHierarchyTest {
 
         assertNotSame(first, second)
         assertNotSame(first.protocolSession, second.protocolSession)
+    }
+
+    @Test
+    fun huaweiFreebudsPro3StartsWithLockedStandardCapabilities() {
+        val adapter = HuaweiFreebudsPro3Adapter()
+
+        assertEquals(AdapterResolution.EXACT_MATCH, adapter.snapshot().resolution)
+        assertEquals(HeadsetFormFactor.TWS, adapter.snapshot().formFactor)
+        assertEquals(null, adapter.snapshot().presentationId)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().capabilities.battery)
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        assertTrue(adapter.snapshot().privateProtocolRequired)
+        assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
+        assertEquals(
+            listOf(
+                HuaweiFreebudsSppCodec.queryBattery.toList(),
+                HuaweiFreebudsSppCodec.queryNoiseState.toList(),
+            ),
+            adapter.beginHandshake().commands.map(ByteArray::toList),
+        )
+    }
+
+    @Test
+    fun huaweiBatteryEvidenceOpensPrivateBatteryAndConfirmsHandshake() {
+        val adapter = HuaweiFreebudsPro3Adapter()
+        val frame = HuaweiFreebudsSppCodec.packet(
+            0x0108,
+            listOf(
+                1 to byteArrayOf(0x40),
+                2 to byteArrayOf(0x10, 0x20, 0x30),
+                3 to byteArrayOf(0x00, 0x01, 0x00),
+            ),
+        )
+
+        val result = adapter.receive(frame)
+
+        assertEquals(HandshakeResult.Ready, result.handshake)
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        val battery = adapter.runtimeState().battery
+        assertEquals(16, battery.left.percent)
+        assertEquals(32, battery.right.percent)
+        assertEquals(48, battery.case.percent)
+        assertEquals(64, battery.overall.percent)
+        assertTrue(battery.overall.charging)
+        assertFalse(battery.left.charging)
+        assertFalse(battery.right.charging)
+        assertFalse(battery.case.charging)
+    }
+
+    @Test
+    fun huaweiNoiseEvidenceOpensThreeStateControlAndAncLevelFeature() {
+        val adapter = HuaweiFreebudsPro3Adapter()
+
+        val result = adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0x02, 0x01))),
+        )
+
+        assertEquals(HandshakeResult.Ready, result.handshake)
+        assertTrue(adapter.snapshot().capabilities.noiseControl)
+        assertEquals(
+            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            adapter.snapshot().supportedNoiseModes,
+        )
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+        val ancLevel = adapter.runtimeState().features.get<HuaweiAncLevelFeatureState>()
+        assertEquals(HuaweiAncLevel.ULTRA, ancLevel?.current)
+        assertEquals(HuaweiAncLevel.entries.toSet(), ancLevel?.supported)
+
+        val modeResult = adapter.executeControl(
+            StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY),
+        )
+        assertTrue(modeResult.accepted)
+        assertEquals(
+            HuaweiFreebudsSppCodec
+                .noiseModeCommand(HuaweiFreebudsSppCodec.NoiseMode.TRANSPARENCY)
+                .toList(),
+            modeResult.commands.single().toList(),
+        )
+        assertEquals(
+            HuaweiFreebudsSppCodec.queryNoiseState.toList(),
+            modeResult.readback.single().toList(),
+        )
+
+        adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0x01, 0x02))),
+        )
+        val levelResult = adapter.executeControl(
+            HuaweiControlRequest.SetAncLevel(HuaweiAncLevel.VOICE_BOOST),
+        )
+        assertTrue(levelResult.accepted)
+        assertEquals(
+            HuaweiFreebudsSppCodec
+                .noiseLevelCommand(HuaweiFreebudsSppCodec.NoiseMode.TRANSPARENCY, 1)
+                .toList(),
+            levelResult.commands.single().toList(),
+        )
+    }
+
+    @Test
+    fun huaweiModeChangeNotificationTriggersStateRefresh() {
+        val adapter = HuaweiFreebudsPro3Adapter()
+
+        val result = adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B03, listOf(1 to byteArrayOf(0x01))),
+        )
+
+        assertTrue(
+            result.commands.any {
+                it.toList() == HuaweiFreebudsSppCodec.queryNoiseState.toList()
+            },
+        )
+    }
+
+    @Test
+    fun huaweiAncLevelRejectedWhenModeDomainDoesNotMatch() {
+        val adapter = HuaweiFreebudsPro3Adapter()
+        adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0x02, 0x01))),
+        )
+
+        val result = adapter.executeControl(
+            HuaweiControlRequest.SetAncLevel(HuaweiAncLevel.VOICE_BOOST),
+        )
+
+        assertFalse(result.accepted)
+    }
+
+    @Test
+    fun huaweiNameVariantsDoNotCaptureUnrelatedHeadsets() {
+        assertTrue(
+            resolve("HUAWEI FreeBuds Pro", standard = true) is StandardEarbudAdapter,
+        )
+        assertTrue(
+            resolve("HUAWEI FreeBuds", standard = true) is StandardEarbudAdapter,
+        )
+    }
+
+    @Test
+    fun huaweiFreebudsPro3RemainsDormantAfterBoundedFailure() {
+        assertEquals(
+            InitialProtocolFailureResolution.KeepDormant,
+            HuaweiFreebudsPro3Adapter().onInitialProtocolUnavailable(),
+        )
     }
 
     private fun resolve(name: String, standard: Boolean = false): EarbudAdapter =
