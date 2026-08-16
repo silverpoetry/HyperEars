@@ -173,10 +173,10 @@ Gadgetbridge 的 AGPL 程序代码，也不分发 SonyHeadphonesClient、厂商�
 WireCodec、ProtocolSession 与 Adapter 边界内重新组织实现，不复制或分发 OpenFreebuds 的
 程序代码、应用、界面、图片或品牌资源；上游 GPL-3.0 义务以该仓库 `LICENSE` 原文为准。
 
-## Huawei FreeBuds Pro 3 / AI Life
+## Huawei FreeBuds Pro 3 / 智慧音频
 
 华为 FreeBuds Pro 3 的协议字段语义以 OpenFreebuds 的公开实现与可互操作协议事实为唯一
-依据；华为 AI Life（`com.huawei.smarthome`）仅作为控制权边界与导航目标登记在
+依据；华为智慧音频（`com.huawei.smartaudio`）仅作为控制权边界与导航目标登记在
 `ControlAppCatalog`、`scope.list` 与[控制 App 目录](docs/control-apps.md)中，不作为耳机
 品牌或型号的识别证据。HyperEars 不随 APK 分发华为应用、反编译产物、固件、抓包文件、
 图片或品牌资源；所有商标、产品名称归其各自权利人所有。

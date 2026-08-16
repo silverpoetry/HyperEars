@@ -67,9 +67,9 @@ object ControlAppCatalog {
         displayName = "QCY",
     )
 
-    val huaweiAiLife = ControlAppSpec(
-        packageName = "com.huawei.smarthome",
-        displayName = "AI Life",
+    val huaweiSmartAudio = ControlAppSpec(
+        packageName = "com.huawei.smartaudio",
+        displayName = "智慧音频",
     )
 
     val all: List<ControlAppSpec> = listOf(
@@ -85,7 +85,7 @@ object ControlAppCatalog {
         yuanDao,
         sonySoundConnect,
         qcy,
-        huaweiAiLife,
+        huaweiSmartAudio,
     )
 
     private val byPackage = all.associateBy(ControlAppSpec::packageName)

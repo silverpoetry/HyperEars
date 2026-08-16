@@ -5,7 +5,7 @@
 - 依据：melianmiko/OpenFreebuds（GPL-3.0）`driver/huawei` 包与对应测试夹具交叉验证。
 - 耳机：HUAWEI FreeBuds Pro 3。
 - 传输：Bluetooth Classic RFCOMM SPP（Channel 1）。
-- 厂商 App：华为智慧生活 / AI Life。
+- 厂商 App：华为智慧音频。
 - 证据等级：公开实现。字节向量与 OpenFreebuds 测试夹具一致；尚未在 HyperEars
   本地完成实机抓包验证。
 

@@ -14,7 +14,7 @@ import dev.hyperears.protocol.huawei.HuaweiFreebudsSppCodec
  */
 class HuaweiFreebudsPro3Adapter : StandardEarbudAdapter() {
     override val id: String = ID
-    override val displayName: String = "华为 FreeBuds Pro 3"
+    override val displayName: String = "HUAWEI FreeBuds Pro 3"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
@@ -25,7 +25,7 @@ class HuaweiFreebudsPro3Adapter : StandardEarbudAdapter() {
         ),
     )
 
-    override val controlApps: List<ControlAppSpec> = listOf(ControlAppCatalog.huaweiAiLife)
+    override val controlApps: List<ControlAppSpec> = listOf(ControlAppCatalog.huaweiSmartAudio)
 
     override val featureStateContract: DeviceFeatureStateContract =
         StandardDeviceFeatureStateContract.extending { _, state ->
