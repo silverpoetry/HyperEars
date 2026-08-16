@@ -295,6 +295,17 @@ private val supportBrands = listOf(
         ),
     ),
     SupportBrand(
+        name = "华为",
+        entries = listOf(
+            SupportEntry(
+                name = "HUAWEI FreeBuds Pro 3",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
+        ),
+    ),
+    SupportBrand(
         name = "QCY",
         entries = listOf(
             SupportEntry(
