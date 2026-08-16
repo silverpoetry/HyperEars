@@ -578,6 +578,7 @@ object EarbudAdapterRegistry {
     private val moondropGroup =
         GroupMetadata("moondrop", "MOONDROP / 水月雨")
     private val honorGroup = GroupMetadata("honor", "荣耀")
+    private val huaweiGroup = GroupMetadata("huawei", "华为")
     private val sonyGroup = GroupMetadata("sony", "Sony")
     private val qcyGroup = GroupMetadata("qcy", "QCY")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
@@ -611,6 +612,7 @@ object EarbudAdapterRegistry {
         add(Registration(moondropGroup, ::MoondropRobinAdapter))
         add(Registration(moondropGroup, ::MoondropEarbudAdapter))
         add(Registration(honorGroup, ::HonorX5sProAdapter))
+        add(Registration(huaweiGroup, ::HuaweiFreebudsPro3Adapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))
         // Apple devices are handled by the platform; keep AAP code available for explicit use,

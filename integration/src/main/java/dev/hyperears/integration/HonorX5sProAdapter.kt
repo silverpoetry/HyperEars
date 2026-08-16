@@ -88,6 +88,7 @@ private class HonorX5sProProtocolSession : ProtocolSession {
                 request.depth.toWireDepth(),
             ),
         )
+        else -> emptyList()
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> = emptyList()
