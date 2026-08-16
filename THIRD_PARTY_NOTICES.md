@@ -161,6 +161,26 @@ Gadgetbridge 的 AGPL 程序代码，也不分发 SonyHeadphonesClient、厂商�
 不分发 QCYpods 的应用、界面、图片、品牌资源或构建产物。上游许可证状态按固定提交如实
 记录，具体条款以其仓库声明为准。
 
+## OpenFreebuds (Huawei protocol research)
+
+- melianmiko/OpenFreebuds: <https://github.com/melianmiko/OpenFreebuds>
+- Reviewed revision: `035bf2a87cdda9e9c8e8e90c662b7fa61270c6ee`
+- Upstream license: GNU GPL-3.0（仓库 `LICENSE` 文件，版权归 MelianMiko）
+
+用于理解华为 FreeBuds Pro 3 的私有 SPP 通道 1 帧格式与 CRC16-XMODEM 校验、电量查询
+（读响应 `[level, mode]` 与写命令 `[mode, level]` 的字节序差异、组件电量与整机充电标志
+语义）、ANC 档位与透传档位枚举、`2B 03` 降噪变更通知等协议事实。HyperEars 在自身
+WireCodec、ProtocolSession 与 Adapter 边界内重新组织实现，不复制或分发 OpenFreebuds 的
+程序代码、应用、界面、图片或品牌资源；上游 GPL-3.0 义务以该仓库 `LICENSE` 原文为准。
+
+## Huawei FreeBuds Pro 3 / AI Life
+
+华为 FreeBuds Pro 3 的协议字段语义以 OpenFreebuds 的公开实现与可互操作协议事实为唯一
+依据；华为 AI Life（`com.huawei.smarthome`）仅作为控制权边界与导航目标登记在
+`ControlAppCatalog`、`scope.list` 与[控制 App 目录](docs/control-apps.md)中，不作为耳机
+品牌或型号的识别证据。HyperEars 不随 APK 分发华为应用、反编译产物、固件、抓包文件、
+图片或品牌资源；所有商标、产品名称归其各自权利人所有。
+
 ## Android and LSPosed APIs
 
 - Android Open Source Project: <https://source.android.com/>
