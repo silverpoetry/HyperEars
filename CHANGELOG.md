@@ -8,15 +8,17 @@
 
 - 新增华为 FreeBuds Pro 3 具体型号适配（证据等级：公开实现）。私有通道使用
   RFCOMM Channel 1，依据 melianmiko/OpenFreebuds 的 `driver/huawei` 包与测试
-  夹具建立 `protocol` 模块字节编解码，并通过 18 个单元测试对照验证。
+  夹具建立 `protocol` 模块字节编解码，并通过 19 个单元测试对照验证。
 - 组件电量（左/右/盒）与整机电量在收到合法 `01 08` / `01 27` 帧后开放；
   充电标志按协议只映射整机充电状态，不推测组件级充电。
 - 降噪、关闭、通透三态与型号专属档位特性（`huawei.freebuds_pro3.anc_level`：
   降噪均衡/舒适/超强/动态，透传人声增强/均衡）在收到合法 `2B 2A` 状态帧后
   开放；写入后主动读取 `2B 2A` 确认（`DEVICE_REPORT`）。
 - 处理 `2B 03` 设备侧模式变更通知：收到后重新读取噪声状态。
-- 登记厂商控制 App：AI Life（`com.huawei.smarthome`）纳入 `ControlAppCatalog`、
+- 登记厂商控制 App：智慧音频（`com.huawei.smartaudio`）纳入 `ControlAppCatalog`、
   Adapter 控制权声明与 LSPosed 作用域，并补充控制权与适配层级测试。
+- 实机验证通过：三态模式（降噪/关闭/通透）切换与降噪档位（均衡/舒适/超强/动态）、
+  透传档位（人声增强/均衡）切换在 FreeBuds Pro 3 真机确认可执行。
 
 ## [2.3.2] - 2026-08-14
 
