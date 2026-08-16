@@ -11,12 +11,12 @@
 HyperEars integrates selected third-party Bluetooth headsets with Xiaomi HyperOS and the MiLink
 device center. It complements Android's existing audio stack with device identity, battery,
 noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, Bose, Edifier,
-StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY and Sony devices.
+StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY and Sony devices.
 
 > [!WARNING]
 > HyperEars requires root, LSPosed and private HyperOS APIs. Be prepared to recover your system
 > before installing it. ROM updates may temporarily break compatibility. This project is not
-> affiliated with Xiaomi, vivo, iQOO, OPPO, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY, Sony or any
+> affiliated with Xiaomi, vivo, iQOO, OPPO, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Sony or any
 > other device vendor.
 
 ## Scope
@@ -76,6 +76,7 @@ need vendor telemetry and remain bound to the corresponding device session.
 | NiceHCK / YuanDao | OriG in public implementation; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | OriG in: noise cancellation, off, transparency and wind-noise reduction after protocol confirmation |
 | MOONDROP | Robin public protocol; others standard fallback | Robin left/right battery after protocol confirmation; Android aggregate on fallback | Robin: noise cancellation, off and transparency after protocol confirmation |
 | Honor | X5s Pro hardware-verified; others standard fallback | X5s Pro private components after protocol confirmation; Android aggregate on fallback | X5s Pro: noise cancellation, off and transparency after protocol confirmation |
+| Huawei | FreeBuds Pro 3 hardware-verified; others standard fallback | FreeBuds Pro 3 private components after protocol confirmation; Android aggregate on fallback | FreeBuds Pro 3: noise cancellation, off and transparency plus four cancellation levels and two transparency levels (typed extension) after protocol confirmation |
 | QCY | Crossky C50S public protocol; same-protocol family probe; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | noise cancellation, off and transparency after protocol confirmation |
 | Sony | public implementation, family extrapolation and standard fallback | private aggregate, private components or Android aggregate by form factor | explicit model-specific modes listed in the detailed matrix |
 | other standard A2DP/HFP headsets | standard fallback | Android aggregate | none |
@@ -174,6 +175,7 @@ Android Lint and the Release build.
 - [Troubleshooting and log collection](docs/troubleshooting.md)
 - [System-module architecture](docs/system-module-architecture.md)
 - [QCY standard GATT protocol](docs/qcy-standard-gatt-protocol.md)
+- [Huawei FreeBuds Pro 3 protocol](docs/huawei-freebuds-protocol.md)
 - [Release signing and artifact verification](docs/release-signing.md)
 
 ## Contributing and licensing

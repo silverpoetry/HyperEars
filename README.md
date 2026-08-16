@@ -9,14 +9,14 @@
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 HyperEars 是面向 Xiaomi HyperOS 的第三方蓝牙耳机系统集成模块。它让受支持的
-vivo / iQOO、OPPO Enco、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、QCY 和 Sony 耳机
+vivo / iQOO、OPPO Enco、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY 和 Sony 耳机
 进入 MiLink 融合设备中心，并在不接管 Android 音频路由的前提下补充电量、降噪状态和
 设备流转所需的兼容信息。
 
 > [!WARNING]
 > HyperEars 依赖 root、LSPosed 和 HyperOS 私有接口。安装前请确认能够恢复系统；ROM
 > 更新可能暂时破坏兼容性。本项目与 Xiaomi、vivo、iQOO、OPPO、Bose、Edifier、
-> ROSESELSA、NiceHCK、水月雨、荣耀、QCY、Sony 及相关品牌无关。
+> ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Sony 及相关品牌无关。
 
 ## 能做什么
 
@@ -68,6 +68,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 | NiceHCK / YuanDao | OriG in 公开实现；其他标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | OriG in 支持降噪、关闭、通透、抗风噪 |
 | MOONDROP / 水月雨 | Robin 公开协议；其他标准回退 | Robin 协议确认后提供左右耳电量；回退设备使用系统整机电量 | Robin 协议确认后支持降噪、关闭、通透 |
 | 荣耀 | X5s Pro 实机验证；其他标准回退 | X5s Pro 协议确认后提供私有组件电量；回退设备使用系统整机电量 | X5s Pro 协议确认后支持降噪、关闭、通透 |
+| 华为 | FreeBuds Pro 3 实机验证；其他标准回退 | FreeBuds Pro 3 协议确认后提供私有组件电量；回退设备使用系统整机电量 | FreeBuds Pro 3 协议确认后支持降噪、关闭、通透 + 降噪四档与透传两档（类型化扩展） |
 | QCY | Crossky C50S 公开协议；同协议家族探测；其余标准回退 | 协议确认后提供私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透 |
 | Sony | 公开实现、家族外推、标准回退 | 按设备形态提供私有整机、私有组件或系统整机电量 | 按具体型号开放表中明确列出的模式 |
 | 其他标准 A2DP/HFP 耳机 | 标准回退 | 系统整机电量 | 无 |
@@ -218,6 +219,7 @@ SHA-256 文件。
 - [StarRing Ultra 协议](docs/starring-ultra-protocol.md)
 - [Edifier (BES) 协议](docs/edifier-bes-protocol.md)
 - [荣耀 X5s Pro 协议](docs/honor-x5s-protocol.md)
+- [华为 FreeBuds Pro 3 协议](docs/huawei-freebuds-protocol.md)
 
 ## 贡献
 
@@ -235,7 +237,8 @@ HyperEars 以 [GNU GPL-3.0-only](LICENSE) 发布。协议研究参考了
 [Plutoberth/SonyHeadphonesClient](https://github.com/Plutoberth/SonyHeadphonesClient)、
 [SouthautumnYa/QCYpods](https://github.com/SouthautumnYa/QCYpods)、
 [Star-ZER0/Pods-Protocol-Reverse-Engineering](https://github.com/Star-ZER0/Pods-Protocol-Reverse-Engineering)
-和 [moculll/ScrewVivoTWS](https://github.com/moculll/ScrewVivoTWS)，并包含本项目的实机
+、[MelianMiko/OpenFreebuds](https://github.com/MelianMiko/OpenFreebuds)
+ 和 [moculll/ScrewVivoTWS](https://github.com/moculll/ScrewVivoTWS)，并包含本项目的实机
 抓包与验证结果。具体来源及许可说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 商标和产品名称仅用于兼容性描述，归各自权利人所有。
