@@ -10,13 +10,13 @@
 
 HyperEars integrates selected third-party Bluetooth headsets with Xiaomi HyperOS and the MiLink
 device center. It complements Android's existing audio stack with device identity, battery,
-noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, Bose, Edifier,
+noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, Technics, Bose, Edifier,
 StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY and Sony devices.
 
 > [!WARNING]
 > HyperEars requires root, LSPosed and private HyperOS APIs. Be prepared to recover your system
 > before installing it. ROM updates may temporarily break compatibility. This project is not
-> affiliated with Xiaomi, vivo, iQOO, OPPO, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY, Sony or any
+> affiliated with Xiaomi, vivo, iQOO, OPPO, Panasonic, Technics, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY, Sony or any
 > other device vendor.
 
 ## Scope
@@ -77,6 +77,7 @@ need vendor telemetry and remain bound to the corresponding device session.
 | MOONDROP | Robin public protocol; others standard fallback | Robin left/right battery after protocol confirmation; Android aggregate on fallback | Robin: noise cancellation, off and transparency after protocol confirmation |
 | Honor | X5s Pro hardware-verified; others standard fallback | X5s Pro private components after protocol confirmation; Android aggregate on fallback | X5s Pro: noise cancellation, off and transparency after protocol confirmation |
 | QCY | Crossky C50S public protocol; same-protocol family probe; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | noise cancellation, off and transparency after protocol confirmation |
+| Technics EAH-AZ TWS | AZ80 hardware-verified; public implementation for other models, with the reference implementation contributor-verified on AZ60, AZ80, AZ100 and others | private components after protocol confirmation | noise cancellation, off and transparency after a valid mode report; all three writes and device readback verified on AZ80 |
 | Sony | public implementation, family extrapolation and standard fallback | private aggregate, private components or Android aggregate by form factor | explicit model-specific modes listed in the detailed matrix |
 | other standard A2DP/HFP headsets | standard fallback | Android aggregate | none |
 
@@ -174,6 +175,7 @@ Android Lint and the Release build.
 - [Troubleshooting and log collection](docs/troubleshooting.md)
 - [System-module architecture](docs/system-module-architecture.md)
 - [QCY standard GATT protocol](docs/qcy-standard-gatt-protocol.md)
+- [Technics EAH-AZ / Airoha RACE protocol](docs/technics-race-protocol.md)
 - [Release signing and artifact verification](docs/release-signing.md)
 
 ## Contributing and licensing
