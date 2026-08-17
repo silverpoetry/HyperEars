@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Technics 兼容
+
+- 新增 Technics EAH-AZ TWS 家族候选 Adapter，依次尝试 Airoha 厂商 RFCOMM UUID 与标准
+  SPP UUID；名称和端点只选择候选协议，私有电量及噪声模式仍由合法 RACE 状态响应逐项开放。
+- 新增 Airoha RACE 流式解码、左右耳与充电盒电量查询，以及关闭、降噪、通透的有序写入与
+  设备回读；越界电量和非法模式响应会被拒绝。自适应、等级调节和游戏模式当前不开放。
+- 登记 Technics Audio Connect 用于“更多设置”和可选运行时退避，并记录 TechincsPods
+  固定提交来源。AZ80 已在 HyperEars 中实测组件电量及关闭、降噪、通透三态写入和设备
+  回读；自适应、等级调节和游戏模式未加入协议 API 或运行时能力。
+
 ## [2.3.2] - 2026-08-14
 
 本版修复 ROSE Ceramics Ultra（琉璃 Ultra）的模式识别与组件电量，并为未知 MiLink

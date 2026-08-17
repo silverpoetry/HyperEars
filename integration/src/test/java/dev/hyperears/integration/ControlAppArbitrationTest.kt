@@ -25,6 +25,10 @@ class ControlAppArbitrationTest {
             listOf(ControlAppCatalog.sonySoundConnect),
             SonyEarbudAdapter().controlApps,
         )
+        assertEquals(
+            listOf(ControlAppCatalog.technicsAudioConnect),
+            TechnicsEarbudAdapter().controlApps,
+        )
         assertTrue(StandardEarbudAdapter().controlApps.isEmpty())
     }
 

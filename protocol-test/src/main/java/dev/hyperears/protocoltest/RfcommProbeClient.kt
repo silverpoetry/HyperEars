@@ -200,12 +200,30 @@ internal enum class ProtocolTarget(
             ),
         ),
     ),
+    TECHNICS_RACE(
+        label = "Technics RACE",
+        endpoints = listOf(
+            RfcommEndpoint.ServiceUuid(
+                uuid = UUID.fromString("00000000-0000-0000-0099-aabbccddeeff"),
+                id = "technics-race-rfcomm",
+                label = "Technics RACE RFCOMM UUID",
+            ),
+            RfcommEndpoint.ServiceUuid(
+                uuid = STANDARD_SPP_UUID,
+                id = "standard-spp",
+                label = "标准 SPP UUID",
+            ),
+        ),
+    ),
     ;
 
     companion object {
         fun fromDevice(name: String, address: String): ProtocolTarget? {
             val normalized = name.lowercase()
+            val compactName = normalized.filter(Char::isLetterOrDigit)
             return when {
+                TECHNICS_AZ_NAME.matches(compactName) -> TECHNICS_RACE
+
                 normalized.contains("bose") ||
                     normalized.contains("quietcomfort") ||
                     address.startsWith("BC:87:FA", ignoreCase = true) -> BOSE_BMAP
@@ -231,6 +249,9 @@ internal enum class ProtocolTarget(
                 else -> null
             }
         }
+
+        private val TECHNICS_AZ_NAME =
+            Regex("^(?:technics)?(?:eah)?az\\d{2,3}[a-z0-9]*$")
     }
 }
 
