@@ -50,6 +50,8 @@ class HuaweiFreebudsPro3Adapter : StandardEarbudAdapter() {
             normalizeDeviceName(identity.deviceName.orEmpty()) in setOf(
                 "huaweifreebudspro3",
                 "freebudspro3",
+                "huaweifreebudspro4",
+                "freebudspro4",
             )
 
     override fun createProtocolSession(): ProtocolSession = HuaweiFreebudsPro3ProtocolSession()

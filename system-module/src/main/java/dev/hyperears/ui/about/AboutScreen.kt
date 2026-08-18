@@ -303,6 +303,12 @@ private val supportBrands = listOf(
                 battery = BatteryCapability.COMPONENT,
                 noiseControl = "降噪 / 关闭 / 通透",
             ),
+            SupportEntry(
+                name = "HUAWEI FreeBuds Pro 4",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
         ),
     ),
     SupportBrand(
