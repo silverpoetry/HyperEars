@@ -179,9 +179,10 @@ X5s Pro 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|
 | HUAWEI FreeBuds Pro 3（T0018 / T0018C） | 具体型号 | 实机验证 | 规范化型号精确匹配；SPP 合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透 + 降噪四档与透传两档（类型化扩展） |
+| HUAWEI FreeBuds Pro 4 | 具体型号 | 同构复用 | 与 FreeBuds Pro 3 共用协议驱动（OpenFreebuds OfbDriverHuaweiPro3）；规范化型号精确匹配 | 系统整机 → 私有组件 | 降噪、关闭、通透 + 降噪四档与透传两档（类型化扩展） |
 | 其他华为耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
-FreeBuds Pro 3 使用 RFCOMM Channel 1 建立私有通道。该通道只用于传输端点，不参与
+FreeBuds Pro 3 / Pro 4 使用 RFCOMM Channel 1 建立私有通道。该通道只用于传输端点，不参与
 品牌或型号判定。组件电量和三态模式分别在收到合法协议帧后开放；未获有效响应时保持
 系统标准回退。降噪档位（均衡/舒适/超强/动态）与透传档位（人声增强/均衡）以
 `huawei.freebuds_pro3` 类型化状态与控制接入 v2.0.0 传输架构。三态模式切换与

@@ -19,6 +19,8 @@
   Adapter 控制权声明与 LSPosed 作用域，并补充控制权与适配层级测试。
 - 实机验证通过：三态模式（降噪/关闭/通透）切换与降噪档位（均衡/舒适/超强/动态）、
   透传档位（人声增强/均衡）切换在 FreeBuds Pro 3 真机确认可执行。
+- 同构复用：FreeBuds Pro 4 与 FreeBuds Pro 3 共用协议驱动（OpenFreebuds
+  OfbDriverHuaweiPro3），通过规范化型号匹配纳入同一 Adapter，无需独立协议实现。
 
 ## [2.3.2] - 2026-08-14
 
