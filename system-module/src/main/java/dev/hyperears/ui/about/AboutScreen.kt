@@ -309,6 +309,18 @@ private val supportBrands = listOf(
                 battery = BatteryCapability.COMPONENT,
                 noiseControl = "降噪 / 关闭 / 通透",
             ),
+            SupportEntry(
+                name = "HUAWEI FreeClip 2",
+                evidence = EvidenceLevel.PUBLIC_IMPLEMENTATION,
+                battery = BatteryCapability.DEVICE,
+                noiseControl = "无（开放式耳夹）",
+            ),
+            SupportEntry(
+                name = "HUAWEI FreeBuds 4i",
+                evidence = EvidenceLevel.PUBLIC_IMPLEMENTATION,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
         ),
     ),
     SupportBrand(
