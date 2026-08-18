@@ -613,6 +613,7 @@ object EarbudAdapterRegistry {
         add(Registration(moondropGroup, ::MoondropEarbudAdapter))
         add(Registration(honorGroup, ::HonorX5sProAdapter))
         add(Registration(huaweiGroup, ::HuaweiFreebudsPro3Adapter))
+        add(Registration(huaweiGroup, ::HuaweiFreeBudsPro4Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreeClip2Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreeBuds4iAdapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))

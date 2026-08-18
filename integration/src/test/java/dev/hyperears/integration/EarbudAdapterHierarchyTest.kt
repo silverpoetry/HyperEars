@@ -37,6 +37,8 @@ class EarbudAdapterHierarchyTest {
         assertTrue(resolve("漫步者・花再 Evo Pro", standard = true) is EdifierEvoProAdapter)
         assertTrue(resolve("HUAWEI FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
         assertTrue(resolve("FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
+        assertTrue(resolve("HUAWEI FreeBuds Pro 4", standard = true) is HuaweiFreeBudsPro4Adapter)
+        assertTrue(resolve("FreeBuds Pro 4", standard = true) is HuaweiFreeBudsPro4Adapter)
         assertTrue(resolve("HUAWEI FreeClip 2", standard = true) is HuaweiFreeClip2Adapter)
         assertTrue(resolve("FreeClip 2", standard = true) is HuaweiFreeClip2Adapter)
         assertTrue(resolve("HUAWEI FreeBuds 4i", standard = true) is HuaweiFreeBuds4iAdapter)

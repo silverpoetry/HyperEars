@@ -50,8 +50,6 @@ class HuaweiFreebudsPro3Adapter : StandardEarbudAdapter() {
             normalizeDeviceName(identity.deviceName.orEmpty()) in setOf(
                 "huaweifreebudspro3",
                 "freebudspro3",
-                "huaweifreebudspro4",
-                "freebudspro4",
             )
 
     override fun createProtocolSession(): ProtocolSession = HuaweiFreebudsPro3ProtocolSession()
@@ -75,7 +73,7 @@ class HuaweiFreebudsPro3Adapter : StandardEarbudAdapter() {
  * transport, contracts and confirmed capabilities. Writes are confirmed by re-reading `2B 2A`
  * (`DEVICE_REPORT`); the device pushes no state after a write.
  */
-private class HuaweiFreebudsPro3ProtocolSession : ProtocolSession {
+internal class HuaweiFreebudsPro3ProtocolSession : ProtocolSession {
     private val decoder = HuaweiFreebudsSppCodec.Decoder()
     private var handshakePublished = false
     private var pendingNoiseRefresh = false
