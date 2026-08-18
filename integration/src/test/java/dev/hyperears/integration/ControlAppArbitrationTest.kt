@@ -33,6 +33,10 @@ class ControlAppArbitrationTest {
             listOf(ControlAppCatalog.huaweiSmartAudio),
             HuaweiFreeClip2Adapter().controlApps,
         )
+        assertEquals(
+            listOf(ControlAppCatalog.huaweiSmartAudio),
+            HuaweiFreeBuds4iAdapter().controlApps,
+        )
         assertTrue(StandardEarbudAdapter().controlApps.isEmpty())
     }
 
