@@ -21,6 +21,9 @@
   透传档位（人声增强/均衡）切换在 FreeBuds Pro 3 真机确认可执行。
 - 同构复用：FreeBuds Pro 4 与 FreeBuds Pro 3 共用协议驱动（OpenFreebuds
   OfbDriverHuaweiPro3），通过规范化型号匹配纳入同一 Adapter，无需独立协议实现。
+- 新增华为 FreeClip 2（BTFT0027）具体型号适配（证据等级：公开实现）。私有通道使用
+  RFCOMM Channel 1，仅支持电池遥测（`01 08` / `01 27`），不支持噪声模式控制
+  （开放式耳夹设计，无主动降噪）。
 
 ## [2.3.2] - 2026-08-14
 

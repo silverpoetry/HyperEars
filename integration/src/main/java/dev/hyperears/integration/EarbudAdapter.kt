@@ -613,6 +613,7 @@ object EarbudAdapterRegistry {
         add(Registration(moondropGroup, ::MoondropEarbudAdapter))
         add(Registration(honorGroup, ::HonorX5sProAdapter))
         add(Registration(huaweiGroup, ::HuaweiFreebudsPro3Adapter))
+        add(Registration(huaweiGroup, ::HuaweiFreeClip2Adapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))
         // Apple devices are handled by the platform; keep AAP code available for explicit use,
