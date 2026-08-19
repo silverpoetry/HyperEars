@@ -3,23 +3,31 @@ package dev.hyperears.integration
 import dev.hyperears.protocol.huawei.HuaweiFreebudsSppCodec
 
 /**
- * Concrete adapter for the Huawei FreeBuds 4i.
+ * Conservative family fallback adapter for unknown Huawei devices using SPP port 16.
  *
- * The FreeBuds 4i is a mid-range in-ear with basic three-mode ANC (normal / comfort / transparency)
- * and no per-mode level control. It uses SPP port 16 (not port 1 like Pro 3/4/5).
+ * This adapter catches Huawei devices that don't match any specific model adapter
+ * (4i, 5i, etc.) but use the Port 16 SPP channel. It starts with battery-only
+ * support and probes for basic ANC capabilities during handshake.
  *
- * Evidence: OpenFreebuds OfbDriverHuaweiBuds4i (_spp_service_port not set → inherits default 16).
+ * Port 16 devices typically include:
+ * - FreeBuds 4i (basic 3-mode ANC, no levels)
+ * - FreeBuds 5i
+ * - FreeLace Pro
+ * - FreeBuds SE (original)
+ *
+ * Port 16 devices generally have more limited capabilities than Port 1 devices.
+ * ANC levels are NOT assumed even if ANC mode is detected.
  */
-class HuaweiFreeBuds4iAdapter : StandardEarbudAdapter() {
+class HuaweiPort16FamilyAdapter : StandardEarbudAdapter() {
     override val id: String = ID
-    override val displayName: String = "HUAWEI FreeBuds 4i"
-    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+    override val displayName: String = "HUAWEI Port 16 (Family)"
+    override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
     override val transports: List<EarbudTransportSpec> = listOf(
         RfcommEndpointSpec.Channel(
             number = 16,
-            id = "huawei-freebuds4i-spp",
+            id = "huawei-port16-family-spp",
         ),
     )
 
@@ -33,29 +41,29 @@ class HuaweiFreeBuds4iAdapter : StandardEarbudAdapter() {
 
     override fun matches(identity: EarbudIdentity): Boolean =
         super.matches(identity) &&
-            normalizeDeviceName(identity.deviceName.orEmpty()) in setOf(
-                "huaweifreebuds4i",
-                "freebuds4i",
-            )
+            normalizeDeviceName(identity.deviceName.orEmpty()).let { name ->
+                name.startsWith("huawei") || name.startsWith("freebuds") ||
+                    name.startsWith("honor")
+            }
 
-    override fun createProtocolSession(): ProtocolSession = HuaweiFreeBuds4iProtocolSession()
+    override fun createProtocolSession(): ProtocolSession = HuaweiPort16FamilyProtocolSession()
 
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
         super.controlPolicy(request)
 
     companion object {
-        const val ID = "huawei-freebuds4i"
+        const val ID = "huawei-port16-family"
     }
 }
 
 /**
- * Session over the `5A 00` private RFCOMM SPP channel 16 for FreeBuds 4i.
+ * Conservative protocol session for Port 16 family devices.
  *
- * The FreeBuds 4i supports three noise modes (normal / comfort / transparency) but no per-mode
- * ANC levels. It follows the same protocol pattern as the Pro 3 but omits level handling.
- * Device-side `2B 03` change notifications trigger a noise-state re-query (same as Pro 3).
+ * Starts with battery-only probing. If the device responds with noise state,
+ * basic 3-mode ANC is enabled (no levels). This matches the typical Port 16
+ * device capabilities (4i, 5i, etc.).
  */
-private class HuaweiFreeBuds4iProtocolSession : ProtocolSession {
+private class HuaweiPort16FamilyProtocolSession : ProtocolSession {
     private val decoder = HuaweiFreebudsSppCodec.Decoder()
     private var handshakePublished = false
     private var pendingNoiseRefresh = false
@@ -73,7 +81,7 @@ private class HuaweiFreeBuds4iProtocolSession : ProtocolSession {
         is StandardControlRequest.SetNoiseMode -> listOf(
             HuaweiFreebudsSppCodec.noiseModeCommand(request.mode.toWireMode()),
         )
-        // SetAncLevel not supported on FreeBuds 4i (no levels)
+        // SetAncLevel not supported on Port 16 family (no levels)
         else -> emptyList()
     }
 
@@ -151,7 +159,7 @@ private class HuaweiFreeBuds4iProtocolSession : ProtocolSession {
         NoiseMode.ANC -> HuaweiFreebudsSppCodec.NoiseMode.ANC
         NoiseMode.OFF -> HuaweiFreebudsSppCodec.NoiseMode.OFF
         NoiseMode.TRANSPARENCY -> HuaweiFreebudsSppCodec.NoiseMode.TRANSPARENCY
-        NoiseMode.WIND -> error("The Huawei FreeBuds 4i protocol has no wind-noise mode")
+        NoiseMode.WIND -> error("Port 16 family protocol has no wind-noise mode")
     }
 
     private fun HuaweiFreebudsSppCodec.NoiseMode.toDomainMode(): NoiseMode = when (this) {
