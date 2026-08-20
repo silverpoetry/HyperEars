@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### ROSE Ceramics X
+
+- 根据实机 HCI Snoop 新增弱水时砂 ROSE Ceramics X（琉璃 X）伴生 BLE 适配。模块按
+  `CERAMICS X BLE` 精确关联控制端点，使用实测 ATT value handle `0x0015` 写入、`0x0017`
+  通知，以及厂商 `0x27` 查询、`0x2C` 设置、`0x28` 状态回报。
+- 协议确认后支持降噪 `0x01`、通透 `0x02`、抗风噪 `0x00` 和关闭 `0x03`；设置使用
+  Write Command，设备主动状态通知作为最终回读。未收到合法 `0x0C` 模式报告前不开放控制，
+  电量继续使用 Android 系统整机值，不推测抓包中尚未确认的私有电量字段。
+
 ## [2.3.2] - 2026-08-14
 
 本版修复 ROSE Ceramics Ultra（琉璃 Ultra）的模式识别与组件电量，并为未知 MiLink

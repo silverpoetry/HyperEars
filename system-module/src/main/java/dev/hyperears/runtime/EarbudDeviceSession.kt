@@ -524,7 +524,8 @@ internal class EarbudDeviceSession(
                 lastError = error
                 ModuleLog.debug(
                     COMPONENT,
-                    "transport ${transport.id} failed: ${error.javaClass.simpleName}",
+                    "transport ${transport.id} failed: " +
+                        "${error.javaClass.simpleName}:${error.message ?: "<no-message>"}",
                 )
             }
         }

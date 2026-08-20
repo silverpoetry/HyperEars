@@ -13,7 +13,7 @@ import dev.hyperears.integration.StandardControlRequest
 import java.lang.ref.WeakReference
 
 /**
- * Presents every protocol-confirmed four-mode Edifier dialect through MiLink's native ANC row.
+ * Presents a protocol-confirmed four-mode headset through MiLink's native ANC row.
  *
  * MiLink transports WIND through its ANC branch, so leaving the visible stock ANC item attached
  * would select ANC and WIND at the same time. Following the native-slot pattern used by the other

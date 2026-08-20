@@ -121,6 +121,7 @@ internal class ProtocolTestViewModel(application: Application) : AndroidViewMode
     private val boseDecoder = BoseBmapWireCodec.Decoder()
     private val edifierDecoder = EdifierWireCodec.Decoder()
     private val roseBudsFeelDecoder = RoseBudsFeelMk2WireCodec.Decoder()
+    private var roseBudsFeelSequence = 2
     private val mutableState = MutableStateFlow(ProtocolUiState())
     val state: StateFlow<ProtocolUiState> = mutableState.asStateFlow()
     private val logId = AtomicLong()
@@ -335,6 +336,8 @@ internal class ProtocolTestViewModel(application: Application) : AndroidViewMode
         connectionJob?.cancel()
         connectionJob = null
         activeTransport = ActiveTransport.NONE
+        roseBudsFeelDecoder.reset()
+        roseBudsFeelSequence = 2
         client.close()
         starRingGattClient.close()
         mutableState.value = mutableState.value.copy(
@@ -487,6 +490,31 @@ internal class ProtocolTestViewModel(application: Application) : AndroidViewMode
             )
             markTimeoutsLater()
         }
+    }
+
+    fun setRoseBudsFeelNoiseMode(mode: RoseBudsFeelMk2WireCodec.NoiseMode) {
+        viewModelScope.launch {
+            if (!ensureConnected()) return@launch
+            if (mutableState.value.selectedTarget != ProtocolTarget.ROSE_BUDSFEEL) return@launch
+            mutableState.value = mutableState.value.copy(noiseApiStatus = "等待设置确认")
+            send(
+                RoseBudsFeelMk2WireCodec.setNoiseMode(nextRoseBudsFeelSequence(), mode),
+                "BudsFeel 设置${mode.label()}",
+            )
+            markTimeoutsLater()
+        }
+    }
+
+    private fun nextRoseBudsFeelSequence(): Int =
+        roseBudsFeelSequence.also { roseBudsFeelSequence = (roseBudsFeelSequence + 1) and 0xFF }
+
+    private fun RoseBudsFeelMk2WireCodec.NoiseMode.label(): String = when (this) {
+        RoseBudsFeelMk2WireCodec.NoiseMode.ANC -> "降噪"
+        RoseBudsFeelMk2WireCodec.NoiseMode.OFF -> "关闭"
+        RoseBudsFeelMk2WireCodec.NoiseMode.TRANSPARENCY -> "通透"
+        RoseBudsFeelMk2WireCodec.NoiseMode.WIND -> "抗风噪"
+        RoseBudsFeelMk2WireCodec.NoiseMode.ADAPTIVE_ANC -> "自适应降噪"
+        RoseBudsFeelMk2WireCodec.NoiseMode.EXTREME_ANC -> "极致降噪"
     }
 
     fun sendRaw() {

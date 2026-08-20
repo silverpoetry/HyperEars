@@ -122,15 +122,22 @@ StarRing Ultra 使用 GATT `7777/8888` 特征，厂商 RFCOMM 为回退通道。
 | ROSESELSA EARFREE i5 | 具体型号 | 公开实现 | 规范化名称精确匹配；合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | ROSESELSA EARFREE / EARFEEL 产品线 | 产品线 | 家族外推 | 产品线名称或 GATT 服务选择候选；合法状态响应确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | Furina Endless Solo of Solitude | 具体型号 | 实机验证 | 规范化名称选择候选；BudsFeel 合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
+| ROSE Ceramics X（琉璃 X） | 具体型号 | 实机验证 | 规范化名称精确匹配 Classic 音频端点；精确名称关联 `CERAMICS X BLE` 控制端点；合法 `0x27/0x28` 模式响应确认能力 | 系统整机 | 降噪、关闭、通透、抗风噪 |
 | ROSE Ceramics Ultra（琉璃 Ultra） | 具体型号 | 实机验证 | 规范化名称选择候选；BudsFeel 扩展流中的合法电量与模式记录分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | ROSE BudsFeel MK2 | 具体型号 | 公开实现 | 规范化名称精确匹配；合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | ROSE BudsFeel 产品线 | 产品线 | 家族外推 | 产品线名称或 RFCOMM 服务选择候选；合法状态响应确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | 其他 ROSESELSA / ROSE 耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
 EARFREE / EARFEEL 使用 GATT 服务 `011bf5da`、`7777/8888` 特征；BudsFeel 使用 RFCOMM
-UUID `0cf12d31-…`。Furina Endless Solo of Solitude 复用 BudsFeel 帧格式，实机确认可独立
-上报左耳、右耳和充电盒电量。ROSE Ceramics Ultra（琉璃 Ultra）由 RoseLink 官方 App
-经同一 `0cf12d31` RFCOMM 通道控制，实机确认复用 BudsFeel 帧格式；其状态响应在首个
+UUID `0cf12d31-…`。琉璃 X 使用与 Classic 音频地址分离的 `CERAMICS X BLE` 伴生端点；
+实机 HCI Snoop 确认 ATT value handle `0x0015` 以 Write Command 写入、`0x0017` 接收通知。
+厂商 value 使用 `0x27` 查询、`0x2C` 设置和 `0x28` 状态回报，模式值分别为抗风噪
+`0x00`、降噪 `0x01`、通透 `0x02`、关闭 `0x03`。初始仅保留系统整机电量；收到合法
+`00 27/28 02 00 03 0C 01 <mode>` 报告后才开放四态控制，设置后的 `0x28` 主动通知作为
+最终状态回读。抓包尚未确认私有电量字段，因此不发布组件电量。Furina Endless Solo of
+Solitude 复用 BudsFeel 帧格式，实机确认可独立上报左耳、右耳和充电盒电量。ROSE Ceramics
+Ultra（琉璃 Ultra）由 RoseLink 官方 App 经同一 `0cf12d31` RFCOMM 通道控制，实机确认复用
+BudsFeel 帧格式；其状态响应在首个
 块之后追加无长度头的扩展 TLV 流（噪声 `09`、电量 `0C` 记录位于扩展流内），
 解码器按扩展帧路径解析。该型号还会上报自适应降噪 `0x05` 与极致降噪 `0x06`，两者统一
 投影为系统卡片的“降噪”状态；组件电量百分比位于低七位，尚未确认语义的高位不会被投影为

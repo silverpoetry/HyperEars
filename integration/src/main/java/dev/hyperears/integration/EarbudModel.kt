@@ -404,17 +404,22 @@ data class GattPeerIdentity(
 /** Adapter-owned association rule between one audio device and a companion BLE endpoint. */
 fun interface GattPeerMatcher {
     fun matches(sessionDevice: GattPeerIdentity, candidate: GattPeerIdentity): Boolean
+
+    /** Optional diagnostic label for a candidate accepted or considered by an adapter matcher. */
+    fun matchReason(sessionDevice: GattPeerIdentity, candidate: GattPeerIdentity): String? = null
 }
 
 /** Declarative BLE scan filter used only while resolving a companion control endpoint. */
 data class GattScanFilterSpec(
     val manufacturerId: Int? = null,
     val serviceUuid: String? = null,
+    val deviceName: String? = null,
 ) {
     init {
         require(manufacturerId == null || manufacturerId in 0..0xFFFF)
         require(serviceUuid == null || serviceUuid.isNotBlank())
-        require(manufacturerId != null || serviceUuid != null) {
+        require(deviceName == null || deviceName.isNotBlank())
+        require(manufacturerId != null || serviceUuid != null || deviceName != null) {
             "A companion GATT scan requires at least one stable filter"
         }
     }
@@ -447,24 +452,39 @@ sealed interface GattPeerSelection {
     }
 }
 
+enum class GattWriteMode {
+    WITH_RESPONSE,
+    WITHOUT_RESPONSE,
+}
+
 /**
  * BLE GATT transport whose characteristics carry the protocol's unmodified business frames.
  *
- * UUIDs are authoritative. Optional instance IDs pin a captured attribute table when a device
- * exposes duplicate characteristic UUIDs; runtimes still validate characteristic properties.
+ * UUIDs are authoritative when known. Instance IDs can pin a captured attribute table when a
+ * vendor omits characteristic discovery metadata; at least one identity must be present for each
+ * characteristic, and runtimes still validate characteristic properties.
  */
 data class GattTransportSpec(
     /** Optional service boundary used to disambiguate otherwise common characteristic UUIDs. */
     val serviceUuid: String? = null,
-    val writeCharacteristicUuid: String,
-    val notifyCharacteristicUuid: String,
+    val writeCharacteristicUuid: String? = null,
+    val notifyCharacteristicUuid: String? = null,
     val writeInstanceId: Int? = null,
     val notifyInstanceId: Int? = null,
+    val writeMode: GattWriteMode = GattWriteMode.WITH_RESPONSE,
     val peerSelection: GattPeerSelection = GattPeerSelection.SessionDevice,
     override val id: String,
 ) : EarbudTransportSpec {
     init {
         require(serviceUuid == null || serviceUuid.isNotBlank())
+        require(writeCharacteristicUuid?.isNotBlank() != false)
+        require(notifyCharacteristicUuid?.isNotBlank() != false)
+        require(writeCharacteristicUuid != null || writeInstanceId != null) {
+            "A GATT write characteristic requires a UUID or instance ID"
+        }
+        require(notifyCharacteristicUuid != null || notifyInstanceId != null) {
+            "A GATT notify characteristic requires a UUID or instance ID"
+        }
     }
 }
 

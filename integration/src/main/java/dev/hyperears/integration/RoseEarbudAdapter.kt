@@ -1,6 +1,7 @@
 package dev.hyperears.integration
 
 import dev.hyperears.protocol.rose.RoseBudsFeelMk2WireCodec
+import dev.hyperears.protocol.rose.RoseCeramicsXWireCodec
 import dev.hyperears.protocol.rose.RoseEarfreeI5WireCodec
 
 /** Standard Bluetooth fallback for ROSESELSA/ROSE headsets outside a known protocol family. */
@@ -114,6 +115,90 @@ class FurinaEndlessAdapter : RoseBudsFeelProtocolFamilyAdapter() {
         const val ID = "furina-endless-budsfeel"
         private val MODEL_NAMES = setOf("furinaendlesssoloofsolitude")
     }
+}
+
+class RoseLuliXAdapter : RoseEarbudAdapter() {
+    override val id: String = ID
+    override val displayName: String = "ROSE Ceramics X (Luli X)"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = PRESENTATION_ID.takeIf { effectiveCapabilities().noiseControl }
+    override val privateProtocolRequired: Boolean = true
+    override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
+    override val batterySource: BatterySource = BatterySource.SYSTEM_AGGREGATE
+    override val capabilities: EarbudCapabilities = EarbudCapabilities(
+        battery = true,
+        audioHandoff = true,
+    )
+    override val transports: List<EarbudTransportSpec> = listOf(
+        GattTransportSpec(
+            serviceUuid = SERVICE_UUID,
+            writeCharacteristicUuid = WRITE_CHARACTERISTIC_UUID,
+            notifyCharacteristicUuid = NOTIFY_CHARACTERISTIC_UUID,
+            writeInstanceId = WRITE_ATTRIBUTE_HANDLE,
+            notifyInstanceId = NOTIFY_ATTRIBUTE_HANDLE,
+            writeMode = GattWriteMode.WITHOUT_RESPONSE,
+            peerSelection = GattPeerSelection.CompanionDevice(
+                filter = GattScanFilterSpec(deviceName = COMPANION_DEVICE_NAME),
+                matcher = RoseLuliXGattPeerMatcher,
+                scanTimeoutMs = 20_000L,
+            ),
+            id = "rose-luli-x-companion-gatt",
+        ),
+    )
+
+    override fun matches(identity: EarbudIdentity): Boolean {
+        if (identity.nativeSystemEarbud) return false
+        return normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
+    }
+
+    override fun createProtocolSession(): ProtocolSession = RoseLuliXProtocolSession()
+
+    override fun onInitialProtocolUnavailable(): InitialProtocolFailureResolution =
+        InitialProtocolFailureResolution.KeepDormant
+
+    companion object {
+        const val ID = "rose-luli-x-gatt"
+        val PRESENTATION_ID = MiLinkCardPresentationId("rose-luli-x-gatt")
+        const val COMPANION_DEVICE_NAME = "CERAMICS X BLE"
+        const val COMPANION_MANUFACTURER_ID = 0x8418
+        const val SERVICE_UUID =
+            "0000fdb3-0000-1000-8000-00805f9b34fb"
+        const val WRITE_ATTRIBUTE_HANDLE = 0x0015
+        const val NOTIFY_ATTRIBUTE_HANDLE = 0x0017
+        const val WRITE_CHARACTERISTIC_UUID =
+            "0000ff16-0000-1000-8000-00805f9b34fb"
+        const val NOTIFY_CHARACTERISTIC_UUID =
+            "0000ff17-0000-1000-8000-00805f9b34fb"
+        private val MODEL_NAMES = setOf(
+            "roseceramicsx",
+            "roselulix",
+        )
+    }
+}
+
+internal object RoseLuliXGattPeerMatcher : GattPeerMatcher {
+    override fun matches(sessionDevice: GattPeerIdentity, candidate: GattPeerIdentity): Boolean =
+        matchReason(sessionDevice, candidate) != null
+
+    override fun matchReason(
+        sessionDevice: GattPeerIdentity,
+        candidate: GattPeerIdentity,
+    ): String? {
+        val sessionName = normalize(sessionDevice.deviceName)
+        if (sessionName !in setOf("roseceramicsx", "roselulix")) return null
+
+        val candidateName = normalize(candidate.deviceName)
+        return when {
+            candidateName == normalize(RoseLuliXAdapter.COMPANION_DEVICE_NAME) -> "device-name"
+            candidate.manufacturerData.containsKey(RoseLuliXAdapter.COMPANION_MANUFACTURER_ID) ->
+                "manufacturer-id"
+            else -> null
+        }
+    }
+
+    private fun normalize(value: String?): String =
+        value.orEmpty().lowercase().filter(Char::isLetterOrDigit)
 }
 
 /**
@@ -240,6 +325,58 @@ class RoseBudsFeelMk2Adapter : RoseBudsFeelProtocolFamilyAdapter() {
         const val ID = "rose-budsfeel-mk2"
         val PRESENTATION_ID = RoseBudsFeelProtocolFamilyAdapter.PRESENTATION_ID
         private val MODEL_NAMES = setOf("rosebudsfeelmk2", "budsfeelmk2")
+    }
+}
+
+private class RoseLuliXProtocolSession : ProtocolSession {
+    private var handshakePublished = false
+
+    override fun initialReadCommands(): List<ByteArray> =
+        listOf(RoseCeramicsXWireCodec.queryNoiseMode)
+
+    override fun encode(request: ControlRequest): List<ByteArray> = when {
+        request === StandardControlRequest.Refresh -> initialReadCommands()
+        request is StandardControlRequest.SetNoiseMode -> listOf(
+            RoseCeramicsXWireCodec.setNoiseMode(request.mode.toLuliXMode()),
+        )
+        else -> emptyList()
+    }
+
+    override fun readback(request: ControlRequest): List<ByteArray> = emptyList()
+
+    override fun offer(bytes: ByteArray): List<ProtocolEvent> {
+        val mode = RoseCeramicsXWireCodec.parseNoiseMode(bytes) ?: return emptyList()
+        return buildList {
+            if (!handshakePublished) {
+                add(ProtocolEvent.HandshakeAccepted)
+                handshakePublished = true
+            }
+            add(
+                ProtocolEvent.CapabilitiesIdentified(
+                    battery = false,
+                    noiseModes = NoiseMode.entries.toSet(),
+                ),
+            )
+            add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode.toDomainMode())))
+        }
+    }
+
+    override fun reset() {
+        handshakePublished = false
+    }
+
+    private fun NoiseMode.toLuliXMode(): RoseCeramicsXWireCodec.NoiseMode = when (this) {
+        NoiseMode.ANC -> RoseCeramicsXWireCodec.NoiseMode.ANC
+        NoiseMode.OFF -> RoseCeramicsXWireCodec.NoiseMode.OFF
+        NoiseMode.TRANSPARENCY -> RoseCeramicsXWireCodec.NoiseMode.TRANSPARENCY
+        NoiseMode.WIND -> RoseCeramicsXWireCodec.NoiseMode.WIND
+    }
+
+    private fun RoseCeramicsXWireCodec.NoiseMode.toDomainMode(): NoiseMode = when (this) {
+        RoseCeramicsXWireCodec.NoiseMode.ANC -> NoiseMode.ANC
+        RoseCeramicsXWireCodec.NoiseMode.OFF -> NoiseMode.OFF
+        RoseCeramicsXWireCodec.NoiseMode.TRANSPARENCY -> NoiseMode.TRANSPARENCY
+        RoseCeramicsXWireCodec.NoiseMode.WIND -> NoiseMode.WIND
     }
 }
 
