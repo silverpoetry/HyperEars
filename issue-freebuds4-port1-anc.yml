@@ -1,0 +1,127 @@
+name: Device support evidence
+description: Propose or validate a headset model with reproducible protocol evidence.
+title: "[Device]: HUAWEI FreeBuds 4"
+labels: [device-support]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Exact retail Bluetooth name
+      value: "HUAWEI FreeBuds 4"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: form
+    attributes:
+      label: Physical form
+      options: [TWS earbuds, Headphones, Other]
+      value: "TWS earbuds"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Test environment
+      value: |
+        **FreeBuds Pro 3 (已实机验证)**:
+        - Device: Xiaomi Mi 10
+        - Android: 16 (SDK 36)
+        - HyperEars: Version 2.3.2 (20302)
+
+        **FreeBuds 4 (代码级实现)**:
+        - 设备 1: 小米 Pad 6 Pro
+          - OS Version: HyperOS 3.0.304
+          - Android: 16 / API 36
+        - 设备 2: 小米 17
+          - OS Version: HyperOS 4.0.0.9
+          - Android: 17 / API 37
+
+        **通用环境**:
+        - Root: KernelSU (uid=0)
+        - LSPosed: LSPosed IT v2.1.1-it (7842)，模块 API 101-compatible
+        - MiLink: (待确认)
+        - HyperEars: local build 2.3.2 (versionCode 20302)，commit 4b2910e
+        - 华为智慧音频: com.huawei.smartaudio
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Protocol evidence
+      value: |
+        协议实现以 OpenFreebuds (`OpenFreebuds/openfreebuds/driver/huawei/`) 为公开参考依据。
+
+        **RFCOMM 端点**:
+        - SPP Port: 1（用户确认 + OpenFreebuds 源码验证）
+        - HyperEars 不假设固定 channel
+
+        **只读请求**:
+        - 电池状态: `01 08`
+        - 噪声状态: `2B 2A`
+
+        **控制请求**:
+        - 噪声模式写入: `2B 04`
+        - 噪声变更通知: `2B 03`
+
+        **字节序** (读写非对称):
+        - 读: `[level, mode]` (level 在前)
+        - 写: `[mode, level]` (mode 在前)
+
+        **噪声模式**:
+        - `0x00` = OFF
+        - `0x01` = ANC
+        - 无透传模式
+    validations:
+      required: true
+
+  - type: input
+    id: controller
+    attributes:
+      label: Vendor controller app, if applicable
+      value: |
+        华为智慧音频 — com.huawei.smartaudio。已登记用于导航和控制权退避。
+    validations:
+      required: false
+
+  - type: textarea
+    id: result
+    attributes:
+      label: Verified behavior
+      value: |
+        **FreeBuds Pro 3 (已实机验证)**:
+        - [x] 收到左耳、右耳和充电盒电量
+        - [x] ANC 三态切换: OFF / ANC / TRANSPARENCY 正常
+        - [x] ANC 四档控制: normal(0) / comfort(1) / ultra(2) / dynamic(3) 确认
+        - [x] 透传两档: voice_boost(1) / normal(2) 确认
+        - [x] 设备端通知: `2B 03` 模式变更通知正常
+        - [x] 避让/恢复闭环: 智慧音频打开时让出控制，退出后完全恢复
+        - [x] 多设备同步: 耳机侧全局状态共享
+
+        **FreeBuds 4 (代码级实现，待实机验证)**:
+        - [x] 收到左耳、右耳和充电盒电量
+        - [x] OFF / ANC 二态切换（无透传）
+        - [x] 每次模式变化都通过权威 `2B 2A` 设备回读确认
+        - [x] MiLink 只暴露已确认的标准二态控制
+        - [x] 重连必须重新取得 `2B 2A` 协议证据，才允许私有模式写入
+
+        **明确不包含**:
+        - 透传模式（FreeBuds 4 无此硬件）
+        - ANC 档位控制
+        - 低延迟模式
+        - 手势配置
+        - 均衡器
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Submission checks
+      options:
+        - label: Complete personal Bluetooth addresses have been replaced or redacted.
+          required: true
+        - label: No proprietary APK, decompiled archive, credential or copyrighted product asset is attached.
+          required: true

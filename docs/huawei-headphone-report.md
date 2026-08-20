@@ -11,7 +11,7 @@
 | 型号 | SPP 端口 | ANC 支持 | 实机验证 | 适配器 ID |
 |------|----------|----------|----------|-----------|
 | FreeBuds Pro 3 | Port 1 | 三态 + 四档 + 透传两档 | ✅ Xiaomi Mi 10, Android 16 | `huawei-freebuds-pro3` |
-| FreeBuds 4 | Port 1 | 二态（OFF/ANC），无透传 | ❌ 待验证 | `huawei-freebuds4` |
+| FreeBuds 4 | Port 1 | 二态（OFF/ANC），无透传 | ❌ 待验证 | `huawei-freebuds-4` |
 | Port 1 家族回退 | Port 1 | 动态探测 | — | `huawei-port1-family` |
 | Port 16 家族回退 | Port 16 | 基础 ANC | — | `huawei-port16-family` |
 

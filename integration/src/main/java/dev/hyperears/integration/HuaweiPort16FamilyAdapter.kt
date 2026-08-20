@@ -20,7 +20,7 @@ import dev.hyperears.protocol.huawei.HuaweiFreebudsSppCodec
  */
 class HuaweiPort16FamilyAdapter : StandardEarbudAdapter() {
     override val id: String = ID
-    override val displayName: String = "HUAWEI Port 16 (Family)"
+    override val displayName: String = "HUAWEI SPP Port 16 protocol family"
     override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE

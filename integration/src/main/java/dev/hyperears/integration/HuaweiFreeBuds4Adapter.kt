@@ -19,7 +19,7 @@ class HuaweiFreeBuds4Adapter : StandardEarbudAdapter() {
     override val transports: List<EarbudTransportSpec> = listOf(
         RfcommEndpointSpec.Channel(
             number = 1,
-            id = "huawei-freebuds4-spp",
+            id = "huawei-freebuds-4-spp",
         ),
     )
 
@@ -44,7 +44,7 @@ class HuaweiFreeBuds4Adapter : StandardEarbudAdapter() {
         super.controlPolicy(request)
 
     companion object {
-        const val ID = "huawei-freebuds4"
+        const val ID = "huawei-freebuds-4"
     }
 }
 
