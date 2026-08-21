@@ -144,7 +144,10 @@ class MoondropPuddingWireCodecTest {
             opcode = 0x01,
             parameters = byteArrayOf(1, 0, 2, 0xFF.toByte(), 3, 88),
         )
-        assertNull(MoondropPuddingWireCodec.parseBattery(decoder.offer(bothUnreadable).single()))
+        assertEquals(
+            MoondropPuddingWireCodec.BatteryState(null, null, casePercent = 88),
+            MoondropPuddingWireCodec.parseBattery(decoder.offer(bothUnreadable).single()),
+        )
     }
 
     @Test

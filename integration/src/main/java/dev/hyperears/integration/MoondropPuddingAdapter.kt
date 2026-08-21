@@ -7,11 +7,12 @@ import dev.hyperears.protocol.moondrop.MoondropPuddingWireCodec
  *
  * Handshake, frame layout and noise-mode encoding match MOONDROP Robin: the same
  * `0A 03 00` handshake command and `0A 83 00 00 04 03 01` confirmation, and a
- * `1D 40/41 03/04` noise-mode query/write pair. Pudding has no verified private
- * battery protocol in this implementation, so battery stays on Android's system
- * aggregate while noise control is confirmed strictly through the handshake.
+ * `1D 40/41 03/04` noise-mode query/write pair. Private component battery and
+ * noise control are exposed only after their corresponding valid responses.
  */
 class MoondropPuddingAdapter : MoondropEarbudAdapter() {
+    private var batteryBootstrapAttempt = 0
+    private var privateBatteryCommitted = false
     private var expectedNoiseMode: NoiseMode? = null
     private var noiseModeAttempt = 0
 
@@ -43,27 +44,34 @@ class MoondropPuddingAdapter : MoondropEarbudAdapter() {
 
     override fun createProtocolSession(): ProtocolSession = MoondropPuddingProtocolSession()
 
-    /**
-     * Pudding ignores noise-mode writes while only one bud is worn (the other side reports
-     * unreadable battery). The gate reads live per-bud availability, so the switch opens
-     * automatically once both buds report a value. Both-unknown and system-aggregate states
-     * never trigger it (left and right share the same value there).
-     */
-    override val controlRequestContract: ControlRequestContract =
-        ControlRequestContract { adapter, request ->
-            val singleBudWorn = request is StandardControlRequest.SetNoiseMode &&
-                adapter.runtimeState().battery.left.available !=
-                adapter.runtimeState().battery.right.available
-            if (singleBudWorn) false
-            else StandardControlRequestContract.supports(adapter, request)
-        }
-
     override fun onFeatureReported(
         state: DeviceFeatureState,
         scope: AdapterEventScope,
     ): FeatureReportDecision = when (state) {
+        is BatteryFeatureState -> handleBatteryReport(state, scope)
         is NoiseModeFeatureState -> handleNoiseModeReport(state, scope)
         else -> FeatureReportDecision.ACCEPT
+    }
+
+    private fun handleBatteryReport(
+        state: BatteryFeatureState,
+        scope: AdapterEventScope,
+    ): FeatureReportDecision {
+        if (privateBatteryCommitted) return FeatureReportDecision.ACCEPT
+
+        val battery = state.battery
+        val provisional = battery.left.percent == null || battery.right.percent == null
+        if (!provisional || batteryBootstrapAttempt >= BATTERY_BOOTSTRAP_DELAYS_MS.size) {
+            privateBatteryCommitted = true
+            scope.cancelStateRequest(BatteryFeatureState.FEATURE_ID)
+            return FeatureReportDecision.ACCEPT
+        }
+
+        scope.requestState(
+            BatteryFeatureState.FEATURE_ID,
+            BATTERY_BOOTSTRAP_DELAYS_MS[batteryBootstrapAttempt++],
+        )
+        return FeatureReportDecision.HOLD
     }
 
     private fun handleNoiseModeReport(
@@ -98,6 +106,8 @@ class MoondropPuddingAdapter : MoondropEarbudAdapter() {
     }
 
     override fun onProtocolReset() {
+        batteryBootstrapAttempt = 0
+        privateBatteryCommitted = false
         expectedNoiseMode = null
         noiseModeAttempt = 0
     }
@@ -121,6 +131,7 @@ class MoondropPuddingAdapter : MoondropEarbudAdapter() {
         const val ID = "moondrop-pudding"
         const val STANDARD_SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb"
         internal const val INITIAL_MODE_QUERY_DELAY_MS = 600L
+        internal val BATTERY_BOOTSTRAP_DELAYS_MS = longArrayOf(500L, 800L, 1_200L, 1_600L)
         internal val MODE_CONFIRMATION_DELAYS_MS = longArrayOf(500L, 700L, 900L, 1_200L)
 
         private val EXACT_NAMES = setOf(
@@ -132,6 +143,7 @@ class MoondropPuddingAdapter : MoondropEarbudAdapter() {
 internal class MoondropPuddingProtocolSession : ProtocolSession {
     private val decoder = MoondropPuddingWireCodec.Decoder()
     private var handshakeAccepted = false
+    private var battery = EarbudBattery()
 
     override fun initialReadCommands(): List<ByteArray> =
         listOf(MoondropPuddingWireCodec.handshake)
@@ -171,16 +183,12 @@ internal class MoondropPuddingProtocolSession : ProtocolSession {
             }
 
             MoondropPuddingWireCodec.parseBattery(frame)?.let { battery ->
+                this@MoondropPuddingProtocolSession.battery =
+                    this@MoondropPuddingProtocolSession.battery.merge(battery)
                 add(ProtocolEvent.CapabilitiesIdentified(battery = true))
                 add(
                     ProtocolEvent.FeatureStateChanged(
-                        BatteryFeatureState(
-                            EarbudBattery(
-                                left = BatteryReading(battery.leftPercent, charging = false),
-                                right = BatteryReading(battery.rightPercent, charging = false),
-                                case = BatteryReading(battery.casePercent, charging = false),
-                            ),
-                        ),
+                        BatteryFeatureState(this@MoondropPuddingProtocolSession.battery),
                     ),
                 )
             }
@@ -216,7 +224,16 @@ internal class MoondropPuddingProtocolSession : ProtocolSession {
     override fun reset() {
         decoder.reset()
         handshakeAccepted = false
+        battery = EarbudBattery()
     }
+
+    private fun EarbudBattery.merge(
+        report: MoondropPuddingWireCodec.BatteryState,
+    ): EarbudBattery = copy(
+        left = report.leftPercent?.let { BatteryReading(it, charging = false) } ?: left,
+        right = report.rightPercent?.let { BatteryReading(it, charging = false) } ?: right,
+        case = report.casePercent?.let { BatteryReading(it, charging = false) } ?: case,
+    )
 
     private fun telemetryQueries(): List<ByteArray> = listOf(
         MoondropPuddingWireCodec.queryBattery,

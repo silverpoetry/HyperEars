@@ -128,9 +128,9 @@ class MoondropPuddingAdapterTest {
     }
 
     @Test
-    fun unreadableBudValueKeepsThatSideUnknownWithoutDroppingTheFrame() {
+    fun splitBatteryReportsAreMergedBeforePrivateBatteryIsCommitted() {
         val adapter = readyAdapter()
-        adapter.receive(
+        val first = adapter.receive(
             MoondropPuddingWireCodec.frame(
                 command = 0x1D,
                 subcommand = 0x1B,
@@ -139,9 +139,34 @@ class MoondropPuddingAdapterTest {
             ),
         )
 
-        assertNull(adapter.runtimeState().battery.left.percent)
+        assertFalse(first.stateChanged)
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        assertEquals(
+            AdapterEffect.RequestState(
+                BatteryFeatureState.FEATURE_ID,
+                MoondropPuddingAdapter.BATTERY_BOOTSTRAP_DELAYS_MS.first(),
+            ),
+            first.effects.single(),
+        )
+
+        val second = adapter.receive(
+            MoondropPuddingWireCodec.frame(
+                command = 0x1D,
+                subcommand = 0x81,
+                opcode = 0x01,
+                parameters = byteArrayOf(1, 91, 2, 0, 3, 0xFF.toByte()),
+            ),
+        )
+
+        assertTrue(second.stateChanged)
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        assertEquals(91, adapter.runtimeState().battery.left.percent)
         assertEquals(92, adapter.runtimeState().battery.right.percent)
         assertEquals(88, adapter.runtimeState().battery.case.percent)
+        assertEquals(
+            AdapterEffect.CancelStateRequest(BatteryFeatureState.FEATURE_ID),
+            second.effects.single(),
+        )
     }
 
     @Test
@@ -178,7 +203,7 @@ class MoondropPuddingAdapterTest {
     }
 
     @Test
-    fun singleBudWearRejectsNoiseModeSwitches() {
+    fun partialBatteryDoesNotInventANoiseControlGate() {
         val adapter = readyAdapterWithNoiseMode(NoiseMode.ANC)
         adapter.receive(
             MoondropPuddingWireCodec.frame(
@@ -188,41 +213,10 @@ class MoondropPuddingAdapterTest {
                 parameters = byteArrayOf(1, 0, 2, 92, 3, 88),
             ),
         )
-        assertNull(adapter.runtimeState().battery.left.percent)
-        assertEquals(92, adapter.runtimeState().battery.right.percent)
-
-        assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
-        val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
-        assertFalse(result.accepted)
-        assertTrue(result.commands.isEmpty())
-    }
-
-    @Test
-    fun bothBudsBackReopensNoiseModeSwitches() {
-        val adapter = readyAdapterWithNoiseMode(NoiseMode.ANC)
-        adapter.receive(
-            MoondropPuddingWireCodec.frame(
-                command = 0x1D,
-                subcommand = 0x1B,
-                opcode = 0x01,
-                parameters = byteArrayOf(1, 0, 2, 92, 3, 88),
-            ),
-        )
-        assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
-
-        adapter.receive(
-            MoondropPuddingWireCodec.frame(
-                command = 0x1D,
-                subcommand = 0x1B,
-                opcode = 0x01,
-                parameters = byteArrayOf(1, 91, 2, 92, 3, 88),
-            ),
-        )
-
         assertTrue(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
-        assertTrue(
-            adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).accepted,
-        )
+        val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+        assertTrue(result.accepted)
+        assertTrue(result.commands.isNotEmpty())
     }
 
     @Test
