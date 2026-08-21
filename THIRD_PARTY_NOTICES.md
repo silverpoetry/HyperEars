@@ -161,6 +161,19 @@ Gadgetbridge 的 AGPL 程序代码，也不分发 SonyHeadphonesClient、厂商�
 不分发 QCYpods 的应用、界面、图片、品牌资源或构建产物。上游许可证状态按固定提交如实
 记录，具体条款以其仓库声明为准。
 
+## TechincsPods / Technics RACE research
+
+- MartinKayJr/TechincsPods:
+  <https://github.com/MartinKayJr/TechincsPods/tree/a378106659d4a90ed7ac28a4ac94d592bebbec85>
+- Reviewed revision: `a378106659d4a90ed7ac28a4ac94d592bebbec85`
+- Declared license: GPL-3.0（仓库 README 声明；该固定提交未包含独立的许可证文件）
+
+用于核对 Technics EAH-AZ TWS 的 Airoha RACE 帧、RFCOMM UUID、组件电量查询和噪声模式
+写入序列。协议事实以固定提交的当前代码为准，不采用其 README 中英文功能说明或旧协议笔记
+作为当前行为证据。HyperEars 只在自身 WireCodec、ProtocolSession 与 Adapter 边界内实现
+MiLink 所需子集，不分发 TechincsPods 的应用、界面、图片、APK、抓包或厂商品牌资源。
+上游许可证状态按固定提交如实记录，具体条款以其仓库声明为准。
+
 ## Android and LSPosed APIs
 
 - Android Open Source Project: <https://source.android.com/>
