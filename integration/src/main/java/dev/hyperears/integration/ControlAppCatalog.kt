@@ -67,6 +67,11 @@ object ControlAppCatalog {
         displayName = "QCY",
     )
 
+    val moondrop = ControlAppSpec(
+        packageName = "com.moondroplab.moondrop.moondrop_app",
+        displayName = "MOONDROP",
+    )
+
     val all: List<ControlAppSpec> = listOf(
         vivoEarphones,
         heyMelody,
@@ -80,6 +85,7 @@ object ControlAppCatalog {
         yuanDao,
         sonySoundConnect,
         qcy,
+        moondrop,
     )
 
     private val byPackage = all.associateBy(ControlAppSpec::packageName)

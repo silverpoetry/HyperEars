@@ -55,7 +55,7 @@ private enum class EvidenceLevel(val label: String) {
     PUBLIC_IMPLEMENTATION("公开实现"),
     REFERENCE_PROTOCOL("参考协议"),
     FAMILY_PROBE("家族探测"),
-    STANDARD_FALLBACK("标准适配"),
+    STANDARD_FALLBACK("标准回退"),
 }
 
 private enum class BatteryCapability(val label: String) {
@@ -273,6 +273,12 @@ private val supportBrands = listOf(
                 name = "Robin / 知更鸟",
                 evidence = EvidenceLevel.PUBLIC_IMPLEMENTATION,
                 battery = BatteryCapability.LEFT_RIGHT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
+            SupportEntry(
+                name = "Pudding",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
                 noiseControl = "降噪 / 关闭 / 通透",
             ),
             SupportEntry(
