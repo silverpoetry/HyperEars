@@ -204,16 +204,28 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         (value * resources.displayMetrics.density).toInt()
 
     private fun resolveNativeAncCard(root: View): NativeAncCard? {
+        // Some MiLink builds keep the legacy ANC views as hidden compatibility placeholders
+        // while rendering the select-card generation. Resolve both stable contracts and bind only
+        // to the one that is actually presented; otherwise moving the legacy title also hides the
+        // wind-noise accessory. Prefer the newer contract when both are visible.
+        return listOfNotNull(
+            resolveSelectAncCard(root),
+            resolveOriginalAncCard(root),
+        ).firstOrNull(NativeAncCard::isPresented)
+    }
+
+    private fun resolveOriginalAncCard(root: View): NativeAncCard? {
         val originalTitle = root.findMiLinkView(ORIGINAL_ANC_CARD_TITLE_ID) as? TextView
         val originalCard = root.findMiLinkView(ORIGINAL_ANC_CARD_ID)
-        if (originalTitle != null && originalCard != null) {
-            return NativeAncCard(
-                generation = NativeAncCardGeneration.ORIGINAL,
-                title = originalTitle,
-                container = originalCard,
-            )
-        }
+        if (originalTitle == null || originalCard == null) return null
+        return NativeAncCard(
+            generation = NativeAncCardGeneration.ORIGINAL,
+            title = originalTitle,
+            container = originalCard,
+        )
+    }
 
+    private fun resolveSelectAncCard(root: View): NativeAncCard? {
         val selectTitle = root.findMiLinkView(SELECT_ANC_CARD_TITLE_ID) as? TextView ?: return null
         val selectCard = root.findMiLinkView(SELECT_ANC_CARD_ID) as? LinearLayout ?: return null
         if (selectCard.javaClass.name != SELECT_ANC_CARD_CLASS) return null
@@ -235,7 +247,9 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         val generation: NativeAncCardGeneration,
         val title: TextView,
         val container: View,
-    )
+    ) {
+        fun isPresented(): Boolean = title.isShown && container.isShown
+    }
 
     private enum class NativeAncCardGeneration(val logName: String) {
         ORIGINAL("original"),
