@@ -620,6 +620,7 @@ object EarbudAdapterRegistry {
         add(Registration(edifierGroup, ::EdifierHeadphonesAdapter))
         add(Registration(edifierGroup, ::EdifierEarbudAdapter))
         add(Registration(roseGroup, ::FurinaEndlessAdapter))
+        add(Registration(roseGroup, ::RoseLuliXAdapter))
         add(Registration(roseGroup, ::RoseLuliUltraAdapter))
         add(Registration(roseGroup, ::RoseEarfreeI5Adapter))
         add(Registration(roseGroup, ::RoseEarfreeProtocolFamilyAdapter))
