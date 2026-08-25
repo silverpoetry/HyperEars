@@ -1,5 +1,6 @@
 package dev.hyperears.integration
 
+import dev.hyperears.protocol.edifier.EdifierV1WireCodec
 import dev.hyperears.protocol.edifier.EdifierWireCodec
 import dev.hyperears.protocol.huawei.HuaweiFreebudsSppCodec
 import dev.hyperears.protocol.oppo.OppoWireCodec
@@ -36,6 +37,7 @@ class EarbudAdapterHierarchyTest {
         assertTrue(resolve("OPPO Enco Buds2", standard = true) is OppoEarbudAdapter)
         assertTrue(resolve("漫步者・花再 Evo Pro", standard = true) is EdifierEvoProAdapter)
         assertTrue(resolve("EDIFIER FitClip Ultra", standard = true) is EdifierFitClipUltraAdapter)
+        assertTrue(resolve("EDIFIER W820NB 双金标版", standard = true) is EdifierW820NBDoubleGoldAdapter)
         assertTrue(resolve("HUAWEI FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
         assertTrue(resolve("FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
         assertTrue(resolve("HUAWEI FreeBuds 4", standard = true) is HuaweiFreeBuds4Adapter)
@@ -47,6 +49,77 @@ class EarbudAdapterHierarchyTest {
     fun fitClipUltraMatchingDoesNotClaimOtherFitClipModels() {
         assertTrue(resolve("FitClip Ultra", standard = true) is EdifierFitClipUltraAdapter)
         assertTrue(resolve("EDIFIER FitClip 2", standard = true) is EdifierEarbudAdapter)
+    }
+
+    @Test
+    fun w820nbDoubleGoldMatchingDoesNotClaimPlainW820Nb() {
+        assertTrue(
+            resolve("EDIFIER W820NB 双金标版", standard = true) is EdifierW820NBDoubleGoldAdapter,
+        )
+        assertTrue(
+            resolve("郭某人的 W820NB 双金标", standard = true) is EdifierW820NBDoubleGoldAdapter,
+        )
+        assertTrue(resolve("EDIFIER W820NB", standard = true) is EdifierHeadphonesAdapter)
+    }
+
+    @Test
+    fun w820nbDoubleGoldUsesV1FramingAndOpensBatteryAndAnc() {
+        val adapter = EdifierW820NBDoubleGoldAdapter()
+
+        assertEquals(AdapterResolution.EXACT_MATCH, adapter.snapshot().resolution)
+        assertEquals(
+            listOf(
+                EdifierV1WireCodec.queryBattery.toList(),
+                EdifierV1WireCodec.queryAnc.toList(),
+                EdifierV1WireCodec.queryGameState.toList(),
+                EdifierV1WireCodec.queryFunction.toList(),
+            ),
+            adapter.beginHandshake().commands.map(ByteArray::toList),
+        )
+
+        val battery = adapter.receive(hex("BB 02 D0 35 21 DB"))
+        assertEquals(HandshakeResult.Ready, battery.handshake)
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        assertEquals(53, adapter.runtimeState().battery.overall.percent)
+
+        val anc = adapter.receive(hex("BB 03 CC 02 06 21 AB"))
+        assertTrue(adapter.snapshot().capabilities.noiseControl)
+        assertFalse(adapter.snapshot().capabilities.windNoiseControl)
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+        assertTrue(
+            adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).accepted,
+        )
+        assertTrue(
+            adapter.executeControl(
+                StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY),
+            ).accepted,
+        )
+        assertFalse(
+            adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.WIND)).accepted,
+        )
+    }
+
+    @Test
+    fun w820nbDoubleGoldGameModeOpensOnlyAfterEvidence() {
+        val adapter = EdifierW820NBDoubleGoldAdapter()
+
+        // Game-mode writes are refused before the first valid game-state report.
+        val pre = adapter.executeControl(EdifierControlRequest.SetGameMode(enabled = true))
+        assertFalse(pre.accepted)
+
+        val game = adapter.receive(hex("BB 02 08 00 20 DE"))
+        assertEquals(HandshakeResult.Ready, game.handshake)
+        assertEquals(false, adapter.runtimeState().features.get<GameModeFeatureState>()?.enabled)
+
+        val write = adapter.executeControl(EdifierControlRequest.SetGameMode(enabled = true))
+        assertTrue(write.accepted)
+        assertEquals(
+            listOf(EdifierV1WireCodec.setGameState(true).toList()),
+            write.commands.map(ByteArray::toList),
+        )
+        // Set echo confirms the authoritative state.
+        adapter.receive(hex("BB 02 09 01 20 E0"))
+        assertEquals(true, adapter.runtimeState().features.get<GameModeFeatureState>()?.enabled)
     }
 
     @Test

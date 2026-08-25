@@ -146,6 +146,45 @@ AA EC C1 00 02 BE A1 B8
                  └─ plaintext 1B 04
 ```
 
+## W820NB 双金标版 V1 dialect (confirmed live)
+
+W820NB 双金标版 verified through a live Edifier Connect v8.4.48 RFCOMM session (2026-08-24). It
+does **not** use the BES v2 framing above; it speaks the V1 (bleVersion=1) family framing:
+
+```text
+Send:    [0xAA][LEN][CMD_INDEX][PAYLOAD...][CRC_H][CRC_L]
+Receive: [0xBB][LEN][CMD_INDEX][PAYLOAD...][CRC_H][CRC_L]   (older firmware replies 0xCC)
+```
+
+- **LEN** = payload.size + 1 (the command byte is counted). No XOR encryption.
+- **CRC16** = `8217 + Σ(all preceding bytes)`, big-endian 2 bytes. Verified:
+  `AA 01 D0 21 94` → 8217+AA+01+D0 = 0x2194 ✓; `BB 02 D0 35 21 DB` → 8217+BB+02+D0+35 = 0x21DB ✓.
+- Payloads are plaintext; response `payload[0]` carries the value directly.
+
+| Command | Index (hex) | Example / notes |
+|---------|-------------|-----------------|
+| battery_query | 0xD0 | `AA 01 D0 21 94` → `BB 02 D0 35 21 DB`, payload `0x35` = 53% |
+| anc_query | 0xCC | `AA 01 CC 21 90` → `BB 03 CC 02 06 21 AB`, payload `[mode][level]` |
+| anc_set | 0xC1 | `AA 02 C1 02 21 88` (mode only) or `AA 03 C1 03 06 21 90` (mode + level) |
+| device_function_query | 0xD8 | `AA 01 D8 21 9C` → 21-byte capabilities payload |
+| version_query | 0xC6 | `AA 01 C6 21 8A` → `BB 04 C6 03 00 04 21 A5` (version 3.0.4) |
+| name_query | 0xC9 | `AA 01 C9 21 8D` → UTF-8 name payload |
+| a2dp_state_query | 0xC3 | device pushes `BB 02 C3 03 21 9C` (payload 0x03) |
+| phone_audio_codec_query | 0x68 | device pushes `BB 02 68 04 21 42` (payload 0x04) |
+| game_state_query | 0x08 | `AA 01 08 20 CC` → `BB 02 08 00 20 DE`, payload `0`=off / `1`=on |
+| game_state_set | 0x09 | `AA 02 09 01 20 CF` (on) / `AA 02 09 00 20 CE` (off) → echo `BB 02 09 01 20 E0` |
+
+Verified ANC dialect (mode values reported by `0xCC` and accepted by `0xC1`):
+
+| mode | 中文 | HyperEars projection |
+|------|------|----------------------|
+| 1 | 标准 | OFF |
+| 2 | 降噪 | ANC |
+| 3 | 通透（第二字节为通透度档位） | TRANSPARENCY |
+
+The device has no separate "关闭" mode; 标准 (mode 1) is the passive state and projects to OFF.
+ANC writes execute immediately and the device echoes `[mode][level]`.
+
 ## Other Key Commands (confirmed live)
 
 | Command | Index (hex) | Direction | Notes |

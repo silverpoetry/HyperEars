@@ -1,5 +1,6 @@
 package dev.hyperears.integration
 
+import dev.hyperears.protocol.edifier.EdifierV1WireCodec
 import dev.hyperears.protocol.edifier.EdifierWireCodec
 
 /**
@@ -209,8 +210,51 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
     }
 }
 
+/**
+ * Concrete model adapter for Edifier W820NB 双金标版 (Double Gold Label).
+ *
+ * Verified on real hardware (Edifier Connect v8.4.48 live RFCOMM capture). The device speaks the
+ * V1 (bleVersion=1) BES framing — `[0xAA][LEN][CMD][PAYLOAD][CRC16]` with the 8217-seeded 16-bit
+ * checksum and no payload encryption — instead of the BES v2 framing used by the rest of the
+ * family. Battery is reported by `0xD0` as a single plaintext percent byte; ANC state by `0xCC`
+ * as `[mode][level]`; ANC writes by `0xC1` as `[mode]` or `[mode][level]`.
+ *
+ * Verified ANC dialect: 1=标准(off), 2=降噪(ANC), 3=通透(transparency, adjustable level).
+ */
+class EdifierW820NBDoubleGoldAdapter : EdifierHeadphonesAdapter() {
+    override val id: String = ID
+    override val displayName: String = "Edifier W820NB 双金标版"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+    override val controlRequestContract: ControlRequestContract =
+        StandardControlRequestContract.extending { adapter, request ->
+            request is EdifierControlRequest.SetGameMode &&
+                adapter.runtimeState().features.get<GameModeFeatureState>() != null
+        }
+    override val featureStateContract: DeviceFeatureStateContract =
+        StandardDeviceFeatureStateContract.extending { _, state ->
+            state is GameModeFeatureState
+        }
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = EdifierMiLinkPresentationIds.W820NB.takeIf {
+            effectiveCapabilities().noiseControl
+        }
+
+    override fun createProtocolSession(): ProtocolSession = EdifierV1ProtocolSession()
+
+    override fun matches(identity: EarbudIdentity): Boolean {
+        if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
+        val name = normalizeDeviceName(identity.deviceName.orEmpty())
+        return "w820nb" in name && "双金标" in name
+    }
+
+    companion object {
+        const val ID = "edifier-w820nb-double-gold"
+    }
+}
+
 object EdifierMiLinkPresentationIds {
     val FOUR_MODE = MiLinkCardPresentationId("edifier-four-mode")
+    val W820NB = MiLinkCardPresentationId("edifier-w820nb-double-gold")
 }
 
 enum class EdifierBatteryQuery(val commandIndex: Int) {
@@ -437,5 +481,127 @@ private class EdifierProtocolSession(
                 EdifierBatteryQuery.BATTERY -> EdifierWireCodec.queryBattery
                 EdifierBatteryQuery.DEVICE_STATE -> EdifierWireCodec.queryDeviceState
             }
+    }
+}
+
+/**
+ * W820NB 双金标版 V1 protocol state machine.
+ *
+ * Uses the V1 (bleVersion=1) BES framing: no encryption, `[header][len][cmd][payload][crc16]`
+ * with CRC16 = (8217 + byte sum) big-endian. Battery opens from a valid `0xD0` response, noise
+ * modes from a valid `0xCC` response; `0xD8` confirms the BES transport only.
+ */
+private class EdifierV1ProtocolSession : ProtocolSession {
+    private val decoder = EdifierV1WireCodec.Decoder()
+    private var handshakePublished = false
+
+    override fun initialReadCommands(): List<ByteArray> = listOf(
+        EdifierV1WireCodec.queryBattery,
+        EdifierV1WireCodec.queryAnc,
+        EdifierV1WireCodec.queryGameState,
+        EdifierV1WireCodec.queryFunction,
+    )
+
+    override fun encode(request: ControlRequest): List<ByteArray> = when (request) {
+        StandardControlRequest.Refresh -> listOf(
+            EdifierV1WireCodec.queryBattery,
+            EdifierV1WireCodec.queryAnc,
+            EdifierV1WireCodec.queryGameState,
+        )
+
+        is StandardControlRequest.SetNoiseMode -> {
+            val value = when (request.mode) {
+                NoiseMode.OFF -> EdifierV1WireCodec.ANC_MODE_STANDARD
+                NoiseMode.ANC -> EdifierV1WireCodec.ANC_MODE_NOISE_CANCELLATION
+                NoiseMode.TRANSPARENCY -> EdifierV1WireCodec.ANC_MODE_TRANSPARENCY
+                else -> null
+            }
+            if (value != null) {
+                listOf(EdifierV1WireCodec.setAnc(value))
+            } else {
+                emptyList()
+            }
+        }
+
+        is EdifierControlRequest.SetGameMode ->
+            listOf(EdifierV1WireCodec.setGameState(request.enabled))
+
+        else -> emptyList()
+    }
+
+    override fun readback(request: ControlRequest): List<ByteArray> = emptyList()
+
+    override fun offer(bytes: ByteArray): List<ProtocolEvent> = buildList {
+        decoder.offer(bytes).forEach { frame ->
+            EdifierV1WireCodec.parseBatteryState(frame)?.let { percent ->
+                add(ProtocolEvent.CapabilitiesIdentified(battery = true))
+                add(
+                    ProtocolEvent.FeatureStateChanged(
+                        BatteryFeatureState(
+                            EarbudBattery(
+                                overall = BatteryReading(percent, charging = false),
+                            ),
+                        ),
+                    ),
+                )
+                publishHandshakeIfNeeded()
+                return@forEach
+            }
+
+            EdifierV1WireCodec.parseAncState(frame)?.let { anc ->
+                val mode = when (anc.mode) {
+                    EdifierV1WireCodec.ANC_MODE_STANDARD -> NoiseMode.OFF
+                    EdifierV1WireCodec.ANC_MODE_NOISE_CANCELLATION -> NoiseMode.ANC
+                    EdifierV1WireCodec.ANC_MODE_TRANSPARENCY -> NoiseMode.TRANSPARENCY
+                    else -> null
+                }
+                if (mode != null) {
+                    add(
+                        ProtocolEvent.CapabilitiesIdentified(
+                            battery = false,
+                            noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+                        ),
+                    )
+                    add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode)))
+                }
+                publishHandshakeIfNeeded()
+                return@forEach
+            }
+
+            EdifierV1WireCodec.parseGameState(frame)?.let { enabled ->
+                add(ProtocolEvent.FeatureStateChanged(GameModeFeatureState(enabled)))
+                publishHandshakeIfNeeded()
+                return@forEach
+            }
+
+            // Function query response (D8) — proves the BES transport only.
+            if (
+                frame.commandIndex == EdifierV1WireCodec.CMD_FUNCTION_QUERY &&
+                EdifierV1WireCodec.isProtocolResponse(frame)
+            ) {
+                publishHandshakeIfNeeded()
+                return@forEach
+            }
+
+            add(
+                ProtocolEvent.UnknownFrame(
+                    version = 0,
+                    vendor = 0,
+                    command = frame.commandIndex,
+                    payloadSize = frame.payload.size,
+                ),
+            )
+        }
+    }
+
+    override fun reset() {
+        decoder.reset()
+        handshakePublished = false
+    }
+
+    private fun MutableList<ProtocolEvent>.publishHandshakeIfNeeded() {
+        if (handshakePublished) return
+        handshakePublished = true
+        add(ProtocolEvent.HandshakeAccepted)
     }
 }
