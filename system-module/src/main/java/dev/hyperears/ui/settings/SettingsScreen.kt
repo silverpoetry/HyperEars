@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -31,7 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -58,11 +55,7 @@ import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.MoreSettingsTarget
 import dev.hyperears.ui.components.HyperEarsPage
 import dev.hyperears.ui.components.rememberSwitchHaptics
-
-enum class SettingsDestination {
-    ADAPTERS,
-    DEBUG,
-}
+import dev.hyperears.ui.theme.UiStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,13 +64,14 @@ fun SettingsScreen(
     autoCheckUpdates: Boolean,
     rootAvailable: Boolean?,
     rootActionState: RootActionState,
+    uiStyle: UiStyle,
     onSettingsChanged: (ModuleSettings) -> Unit,
     onAutoCheckUpdatesChanged: (Boolean) -> Unit,
+    onUiStyleChanged: (UiStyle) -> Unit,
     onRunRootAction: (RootAction) -> Unit,
     onOpenDebug: () -> Unit,
 ) {
     HyperEarsPage(title = "设置") { pagePadding, scrollBehavior ->
-        var pendingRootAction by remember { mutableStateOf<RootAction?>(null) }
         val listState = rememberLazyListState()
 
         LazyColumn(
@@ -94,7 +88,10 @@ fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item(key = "preferences") {
+            item(key = "module-header") {
+                PreferenceSectionTitle("模块")
+            }
+            item(key = "module-preferences") {
                 SettingsGroupCard {
                     TogglePreference(
                         title = "暂停模块",
@@ -105,19 +102,30 @@ fun SettingsScreen(
                         },
                     )
                     PreferenceDivider()
-                    MoreSettingsTargetPreference(
-                        selected = settings.moreSettingsTarget,
-                        onSelected = { target ->
-                            onSettingsChanged(settings.copy(moreSettingsTarget = target))
-                        },
-                    )
-                    PreferenceDivider()
                     TogglePreference(
                         title = "运行时退避",
                         detail = "厂商控制 App 运行时自动让出耳机私有控制通道，需勾选对应作用域。",
                         checked = settings.yieldToVendorControlApp,
                         onCheckedChange = {
                             onSettingsChanged(settings.copy(yieldToVendorControlApp = it))
+                        },
+                    )
+                }
+            }
+            item(key = "application-header") {
+                PreferenceSectionTitle("界面与行为")
+            }
+            item(key = "application-preferences") {
+                SettingsGroupCard {
+                    UiStylePreference(
+                        selected = uiStyle,
+                        onSelected = onUiStyleChanged,
+                    )
+                    PreferenceDivider()
+                    MoreSettingsTargetPreference(
+                        selected = settings.moreSettingsTarget,
+                        onSelected = { target ->
+                            onSettingsChanged(settings.copy(moreSettingsTarget = target))
                         },
                     )
                     PreferenceDivider()
@@ -134,6 +142,9 @@ fun SettingsScreen(
                         onClick = onOpenDebug,
                     )
                 }
+            }
+            item(key = "quick-actions-header") {
+                PreferenceSectionTitle("快捷控制")
             }
             item(key = "quick-actions") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -154,11 +165,10 @@ fun SettingsScreen(
                             ActionPreference(
                                 title = action.title,
                                 detail = action.detail,
-                                actionLabel = "执行",
                                 available = rootAvailable == true,
                                 running = rootActionState is RootActionState.Running &&
                                     rootActionState.action == action,
-                                onClick = { pendingRootAction = action },
+                                onClick = { onRunRootAction(action) },
                             )
                             if (index != RootAction.entries.lastIndex) {
                                 PreferenceDivider()
@@ -169,28 +179,79 @@ fun SettingsScreen(
             }
         }
 
-        pendingRootAction?.let { action ->
-            AlertDialog(
-                onDismissRequest = { pendingRootAction = null },
-                title = { Text(action.title) },
-                text = { Text(action.detail) },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            pendingRootAction = null
-                            onRunRootAction(action)
-                        },
+    }
+}
+
+@Composable
+private fun PreferenceSectionTitle(title: String) {
+    Text(
+        text = title,
+        modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 2.dp),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+@Composable
+private fun UiStylePreference(
+    selected: UiStyle,
+    onSelected: (UiStyle) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        ListItem(
+            headlineContent = {
+                Text(
+                    text = "界面风格",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+            },
+            trailingContent = {
+                Box {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = selected.displayName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "选择界面风格",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
                     ) {
-                        Text("执行")
+                        UiStyle.entries.forEach { style ->
+                            DropdownMenuItem(
+                                text = { Text(style.displayName) },
+                                onClick = {
+                                    expanded = false
+                                    if (style != selected) onSelected(style)
+                                },
+                                trailingIcon = if (style == selected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "当前选项",
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                            )
+                        }
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { pendingRootAction = null }) {
-                        Text("取消")
-                    }
-                },
-            )
-        }
+                }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true },
+        )
     }
 }
 
@@ -324,7 +385,6 @@ fun DebugSettingsScreen(
                         ActionPreference(
                             title = "导出日志",
                             detail = "导出 LSPosed 模块日志与应用操作日志。",
-                            actionLabel = "导出",
                             available = rootAvailable == true,
                             running = false,
                             onClick = onExportLogs,
@@ -713,7 +773,6 @@ private fun NavigationPreference(
 private fun ActionPreference(
     title: String,
     detail: String,
-    actionLabel: String,
     available: Boolean,
     running: Boolean,
     onClick: () -> Unit,
@@ -734,21 +793,21 @@ private fun ActionPreference(
         },
         supportingContent = {
             Text(
-                text = detail,
+                text = if (running) "$detail\n正在执行" else detail,
                 style = MaterialTheme.typography.bodyMedium,
                 color = contentColor,
             )
         },
         trailingContent = {
-            Button(
-                onClick = onClick,
-                enabled = available && !running,
-            ) {
-                Text(if (running) "执行中" else actionLabel)
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = contentColor,
+            )
         },
         colors = ListItemDefaults.colors(
             containerColor = Color.Transparent,
         ),
+        modifier = Modifier.clickable(enabled = available && !running, onClick = onClick),
     )
 }

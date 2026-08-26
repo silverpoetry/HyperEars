@@ -9,14 +9,14 @@
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 HyperEars 是面向 Xiaomi HyperOS 的第三方蓝牙耳机系统集成模块。它让受支持的
-vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、QCY 和 Sony 耳机
+vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY 和 Sony 耳机
 进入 MiLink 融合设备中心，并在不接管 Android 音频路由的前提下补充电量、降噪状态和
 设备流转所需的兼容信息。
 
 > [!WARNING]
 > HyperEars 依赖 root、LSPosed 和 HyperOS 私有接口。安装前请确认能够恢复系统；ROM
 > 更新可能暂时破坏兼容性。本项目与 Xiaomi、vivo、iQOO、OPPO、Bose、Edifier、
-> Panasonic、Technics、ROSESELSA、NiceHCK、水月雨、荣耀、QCY、Sony 及相关品牌无关。
+> Panasonic、Technics、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Sony 及相关品牌无关。
 
 ## 能做什么
 
@@ -44,6 +44,7 @@ vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、Nic
 
 ### 设置与诊断
 
+- 可在 Material 3 与 Miuix 界面间即时切换；当前页面、设置层级和耳机会话保持不变。
 - 在设置页配置点击 MiLink 卡片“更多设置”时打开的目标，以及运行时退避、自动更新检查和
   模块暂停。
 - 在“调试 > 适配器”中按品牌管理每个具体型号、家族回退和标准回退 Adapter；品牌总开关可一次停用或恢复该组全部 Adapter。
@@ -68,8 +69,9 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 | Edifier / 漫步者 | W860NB PRO、花再 Evo Pro 实机验证；其余家族外推 | 头戴整机、TWS 左右耳或聚合电量 | 降噪、关闭、通透、抗风噪 |
 | ROSESELSA / 弱水时砂 | Furina Endless Solo of Solitude、ROSE Ceramics Ultra 实机验证；两个型号公开实现；产品线家族外推；其余标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透、抗风噪 |
 | NiceHCK / YuanDao | OriG in 公开实现；其他标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | OriG in 支持降噪、关闭、通透、抗风噪 |
-| MOONDROP / 水月雨 | Robin 公开协议；其他标准回退 | Robin 协议确认后提供左右耳电量；回退设备使用系统整机电量 | Robin 协议确认后支持降噪、关闭、通透 |
+| MOONDROP / 水月雨 | Robin 公开协议；Pudding 实机验证；其他标准回退 | Robin 协议确认后提供左右耳电量；Pudding 协议确认后提供左右耳与充电盒电量，回退设备使用系统整机电量 | Robin 协议确认后支持降噪、关闭、通透；Pudding 实机验证后支持降噪、关闭、通透 |
 | 荣耀 | X5s Pro 实机验证；其他标准回退 | X5s Pro 协议确认后提供私有组件电量；回退设备使用系统整机电量 | X5s Pro 协议确认后支持降噪、关闭、通透 |
+| 华为 | FreeBuds Pro 3 实机验证；FreeBuds 4 公开实现；FreeBuds / FreeClip / FreeLace 家族探测；其余标准回退 | 合法协议响应后提供私有组件或整机电量；回退设备使用系统整机电量 | Pro 3 支持三态与型号专属档位；FreeBuds 4 支持降噪、关闭；家族候选在协议确认后支持三态，不开放档位 |
 | QCY | Crossky C50S 公开协议；同协议家族探测；其余标准回退 | 协议确认后提供私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透 |
 | Technics EAH-AZ TWS | AZ80 实机验证；其他型号采用公开实现，参考实现由贡献者在 AZ60、AZ80、AZ100 等型号验证 | 协议确认后提供私有组件电量 | 合法模式状态响应后支持降噪、关闭、通透；AZ80 已完成三态写入和设备回读实测 |
 | Sony | 公开实现、家族外推、标准回退 | 按设备形态提供私有整机、私有组件或系统整机电量 | 按具体型号开放表中明确列出的模式 |
@@ -217,11 +219,13 @@ SHA-256 文件。
 - [Bose BMAP 协议](docs/bose-bmap-protocol.md)
 - [Sony Headphones 协议](docs/sony-headphones-protocol.md)
 - [MOONDROP Robin 协议](docs/moondrop-robin-protocol.md)
+- [MOONDROP Pudding 协议](docs/moondrop-pudding-protocol.md)
 - [QCY 标准 GATT 协议](docs/qcy-standard-gatt-protocol.md)
 - [StarRing Ultra 协议](docs/starring-ultra-protocol.md)
 - [Edifier (BES) 协议](docs/edifier-bes-protocol.md)
 - [荣耀 X5s Pro 协议](docs/honor-x5s-protocol.md)
 - [Technics EAH-AZ / Airoha RACE 协议](docs/technics-race-protocol.md)
+- [华为 FreeBuds Pro 3 协议](docs/huawei-freebuds-protocol.md)
 
 ## 贡献
 
@@ -239,7 +243,8 @@ HyperEars 以 [GNU GPL-3.0-only](LICENSE) 发布。协议研究参考了
 [Plutoberth/SonyHeadphonesClient](https://github.com/Plutoberth/SonyHeadphonesClient)、
 [SouthautumnYa/QCYpods](https://github.com/SouthautumnYa/QCYpods)、
 [Star-ZER0/Pods-Protocol-Reverse-Engineering](https://github.com/Star-ZER0/Pods-Protocol-Reverse-Engineering)
-和 [moculll/ScrewVivoTWS](https://github.com/moculll/ScrewVivoTWS)，并包含本项目的实机
+、[MelianMiko/OpenFreebuds](https://github.com/MelianMiko/OpenFreebuds)
+ 和 [moculll/ScrewVivoTWS](https://github.com/moculll/ScrewVivoTWS)，并包含本项目的实机
 抓包与验证结果。具体来源及许可说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 商标和产品名称仅用于兼容性描述，归各自权利人所有。

@@ -174,10 +174,39 @@ Gadgetbridge 的 AGPL 程序代码，也不分发 SonyHeadphonesClient、厂商�
 MiLink 所需子集，不分发 TechincsPods 的应用、界面、图片、APK、抓包或厂商品牌资源。
 上游许可证状态按固定提交如实记录，具体条款以其仓库声明为准。
 
+## OpenFreebuds (Huawei protocol research)
+
+- melianmiko/OpenFreebuds: <https://github.com/melianmiko/OpenFreebuds>
+- Reviewed revision: `035bf2a87cdda9e9c8e8e90c662b7fa61270c6ee`
+- Upstream license: GNU GPL-3.0（仓库 `LICENSE` 文件，版权归 MelianMiko）
+
+用于核对华为 FreeBuds Pro 3 的私有 SPP 通道 1 帧格式与 CRC16-XMODEM 校验、电量查询、
+组件电量与整机充电标志语义，以及 ANC 状态读取 `[level, mode]`、控制写入
+`[mode, level]`、档位枚举和 `2B 03` 变更通知等协议事实。HyperEars 在自身
+WireCodec、ProtocolSession 与 Adapter 边界内重新组织实现，不复制或分发 OpenFreebuds 的
+程序代码、应用、界面、图片或品牌资源；上游 GPL-3.0 义务以该仓库 `LICENSE` 原文为准。
+
+## Huawei FreeBuds Pro 3 / 智慧音频
+
+华为 FreeBuds Pro 3 的协议字段语义依据 OpenFreebuds 的公开实现、贡献者实机记录与
+可互操作协议事实；华为智慧音频（`com.huawei.smartaudio`）仅作为控制权边界与导航目标登记在
+`ControlAppCatalog`、`scope.list` 与[控制 App 目录](docs/control-apps.md)中，不作为耳机
+品牌或型号的识别证据。HyperEars 不随 APK 分发华为应用、反编译产物、固件、抓包文件、
+图片或品牌资源；所有商标、产品名称归其各自权利人所有。
+
 ## Android and LSPosed APIs
 
 - Android Open Source Project: <https://source.android.com/>
 - libxposed API: <https://github.com/libxposed/api>
+
+## Miuix
+
+- yukonga/miuix: <https://github.com/miuix-kotlin-multiplatform/miuix>
+- Version used by HyperEars: `0.9.3`
+- Upstream license: Apache License 2.0
+
+用于提供可选的 Miuix 应用界面。HyperEars 只复用该库公开的主题与 Compose 控件 API；
+应用状态、导航、设置、耳机会话及 MiLink 集成仍由 HyperEars 自身的共享层维护。
 
 ## DexKit
 

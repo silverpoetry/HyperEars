@@ -1,6 +1,7 @@
 package dev.hyperears.hook
 
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -36,7 +37,21 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         address: String,
         environment: MiLinkCardEnvironment,
     ): MiLinkCardBinding? {
-        val host = resolveNativeAncCard(root) ?: return null
+        resolveTitleAncCard(root)?.let { host ->
+            return bindTitleAccessory(root, host, address, environment)
+        }
+        resolveEmbeddedAncCard(root)?.let { host ->
+            return bindEmbeddedAccessory(root, host, address, environment)
+        }
+        return null
+    }
+
+    private fun bindTitleAccessory(
+        root: View,
+        host: TitleAncCard,
+        address: String,
+        environment: MiLinkCardEnvironment,
+    ): MiLinkCardBinding? {
         val title = host.title
         val ancCard = host.container
         val parent = title.parent as? ViewGroup ?: return null
@@ -85,7 +100,8 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         )
         parent.addView(wrapper, index)
 
-        return Binding(
+        val controller = ToggleController(toggle, address, environment)
+        return TitleBinding(
             parent = parent,
             originalIndex = index,
             originalLayoutParams = originalParams,
@@ -94,11 +110,9 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
             title = title,
             ancCard = ancCard,
             accessory = accessory,
-            toggle = toggle,
-            address = address,
-            environment = environment,
-        ).also { binding ->
-            toggle.setOnCheckedChangeListener(binding::onToggleChanged)
+            controller = controller,
+        ).also {
+            controller.bind()
             ModuleLog.debug(
                 "MiLinkUi",
                 "bound $modelLabel wind-noise switch layout=${host.generation.logName}",
@@ -106,7 +120,98 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         }
     }
 
-    private class Binding(
+    private fun bindEmbeddedAccessory(
+        root: View,
+        host: EmbeddedAncCard,
+        address: String,
+        environment: MiLinkCardEnvironment,
+    ): MiLinkCardBinding? {
+        val parent = host.container.parent as? ViewGroup ?: return null
+        val originalIndex = parent.indexOfChild(host.container).takeIf { it >= 0 } ?: return null
+        val originalLayoutParams = host.container.layoutParams
+        val originalBackground = host.container.background
+
+        val accessory = LinearLayout(root.context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            setPadding(
+                root.context.dp(EMBEDDED_HEADER_HORIZONTAL_PADDING_DP),
+                0,
+                root.context.dp(EMBEDDED_HEADER_HORIZONTAL_PADDING_DP),
+                0,
+            )
+        }
+        val toggle = createHostToggle(root.context, environment.hostClassLoader).apply {
+            contentDescription = WIND_LABEL
+            isSaveEnabled = false
+        }
+        val label = TextView(root.context).apply {
+            text = WIND_LABEL
+            setTextColor(host.styleSource.textColors)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, host.styleSource.textSize)
+            typeface = host.styleSource.typeface
+            gravity = Gravity.CENTER_VERTICAL
+            maxLines = 1
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        accessory.addView(
+            label,
+            LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                1f,
+            ),
+        )
+        accessory.addView(
+            toggle,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+
+        val wrapper = LinearLayout(root.context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = originalLayoutParams
+            background = originalBackground
+        }
+        parent.removeViewAt(originalIndex)
+        host.container.background = null
+        host.container.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        )
+        wrapper.addView(
+            accessory,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                root.context.dp(EMBEDDED_HEADER_HEIGHT_DP),
+            ),
+        )
+        wrapper.addView(host.container)
+        parent.addView(wrapper, originalIndex)
+
+        val controller = ToggleController(toggle, address, environment)
+        return EmbeddedBinding(
+            parent = parent,
+            originalIndex = originalIndex,
+            originalLayoutParams = originalLayoutParams,
+            originalBackground = originalBackground,
+            wrapper = wrapper,
+            ancCard = host.container,
+            accessory = accessory,
+            controller = controller,
+        ).also {
+            controller.bind()
+            ModuleLog.debug(
+                "MiLinkUi",
+                "bound $modelLabel wind-noise switch layout=embedded-original",
+            )
+        }
+    }
+
+    private class TitleBinding(
         parent: ViewGroup,
         private val originalIndex: Int,
         private val originalLayoutParams: ViewGroup.LayoutParams,
@@ -115,29 +220,94 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         title: View,
         ancCard: View,
         accessory: View,
-        toggle: CompoundButton,
-        private val address: String,
-        private val environment: MiLinkCardEnvironment,
+        private val controller: ToggleController,
     ) : MiLinkCardBinding {
         private val parent = WeakReference(parent)
         private val wrapper = WeakReference(wrapper)
         private val title = WeakReference(title)
         private val ancCard = WeakReference(ancCard)
         private val accessory = WeakReference(accessory)
-        private val toggle = WeakReference(toggle)
-        private var rendering = false
 
         override fun render(state: EarbudState) {
             val wrapper = wrapper.get() ?: return
             val title = title.get() ?: return
             val ancCard = ancCard.get() ?: return
             val accessory = accessory.get() ?: return
-            val toggle = toggle.get() ?: return
 
             wrapper.visibility = ancCard.visibility
             accessory.visibility =
                 if (ancCard.isVisible && title.isVisible) View.VISIBLE else View.GONE
+            controller.render(state, accessory)
+        }
 
+        override fun unbind() {
+            val parent = parent.get() ?: return
+            val wrapper = wrapper.get() ?: return
+            val title = title.get() ?: return
+            controller.unbind()
+            if (wrapper.parent !== parent) return
+
+            (title.parent as? ViewGroup)?.removeView(title)
+            parent.removeView(wrapper)
+            originalLayoutParams.width = originalWidth
+            title.layoutParams = originalLayoutParams
+            parent.addView(title, originalIndex.coerceAtMost(parent.childCount))
+        }
+    }
+
+    private class EmbeddedBinding(
+        parent: ViewGroup,
+        private val originalIndex: Int,
+        private val originalLayoutParams: ViewGroup.LayoutParams,
+        private val originalBackground: Drawable?,
+        wrapper: ViewGroup,
+        ancCard: LinearLayout,
+        accessory: View,
+        private val controller: ToggleController,
+    ) : MiLinkCardBinding {
+        private val parent = WeakReference(parent)
+        private val wrapper = WeakReference(wrapper)
+        private val ancCard = WeakReference(ancCard)
+        private val accessory = WeakReference(accessory)
+
+        override fun render(state: EarbudState) {
+            val wrapper = wrapper.get() ?: return
+            val ancCard = ancCard.get() ?: return
+            val accessory = accessory.get() ?: return
+            wrapper.visibility = ancCard.visibility
+            accessory.visibility = if (ancCard.isVisible) View.VISIBLE else View.GONE
+            controller.render(state, accessory)
+        }
+
+        override fun unbind() {
+            controller.unbind()
+            val parent = parent.get() ?: return
+            val wrapper = wrapper.get() ?: return
+            val ancCard = ancCard.get() ?: return
+            if (wrapper.parent !== parent) return
+
+            (ancCard.parent as? ViewGroup)?.removeView(ancCard)
+            parent.removeView(wrapper)
+            ancCard.background = originalBackground
+            ancCard.layoutParams = originalLayoutParams
+            parent.addView(ancCard, originalIndex.coerceAtMost(parent.childCount))
+        }
+    }
+
+    private class ToggleController(
+        toggle: CompoundButton,
+        private val address: String,
+        private val environment: MiLinkCardEnvironment,
+    ) {
+        private val toggle = WeakReference(toggle)
+        private var rendering = false
+
+        fun bind() {
+            toggle.get()?.setOnCheckedChangeListener(::onToggleChanged)
+        }
+
+        fun render(state: EarbudState, accessory: View) {
+            val toggle = toggle.get() ?: return
             val toggleState = WindNoiseToggleControlPolicy.render(state)
             rendering = true
             try {
@@ -150,7 +320,11 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
             }
         }
 
-        fun onToggleChanged(button: CompoundButton, checked: Boolean) {
+        fun unbind() {
+            toggle.get()?.setOnCheckedChangeListener(null)
+        }
+
+        private fun onToggleChanged(button: CompoundButton, checked: Boolean) {
             if (rendering) return
             val current = environment.stateProvider(address)
             val currentToggleState = WindNoiseToggleControlPolicy.render(current)
@@ -170,21 +344,6 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
                 StandardControlRequest.SetNoiseMode(requestedMode),
             )
         }
-
-        override fun unbind() {
-            val parent = parent.get() ?: return
-            val wrapper = wrapper.get() ?: return
-            val title = title.get() ?: return
-            val toggle = toggle.get()
-            toggle?.setOnCheckedChangeListener(null)
-            if (wrapper.parent !== parent) return
-
-            (title.parent as? ViewGroup)?.removeView(title)
-            parent.removeView(wrapper)
-            originalLayoutParams.width = originalWidth
-            title.layoutParams = originalLayoutParams
-            parent.addView(title, originalIndex.coerceAtMost(parent.childCount))
-        }
     }
 
     private fun createHostToggle(
@@ -203,17 +362,21 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
     private fun Context.dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
-    private fun resolveNativeAncCard(root: View): NativeAncCard? {
+    private fun resolveTitleAncCard(root: View): TitleAncCard? =
+        resolveSelectAncCard(root) ?: resolveOriginalTitleAncCard(root)
+
+    private fun resolveOriginalTitleAncCard(root: View): TitleAncCard? {
         val originalTitle = root.findMiLinkView(ORIGINAL_ANC_CARD_TITLE_ID) as? TextView
         val originalCard = root.findMiLinkView(ORIGINAL_ANC_CARD_ID)
-        if (originalTitle != null && originalCard != null) {
-            return NativeAncCard(
-                generation = NativeAncCardGeneration.ORIGINAL,
-                title = originalTitle,
-                container = originalCard,
-            )
-        }
+        if (originalTitle == null || originalCard == null) return null
+        return TitleAncCard(
+            generation = NativeAncCardGeneration.ORIGINAL,
+            title = originalTitle,
+            container = originalCard,
+        )
+    }
 
+    private fun resolveSelectAncCard(root: View): TitleAncCard? {
         val selectTitle = root.findMiLinkView(SELECT_ANC_CARD_TITLE_ID) as? TextView ?: return null
         val selectCard = root.findMiLinkView(SELECT_ANC_CARD_ID) as? LinearLayout ?: return null
         if (selectCard.javaClass.name != SELECT_ANC_CARD_CLASS) return null
@@ -224,17 +387,44 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         ) {
             return null
         }
-        return NativeAncCard(
+        return TitleAncCard(
             generation = NativeAncCardGeneration.SELECT_CARD,
             title = selectTitle,
             container = selectCard,
         )
     }
 
-    private data class NativeAncCard(
+    private fun resolveEmbeddedAncCard(root: View): EmbeddedAncCard? {
+        val card = root.findMiLinkView(ORIGINAL_ANC_CARD_ID) as? LinearLayout ?: return null
+        val transparency = root.findMiLinkView(ORIGINAL_ANC_TRANSPARENCY_ID) ?: return null
+        val noiseCancellation =
+            root.findMiLinkView(ORIGINAL_ANC_NOISE_CANCELLATION_ID) ?: return null
+        val off = root.findMiLinkView(ORIGINAL_ANC_OFF_ID) ?: return null
+        val nativeItems = listOf(transparency, noiseCancellation, off)
+        if (nativeItems.any { item ->
+                item.parent !== card || item.javaClass.name != ORIGINAL_ANC_ITEM_CLASS
+            }
+        ) {
+            return null
+        }
+        val styleSource = noiseCancellation.findMiLinkView(ORIGINAL_ANC_ITEM_TITLE_ID)
+            as? TextView
+            ?: return null
+        return EmbeddedAncCard(
+            container = card,
+            styleSource = styleSource,
+        )
+    }
+
+    private data class TitleAncCard(
         val generation: NativeAncCardGeneration,
         val title: TextView,
         val container: View,
+    )
+
+    private data class EmbeddedAncCard(
+        val container: LinearLayout,
+        val styleSource: TextView,
     )
 
     private enum class NativeAncCardGeneration(val logName: String) {
@@ -245,6 +435,12 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
     private companion object {
         const val ORIGINAL_ANC_CARD_TITLE_ID = "anc_card_title"
         const val ORIGINAL_ANC_CARD_ID = "anc_card"
+        const val ORIGINAL_ANC_TRANSPARENCY_ID = "anc_clear"
+        const val ORIGINAL_ANC_NOISE_CANCELLATION_ID = "anc_noise_cancel"
+        const val ORIGINAL_ANC_OFF_ID = "anc_off"
+        const val ORIGINAL_ANC_ITEM_TITLE_ID = "anc_title"
+        const val ORIGINAL_ANC_ITEM_CLASS =
+            "com.miui.circulate.world.headset.ui.HeadsetControlAncItemView"
         const val SELECT_ANC_CARD_TITLE_ID = "anc_card_text"
         const val SELECT_ANC_CARD_ID = "anc_select_card"
         const val SELECT_ANC_CARD_CLASS =
@@ -255,6 +451,8 @@ internal open class WindNoiseToggleMiLinkCardAdapter(
         const val MIUIX_SLIDING_BUTTON = "miuix.slidingwidget.widget.SlidingButton"
         const val WIND_LABEL = "抗风噪"
         const val LABEL_END_PADDING_DP = 8
+        const val EMBEDDED_HEADER_HEIGHT_DP = 48
+        const val EMBEDDED_HEADER_HORIZONTAL_PADDING_DP = 20
         const val ENABLED_ALPHA = 1.0f
         const val DISABLED_ALPHA = 0.45f
     }

@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "dev.hyperears.protocoltest"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "dev.hyperears.protocoltest"

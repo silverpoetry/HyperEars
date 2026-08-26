@@ -17,5 +17,6 @@
         <item>com.sony.songpal.mdr</item>
         <item>com.qcymall.googleearphonesetup</item>
         <item>com.panasonic.technicsaudioconnect</item>
+        <item>com.huawei.smartaudio</item>
     </string-array>
 </resources>

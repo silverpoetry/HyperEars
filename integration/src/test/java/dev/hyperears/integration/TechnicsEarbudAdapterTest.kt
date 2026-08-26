@@ -146,6 +146,37 @@ class TechnicsEarbudAdapterTest {
     }
 
     @Test
+    fun deviceReadbackUpdatesModeAndLevelsForTheNextWrite() {
+        val adapter = TechnicsEarbudAdapter()
+        adapter.receive(raceResponse(0x000A, 0x00, 0x01, 90, 55))
+
+        val transparency = adapter.executeControl(
+            StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY),
+        )
+        assertTrue(transparency.accepted)
+        assertEquals(
+            listOf(TechnicsRaceWireCodec.queryOutsideControl).map(ByteArray::toList),
+            transparency.readback.map(ByteArray::toList),
+        )
+
+        adapter.receive(raceResponse(0x000A, 0x00, 0x02, 37, 73))
+        assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
+
+        val anc = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+        assertTrue(anc.accepted)
+        assertEquals(
+            TechnicsRaceWireCodec
+                .setNoiseMode(
+                    mode = TechnicsRaceWireCodec.NoiseMode.ANC,
+                    noiseCancelLevel = 37,
+                    ambientLevel = 73,
+                )
+                .map(ByteArray::toList),
+            anc.commands.map(ByteArray::toList),
+        )
+    }
+
+    @Test
     fun unknownNoiseFrameDoesNotUnlockRuntime() {
         val adapter = TechnicsEarbudAdapter()
 
@@ -182,6 +213,34 @@ class TechnicsEarbudAdapterTest {
                 .map(ByteArray::toList),
             allowed.commands.map(ByteArray::toList),
         )
+    }
+
+    @Test
+    fun protocolResetRevokesPrivateEvidenceAndRestoresSystemBatteryFallback() {
+        val adapter = TechnicsEarbudAdapter()
+        adapter.onSystemBatteryChanged(68)
+        adapter.receive(raceIndication(0x0CD6, 0x00, 0x00, 81))
+        adapter.receive(raceIndication(0x0CD6, 0x00, 0x01, 74))
+        adapter.receive(raceResponse(0x0040, 0x00, 63))
+        adapter.receive(raceResponse(0x000A, 0x00, 0x01, 90, 55))
+
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        assertTrue(adapter.snapshot().capabilities.noiseControl)
+
+        adapter.resetProtocolSession()
+
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
+        assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
+
+        assertTrue(adapter.onSystemBatteryChanged(68))
+        assertEquals(68, adapter.runtimeState().battery.left.percent)
+        assertEquals(68, adapter.runtimeState().battery.right.percent)
+        assertNull(adapter.runtimeState().battery.case.percent)
+
+        adapter.receive(raceResponse(0x000A, 0x00, 0x00, 37, 73))
+        assertTrue(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
     }
 
     @Test

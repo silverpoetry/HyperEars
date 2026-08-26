@@ -72,6 +72,16 @@ object ControlAppCatalog {
         displayName = "Technics Audio Connect",
     )
 
+    val huaweiSmartAudio = ControlAppSpec(
+        packageName = "com.huawei.smartaudio",
+        displayName = "智慧音频",
+    )
+
+    val moondrop = ControlAppSpec(
+        packageName = "com.moondroplab.moondrop.moondrop_app",
+        displayName = "MOONDROP",
+    )
+
     val all: List<ControlAppSpec> = listOf(
         vivoEarphones,
         heyMelody,
@@ -86,6 +96,8 @@ object ControlAppCatalog {
         sonySoundConnect,
         qcy,
         technicsAudioConnect,
+        huaweiSmartAudio,
+        moondrop,
     )
 
     private val byPackage = all.associateBy(ControlAppSpec::packageName)
