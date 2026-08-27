@@ -7,7 +7,6 @@ internal data class HuaweiProtocolProfile(
     val extension: HuaweiProtocolExtension? = null,
 ) {
     init {
-        require(noiseModes.isNotEmpty()) { "Huawei protocol profile requires a noise mode" }
         require(NoiseMode.WIND !in noiseModes) {
             "Huawei FreeBuds SPP does not define a wind-noise mode"
         }
@@ -93,6 +92,46 @@ internal class HuaweiFreeBuds4Adapter : HuaweiFreebudsProtocolAdapter(
     }
 }
 
+/** HUAWEI FreeClip: open-ear clip with component battery only; no noise control. */
+internal class HuaweiFreeClipAdapter : HuaweiFreebudsProtocolAdapter(
+    endpointPrefix = "huawei-freeclip",
+    channelNumbers = listOf(1),
+    profile = FREECLIP_PROFILE,
+) {
+    override val id: String = ID
+    override val displayName: String = "HUAWEI FreeClip"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+
+    override fun matches(identity: EarbudIdentity): Boolean =
+        super.matches(identity) &&
+            normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
+
+    companion object {
+        const val ID = "huawei-freeclip"
+        private val MODEL_NAMES = setOf("huaweifreeclip", "freeclip")
+    }
+}
+
+/** HUAWEI FreeClip 2: hardware-verified component battery without noise control. */
+internal class HuaweiFreeClip2Adapter : HuaweiFreebudsProtocolAdapter(
+    endpointPrefix = "huawei-freeclip-2",
+    channelNumbers = listOf(1),
+    profile = FREECLIP_PROFILE,
+) {
+    override val id: String = ID
+    override val displayName: String = "HUAWEI FreeClip 2"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+
+    override fun matches(identity: EarbudIdentity): Boolean =
+        super.matches(identity) &&
+            normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
+
+    companion object {
+        const val ID = "huawei-freeclip-2"
+        private val MODEL_NAMES = setOf("huaweifreeclip2", "freeclip2")
+    }
+}
+
 internal class HuaweiFreebudsFamilyAdapter : HuaweiFreebudsProtocolAdapter(
     endpointPrefix = "huawei-freebuds-family",
     channelNumbers = listOf(1, 16),
@@ -150,6 +189,8 @@ private class HuaweiFreebudsProtocolSession(
             request.featureId == NoiseModeFeatureState.FEATURE_ID ||
                 request.featureId in profile.extension?.featureIds.orEmpty() ->
                 listOf(HuaweiFreebudsSppCodec.queryNoiseState)
+                    .takeIf { profile.noiseModes.isNotEmpty() }
+                    .orEmpty()
 
             else -> emptyList()
         }
@@ -222,10 +263,10 @@ private class HuaweiFreebudsProtocolSession(
         pendingNoiseRefresh = false
     }
 
-    private fun telemetryQueries(): List<ByteArray> = listOf(
-        HuaweiFreebudsSppCodec.queryBattery,
-        HuaweiFreebudsSppCodec.queryNoiseState,
-    )
+    private fun telemetryQueries(): List<ByteArray> = buildList {
+        add(HuaweiFreebudsSppCodec.queryBattery)
+        if (profile.noiseModes.isNotEmpty()) add(HuaweiFreebudsSppCodec.queryNoiseState)
+    }
 
     private fun MutableList<ProtocolEvent>.publishHandshakeIfNeeded() {
         if (handshakePublished) return
@@ -253,4 +294,8 @@ private val FREEBUDS_4_PROFILE = HuaweiProtocolProfile(
 
 private val HUAWEI_FAMILY_PROFILE = HuaweiProtocolProfile(
     noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+)
+
+private val FREECLIP_PROFILE = HuaweiProtocolProfile(
+    noiseModes = emptySet(),
 )

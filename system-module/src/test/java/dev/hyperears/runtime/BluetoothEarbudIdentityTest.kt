@@ -11,6 +11,8 @@ class BluetoothEarbudIdentityTest {
         assertTrue(isLikelyEarbudName("OPPO Enco Air5"))
         assertTrue(isLikelyEarbudName("Galaxy Buds3 Pro"))
         assertTrue(isLikelyEarbudName("LE-电音耳机"))
+        assertTrue(isLikelyEarbudName("HUAWEI FreeClip 2"))
+        assertTrue(isLikelyEarbudName("HUAWEI FreeLace Pro"))
     }
 
     @Test
