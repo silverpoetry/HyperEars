@@ -101,6 +101,46 @@ internal class HuaweiFreeBuds4Adapter : HuaweiFreebudsProtocolAdapter(
     }
 }
 
+/** HUAWEI FreeClip: open-ear clip with component battery only; no ANC or transparency. */
+internal class HuaweiFreeClipAdapter : HuaweiFreebudsProtocolAdapter(
+    endpointPrefix = "huawei-freeclip",
+    channelNumbers = listOf(1),
+    profile = FREECLIP_PROFILE,
+) {
+    override val id: String = ID
+    override val displayName: String = "HUAWEI FreeClip"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+
+    override fun matches(identity: EarbudIdentity): Boolean =
+        super.matches(identity) &&
+            normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
+
+    companion object {
+        const val ID = "huawei-freeclip"
+        private val MODEL_NAMES = setOf("huaweifreeclip", "freeclip")
+    }
+}
+
+/** HUAWEI FreeClip 2: same open-ear clip capabilities; low latency is not modeled yet. */
+internal class HuaweiFreeClip2Adapter : HuaweiFreebudsProtocolAdapter(
+    endpointPrefix = "huawei-freeclip-2",
+    channelNumbers = listOf(1),
+    profile = FREECLIP_PROFILE,
+) {
+    override val id: String = ID
+    override val displayName: String = "HUAWEI FreeClip 2"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+
+    override fun matches(identity: EarbudIdentity): Boolean =
+        super.matches(identity) &&
+            normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
+
+    companion object {
+        const val ID = "huawei-freeclip-2"
+        private val MODEL_NAMES = setOf("huaweifreeclip2", "freeclip2")
+    }
+}
+
 /**
  * Conservative Huawei family candidate. One Adapter owns the ordered endpoint fallback, so a
  * failed channel-1 probe can continue to channel 16 without a second unreachable family match.
@@ -170,7 +210,11 @@ private class HuaweiFreebudsProtocolSession(
             BatteryFeatureState.FEATURE_ID -> listOf(HuaweiFreebudsSppCodec.queryBattery)
             NoiseModeFeatureState.FEATURE_ID,
             HuaweiAncLevelFeatureState.FEATURE_ID,
-            -> listOf(HuaweiFreebudsSppCodec.queryNoiseState)
+            -> if (profile.noiseModes.isEmpty()) {
+                emptyList()
+            } else {
+                listOf(HuaweiFreebudsSppCodec.queryNoiseState)
+            }
             else -> emptyList()
         }
     }
@@ -249,9 +293,9 @@ private class HuaweiFreebudsProtocolSession(
         pendingNoiseRefresh = false
     }
 
-    private fun telemetryQueries(): List<ByteArray> = listOf(
+    private fun telemetryQueries(): List<ByteArray> = listOfNotNull(
         HuaweiFreebudsSppCodec.queryBattery,
-        HuaweiFreebudsSppCodec.queryNoiseState,
+        HuaweiFreebudsSppCodec.queryNoiseState.takeIf { profile.noiseModes.isNotEmpty() },
     )
 
     private fun MutableList<ProtocolEvent>.publishHandshakeIfNeeded() {
@@ -303,5 +347,10 @@ private val FREEBUDS_4_PROFILE = HuaweiProtocolProfile(
 
 private val HUAWEI_FAMILY_PROFILE = HuaweiProtocolProfile(
     noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+    ancLevels = false,
+)
+
+private val FREECLIP_PROFILE = HuaweiProtocolProfile(
+    noiseModes = emptySet(),
     ancLevels = false,
 )
