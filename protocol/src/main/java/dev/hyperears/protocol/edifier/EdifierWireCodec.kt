@@ -34,6 +34,7 @@ object EdifierWireCodec {
     const val CMD_NAME_QUERY = 0xC9           // 201 — query name
     const val CMD_FUNCTION_QUERY = 0xD8       // 216 — query device capabilities
     const val CMD_GAME_STATE_QUERY = 0x08     // 8   — query game mode
+    const val CMD_GAME_STATE_SET = 0x09       // 9   — set game mode
 
     // ANC ancIndex for W860NB PRO (ANC16 slot, verified on device)
     const val ANC_INDEX = 0x10
@@ -69,6 +70,8 @@ object EdifierWireCodec {
         data class TwsComponents(
             val leftPercent: Int,
             val rightPercent: Int,
+            val casePercent: Int? = null,
+            val caseCharging: Boolean = false,
         ) : BatteryState
     }
 
@@ -84,11 +87,20 @@ object EdifierWireCodec {
     val queryDeviceState: ByteArray = packet(CMD_DEVICE_STATE_QUERY)
     val queryFunction: ByteArray = packet(CMD_FUNCTION_QUERY)
     val queryVersion: ByteArray = packet(CMD_VERSION_QUERY)
+    val queryGameState: ByteArray = packet(CMD_GAME_STATE_QUERY)
 
     fun setAnc(ancValue: Int, ancIndex: Int = ANC_INDEX): ByteArray =
         packet(
             CMD_ANC_SET,
             byteArrayOf(ancIndex.toByte(), ancValue.toByte()),
+            xorKey = RESPONSE_XOR_KEY,
+        )
+
+    /** Game mode: payload is a single byte 1=on / 0=off, XOR-encrypted like ANC. */
+    fun setGameMode(enabled: Boolean): ByteArray =
+        packet(
+            CMD_GAME_STATE_SET,
+            byteArrayOf(if (enabled) 0x01 else 0x00),
             xorKey = RESPONSE_XOR_KEY,
         )
 
@@ -107,15 +119,25 @@ object EdifierWireCodec {
             // Captured Evo Pro response:
             // BB EC F2 00 06 A6 C1 C7 A5 A6 B4 CC
             // decrypted payload: 03 64 62 00 03 11. Byte 0 is metadata; bytes 1/2 are the
-            // independently displayed left/right levels. No case field is claimed yet.
+            // independently displayed left/right levels; byte 3 is charge-case percent and
+            // byte 4 is the case state (1=charging, 2=not, 3=offline).
             CMD_DEVICE_STATE_QUERY -> frame.payload
                 .takeIf { it.size >= TWS_COMPONENT_FIELD_COUNT }
                 ?.let { payload ->
                     val left = payload[TWS_LEFT_BATTERY_OFFSET].decryptPercent() ?: return@let null
                     val right = payload[TWS_RIGHT_BATTERY_OFFSET].decryptPercent() ?: return@let null
+                    val caseState = payload.getOrNull(TWS_CASE_STATE_OFFSET)
+                        ?.unsigned()?.let { it xor RESPONSE_XOR_KEY }
+                    // Verified on-device (FitClip Ultra): byte3 = case percent, byte4 = case
+                    // state (1=charging, 2=not, 3=offline). Case omitted when state is offline.
+                    val casePercent = payload.getOrNull(TWS_CASE_BATTERY_OFFSET)
+                        ?.decryptPercent()
+                        ?.takeIf { caseState != TWS_CASE_STATE_OFFLINE }
                     BatteryState.TwsComponents(
                         leftPercent = left,
                         rightPercent = right,
+                        casePercent = casePercent,
+                        caseCharging = caseState == TWS_CASE_STATE_CHARGING,
                     )
                 }
 
@@ -137,6 +159,20 @@ object EdifierWireCodec {
         val mode = (frame.payload[0].unsigned() xor RESPONSE_XOR_KEY)
         val level = frame.payload.getOrNull(1)?.unsigned()?.let { it xor RESPONSE_XOR_KEY }
         return AncState(mode = mode, level = level)
+    }
+
+    /** Parses game-mode state from a 0x08 query or 0x09 set response (1=on, 0=off). */
+    fun parseGameModeState(frame: Frame): Boolean? {
+        if (!isProtocolResponse(frame)) return null
+        if (frame.commandIndex != CMD_GAME_STATE_QUERY && frame.commandIndex != CMD_GAME_STATE_SET) {
+            return null
+        }
+        val value = frame.payload.firstOrNull()?.unsigned()?.let { it xor RESPONSE_XOR_KEY } ?: return null
+        return when (value) {
+            0 -> false
+            1 -> true
+            else -> null
+        }
     }
 
     /** A device-originated BES/Edifier frame eligible to establish protocol evidence. */
@@ -281,4 +317,10 @@ object EdifierWireCodec {
     private const val TWS_COMPONENT_FIELD_COUNT = 3
     private const val TWS_LEFT_BATTERY_OFFSET = 1
     private const val TWS_RIGHT_BATTERY_OFFSET = 2
+    private const val TWS_CASE_BATTERY_OFFSET = 3
+    private const val TWS_CASE_STATE_OFFSET = 4
+
+    // BoxStateEnum: 1=Charging, 2=NotCharging, 3=Offline(undetectable).
+    private const val TWS_CASE_STATE_CHARGING = 1
+    private const val TWS_CASE_STATE_OFFLINE = 3
 }

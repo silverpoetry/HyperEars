@@ -192,8 +192,8 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
         batteryQueries = listOf(EdifierBatteryQuery.DEVICE_STATE),
         batteryProjection = EdifierBatteryProjection.TWS_AGGREGATE,
         ancDialects = emptyList(),
+        gameModeQuery = true,
     )
-
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         return normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
@@ -288,6 +288,7 @@ data class EdifierWireConfig(
         EdifierAncDialects.EVO_PRO,
     ),
     val preferredAncIndex: Int? = null,
+    val gameModeQuery: Boolean = false,
 ) {
     init {
         require(batteryQueries.isNotEmpty())
@@ -318,6 +319,9 @@ private class EdifierProtocolSession(
             add(EdifierWireCodec.queryAnc)
         }
         add(EdifierWireCodec.queryFunction)
+        if (configuration.gameModeQuery) {
+            add(EdifierWireCodec.queryGameState)
+        }
     }
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
@@ -325,6 +329,9 @@ private class EdifierProtocolSession(
             addAll(configuration.batteryQueries.map { batteryQueryPacket(it) })
             if (configuration.ancDialects.isNotEmpty()) {
                 add(EdifierWireCodec.queryAnc)
+            }
+            if (configuration.gameModeQuery) {
+                add(EdifierWireCodec.queryGameState)
             }
         }
         request is StandardControlRequest.SetNoiseMode -> {
@@ -336,6 +343,8 @@ private class EdifierProtocolSession(
                 emptyList()
             }
         }
+        request is StandardControlRequest.SetGameMode ->
+            listOf(EdifierWireCodec.setGameMode(request.enabled))
 
         else -> emptyList()
     }
@@ -345,6 +354,7 @@ private class EdifierProtocolSession(
         // acknowledgement. Skip the extra readback round-trip to reduce perceived latency.
         request === StandardControlRequest.Refresh -> emptyList()
         request is StandardControlRequest.SetNoiseMode -> emptyList()
+        request is StandardControlRequest.SetGameMode -> listOf(EdifierWireCodec.queryGameState)
         else -> emptyList()
     }
 
@@ -394,6 +404,13 @@ private class EdifierProtocolSession(
                 return@forEach
             }
 
+            // Game-mode state from 0x08 query or 0x09 set response
+            EdifierWireCodec.parseGameModeState(frame)?.let { enabled ->
+                add(ProtocolEvent.CapabilitiesIdentified(battery = false, gameMode = true))
+                add(ProtocolEvent.FeatureStateChanged(GameModeFeatureState(enabled)))
+                return@forEach
+            }
+
             add(
                 ProtocolEvent.UnknownFrame(
                     version = 0,
@@ -428,6 +445,7 @@ private class EdifierProtocolSession(
         is EdifierWireCodec.BatteryState.TwsComponents -> EarbudBattery(
             left = BatteryReading(leftPercent, charging = false),
             right = BatteryReading(rightPercent, charging = false),
+            case = BatteryReading(casePercent, charging = caseCharging),
         )
     }
 
