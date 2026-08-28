@@ -188,6 +188,10 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
     override val id: String = ID
     override val displayName: String = "Edifier FitClip Ultra"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = EdifierMiLinkPresentationIds.GAME_MODE.takeIf {
+            effectiveCapabilities().gameModeControl
+        }
     override val wireConfig: EdifierWireConfig = EdifierWireConfig(
         batteryQueries = listOf(EdifierBatteryQuery.DEVICE_STATE),
         batteryProjection = EdifierBatteryProjection.TWS_AGGREGATE,
@@ -211,6 +215,7 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
 
 object EdifierMiLinkPresentationIds {
     val FOUR_MODE = MiLinkCardPresentationId("edifier-four-mode")
+    val GAME_MODE = MiLinkCardPresentationId("edifier-fitclip-game")
 }
 
 enum class EdifierBatteryQuery(val commandIndex: Int) {

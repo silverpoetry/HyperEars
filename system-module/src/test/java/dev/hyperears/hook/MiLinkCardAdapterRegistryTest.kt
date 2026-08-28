@@ -68,6 +68,10 @@ class MiLinkCardAdapterRegistryTest {
             SonyAmbientOnlyMiLinkCardAdapter,
             MiLinkCardAdapterRegistry.resolve(SonyMiLinkPresentationIds.AMBIENT_ONLY),
         )
+        assertSame(
+            FitClipUltraGameModeMiLinkCardAdapter,
+            MiLinkCardAdapterRegistry.resolve(EdifierMiLinkPresentationIds.GAME_MODE),
+        )
         assertNull(
             MiLinkCardAdapterRegistry.resolve(
                 MiLinkCardPresentationId("unknown-model"),
