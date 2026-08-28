@@ -33,6 +33,12 @@ sealed interface StandardControlRequest : ControlRequest {
     data class SetNoiseMode(
         val mode: NoiseMode,
     ) : StandardControlRequest
+
+    @Serializable
+    @SerialName("standard.set_game_mode")
+    data class SetGameMode(
+        val enabled: Boolean,
+    ) : StandardControlRequest
 }
 
 /**
@@ -72,6 +78,9 @@ object StandardControlRequestContract : ControlRequestContract {
         request is StandardControlRequest.SetNoiseMode ->
             adapter.effectiveCapabilities().noiseControl &&
                 request.mode in adapter.effectiveSupportedNoiseModes()
+
+        request is StandardControlRequest.SetGameMode ->
+            adapter.effectiveCapabilities().gameModeControl
 
         else -> false
     }

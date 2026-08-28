@@ -315,6 +315,7 @@ class EarbudAdapterHierarchyTest {
             listOf(
                 EdifierWireCodec.queryDeviceState.toList(),
                 EdifierWireCodec.queryFunction.toList(),
+                EdifierWireCodec.queryGameState.toList(),
             ),
             adapter.beginHandshake().commands.map(ByteArray::toList),
         )
