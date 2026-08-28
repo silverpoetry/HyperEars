@@ -31,6 +31,8 @@ internal enum class SonyAmbientDialect {
     WIND,
     EXTENDED,
     AMBIENT_ONLY,
+    /** 2026-generation three-state control; v2 ambient frames use subtype 0x19. */
+    MODERN,
     ;
 
     val supportsControl: Boolean get() = this != NONE
@@ -121,6 +123,14 @@ object SonyAdapterRegistry {
         sonyTw("wf-1000xm3", "Sony WF-1000XM3", "wf1000xm3", SonyBatteryKind.DUAL, SonyAmbientDialect.WIND),
         sonyTw("wf-1000xm4", "Sony WF-1000XM4", "wf1000xm4", SonyBatteryKind.DUAL, SonyAmbientDialect.WIND),
         sonyTw("wf-1000xm5", "Sony WF-1000XM5", "wf1000xm5", SonyBatteryKind.DUAL, SonyAmbientDialect.STANDARD),
+        sonyTw(
+            id = "wf-1000xm6",
+            displayName = "Sony WF-1000XM6",
+            marker = "wf1000xm6",
+            battery = SonyBatteryKind.DUAL,
+            ambient = SonyAmbientDialect.MODERN,
+            preferServiceV2 = true,
+        ),
         sonyTw("wf-c500", "Sony WF-C500", "wfc500", SonyBatteryKind.DUAL2, SonyAmbientDialect.NONE, hasCase = false),
         sonyTw(
             id = "wf-c510",
@@ -454,8 +464,16 @@ private class SonyHeadphonesProtocolSession(
     }
 
     private fun parseAmbientV2(payload: ByteArray): NoiseMode? {
-        if (payload.size !in 6..8) return null
+        if (payload.size < 6) return null
         val subtype = payload[1].toInt() and 0xFF
+        if (subtype == MODERN_AMBIENT_SUBTYPE.toInt()) {
+            // 2026-generation notify: on/off at [3], ANC vs transparency at [4].
+            if (payload.size != 9) return null
+            if (payload[3].toInt() == 0) return NoiseMode.OFF
+            if (payload[3].toInt() != 1) return null
+            return if (payload[4].toInt() == 0) NoiseMode.ANC else NoiseMode.TRANSPARENCY
+        }
+        if (payload.size !in 6..8) return null
         if (subtype !in setOf(0x15, 0x17, 0x22)) return null
         if (payload[3].toInt() == 0) return NoiseMode.OFF
         if (payload[3].toInt() != 1) return null
@@ -490,21 +508,40 @@ private class SonyHeadphonesProtocolSession(
         )
     }
 
-    private fun encodeAmbientV2(mode: NoiseMode): ByteArray = buildList<Byte> {
-        add(AMBIENT_SET)
-        add(ambientSubtype(Version.V2))
-        add(0x01)
-        add(if (mode == NoiseMode.OFF) 0x00 else 0x01)
-        add(if (mode == NoiseMode.TRANSPARENCY) 0x01 else 0x00)
-        if (configuration.ambientDialect.supportsWind) {
-            add(if (mode == NoiseMode.WIND) 0x03 else 0x02)
+    private fun encodeAmbientV2(mode: NoiseMode): ByteArray {
+        if (configuration.ambientDialect == SonyAmbientDialect.MODERN) {
+            // The 0x19 write mirrors the device's own notify layout byte-for-byte.
+            // If a device ignores the write, the third byte (0x00) is the first variant to try
+            // as 0x01, matching the legacy 0x15 write convention.
+            return byteArrayOf(
+                AMBIENT_SET,
+                MODERN_AMBIENT_SUBTYPE,
+                0x00,
+                if (mode == NoiseMode.OFF) 0x00 else 0x01,
+                if (mode == NoiseMode.TRANSPARENCY) 0x01 else 0x00,
+                0x00,
+                DEFAULT_AMBIENT_LEVEL,
+                0x00,
+                0x00,
+            )
         }
-        add(0x00)
-        add(if (mode == NoiseMode.TRANSPARENCY) DEFAULT_AMBIENT_LEVEL else 0x00)
-    }.toByteArray()
+        return buildList<Byte> {
+            add(AMBIENT_SET)
+            add(ambientSubtype(Version.V2))
+            add(0x01)
+            add(if (mode == NoiseMode.OFF) 0x00 else 0x01)
+            add(if (mode == NoiseMode.TRANSPARENCY) 0x01 else 0x00)
+            if (configuration.ambientDialect.supportsWind) {
+                add(if (mode == NoiseMode.WIND) 0x03 else 0x02)
+            }
+            add(0x00)
+            add(if (mode == NoiseMode.TRANSPARENCY) DEFAULT_AMBIENT_LEVEL else 0x00)
+        }.toByteArray()
+    }
 
     private fun ambientSubtype(version: Version): Byte = when {
         version == Version.V1 -> 0x02
+        configuration.ambientDialect == SonyAmbientDialect.MODERN -> MODERN_AMBIENT_SUBTYPE
         configuration.ambientDialect == SonyAmbientDialect.AMBIENT_ONLY -> 0x17
         configuration.ambientDialect == SonyAmbientDialect.EXTENDED ||
             configuration.ambientDialect == SonyAmbientDialect.WIND -> 0x17
@@ -587,6 +624,7 @@ private class SonyHeadphonesProtocolSession(
         const val AMBIENT_SET: Byte = 0x68
         const val AMBIENT_NOTIFY = 0x69
         const val DEFAULT_AMBIENT_LEVEL: Byte = 20
+        const val MODERN_AMBIENT_SUBTYPE: Byte = 0x19
 
         fun supportedModes(dialect: SonyAmbientDialect): Set<NoiseMode> = buildSet {
             if (dialect.supportsNoiseCancelling) add(NoiseMode.ANC)

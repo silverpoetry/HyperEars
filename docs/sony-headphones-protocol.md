@@ -8,7 +8,10 @@ HyperEars 实现 Sony Headphones Connect 私有 RFCOMM 协议中 MiLink 所需�
 - Sony 私有 v2 服务 `956c7b26-d49a-4ba8-b03f-b17d393cb6e2`；
 - 初始化、序号和 ACK 请求队列；
 - 单整机、双耳和充电盒电量；
-- 降噪、关闭、环境声，以及已登记型号的抗风噪状态。
+- 降噪、关闭、环境声，以及已登记型号的抗风噪状态；
+- 2026 代型号（WF-1000XM6）的 v2 环境声方言：子类型 `0x19`，通知帧负载为
+  `69 19 <00> <开关> <降噪/环境声> <00> <等级> <00> <00>`，开关与模式字节位置与
+  `0x15` 方言一致；写入帧按通知帧逐字节镜像（`68 19 00 <开关> <降噪/环境声> 00 14 00 00`）。
 
 均衡器、触控分配、语音助手、固件升级和厂商素材不属于 MiLink 耳机流转所需能力，
 当前不实现。
@@ -30,7 +33,7 @@ Sony 通道一次只允许一个等待 ACK 的请求。HyperEars 的协议实例
 3. 具体型号 Adapter：内嵌 `SonyAdapterConfig`，声明外形、电池拓扑、环境声方言和
    服务优先级。
 
-已登记 Adapter 覆盖 WH-1000XM2–XM6、WH-CH720N、ULT WEAR、WF-1000XM3–XM5、
+已登记 Adapter 覆盖 WH-1000XM2–XM6、WH-CH720N、ULT WEAR、WF-1000XM3–XM6、
 WF-C500/C510/C700N/C710N、WF-SP800N、WI-SP600N、WI-C100、LinkBuds 和
 LinkBuds S。未知 `WH/WI/MDR` 或 `WF/LinkBuds` 产品先进入协议家族；名称明确表示降噪
 产品时开放通用三态，否则只读取协议电量。未知型号仍须返回合法初始化帧，私有通道
@@ -39,9 +42,10 @@ LinkBuds S。未知 `WH/WI/MDR` 或 `WF/LinkBuds` 产品先进入协议家族；
 ## 证据与限制
 
 协议帧依据公开协议文档、SonyHeadphonesClient 和 Gadgetbridge 的可互操作行为独立
-实现。上述型号当前属于公开实现画像，尚未完成 HyperEars 本地逐型号实机验证。型号名
-用于选择候选 Adapter 配置，Sony 私有 RFCOMM 初始化响应用于确认协议和家族能力；公共
-iAP2 accessory UUID 不参与 Sony 品牌判型；`LE_` 广播影子名称
-不会创建第二个设备会话。
+实现。上述型号当前属于公开实现画像，尚未完成 HyperEars 本地逐型号实机验证；
+WF-1000XM6 的 v2 握手、双耳与充电盒电量、`0x19` 环境声通知解析已依据真实设备日志
+验证，环境声写入帧仍待模式切换实机确认。型号名用于选择候选 Adapter 配置，Sony 私有
+RFCOMM 初始化响应用于确认协议和家族能力；公共 iAP2 accessory UUID 不参与 Sony
+品牌判型；`LE_` 广播影子名称不会创建第二个设备会话。
 
 完整来源、固定提交和许可证见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。

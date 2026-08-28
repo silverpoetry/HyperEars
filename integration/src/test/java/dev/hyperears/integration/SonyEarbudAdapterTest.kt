@@ -15,6 +15,10 @@ class SonyEarbudAdapterTest {
         assertEquals("sony-wf-c510", resolve("WF-C510").id)
         assertTrue(resolve("WF-C510").supportedNoiseModes.isEmpty())
         assertEquals(null, resolve("WF-C510").miLinkCardPresentationId)
+        val xm6 = resolve("WF-1000XM6")
+        assertEquals("sony-wf-1000xm6", xm6.id)
+        assertEquals(HeadsetFormFactor.TWS, xm6.formFactor)
+        assertEquals("sony-rfcomm-v2", xm6.transports.first().id)
         assertEquals("sony-linkbuds-s", resolve("LinkBuds S").id)
         assertEquals("sony-linkbuds", resolve("LinkBuds").id)
         assertEquals("sony-linkbuds", resolve("Sony LinkBuds").id)
@@ -211,6 +215,118 @@ class SonyEarbudAdapterTest {
         assertEquals(75, batteryEvent.battery.left.percent)
         assertEquals(80, batteryEvent.battery.right.percent)
         assertTrue(batteryEvent.battery.right.charging)
+    }
+
+    @Test
+    fun wf1000xm6UnlocksNoiseControlFromModernAmbientNotifies() {
+        val adapter = resolve("WF-1000XM6")
+
+        adapter.beginHandshake()
+        val handshake = adapter.receive(command(0, "01 00 03 00 30 02 00 00"))
+        assertEquals(HandshakeResult.Ready, handshake.handshake)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+
+        adapter.receive(command(0, "69 19 00 01 01 00 14 00 00"))
+        assertTrue(adapter.snapshot().capabilities.noiseControl)
+        assertEquals(
+            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            adapter.snapshot().supportedNoiseModes,
+        )
+    }
+
+    @Test
+    fun wf1000xm6QueriesAndParsesModernAmbientFrames() {
+        val protocol = requireNotNull(resolve("WF-1000XM6").protocolSession)
+        protocol.initialReadCommands()
+        protocol.offer(command(0, "01 00 03 00 30 02 00 00"))
+        protocol.drainImmediateCommands()
+        protocol.offer(ack(1))
+
+        val batteryQuery = decode(protocol.drainImmediateCommands().single())
+        assertArrayEquals(bytes("22 09"), batteryQuery.payload)
+
+        val batteryEvent = protocol.offer(command(0, "23 09 37 00 51 00 64 64"))
+            .filterIsInstance<ProtocolEvent.FeatureStateChanged>()
+            .map(ProtocolEvent.FeatureStateChanged::state)
+            .filterIsInstance<BatteryFeatureState>()
+            .single()
+        assertEquals(55, batteryEvent.battery.left.percent)
+        assertEquals(81, batteryEvent.battery.right.percent)
+
+        protocol.offer(ack(0))
+        val caseQuery = decode(protocol.drainImmediateCommands().last())
+        assertArrayEquals(bytes("22 0a"), caseQuery.payload)
+        protocol.offer(command(0, "23 0a 58 00 1e"))
+
+        protocol.offer(ack(1))
+        val ambientQuery = decode(protocol.drainImmediateCommands().last())
+        assertArrayEquals(bytes("66 19"), ambientQuery.payload)
+
+        val transparencyEvents = protocol.offer(command(0, "69 19 00 01 01 00 14 00 00"))
+        assertEquals(
+            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            transparencyEvents.filterIsInstance<ProtocolEvent.CapabilitiesIdentified>()
+                .single()
+                .noiseModes,
+        )
+        assertEquals(
+            NoiseMode.TRANSPARENCY,
+            transparencyEvents.filterIsInstance<ProtocolEvent.FeatureStateChanged>()
+                .map(ProtocolEvent.FeatureStateChanged::state)
+                .filterIsInstance<NoiseModeFeatureState>()
+                .single()
+                .mode,
+        )
+        assertEquals(
+            NoiseMode.ANC,
+            protocol.offer(command(0, "69 19 00 01 00 00 14 00 00"))
+                .filterIsInstance<ProtocolEvent.FeatureStateChanged>()
+                .map(ProtocolEvent.FeatureStateChanged::state)
+                .filterIsInstance<NoiseModeFeatureState>()
+                .single()
+                .mode,
+        )
+        assertEquals(
+            NoiseMode.OFF,
+            protocol.offer(command(0, "69 19 00 00 00 00 14 00 00"))
+                .filterIsInstance<ProtocolEvent.FeatureStateChanged>()
+                .map(ProtocolEvent.FeatureStateChanged::state)
+                .filterIsInstance<NoiseModeFeatureState>()
+                .single()
+                .mode,
+        )
+    }
+
+    @Test
+    fun wf1000xm6EncodesModernAmbientWrites() {
+        val protocol = requireNotNull(resolve("WF-1000XM6").protocolSession)
+        protocol.initialReadCommands()
+        protocol.offer(command(0, "01 00 03 00 30 02 00 00"))
+        protocol.drainImmediateCommands()
+        protocol.offer(ack(1))
+        protocol.drainImmediateCommands()
+        protocol.offer(ack(0))
+        protocol.drainImmediateCommands()
+        protocol.offer(ack(1))
+        protocol.drainImmediateCommands()
+        protocol.offer(ack(0))
+
+        val ancWrite = decode(
+            protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).single(),
+        )
+        assertArrayEquals(bytes("68 19 00 01 00 00 14 00 00"), ancWrite.payload)
+        protocol.offer(ack(1))
+
+        val transparencyWrite = decode(
+            protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY)).single(),
+        )
+        assertArrayEquals(bytes("68 19 00 01 01 00 14 00 00"), transparencyWrite.payload)
+        protocol.offer(ack(0))
+
+        val offWrite = decode(
+            protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.OFF)).single(),
+        )
+        assertArrayEquals(bytes("68 19 00 00 00 00 14 00 00"), offWrite.payload)
     }
 
     private fun resolve(name: String): EarbudAdapter = requireNotNull(
