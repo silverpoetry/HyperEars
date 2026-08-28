@@ -4,6 +4,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class TechnicsRaceWireCodecTest {
@@ -106,6 +107,33 @@ class TechnicsRaceWireCodecTest {
     }
 
     @Test
+    fun rejectsNonResponseOutsideControlFramesAndOutOfRangeWriteLevels() {
+        assertNull(
+            TechnicsRaceWireCodec.parseOutsideControl(
+                decode("05 5D 06 00 0A 00 00 01 64 32").single(),
+            ),
+        )
+        assertNull(
+            TechnicsRaceWireCodec.parseOutsideControl(
+                decode("05 5B 06 00 34 12 00 01 64 32").single(),
+            ),
+        )
+
+        assertIllegalArgument {
+            TechnicsRaceWireCodec.setNoiseMode(
+                TechnicsRaceWireCodec.NoiseMode.OFF,
+                noiseCancelLevel = -1,
+            )
+        }
+        assertIllegalArgument {
+            TechnicsRaceWireCodec.setNoiseMode(
+                TechnicsRaceWireCodec.NoiseMode.ANC,
+                ambientLevel = 101,
+            )
+        }
+    }
+
+    @Test
     fun decoderHandlesGarbageFragmentationAndCoalescedFrames() {
         val right = hex("05 5B 05 00 D6 0C 00 00 57")
         val case = hex("05 5B 04 00 40 00 00 40")
@@ -165,4 +193,12 @@ class TechnicsRaceWireCodecTest {
         TechnicsRaceWireCodec.Decoder().offer(hex(value))
 
     private fun hex(value: String): ByteArray = TechnicsRaceWireCodec.hex(value)
+
+    private fun assertIllegalArgument(block: () -> Unit) {
+        try {
+            block()
+            fail("Expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+        }
+    }
 }
