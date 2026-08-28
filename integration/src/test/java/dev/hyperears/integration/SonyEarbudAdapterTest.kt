@@ -19,6 +19,12 @@ class SonyEarbudAdapterTest {
         assertEquals("sony-wf-1000xm6", xm6.id)
         assertEquals(HeadsetFormFactor.TWS, xm6.formFactor)
         assertEquals("sony-rfcomm-v2", xm6.transports.first().id)
+        val xm4 = resolve("WH-1000XM4")
+        assertEquals("sony-wh-1000xm4", xm4.id)
+        assertEquals(
+            listOf("sony-rfcomm-v1", "sony-rfcomm-v2"),
+            xm4.transports.map { it.id },
+        )
         assertEquals("sony-linkbuds-s", resolve("LinkBuds S").id)
         assertEquals("sony-linkbuds", resolve("LinkBuds").id)
         assertEquals("sony-linkbuds", resolve("Sony LinkBuds").id)
@@ -327,6 +333,23 @@ class SonyEarbudAdapterTest {
             protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.OFF)).single(),
         )
         assertArrayEquals(bytes("68 19 00 00 00 00 14 00 00"), offWrite.payload)
+    }
+
+    @Test
+    fun v1ReArmsInitWhenDeviceTalksBeforeReplying() {
+        val protocol = requireNotNull(resolve("WH-1000XM4").protocolSession)
+        protocol.initialReadCommands()
+
+        // The device pushes notifications instead of the init reply; the init must be
+        // re-armed on every frame until the handshake completes.
+        val events = protocol.offer(command(0, "A5 01 00 02"))
+        assertEquals(emptyList<ProtocolEvent>(), events)
+        val rearmed = protocol.drainImmediateCommands()
+        assertArrayEquals(bytes("00 00"), decode(rearmed.last()).payload)
+
+        // The re-sent init is answered with the standard v1 reply.
+        val handshake = protocol.offer(command(0, "01 00 70 00"))
+        assertEquals(listOf(ProtocolEvent.HandshakeAccepted), handshake)
     }
 
     private fun resolve(name: String): EarbudAdapter = requireNotNull(

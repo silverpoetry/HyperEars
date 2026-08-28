@@ -22,6 +22,10 @@ HyperEars 实现 Sony Headphones Connect 私有 RFCOMM 协议中 MiLink 所需�
 校验位于帧内；`0x3c`、`0x3d`、`0x3e` 使用 `0x3d` 转义。连接建立后只发送初始化
 请求 `00 00`。初始化响应长度为 4 时使用 v1，为 8 时使用 v2。
 
+部分 v1 固件（WH-1000XM4，已实机验证）会忽略第一帧初始化请求，只在重发后才返回
+初始化响应；HyperEars 在握手完成前收到任何设备帧都会重发 `00 00`，与 Sound Connect
+行为一致。
+
 Sony 通道一次只允许一个等待 ACK 的请求。HyperEars 的协议实例维护设备序号和请求
 队列：收到设备命令后立即回 ACK，收到上一请求的 ACK 后才发送下一项。Socket、协程、
 重连和 MiLink 发布仍由通用设备会话管理，协议对象不持有系统资源。
@@ -43,9 +47,10 @@ LinkBuds S。未知 `WH/WI/MDR` 或 `WF/LinkBuds` 产品先进入协议家族；
 
 协议帧依据公开协议文档、SonyHeadphonesClient 和 Gadgetbridge 的可互操作行为独立
 实现。上述型号当前属于公开实现画像，尚未完成 HyperEars 本地逐型号实机验证；
-WF-1000XM6 的 v2 握手、双耳与充电盒电量、`0x19` 环境声通知解析已依据真实设备日志
-验证，环境声写入帧仍待模式切换实机确认。型号名用于选择候选 Adapter 配置，Sony 私有
-RFCOMM 初始化响应用于确认协议和家族能力；公共 iAP2 accessory UUID 不参与 Sony
-品牌判型；`LE_` 广播影子名称不会创建第二个设备会话。
+WF-1000XM6 的 v2 握手、双耳与充电盒电量、`0x19` 环境声通知解析，以及 WH-1000XM4
+的 v1 握手重发、整机电量、`0x02` 环境声方言均已依据真实设备流量验证（XM4 的握手
+行为与 Sound Connect 抓包逐字节一致），模式切换写入待实机确认。型号名用于选择候选
+Adapter 配置，Sony 私有 RFCOMM 初始化响应用于确认协议和家族能力；公共 iAP2
+accessory UUID 不参与 Sony 品牌判型；`LE_` 广播影子名称不会创建第二个设备会话。
 
 完整来源、固定提交和许可证见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。

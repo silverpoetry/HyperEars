@@ -24,6 +24,21 @@ internal class ControlAppProcessHook(
             val context = args.singleOrNull() as? Context ?: return@hookAfter
             ControlAppProcessPresence.install(context, controlApp)
         }
+        if (controlApp.packageName == SONY_SOUND_CONNECT_PACKAGE) {
+            runCatching {
+                ControlAppSocketTrace().also { trace ->
+                    trace.module = module
+                    trace.appClassLoader = appClassLoader
+                    trace.packageName = packageName
+                }.install()
+            }.onFailure {
+                ModuleLog.warn("ControlAppHook", "socket trace install failed", it)
+            }
+        }
+    }
+
+    private companion object {
+        const val SONY_SOUND_CONNECT_PACKAGE = "com.sony.songpal.mdr"
     }
 }
 

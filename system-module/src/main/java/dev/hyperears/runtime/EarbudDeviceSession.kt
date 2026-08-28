@@ -525,7 +525,8 @@ internal class EarbudDeviceSession(
                 ModuleLog.debug(
                     COMPONENT,
                     "transport ${transport.id} failed: " +
-                        "${error.javaClass.simpleName}:${error.message ?: "<no-message>"}",
+                        "${error.javaClass.simpleName}:" +
+                        (error.message ?: error.cause?.message ?: "<no-message>"),
                 )
             }
         }
@@ -942,7 +943,10 @@ internal class EarbudDeviceSession(
 
         const val COMPONENT = "DeviceSession"
         const val CONNECT_TIMEOUT_MS = 60_000L
-        const val PROTOCOL_HANDSHAKE_TIMEOUT_MS = 2_500L
+        // Local test build: WH-1000XM4 pushes its startup notifications before the init
+        // reply, which can exceed the stock 2.5s budget. 6s keeps failure latency bounded
+        // while giving slower headsets room to answer.
+        const val PROTOCOL_HANDSHAKE_TIMEOUT_MS = 6_000L
         const val INITIAL_COMMAND_GAP_MS = 150L
         const val COMMAND_GAP_MS = 120L
         const val STABLE_CONNECTION_MS = 30_000L

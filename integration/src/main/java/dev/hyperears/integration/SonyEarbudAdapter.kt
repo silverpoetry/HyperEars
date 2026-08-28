@@ -327,6 +327,13 @@ private class SonyHeadphonesProtocolSession(
             // published later from the corresponding valid state response.
             return listOf(ProtocolEvent.HandshakeAccepted)
         }
+        if (version == null) {
+            // WH-1000XM4-class firmware ignores the first init frame and answers only a
+            // re-sent one (verified against Sound Connect traffic). Re-arm the init
+            // whenever the device talks before the handshake completes.
+            immediateCommands += command(byteArrayOf(0x00, 0x00))
+            return emptyList()
+        }
 
         val activeVersion = version ?: return emptyList()
         parseBattery(activeVersion, payload)?.let { updated ->
