@@ -241,6 +241,23 @@ class SonyEarbudAdapterTest {
     }
 
     @Test
+    fun modernAmbientEvidenceIsStrictlyScopedToXm6AndValidBooleanFields() {
+        val xm6 = resolve("WF-1000XM6")
+        xm6.beginHandshake()
+        xm6.receive(command(0, "01 00 03 00 30 02 00 00"))
+
+        xm6.receive(command(0, "69 15 00 01 01 00"))
+        xm6.receive(command(0, "69 19 00 01 02 00 14 00 00"))
+        assertFalse(xm6.snapshot().capabilities.noiseControl)
+
+        val xm5 = resolve("WF-1000XM5")
+        xm5.beginHandshake()
+        xm5.receive(command(0, "01 00 03 00 30 02 00 00"))
+        xm5.receive(command(0, "69 19 00 01 01 00 14 00 00"))
+        assertFalse(xm5.snapshot().capabilities.noiseControl)
+    }
+
+    @Test
     fun wf1000xm6QueriesAndParsesModernAmbientFrames() {
         val protocol = requireNotNull(resolve("WF-1000XM6").protocolSession)
         protocol.initialReadCommands()
@@ -336,20 +353,45 @@ class SonyEarbudAdapterTest {
     }
 
     @Test
-    fun v1ReArmsInitWhenDeviceTalksBeforeReplying() {
+    fun xm4ReArmsInitOnceWhenTheDeviceTalksBeforeReplying() {
         val protocol = requireNotNull(resolve("WH-1000XM4").protocolSession)
         protocol.initialReadCommands()
 
-        // The device pushes notifications instead of the init reply; the init must be
-        // re-armed on every frame until the handshake completes.
+        // The captured firmware pushes a command before replying to the first init request.
         val events = protocol.offer(command(0, "A5 01 00 02"))
         assertEquals(emptyList<ProtocolEvent>(), events)
         val rearmed = protocol.drainImmediateCommands()
+        assertEquals(2, rearmed.size)
+        assertEquals(SonyHeadphonesWireCodec.MessageType.ACK, decode(rearmed.first()).type)
         assertArrayEquals(bytes("00 00"), decode(rearmed.last()).payload)
+
+        // Additional pre-handshake traffic is acknowledged but cannot keep extending the retry.
+        protocol.offer(command(1, "A5 01 00 02"))
+        val bounded = protocol.drainImmediateCommands()
+        assertEquals(1, bounded.size)
+        assertEquals(SonyHeadphonesWireCodec.MessageType.ACK, decode(bounded.single()).type)
 
         // The re-sent init is answered with the standard v1 reply.
         val handshake = protocol.offer(command(0, "01 00 70 00"))
         assertEquals(listOf(ProtocolEvent.HandshakeAccepted), handshake)
+
+        // A physical-session reset starts a fresh, independently bounded handshake.
+        protocol.reset()
+        protocol.initialReadCommands()
+        protocol.offer(command(0, "A5 01 00 02"))
+        assertEquals(2, protocol.drainImmediateCommands().size)
+    }
+
+    @Test
+    fun xm4InitRetryDoesNotLeakToAdjacentSonyModels() {
+        val protocol = requireNotNull(resolve("WH-1000XM3").protocolSession)
+        protocol.initialReadCommands()
+
+        protocol.offer(command(0, "A5 01 00 02"))
+
+        val commands = protocol.drainImmediateCommands()
+        assertEquals(1, commands.size)
+        assertEquals(SonyHeadphonesWireCodec.MessageType.ACK, decode(commands.single()).type)
     }
 
     private fun resolve(name: String): EarbudAdapter = requireNotNull(

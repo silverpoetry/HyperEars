@@ -48,10 +48,16 @@ internal data class SonyAdapterConfig(
     val batteryKinds: List<SonyBatteryKind>,
     val ambientDialect: SonyAmbientDialect,
     val preferServiceV2: Boolean = false,
+    /** Model-confirmed init retries triggered only by a pre-handshake device command. */
+    val preHandshakeInitRetryLimit: Int = 0,
     val exactName: Boolean = false,
     val miLinkPresentationId: MiLinkCardPresentationId? = null,
     val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH,
-)
+) {
+    init {
+        require(preHandshakeInitRetryLimit in 0..2)
+    }
+}
 
 /**
  * Sony's common private-protocol layer.
@@ -109,7 +115,13 @@ object SonyAdapterRegistry {
     private val modelConfigs = listOf(
         sonyHeadphones("wh-1000xm2", "Sony WH-1000XM2", "wh1000xm2", ambient = SonyAmbientDialect.WIND),
         sonyHeadphones("wh-1000xm3", "Sony WH-1000XM3", "wh1000xm3", ambient = SonyAmbientDialect.WIND),
-        sonyHeadphones("wh-1000xm4", "Sony WH-1000XM4", "wh1000xm4", ambient = SonyAmbientDialect.WIND),
+        sonyHeadphones(
+            id = "wh-1000xm4",
+            displayName = "Sony WH-1000XM4",
+            marker = "wh1000xm4",
+            ambient = SonyAmbientDialect.WIND,
+            preHandshakeInitRetryLimit = 1,
+        ),
         sonyHeadphones("wh-1000xm5", "Sony WH-1000XM5", "wh1000xm5", ambient = SonyAmbientDialect.STANDARD),
         sonyHeadphones("wh-1000xm6", "Sony WH-1000XM6", "wh1000xm6", ambient = SonyAmbientDialect.STANDARD),
         sonyHeadphones("wh-ch720n", "Sony WH-CH720N", "whch720n", ambient = SonyAmbientDialect.STANDARD),
@@ -262,13 +274,14 @@ private class SonyHeadphonesProtocolSession(
     private var version: Version? = null
     private var sequence = 0
     private var awaitingAck = false
+    private var preHandshakeInitRetryCount = 0
     private var battery = EarbudBattery()
 
     @Synchronized
     override fun initialReadCommands(): List<ByteArray> {
         resetState()
         awaitingAck = true
-        return listOf(command(byteArrayOf(0x00, 0x00)))
+        return listOf(initCommand())
     }
 
     @Synchronized
@@ -328,10 +341,14 @@ private class SonyHeadphonesProtocolSession(
             return listOf(ProtocolEvent.HandshakeAccepted)
         }
         if (version == null) {
-            // WH-1000XM4-class firmware ignores the first init frame and answers only a
-            // re-sent one (verified against Sound Connect traffic). Re-arm the init
-            // whenever the device talks before the handshake completes.
-            immediateCommands += command(byteArrayOf(0x00, 0x00))
+            // Some WH-1000XM4 firmware talks before answering the first init request. The exact
+            // model configuration permits one evidence-triggered retry; other Sony models keep
+            // the default zero-retry behavior and the common session timeout remains unchanged.
+            if (preHandshakeInitRetryCount < configuration.preHandshakeInitRetryLimit) {
+                preHandshakeInitRetryCount += 1
+                awaitingAck = true
+                immediateCommands += initCommand()
+            }
             return emptyList()
         }
 
@@ -419,6 +436,8 @@ private class SonyHeadphonesProtocolSession(
         payload = payload,
     )
 
+    private fun initCommand(): ByteArray = command(byteArrayOf(0x00, 0x00))
+
     private fun parseBattery(version: Version, payload: ByteArray): EarbudBattery? {
         val code = payload[0].toInt() and 0xFF
         val validCode = if (version == Version.V1) {
@@ -473,13 +492,18 @@ private class SonyHeadphonesProtocolSession(
     private fun parseAmbientV2(payload: ByteArray): NoiseMode? {
         if (payload.size < 6) return null
         val subtype = payload[1].toInt() and 0xFF
-        if (subtype == MODERN_AMBIENT_SUBTYPE.toInt()) {
+        if (configuration.ambientDialect == SonyAmbientDialect.MODERN) {
             // 2026-generation notify: on/off at [3], ANC vs transparency at [4].
-            if (payload.size != 9) return null
+            if (subtype != MODERN_AMBIENT_SUBTYPE.toInt() || payload.size != 9) return null
             if (payload[3].toInt() == 0) return NoiseMode.OFF
             if (payload[3].toInt() != 1) return null
-            return if (payload[4].toInt() == 0) NoiseMode.ANC else NoiseMode.TRANSPARENCY
+            return when (payload[4].toInt() and 0xFF) {
+                0 -> NoiseMode.ANC
+                1 -> NoiseMode.TRANSPARENCY
+                else -> null
+            }
         }
+        if (subtype == MODERN_AMBIENT_SUBTYPE.toInt()) return null
         if (payload.size !in 6..8) return null
         if (subtype !in setOf(0x15, 0x17, 0x22)) return null
         if (payload[3].toInt() == 0) return NoiseMode.OFF
@@ -517,9 +541,7 @@ private class SonyHeadphonesProtocolSession(
 
     private fun encodeAmbientV2(mode: NoiseMode): ByteArray {
         if (configuration.ambientDialect == SonyAmbientDialect.MODERN) {
-            // The 0x19 write mirrors the device's own notify layout byte-for-byte.
-            // If a device ignores the write, the third byte (0x00) is the first variant to try
-            // as 0x01, matching the legacy 0x15 write convention.
+            // Captured 2026-generation write mirrors the device's 0x19 notify layout.
             return byteArrayOf(
                 AMBIENT_SET,
                 MODERN_AMBIENT_SUBTYPE,
@@ -614,6 +636,7 @@ private class SonyHeadphonesProtocolSession(
         version = null
         sequence = 0
         awaitingAck = false
+        preHandshakeInitRetryCount = 0
         battery = EarbudBattery()
     }
 
@@ -661,6 +684,7 @@ private fun sonyHeadphones(
     marker: String,
     ambient: SonyAmbientDialect,
     preferServiceV2: Boolean = false,
+    preHandshakeInitRetryLimit: Int = 0,
 ): SonyAdapterConfig = SonyAdapterConfig(
     id = "sony-$id",
     displayName = displayName,
@@ -669,6 +693,7 @@ private fun sonyHeadphones(
     batteryKinds = listOf(SonyBatteryKind.SINGLE),
     ambientDialect = ambient,
     preferServiceV2 = preferServiceV2,
+    preHandshakeInitRetryLimit = preHandshakeInitRetryLimit,
 )
 
 private fun sonyTw(
