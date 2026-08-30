@@ -218,6 +218,12 @@ internal val supportBrands = listOf(
                 noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
             ),
             SupportEntry(
+                name = "ROSE Ceramics X（琉璃 X）",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.SYSTEM,
+                noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
+            ),
+            SupportEntry(
                 name = "ROSE Ceramics Ultra（琉璃 Ultra）",
                 evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.COMPONENT,

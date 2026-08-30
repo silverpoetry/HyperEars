@@ -545,6 +545,144 @@ class EarbudAdapterHierarchyTest {
     }
 
     @Test
+    fun roseCeramicsXNameSelectsCapturedCompanionGattAdapter() {
+        val adapter = requireNotNull(
+            EarbudAdapterRegistry.resolve(
+                EarbudIdentity(
+                    deviceName = "ROSE Ceramics X",
+                    standardHeadset = true,
+                    serviceUuids = emptySet(),
+                ),
+            ),
+        )
+
+        assertTrue(adapter is RoseLuliXAdapter)
+        assertEquals(AdapterResolution.EXACT_MATCH, adapter.resolution)
+        assertTrue(adapter.privateProtocolRequired)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        val transport = adapter.transports.single() as GattTransportSpec
+        assertEquals(RoseLuliXAdapter.SERVICE_UUID, transport.serviceUuid)
+        assertEquals(
+            RoseLuliXAdapter.WRITE_CHARACTERISTIC_UUID,
+            transport.writeCharacteristicUuid,
+        )
+        assertEquals(
+            RoseLuliXAdapter.NOTIFY_CHARACTERISTIC_UUID,
+            transport.notifyCharacteristicUuid,
+        )
+        assertEquals(RoseLuliXAdapter.WRITE_ATTRIBUTE_HANDLE, transport.writeInstanceId)
+        assertEquals(RoseLuliXAdapter.NOTIFY_ATTRIBUTE_HANDLE, transport.notifyInstanceId)
+        assertEquals(GattWriteMode.WITHOUT_RESPONSE, transport.writeMode)
+        assertTrue(transport.notificationsRequired)
+        val selection = transport.peerSelection as GattPeerSelection.CompanionDevice
+        assertEquals(RoseLuliXAdapter.COMPANION_DEVICE_NAME, selection.filter.deviceName)
+        assertEquals(
+            InitialProtocolFailureResolution.KeepDormant,
+            adapter.onInitialProtocolUnavailable(),
+        )
+    }
+
+    @Test
+    fun roseLuliXAliasSelectsExactAdapter() {
+        assertTrue(resolve("ROSE Luli X", standard = true) is RoseLuliXAdapter)
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherAssociatesUnnamedAdvertisementWithAudioAddress() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "00:11:22:33:D7:84")
+
+        assertTrue(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                            hex("01 09 00 01 02 03 04 D7 84 04 64 64 00"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherRejectsUnlinkedOrMalformedManufacturerData() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "00:11:22:33:D7:84")
+
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                            hex("01 09 00 01 02 03 04 10 20 04 64 64 00"),
+                    ),
+                ),
+            ),
+        )
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to byteArrayOf(0x01),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherRejectsUnrelatedBlePeers() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "00:11:22:33:44:55")
+        assertTrue(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity("CERAMICS X BLE", "66:77:88:99:AA:BB"),
+            ),
+        )
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity("Other BLE", "66:77:88:99:AA:BB"),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXEnablesAncControlOnlyAfterCapturedModeReport() {
+        val adapter = RoseLuliXAdapter()
+
+        assertFalse(adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).accepted)
+        assertEquals(
+            HandshakeResult.Ready,
+            adapter.receive(hex("00 27 02 00 03 0C 01 03")).handshake,
+        )
+        assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
+
+        val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+
+        assertTrue(result.accepted)
+        assertEquals(
+            listOf(0x00, 0x2C, 0x01, 0x00, 0x01, 0x01),
+            result.commands.single().map { it.toInt() and 0xFF },
+        )
+        assertEquals(
+            listOf(0x00, 0x27, 0x01, 0x00, 0x01, 0x0C),
+            result.readback.single().map { it.toInt() and 0xFF },
+        )
+        adapter.receive(hex("00 28 02 00 03 0C 01 01"))
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+    }
+
+    @Test
     fun roseCeramicsNameSelectsLuliUltraBudsFeelAdapterWithoutCachedUuid() {
         val adapter = requireNotNull(
             EarbudAdapterRegistry.resolve(
