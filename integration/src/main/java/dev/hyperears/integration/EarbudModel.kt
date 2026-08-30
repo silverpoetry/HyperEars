@@ -101,19 +101,6 @@ data class NoiseModeFeatureState(
     }
 }
 
-@Serializable
-@SerialName("standard.game_mode")
-data class GameModeFeatureState(
-    val enabled: Boolean,
-) : DeviceFeatureState {
-    @Transient
-    override val featureId: String = FEATURE_ID
-
-    companion object {
-        const val FEATURE_ID = "standard.game_mode"
-    }
-}
-
 /** Immutable state collection with replacement semantics per feature identity. */
 @Serializable
 data class DeviceFeatureSnapshot(
@@ -151,8 +138,7 @@ fun interface DeviceFeatureStateContract {
 object StandardDeviceFeatureStateContract : DeviceFeatureStateContract {
     override fun accepts(adapter: EarbudAdapter, state: DeviceFeatureState): Boolean =
         state.featureId == BatteryFeatureState.FEATURE_ID ||
-            state.featureId == NoiseModeFeatureState.FEATURE_ID ||
-            state.featureId == GameModeFeatureState.FEATURE_ID
+            state.featureId == NoiseModeFeatureState.FEATURE_ID
 }
 
 /** Adds a family/model feature predicate without weakening standard state handling. */
@@ -298,7 +284,6 @@ sealed interface ProtocolEvent {
     data class CapabilitiesIdentified(
         val battery: Boolean,
         val noiseModes: Set<NoiseMode> = emptySet(),
-        val gameMode: Boolean = false,
     ) : ProtocolEvent
 
     data class FeatureStateChanged(val state: DeviceFeatureState) : ProtocolEvent
@@ -502,7 +487,6 @@ data class EarbudCapabilities(
     val spatialAudio: Boolean = false,
     val wearDetection: Boolean = false,
     val findDevice: Boolean = false,
-    val gameModeControl: Boolean = false,
 )
 
 /** One vendor control application that may take ownership of the private headset protocol. */

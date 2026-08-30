@@ -203,7 +203,7 @@ abstract class EarbudAdapter(
                 }
 
                 is ProtocolEvent.CapabilitiesIdentified -> {
-                    onCapabilitiesIdentified(event.battery, event.noiseModes, event.gameMode)
+                    onCapabilitiesIdentified(event.battery, event.noiseModes)
                         ?.let { handshake = it }
                 }
 
@@ -247,7 +247,6 @@ abstract class EarbudAdapter(
     protected open fun onCapabilitiesIdentified(
         battery: Boolean,
         noiseModes: Set<NoiseMode>,
-        gameMode: Boolean = false,
     ): HandshakeResult? {
         val nextModes = effectiveSupportedNoiseModes() + noiseModes
         val base = effectiveCapabilities()
@@ -256,7 +255,6 @@ abstract class EarbudAdapter(
             battery = base.battery || battery,
             noiseControl = nextModes.isNotEmpty(),
             windNoiseControl = NoiseMode.WIND in nextModes,
-            gameModeControl = base.gameModeControl || gameMode,
         )
         return null
     }
@@ -285,10 +283,6 @@ abstract class EarbudAdapter(
     open fun controlPolicy(request: ControlRequest): ControlExecutionPolicy = when (request) {
         is StandardControlRequest.SetNoiseMode -> ControlExecutionPolicy(
             stateAfterWrite = NoiseModeFeatureState(request.mode),
-        )
-
-        is StandardControlRequest.SetGameMode -> ControlExecutionPolicy(
-            stateAfterWrite = GameModeFeatureState(request.enabled),
         )
 
         else -> ControlExecutionPolicy()
@@ -393,6 +387,14 @@ abstract class EarbudAdapter(
     }
 
     fun runtimeState(): AdapterRuntimeState = runtimeState
+
+    /** Removes one Adapter-owned transient feature when its protocol evidence is reset. */
+    protected fun removeFeatureState(featureId: String) {
+        val next = runtimeState.features.remove(featureId)
+        if (next != runtimeState.features) {
+            runtimeState = runtimeState.copy(features = next)
+        }
+    }
 
     fun snapshot(): AdapterSnapshot = AdapterSnapshot(
         id = id,

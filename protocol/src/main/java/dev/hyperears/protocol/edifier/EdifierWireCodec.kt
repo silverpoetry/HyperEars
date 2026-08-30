@@ -130,9 +130,14 @@ object EdifierWireCodec {
                         ?.unsigned()?.let { it xor RESPONSE_XOR_KEY }
                     // Verified on-device (FitClip Ultra): byte3 = case percent, byte4 = case
                     // state (1=charging, 2=not, 3=offline). Case omitted when state is offline.
-                    val casePercent = payload.getOrNull(TWS_CASE_BATTERY_OFFSET)
-                        ?.decryptPercent()
-                        ?.takeIf { caseState != TWS_CASE_STATE_OFFLINE }
+                    val casePercent = when (caseState) {
+                        TWS_CASE_STATE_CHARGING,
+                        TWS_CASE_STATE_NOT_CHARGING,
+                        -> payload.getOrNull(TWS_CASE_BATTERY_OFFSET)?.decryptPercent()
+
+                        TWS_CASE_STATE_OFFLINE -> null
+                        else -> null
+                    }
                     BatteryState.TwsComponents(
                         leftPercent = left,
                         rightPercent = right,
@@ -322,5 +327,6 @@ object EdifierWireCodec {
 
     // BoxStateEnum: 1=Charging, 2=NotCharging, 3=Offline(undetectable).
     private const val TWS_CASE_STATE_CHARGING = 1
+    private const val TWS_CASE_STATE_NOT_CHARGING = 2
     private const val TWS_CASE_STATE_OFFLINE = 3
 }

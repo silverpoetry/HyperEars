@@ -88,7 +88,6 @@ private class HonorX5sProProtocolSession : ProtocolSession {
                 request.depth.toWireDepth(),
             ),
         )
-        is StandardControlRequest.SetGameMode -> emptyList()
         else -> emptyList()
     }
 

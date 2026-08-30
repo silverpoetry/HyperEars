@@ -310,7 +310,9 @@ class EarbudAdapterHierarchyTest {
         val adapter = EdifierFitClipUltraAdapter()
 
         assertEquals(AdapterResolution.EXACT_MATCH, adapter.snapshot().resolution)
+        assertNull(adapter.snapshot().presentationId)
         assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertFalse(adapter.supportsControl(EdifierControlRequest.SetGameMode(enabled = true)))
         assertEquals(
             listOf(
                 EdifierWireCodec.queryDeviceState.toList(),
@@ -334,10 +336,37 @@ class EarbudAdapterHierarchyTest {
     }
 
     @Test
+    fun fitClipUltraUnlocksGameModeOnlyAfterAValidDeviceResponse() {
+        val adapter = EdifierFitClipUltraAdapter()
+
+        val observed = adapter.receive(hex("BB EC 08 00 01 A5 55"))
+
+        assertEquals(HandshakeResult.Ready, observed.handshake)
+        assertEquals(
+            EdifierGameModeFeatureState(enabled = false),
+            adapter.runtimeState().features.get<EdifierGameModeFeatureState>(),
+        )
+        assertEquals(EdifierMiLinkPresentationIds.GAME_MODE, adapter.snapshot().presentationId)
+
+        val control = adapter.executeControl(EdifierControlRequest.SetGameMode(enabled = true))
+        assertTrue(control.accepted)
+        assertFalse(control.stateChanged)
+        assertEquals(
+            listOf(EdifierWireCodec.setGameMode(enabled = true).toList()),
+            control.commands.map(ByteArray::toList),
+        )
+        assertEquals(
+            listOf(EdifierWireCodec.queryGameState.toList()),
+            control.readback.map(ByteArray::toList),
+        )
+    }
+
+    @Test
     fun fitClipUltraResetRestoresTheSystemBatteryFallback() {
         val adapter = EdifierFitClipUltraAdapter()
         adapter.onSystemBatteryChanged(61)
         adapter.receive(hex("BB EC F2 00 06 A6 C1 C7 A5 A6 B4 CC"))
+        adapter.receive(hex("BB EC 08 00 01 A4 54"))
 
         adapter.resetProtocolSession()
         adapter.onSystemBatteryChanged(61)
@@ -346,6 +375,9 @@ class EarbudAdapterHierarchyTest {
         assertEquals(61, adapter.runtimeState().battery.left.percent)
         assertEquals(61, adapter.runtimeState().battery.right.percent)
         assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertNull(adapter.runtimeState().features.get<EdifierGameModeFeatureState>())
+        assertNull(adapter.snapshot().presentationId)
+        assertFalse(adapter.supportsControl(EdifierControlRequest.SetGameMode(enabled = false)))
     }
 
     @Test

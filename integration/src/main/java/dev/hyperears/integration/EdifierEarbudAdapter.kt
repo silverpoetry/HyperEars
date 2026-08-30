@@ -188,12 +188,36 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
     override val id: String = ID
     override val displayName: String = "Edifier FitClip Ultra"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = EdifierMiLinkPresentationIds.GAME_MODE.takeIf {
+            runtimeState().features.get<EdifierGameModeFeatureState>() != null
+        }
+    override val featureStateContract: DeviceFeatureStateContract =
+        StandardDeviceFeatureStateContract.extending { _, state ->
+            state is EdifierGameModeFeatureState
+        }
+    override val controlRequestContract: ControlRequestContract =
+        StandardControlRequestContract.extending { adapter, request ->
+            request is EdifierControlRequest.SetGameMode &&
+                adapter.runtimeState().features.get<EdifierGameModeFeatureState>() != null
+        }
     override val wireConfig: EdifierWireConfig = EdifierWireConfig(
         batteryQueries = listOf(EdifierBatteryQuery.DEVICE_STATE),
         batteryProjection = EdifierBatteryProjection.TWS_AGGREGATE,
         ancDialects = emptyList(),
         gameModeQuery = true,
     )
+
+    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy = when (request) {
+        is EdifierControlRequest.SetGameMode ->
+            ControlExecutionPolicy(confirmation = ControlConfirmationPolicy.DEVICE_REPORT)
+        else -> super.controlPolicy(request)
+    }
+
+    override fun onProtocolReset() {
+        removeFeatureState(EdifierGameModeFeatureState.FEATURE_ID)
+    }
+
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         return normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
@@ -211,6 +235,7 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
 
 object EdifierMiLinkPresentationIds {
     val FOUR_MODE = MiLinkCardPresentationId("edifier-four-mode")
+    val GAME_MODE = MiLinkCardPresentationId("edifier-fitclip-game")
 }
 
 enum class EdifierBatteryQuery(val commandIndex: Int) {
@@ -343,7 +368,7 @@ private class EdifierProtocolSession(
                 emptyList()
             }
         }
-        request is StandardControlRequest.SetGameMode ->
+        request is EdifierControlRequest.SetGameMode ->
             listOf(EdifierWireCodec.setGameMode(request.enabled))
 
         else -> emptyList()
@@ -354,8 +379,19 @@ private class EdifierProtocolSession(
         // acknowledgement. Skip the extra readback round-trip to reduce perceived latency.
         request === StandardControlRequest.Refresh -> emptyList()
         request is StandardControlRequest.SetNoiseMode -> emptyList()
-        request is StandardControlRequest.SetGameMode -> listOf(EdifierWireCodec.queryGameState)
+        request is EdifierControlRequest.SetGameMode -> listOf(EdifierWireCodec.queryGameState)
         else -> emptyList()
+    }
+
+    override fun query(request: TelemetryQuery): List<ByteArray> = when (request) {
+        TelemetryQuery.RefreshAll -> encode(StandardControlRequest.Refresh)
+        is TelemetryQuery.RefreshFeature -> when (request.featureId) {
+            EdifierGameModeFeatureState.FEATURE_ID ->
+                listOf(EdifierWireCodec.queryGameState).takeIf {
+                    configuration.gameModeQuery
+                }.orEmpty()
+            else -> emptyList()
+        }
     }
 
     override fun offer(bytes: ByteArray): List<ProtocolEvent> = buildList {
@@ -406,8 +442,12 @@ private class EdifierProtocolSession(
 
             // Game-mode state from 0x08 query or 0x09 set response
             EdifierWireCodec.parseGameModeState(frame)?.let { enabled ->
-                add(ProtocolEvent.CapabilitiesIdentified(battery = false, gameMode = true))
-                add(ProtocolEvent.FeatureStateChanged(GameModeFeatureState(enabled)))
+                add(
+                    ProtocolEvent.FeatureStateChanged(
+                        EdifierGameModeFeatureState(enabled),
+                    ),
+                )
+                publishHandshakeIfNeeded()
                 return@forEach
             }
 

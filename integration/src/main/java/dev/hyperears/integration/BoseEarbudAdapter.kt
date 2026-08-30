@@ -74,14 +74,13 @@ open class BoseEarbudAdapter(
     override fun onCapabilitiesIdentified(
         battery: Boolean,
         noiseModes: Set<NoiseMode>,
-        gameMode: Boolean,
     ): HandshakeResult? {
         val session = protocolSession as? BoseBmapProtocolSession ?: return null
         val discovered = session.discoveredConfig
-            ?: return super.onCapabilitiesIdentified(battery, noiseModes, gameMode)
+            ?: return super.onCapabilitiesIdentified(battery, noiseModes)
         val nextConfig = wireConfig?.copy(noiseControl = discovered.noiseControl) ?: discovered
         if (wireConfig == nextConfig) {
-            return super.onCapabilitiesIdentified(battery, noiseModes, gameMode)
+            return super.onCapabilitiesIdentified(battery, noiseModes)
         }
         val next = BoseRuntimeAdapterFactory.create(
             configuration = nextConfig,
