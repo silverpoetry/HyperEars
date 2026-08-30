@@ -280,24 +280,26 @@ private fun ProtocolLabScreen(
                     )
                 }
 
-                if (state.selectedTarget == ProtocolTarget.VIVO_TWS) {
-                    item {
-                        VivoIdentityCard(
-                            state = state,
-                            onStart = onStartIdentityScan,
-                            onStop = onStopIdentityScan,
-                        )
-                    }
+                when (state.selectedTarget) {
+                    ProtocolTarget.VIVO_TWS -> {
+                        item {
+                            VivoIdentityCard(
+                                state = state,
+                                onStart = onStartIdentityScan,
+                                onStop = onStopIdentityScan,
+                            )
+                        }
 
-                    item {
-                        WireConfigCard(
-                            selected = state.selectedWireConfig,
-                            detected = state.detectedWireConfig,
-                            onSelect = onSelectWireConfig,
-                        )
+                        item {
+                            WireConfigCard(
+                                selected = state.selectedWireConfig,
+                                detected = state.detectedWireConfig,
+                                onSelect = onSelectWireConfig,
+                            )
+                        }
                     }
-                } else {
-                    item { StarRingEvidenceCard() }
+                    ProtocolTarget.TECHNICS_RACE -> item { TechnicsEvidenceCard() }
+                    else -> item { StarRingEvidenceCard() }
                 }
 
                 item {
@@ -338,14 +340,16 @@ private fun ProtocolLabScreen(
                     }
                 }
 
-                item {
-                    RawCommandCard(
-                        target = state.selectedTarget,
-                        enabled = state.phase == ConnectionPhase.CONNECTED,
-                        value = state.rawCommand,
-                        onValueChange = onRawChange,
-                        onSend = onSendRaw,
-                    )
+                if (state.selectedTarget != ProtocolTarget.TECHNICS_RACE) {
+                    item {
+                        RawCommandCard(
+                            target = state.selectedTarget,
+                            enabled = state.phase == ConnectionPhase.CONNECTED,
+                            value = state.rawCommand,
+                            onValueChange = onRawChange,
+                            onSend = onSendRaw,
+                        )
+                    }
                 }
             }
 
@@ -427,6 +431,9 @@ private fun ConnectionCard(
 
                             ProtocolTarget.ROSE_BUDSFEEL ->
                                 "将依次探测 BudsFeel UUID 0cf12d31、标准 SPP、通道 1/5"
+
+                            ProtocolTarget.TECHNICS_RACE ->
+                                "将依次探测 Technics 厂商 UUID、标准 SPP"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -537,6 +544,25 @@ private fun StarRingEvidenceCard() {
         Text(
             "预期回报：group 0x01 / command 0x01；左右耳取 payload[2]/[3]，" +
                 "充电盒取 payload[6]，0xFF 表示不可用。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun TechnicsEvidenceCard() {
+    LabCard(
+        title = "Technics RACE 只读协议",
+        subtitle = "参考实现已覆盖多个 EAH-AZ 型号；HyperEars 本次实机仅验证 AZ80。",
+    ) {
+        Text(
+            "探测范围：左右耳和充电盒电量；外部控制 0x000A。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            "仅发送 GET 查询，不提供设置命令或原始帧写入。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -885,21 +911,26 @@ private fun ApiTestCard(
 
             ProtocolTarget.ROSE_BUDSFEEL ->
                 "发送 BudsFeel 状态查询（0x1E），读取电量与噪声模式，不改变耳机设置。"
+
+            ProtocolTarget.TECHNICS_RACE ->
+                "发送左右耳/充电盒电量与外部控制（0x000A）GET，不改变耳机设置。"
         },
     ) {
         if (target == ProtocolTarget.VIVO_TWS || target == ProtocolTarget.BOSE_BMAP ||
-            target == ProtocolTarget.EDIFIER_BES || target == ProtocolTarget.ROSE_BUDSFEEL) {
+            target == ProtocolTarget.EDIFIER_BES || target == ProtocolTarget.ROSE_BUDSFEEL ||
+            target == ProtocolTarget.TECHNICS_RACE) {
             ApiStatusRow(
                 when (target) {
                     ProtocolTarget.BOSE_BMAP -> "产品判型"
                     ProtocolTarget.EDIFIER_BES -> "设备功能"
+                    ProtocolTarget.TECHNICS_RACE -> "协议响应"
                     else -> "握手"
                 },
                 handshakeStatus,
             )
         }
         if (target == ProtocolTarget.VIVO_TWS || target == ProtocolTarget.EDIFIER_BES ||
-            target == ProtocolTarget.ROSE_BUDSFEEL) {
+            target == ProtocolTarget.ROSE_BUDSFEEL || target == ProtocolTarget.TECHNICS_RACE) {
             ApiStatusRow("降噪查询", noiseStatus)
         }
         ApiStatusRow("电量查询", batteryStatus)
@@ -915,6 +946,7 @@ private fun ApiTestCard(
                     ProtocolTarget.BOSE_BMAP -> "读取 Bose 型号与电量"
                     ProtocolTarget.EDIFIER_BES -> "运行 Edifier 只读探测"
                     ProtocolTarget.ROSE_BUDSFEEL -> "运行 BudsFeel 只读探测"
+                    ProtocolTarget.TECHNICS_RACE -> "运行 Technics 只读探测"
                 },
             )
         }
@@ -1012,6 +1044,9 @@ private fun RawCommandCard(
 
             ProtocolTarget.ROSE_BUDSFEEL ->
                 "高级诊断入口；输入完整 BudsFeel 帧，例如状态查询 FF 00 1E FA 01 07 08 09 0C … E9 AA。"
+
+            ProtocolTarget.TECHNICS_RACE ->
+                "Technics 目标禁用原始命令发送，仅允许内置只读 GET。"
         },
     ) {
         OutlinedTextField(

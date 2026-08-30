@@ -5,6 +5,43 @@ import org.junit.Test
 
 class RoseWireCodecsTest {
     @Test
+    fun ceramicsXBuildsCapturedModeCommandsAndParsesQueryAndAsyncReports() {
+        assertEquals("00 27 01 00 01 0C", RoseCeramicsXWireCodec.queryNoiseMode.hex())
+        assertEquals(
+            "00 2C 01 00 01 01",
+            RoseCeramicsXWireCodec.setNoiseMode(RoseCeramicsXWireCodec.NoiseMode.ANC).hex(),
+        )
+        assertEquals(
+            "00 2C 01 00 01 02",
+            RoseCeramicsXWireCodec.setNoiseMode(RoseCeramicsXWireCodec.NoiseMode.TRANSPARENCY).hex(),
+        )
+        assertEquals(
+            "00 2C 01 00 01 00",
+            RoseCeramicsXWireCodec.setNoiseMode(RoseCeramicsXWireCodec.NoiseMode.WIND).hex(),
+        )
+        assertEquals(
+            "00 2C 01 00 01 03",
+            RoseCeramicsXWireCodec.setNoiseMode(RoseCeramicsXWireCodec.NoiseMode.OFF).hex(),
+        )
+        assertEquals(
+            RoseCeramicsXWireCodec.NoiseMode.OFF,
+            RoseCeramicsXWireCodec.parseNoiseMode(hex("00 27 02 00 03 0C 01 03")),
+        )
+        assertEquals(
+            RoseCeramicsXWireCodec.NoiseMode.ANC,
+            RoseCeramicsXWireCodec.parseNoiseMode(hex("00 28 02 00 03 0C 01 01")),
+        )
+    }
+
+    @Test
+    fun ceramicsXRejectsAckAndMalformedOrUnknownModeReports() {
+        assertEquals(null, RoseCeramicsXWireCodec.parseNoiseMode(hex("00 2C 02 00 01 00")))
+        assertEquals(null, RoseCeramicsXWireCodec.parseNoiseMode(hex("00 28 02 00 03 0C 01")))
+        assertEquals(null, RoseCeramicsXWireCodec.parseNoiseMode(hex("00 28 02 00 03 0C 01 04")))
+        assertEquals(null, RoseCeramicsXWireCodec.parseNoiseMode(hex("00 28 02 00 03 0D 01 01")))
+    }
+
+    @Test
     fun earfreeI5DecodesFragmentedBatteryAndNoiseFrames() {
         val battery = response(
             group = 0x01,

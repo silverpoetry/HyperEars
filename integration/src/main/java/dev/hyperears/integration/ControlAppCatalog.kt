@@ -67,6 +67,11 @@ object ControlAppCatalog {
         displayName = "QCY",
     )
 
+    val technicsAudioConnect = ControlAppSpec(
+        packageName = "com.panasonic.technicsaudioconnect",
+        displayName = "Technics Audio Connect",
+    )
+
     val huaweiSmartAudio = ControlAppSpec(
         packageName = "com.huawei.smartaudio",
         displayName = "智慧音频",
@@ -90,6 +95,7 @@ object ControlAppCatalog {
         yuanDao,
         sonySoundConnect,
         qcy,
+        technicsAudioConnect,
         huaweiSmartAudio,
         moondrop,
     )
