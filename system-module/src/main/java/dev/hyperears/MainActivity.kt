@@ -31,6 +31,8 @@ import dev.hyperears.ui.dashboard.DeviceSessionReducer
 import dev.hyperears.ui.dashboard.DeviceSessionSnapshot
 import dev.hyperears.ui.navigation.HyperEarsApp
 import dev.hyperears.ui.theme.HyperEarsTheme
+import dev.hyperears.ui.theme.UiStyle
+import dev.hyperears.ui.theme.UiStyleStore
 import dev.hyperears.update.ReleaseInfo
 import dev.hyperears.update.UpdateCheckCoordinator
 import dev.hyperears.update.UpdateCheckPreferences
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
             currentVersion = BuildConfig.VERSION_NAME,
         )
     }
+    private val uiStyleStore by lazy { UiStyleStore(this) }
     private val dashboardRefreshedSessionTokens = mutableSetOf<String>()
     private var remotePreferences: SharedPreferences? = null
     private var activityStarted = false
@@ -159,7 +162,10 @@ class MainActivity : ComponentActivity() {
             Context.RECEIVER_EXPORTED,
         )
         setContent {
-            HyperEarsTheme {
+            val currentUiStyle = uiStyleStore.style
+                .collectAsStateWithLifecycle()
+                .value
+            HyperEarsTheme(style = currentUiStyle) {
                 val activeSessions = sessionCollection
                     .collectAsStateWithLifecycle()
                     .value
@@ -201,6 +207,8 @@ class MainActivity : ComponentActivity() {
                     onCheckUpdates = updateCheckCoordinator::checkManually,
                     onDismissUpdate = updateCheckCoordinator::dismissAvailableDialog,
                     onOpenRelease = ::openRelease,
+                    uiStyle = currentUiStyle,
+                    onUiStyleChanged = uiStyleStore::update,
                 )
             }
         }

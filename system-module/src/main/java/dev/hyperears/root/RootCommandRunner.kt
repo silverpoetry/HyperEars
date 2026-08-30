@@ -34,14 +34,14 @@ enum class RootAction(
             "com.coloros.oppopods com.bose.bosemusic com.bose.monet " +
             "com.edifier.edifierconnect cn.ikaile.ruoshui.client " +
             "cn.lightyeartech.android com.yuandao.nicehck com.sony.songpal.mdr " +
-            "com.qcymall.googleearphonesetup; " +
+            "com.qcymall.googleearphonesetup com.huawei.smartaudio; " +
             "do am force-stop \"\$p\" >/dev/null 2>&1 || true; done",
         verificationCommand = "for p in " +
             "com.vivo.vivotws com.heytap.headset com.oplus.melody " +
             "com.coloros.oppopods com.bose.bosemusic com.bose.monet " +
             "com.edifier.edifierconnect cn.ikaile.ruoshui.client " +
             "cn.lightyeartech.android com.yuandao.nicehck com.sony.songpal.mdr " +
-            "com.qcymall.googleearphonesetup; " +
+            "com.qcymall.googleearphonesetup com.huawei.smartaudio; " +
             "do pidof \"\$p\" && exit 1; done; exit 0",
         verificationSuccess = { it.isBlank() },
     ),

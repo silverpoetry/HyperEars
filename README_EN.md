@@ -11,12 +11,12 @@
 HyperEars integrates selected third-party Bluetooth headsets with Xiaomi HyperOS and the MiLink
 device center. It complements Android's existing audio stack with device identity, battery,
 noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, Bose, Edifier,
-StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY and Sony devices.
+StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY and Sony devices.
 
 > [!WARNING]
 > HyperEars requires root, LSPosed and private HyperOS APIs. Be prepared to recover your system
 > before installing it. ROM updates may temporarily break compatibility. This project is not
-> affiliated with Xiaomi, vivo, iQOO, OPPO, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY, Sony or any
+> affiliated with Xiaomi, vivo, iQOO, OPPO, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Sony or any
 > other device vendor.
 
 ## Scope
@@ -42,6 +42,7 @@ StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, QCY and Sony devices.
 
 ### Settings and diagnostics
 
+- Switches instantly between Material 3 and Miuix while preserving the current page, settings destination and earbud sessions.
 - Provides a drop-down for choosing what the MiLink card's “More settings” action opens, plus settings for runtime yielding, automatic update checks and pausing the integration.
 - Provides a Debug > Adapters page that groups every model, family fallback and standard fallback Adapter by brand, with a group switch that disables or restores all Adapters in that brand.
 - Provides a Debug page for detailed logging and diagnostic export.
@@ -78,8 +79,9 @@ ROMs and Android releases below 15 remain outside the supported scope.
 | Edifier | W860NB PRO and Huazai Evo Pro hardware-verified; others family extrapolation | headphone aggregate, TWS left/right, or aggregate | noise cancellation, off, transparency and wind-noise reduction |
 | ROSESELSA / ROSE | Furina Endless Solo of Solitude and ROSE Ceramics Ultra hardware-verified; two public implementations; product-line extrapolation; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | noise cancellation, off, transparency and wind-noise reduction after protocol confirmation |
 | NiceHCK / YuanDao | OriG in public implementation; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | OriG in: noise cancellation, off, transparency and wind-noise reduction after protocol confirmation |
-| MOONDROP | Robin public protocol; others standard fallback | Robin left/right battery after protocol confirmation; Android aggregate on fallback | Robin: noise cancellation, off and transparency after protocol confirmation |
+| MOONDROP | Robin public protocol; Pudding device-verified; others standard fallback | Robin left/right battery; Pudding left/right and case battery after protocol confirmation; Android aggregate on fallback | Robin and Pudding: noise cancellation, off and transparency after protocol confirmation |
 | Honor | X5s Pro hardware-verified; others standard fallback | X5s Pro private components after protocol confirmation; Android aggregate on fallback | X5s Pro: noise cancellation, off and transparency after protocol confirmation |
+| Huawei | FreeBuds Pro 3 hardware-verified; FreeBuds 4 public implementation; FreeBuds / FreeClip / FreeLace family probe; others standard fallback | private components or aggregate after valid protocol responses; Android aggregate on fallback | Pro 3: three modes and model-specific levels; FreeBuds 4: cancellation and off; family candidates: three modes after protocol confirmation, without level controls |
 | QCY | Crossky C50S public protocol; same-protocol family probe; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | noise cancellation, off and transparency after protocol confirmation |
 | Sony | public implementation, family extrapolation and standard fallback | private aggregate, private components or Android aggregate by form factor | explicit model-specific modes listed in the detailed matrix |
 | other standard A2DP/HFP headsets | standard fallback | Android aggregate | none |
@@ -178,6 +180,7 @@ Android Lint and the Release build.
 - [Troubleshooting and log collection](docs/troubleshooting.md)
 - [System-module architecture](docs/system-module-architecture.md)
 - [QCY standard GATT protocol](docs/qcy-standard-gatt-protocol.md)
+- [Huawei FreeBuds Pro 3 protocol](docs/huawei-freebuds-protocol.md)
 - [Release signing and artifact verification](docs/release-signing.md)
 
 ## Contributing and licensing
