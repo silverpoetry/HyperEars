@@ -304,6 +304,12 @@ internal val supportBrands = listOf(
         name = "华为",
         entries = listOf(
             SupportEntry(
+                name = "HUAWEI FreeBuds 5i",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
+            SupportEntry(
                 name = "HUAWEI FreeBuds Pro 3",
                 evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.COMPONENT,

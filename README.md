@@ -71,7 +71,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 | NiceHCK / YuanDao | OriG in 公开实现；其他标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | OriG in 支持降噪、关闭、通透、抗风噪 |
 | MOONDROP / 水月雨 | Robin 公开协议；Pudding 实机验证；其他标准回退 | Robin 协议确认后提供左右耳电量；Pudding 协议确认后提供左右耳与充电盒电量，回退设备使用系统整机电量 | Robin 协议确认后支持降噪、关闭、通透；Pudding 实机验证后支持降噪、关闭、通透 |
 | 荣耀 | X5s Pro 实机验证；其他标准回退 | X5s Pro 协议确认后提供私有组件电量；回退设备使用系统整机电量 | X5s Pro 协议确认后支持降噪、关闭、通透 |
-| 华为 | FreeBuds Pro 3 实机验证；FreeBuds 4 公开实现；FreeBuds / FreeClip / FreeLace 家族探测；其余标准回退 | 合法协议响应后提供私有组件或整机电量；回退设备使用系统整机电量 | Pro 3 支持三态与型号专属档位；FreeBuds 4 支持降噪、关闭；家族候选在协议确认后支持三态，不开放档位 |
+| 华为 | FreeBuds 5i、FreeBuds Pro 3 实机验证；FreeBuds 4 公开实现；FreeBuds / FreeClip / FreeLace 家族探测；其余标准回退 | 合法协议响应后提供私有组件或整机电量；回退设备使用系统整机电量 | 5i、Pro 3 支持三态；Pro 3 另有型号专属档位；FreeBuds 4 支持降噪、关闭；家族候选在协议确认后支持三态，不开放档位 |
 | QCY | Crossky C50S 公开协议；同协议家族探测；其余标准回退 | 协议确认后提供私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透 |
 | Technics EAH-AZ TWS | AZ80 实机验证；其他型号采用公开实现，参考实现由贡献者在 AZ60、AZ80、AZ100 等型号验证 | 协议确认后提供私有组件电量 | 合法模式状态响应后支持降噪、关闭、通透；AZ80 已完成三态写入和设备回读实测 |
 | Sony | 公开实现、家族外推、标准回退 | 按设备形态提供私有整机、私有组件或系统整机电量 | 按具体型号开放表中明确列出的模式 |
@@ -224,8 +224,8 @@ SHA-256 文件。
 - [StarRing Ultra 协议](docs/starring-ultra-protocol.md)
 - [Edifier (BES) 协议](docs/edifier-bes-protocol.md)
 - [荣耀 X5s Pro 协议](docs/honor-x5s-protocol.md)
+- [华为 FreeBuds 协议](docs/huawei-freebuds-protocol.md)
 - [Technics EAH-AZ / Airoha RACE 协议](docs/technics-race-protocol.md)
-- [华为 FreeBuds Pro 3 协议](docs/huawei-freebuds-protocol.md)
 
 ## 贡献
 

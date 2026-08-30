@@ -180,11 +180,18 @@ MiLink 所需子集，不分发 TechincsPods 的应用、界面、图片、APK�
 - Reviewed revision: `035bf2a87cdda9e9c8e8e90c662b7fa61270c6ee`
 - Upstream license: GNU GPL-3.0（仓库 `LICENSE` 文件，版权归 MelianMiko）
 
-用于核对华为 FreeBuds Pro 3 的私有 SPP 通道 1 帧格式与 CRC16-XMODEM 校验、电量查询、
-组件电量与整机充电标志语义，以及 ANC 状态读取 `[level, mode]`、控制写入
-`[mode, level]`、档位枚举和 `2B 03` 变更通知等协议事实。HyperEars 在自身
+用于理解华为 FreeBuds Pro 3 的私有 SPP 通道 1 帧格式与 CRC16-XMODEM 校验、电量查询
+（读响应 `[level, mode]` 与写命令 `[mode, level]` 的字节序差异、组件电量与整机充电标志
+语义）、ANC 档位与透传档位枚举、`2B 03` 降噪变更通知等协议事实；共享帧格式和校验规则也
+用于交叉核对 FreeBuds 5i 的独立捕获记录。HyperEars 在自身
 WireCodec、ProtocolSession 与 Adapter 边界内重新组织实现，不复制或分发 OpenFreebuds 的
 程序代码、应用、界面、图片或品牌资源；上游 GPL-3.0 义务以该仓库 `LICENSE` 原文为准。
+
+## Huawei FreeBuds 5i capture evidence (hardware-verified)
+
+FreeBuds 5i 的型号专属证据来自用户提供的 Android `btsnoop_hci` 文件和同步人工时间线，并已由
+HyperEars 端到端实机验证复核。Channel 16、短模式帧和模式值的语义按“抓包确认”或“强推断”分别
+标注，不能证明其他固件或其他型号通用。该材料不包含可再分发的软件代码、厂商资源或独立许可证要求。
 
 ## Huawei FreeBuds Pro 3 / 智慧音频
 
