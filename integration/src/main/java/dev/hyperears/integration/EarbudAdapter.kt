@@ -638,7 +638,6 @@ object EarbudAdapterRegistry {
         add(Registration(huaweiGroup, ::HuaweiFreebudsPro3Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreeBuds4Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreeClip2Adapter))
-        add(Registration(huaweiGroup, ::HuaweiFreeClipAdapter))
         add(Registration(huaweiGroup, ::HuaweiFreebudsFamilyAdapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))

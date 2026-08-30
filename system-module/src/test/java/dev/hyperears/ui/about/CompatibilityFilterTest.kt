@@ -42,4 +42,16 @@ class CompatibilityFilterTest {
             },
         )
     }
+
+    @Test
+    fun findsTheVerifiedFreeClip2BatteryOnlyEntry() {
+        val result = filterSupportBrands("FreeClip 2 实机验证")
+
+        assertEquals(listOf("华为"), result.map(SupportBrand::name))
+        assertEquals(
+            listOf("HUAWEI FreeClip 2"),
+            result.single().entries.map(SupportEntry::name),
+        )
+        assertEquals("无", result.single().entries.single().noiseControl)
+    }
 }

@@ -65,7 +65,6 @@ private val HEADSET_NAME_MARKERS = setOf(
     "buds",
     "freebuds",
     "freeclip",
-    "freelace",
     "enco",
     "耳机",
     "耳麦",
