@@ -29,6 +29,10 @@ class ControlAppArbitrationTest {
             listOf(ControlAppCatalog.huaweiSmartAudio),
             HuaweiFreebudsPro3Adapter().controlApps,
         )
+        assertEquals(
+            listOf(ControlAppCatalog.moondrop),
+            MoondropPuddingAdapter().controlApps,
+        )
         assertTrue(StandardEarbudAdapter().controlApps.isEmpty())
     }
 

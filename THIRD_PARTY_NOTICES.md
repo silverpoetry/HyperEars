@@ -193,6 +193,15 @@ HyperEars 端到端实机验证复核。Channel 16、短模式帧和模式值的
 - Android Open Source Project: <https://source.android.com/>
 - libxposed API: <https://github.com/libxposed/api>
 
+## Miuix
+
+- yukonga/miuix: <https://github.com/miuix-kotlin-multiplatform/miuix>
+- Version used by HyperEars: `0.9.3`
+- Upstream license: Apache License 2.0
+
+用于提供可选的 Miuix 应用界面。HyperEars 只复用该库公开的主题与 Compose 控件 API；
+应用状态、导航、设置、耳机会话及 MiLink 集成仍由 HyperEars 自身的共享层维护。
+
 ## DexKit
 
 The optional MiLink compatibility resolver uses DexKit to locate one verified semantic method

@@ -5,20 +5,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
@@ -30,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.hyperears.BuildConfig
 import dev.hyperears.ui.components.HyperEarsPage
@@ -38,27 +32,27 @@ import dev.hyperears.update.ReleaseInfo
 import dev.hyperears.update.UpdateCheckResult
 import dev.hyperears.update.UpdateCheckUiState
 
-private data class SupportEntry(
+internal data class SupportEntry(
     val name: String,
     val evidence: EvidenceLevel,
     val battery: BatteryCapability,
     val noiseControl: String,
 )
 
-private data class SupportBrand(
+internal data class SupportBrand(
     val name: String,
     val entries: List<SupportEntry>,
 )
 
-private enum class EvidenceLevel(val label: String) {
+internal enum class EvidenceLevel(val label: String) {
     VERIFIED("实机验证"),
     PUBLIC_IMPLEMENTATION("公开实现"),
     REFERENCE_PROTOCOL("参考协议"),
     FAMILY_PROBE("家族探测"),
-    STANDARD_FALLBACK("标准适配"),
+    STANDARD_FALLBACK("标准回退"),
 }
 
-private enum class BatteryCapability(val label: String) {
+internal enum class BatteryCapability(val label: String) {
     COMPONENT("组件电量"),
     LEFT_RIGHT("左右耳电量"),
     DEVICE("整机电量"),
@@ -68,13 +62,13 @@ private enum class BatteryCapability(val label: String) {
     SYSTEM("系统电量"),
 }
 
-private data class ProjectLink(
+internal data class ProjectLink(
     val title: String,
     val detail: String,
     val url: String,
 )
 
-private val supportBrands = listOf(
+internal val supportBrands = listOf(
     SupportBrand(
         name = "vivo / iQOO",
         entries = listOf(
@@ -276,6 +270,12 @@ private val supportBrands = listOf(
                 noiseControl = "降噪 / 关闭 / 通透",
             ),
             SupportEntry(
+                name = "Pudding",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
+            SupportEntry(
                 name = "其他 MOONDROP / 水月雨耳机",
                 evidence = EvidenceLevel.STANDARD_FALLBACK,
                 battery = BatteryCapability.SYSTEM,
@@ -394,16 +394,11 @@ private val supportBrands = listOf(
     ),
 )
 
-private val projectLinks = listOf(
+internal val projectLinks = listOf(
     ProjectLink(
         title = "源代码",
         detail = "github.com/silverpoetry/HyperEars",
         url = "https://github.com/silverpoetry/HyperEars",
-    ),
-    ProjectLink(
-        title = "兼容性文档",
-        detail = "型号、判型、协议与能力矩阵",
-        url = "https://github.com/silverpoetry/HyperEars/blob/main/docs/compatibility.md",
     ),
     ProjectLink(
         title = "问题反馈",
@@ -427,12 +422,30 @@ private val projectLinks = listOf(
     ),
 )
 
+internal fun UpdateCheckUiState.detailText(): String = when {
+    checking -> "正在检查更新"
+    result is UpdateCheckResult.Available -> "发现新版本 ${result.release.version}"
+    result == UpdateCheckResult.UpToDate -> "当前已是最新版本"
+    result is UpdateCheckResult.Failed -> result.message
+    else -> "从 GitHub Releases 获取最新版本"
+}
+
+internal fun UpdateCheckUiState.openOrCheck(
+    onCheck: () -> Unit,
+    onOpenRelease: (ReleaseInfo) -> Unit,
+) {
+    if (checking) return
+    val available = result as? UpdateCheckResult.Available
+    if (available == null) onCheck() else onOpenRelease(available.release)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     updateCheckState: UpdateCheckUiState,
     onCheckUpdates: () -> Unit,
     onOpenRelease: (ReleaseInfo) -> Unit,
+    onOpenCompatibility: () -> Unit,
 ) {
     HyperEarsPage(title = "关于") { pagePadding, scrollBehavior ->
         val uriHandler = LocalUriHandler.current
@@ -466,38 +479,6 @@ fun AboutScreen(
                 }
             }
         }
-        item(key = "support-introduction") {
-            CenteredContent { modifier ->
-                Column(
-                    modifier = modifier,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = "所有条目均支持设备流转和系统音量。下方列出电量与噪声控制；私有能力在协议确认后开放。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-        item(key = "update") {
-            CenteredContent { modifier ->
-                UpdateCheckCard(
-                    state = updateCheckState,
-                    onCheck = onCheckUpdates,
-                    onOpenRelease = onOpenRelease,
-                    modifier = modifier,
-                )
-            }
-        }
-        items(
-            items = supportBrands,
-            key = SupportBrand::name,
-        ) { brand ->
-            CenteredContent { modifier ->
-                BrandSupportCard(brand = brand, modifier = modifier)
-            }
-        }
         item(key = "project") {
             CenteredContent { modifier ->
                 Column(
@@ -512,7 +493,19 @@ fun AboutScreen(
                         ),
                     ) {
                         Column {
-                            projectLinks.forEachIndexed { index, link ->
+                            ListItem(
+                                headlineContent = { Text("兼容性") },
+                                supportingContent = { Text("查看支持品牌、型号与能力") },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                ),
+                                modifier = Modifier.clickable(onClick = onOpenCompatibility),
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            projectLinks.forEach { link ->
                                 ListItem(
                                     headlineContent = { Text(link.title) },
                                     supportingContent = { Text(link.detail) },
@@ -523,13 +516,21 @@ fun AboutScreen(
                                         runCatching { uriHandler.openUri(link.url) }
                                     },
                                 )
-                                if (index != projectLinks.lastIndex) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(horizontal = 16.dp),
-                                        color = MaterialTheme.colorScheme.outlineVariant,
-                                    )
-                                }
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
                             }
+                            ListItem(
+                                headlineContent = { Text("检查更新") },
+                                supportingContent = { Text(updateCheckState.detailText()) },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                ),
+                                modifier = Modifier.clickable(enabled = !updateCheckState.checking) {
+                                    updateCheckState.openOrCheck(onCheckUpdates, onOpenRelease)
+                                },
+                            )
                         }
                     }
                 }
@@ -550,54 +551,6 @@ fun AboutScreen(
 }
 
 @Composable
-private fun UpdateCheckCard(
-    state: UpdateCheckUiState,
-    onCheck: () -> Unit,
-    onOpenRelease: (ReleaseInfo) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val available = state.result as? UpdateCheckResult.Available
-    val detail = when (val result = state.result) {
-        is UpdateCheckResult.Available -> "发现新版本 ${result.release.version}"
-        UpdateCheckResult.UpToDate -> "当前已是最新版本"
-        is UpdateCheckResult.Failed -> result.message
-        null -> "从 GitHub Releases 获取最新版本"
-    }
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-    ) {
-        ListItem(
-            headlineContent = { Text("检查更新") },
-            supportingContent = { Text(detail) },
-            trailingContent = {
-                Button(
-                    onClick = {
-                        if (available == null) onCheck() else onOpenRelease(available.release)
-                    },
-                    enabled = !state.checking,
-                ) {
-                    if (state.checking) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text(if (available == null) "检查" else "查看")
-                    }
-                }
-            },
-            colors = ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
-        )
-    }
-}
-
-@Composable
 private fun CenteredContent(content: @Composable (Modifier) -> Unit) {
     Box(
         modifier = Modifier.fillMaxWidth(),
@@ -605,80 +558,4 @@ private fun CenteredContent(content: @Composable (Modifier) -> Unit) {
     ) {
         content(Modifier.fillMaxWidth().widthIn(max = 800.dp))
     }
-}
-
-@Composable
-private fun BrandSupportCard(
-    brand: SupportBrand,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-    ) {
-        Column {
-            Text(
-                text = brand.name,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            brand.entries.forEachIndexed { index, entry ->
-                SupportRow(entry)
-                if (index != brand.entries.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SupportRow(entry: SupportEntry) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Text(
-                text = entry.name,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = entry.evidence.label,
-                style = MaterialTheme.typography.labelMedium,
-                color = evidenceColor(entry.evidence),
-            )
-        }
-        Text(
-            text = "电量：${entry.battery.label} · 噪声：${entry.noiseControl}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun evidenceColor(evidence: EvidenceLevel) = when (evidence) {
-    EvidenceLevel.VERIFIED -> MaterialTheme.colorScheme.primary
-    EvidenceLevel.PUBLIC_IMPLEMENTATION -> MaterialTheme.colorScheme.secondary
-    EvidenceLevel.REFERENCE_PROTOCOL,
-    EvidenceLevel.FAMILY_PROBE,
-    -> MaterialTheme.colorScheme.tertiary
-    EvidenceLevel.STANDARD_FALLBACK -> MaterialTheme.colorScheme.onSurfaceVariant
 }

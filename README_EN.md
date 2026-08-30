@@ -42,6 +42,7 @@ StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY and Sony devices.
 
 ### Settings and diagnostics
 
+- Switches instantly between Material 3 and Miuix while preserving the current page, settings destination and earbud sessions.
 - Provides a drop-down for choosing what the MiLink card's “More settings” action opens, plus settings for runtime yielding, automatic update checks and pausing the integration.
 - Provides a Debug > Adapters page that groups every model, family fallback and standard fallback Adapter by brand, with a group switch that disables or restores all Adapters in that brand.
 - Provides a Debug page for detailed logging and diagnostic export.
@@ -78,7 +79,7 @@ ROMs and Android releases below 15 remain outside the supported scope.
 | Edifier | W860NB PRO and Huazai Evo Pro hardware-verified; others family extrapolation | headphone aggregate, TWS left/right, or aggregate | noise cancellation, off, transparency and wind-noise reduction |
 | ROSESELSA / ROSE | Furina Endless Solo of Solitude and ROSE Ceramics Ultra hardware-verified; two public implementations; product-line extrapolation; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | noise cancellation, off, transparency and wind-noise reduction after protocol confirmation |
 | NiceHCK / YuanDao | OriG in public implementation; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | OriG in: noise cancellation, off, transparency and wind-noise reduction after protocol confirmation |
-| MOONDROP | Robin public protocol; others standard fallback | Robin left/right battery after protocol confirmation; Android aggregate on fallback | Robin: noise cancellation, off and transparency after protocol confirmation |
+| MOONDROP | Robin public protocol; Pudding device-verified; others standard fallback | Robin left/right battery; Pudding left/right and case battery after protocol confirmation; Android aggregate on fallback | Robin and Pudding: noise cancellation, off and transparency after protocol confirmation |
 | Honor | X5s Pro hardware-verified; others standard fallback | X5s Pro private components after protocol confirmation; Android aggregate on fallback | X5s Pro: noise cancellation, off and transparency after protocol confirmation |
 | Huawei | FreeBuds 5i and FreeBuds Pro 3 hardware-verified; FreeBuds 4 public implementation; FreeBuds / FreeClip / FreeLace family probe; others standard fallback | private components or aggregate after valid protocol responses; Android aggregate on fallback | 5i and Pro 3: three modes; Pro 3 also has model-specific levels; FreeBuds 4: cancellation and off; family candidates: three modes after protocol confirmation, without level controls |
 | QCY | Crossky C50S public protocol; same-protocol family probe; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | noise cancellation, off and transparency after protocol confirmation |

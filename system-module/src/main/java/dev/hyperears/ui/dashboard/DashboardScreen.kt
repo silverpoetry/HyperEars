@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.hyperears.ui.components.HyperEarsPage
@@ -541,12 +542,15 @@ private fun LifecycleStrip(stages: List<DeviceLifecycleStage>) {
                     StatusDot(color)
                     Text(
                         text = stage.label,
+                        modifier = Modifier.fillMaxWidth(),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                         maxLines = 1,
                     )
                     Text(
                         text = stage.value,
+                        modifier = Modifier.fillMaxWidth(),
                         style = MaterialTheme.typography.labelMedium,
                         color = color,
                         fontWeight = if (stage.complete || stage.active) {
@@ -554,6 +558,9 @@ private fun LifecycleStrip(stages: List<DeviceLifecycleStage>) {
                         } else {
                             FontWeight.Normal
                         },
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

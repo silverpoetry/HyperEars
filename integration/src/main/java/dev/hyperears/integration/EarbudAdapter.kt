@@ -628,6 +628,7 @@ object EarbudAdapterRegistry {
         add(Registration(roseGroup, ::RoseEarbudAdapter))
         add(Registration(niceHckGroup, ::NiceHckYuanDaoOrigAdapter))
         add(Registration(niceHckGroup, ::NiceHckEarbudAdapter))
+        add(Registration(moondropGroup, ::MoondropPuddingAdapter))
         add(Registration(moondropGroup, ::MoondropRobinAdapter))
         add(Registration(moondropGroup, ::MoondropEarbudAdapter))
         add(Registration(honorGroup, ::HonorX5sProAdapter))
