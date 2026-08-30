@@ -65,6 +65,10 @@ class MiLinkCardAdapterRegistryTest {
             ),
         )
         assertSame(
+            FitClipUltraGameModeMiLinkCardAdapter,
+            MiLinkCardAdapterRegistry.resolve(EdifierMiLinkPresentationIds.GAME_MODE),
+        )
+        assertSame(
             SonyAmbientOnlyMiLinkCardAdapter,
             MiLinkCardAdapterRegistry.resolve(SonyMiLinkPresentationIds.AMBIENT_ONLY),
         )
