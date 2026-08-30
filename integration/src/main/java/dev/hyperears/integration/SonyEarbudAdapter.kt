@@ -541,11 +541,13 @@ private class SonyHeadphonesProtocolSession(
 
     private fun encodeAmbientV2(mode: NoiseMode): ByteArray {
         if (configuration.ambientDialect == SonyAmbientDialect.MODERN) {
-            // Captured 2026-generation write mirrors the device's 0x19 notify layout.
+            // Captured Sound Connect traffic uses 0x01 at the third byte: the mode-change
+            // confirmation chime flag. 0x00 would be silent (slider drag), matching the
+            // legacy 0x15 "0x00 while dragging" convention.
             return byteArrayOf(
                 AMBIENT_SET,
                 MODERN_AMBIENT_SUBTYPE,
-                0x00,
+                0x01,
                 if (mode == NoiseMode.OFF) 0x00 else 0x01,
                 if (mode == NoiseMode.TRANSPARENCY) 0x01 else 0x00,
                 0x00,
