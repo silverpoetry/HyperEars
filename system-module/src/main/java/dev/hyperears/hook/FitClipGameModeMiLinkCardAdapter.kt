@@ -10,6 +10,9 @@ import android.widget.CompoundButton
 import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
+import androidx.core.view.doOnLayout
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import dev.hyperears.integration.EdifierControlRequest
 import dev.hyperears.integration.EdifierGameModeFeatureState
 import dev.hyperears.integration.EdifierMiLinkPresentationIds
@@ -49,6 +52,7 @@ internal object FitClipUltraGameModeMiLinkCardAdapter : MiLinkCardAdapter {
         }
         val background = styleCard.background.independentCopy(root)
             ?: return skipped(address, "volume-card-background-unavailable")
+        val panelHeightReservation = PanelHeightReservation(parent)
 
         val row = LinearLayout(root.context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -100,11 +104,13 @@ internal object FitClipUltraGameModeMiLinkCardAdapter : MiLinkCardAdapter {
             topMargin = anchorParams?.topMargin ?: 0
         }
         parent.addView(row, anchorIndex, rowParams)
+        panelHeightReservation.attach(row)
 
         return Binding(
             parent = parent,
             row = row,
             toggle = toggle,
+            panelHeightReservation = panelHeightReservation,
             address = address,
             environment = environment,
         ).also { binding ->
@@ -130,6 +136,7 @@ internal object FitClipUltraGameModeMiLinkCardAdapter : MiLinkCardAdapter {
         parent: LinearLayout,
         row: View,
         toggle: CompoundButton,
+        private val panelHeightReservation: PanelHeightReservation,
         private val address: String,
         private val environment: MiLinkCardEnvironment,
     ) : MiLinkCardBinding {
@@ -148,6 +155,7 @@ internal object FitClipUltraGameModeMiLinkCardAdapter : MiLinkCardAdapter {
             val toggle = toggle.get() ?: return
             val projected = FitClipGameModeTogglePolicy.render(state)
             row.visibility = if (state.sessionActive) View.VISIBLE else View.GONE
+            panelHeightReservation.setActive(state.sessionActive)
             rendering = true
             try {
                 toggle.isChecked = projected.checked
@@ -190,10 +198,112 @@ internal object FitClipUltraGameModeMiLinkCardAdapter : MiLinkCardAdapter {
 
         override fun unbind() {
             toggle.get()?.setOnCheckedChangeListener(null)
-            val parent = parent.get() ?: return
-            val row = row.get() ?: return
-            if (row.parent === parent) parent.removeView(row)
+            val parent = parent.get()
+            val row = row.get()
+            if (parent != null && row?.parent === parent) parent.removeView(row)
+            panelHeightReservation.release()
         }
+    }
+
+    /**
+     * Reserves the actual custom-row height in MiLink's explicitly sized headset panel.
+     *
+     * MiLink computes `headsets_control` height from stock capability flags instead of measuring
+     * arbitrary children. A stock ANC card contributes to that calculation; a late CardAdapter
+     * row does not. This reservation observes normal layout callbacks, expands only when visible
+     * content would otherwise be clipped, and restores the host's original layout contract when
+     * the binding is removed. It does not call host methods or depend on obfuscated field names.
+     */
+    private class PanelHeightReservation(
+        panel: LinearLayout,
+    ) {
+        private val panel = WeakReference(panel)
+        private var row: WeakReference<View>? = null
+        private val originalLayoutHeight = panel.layoutParams.height
+        private val originalRenderedHeight = maxOf(panel.height, panel.measuredHeight, 0)
+        private var active = false
+        private var appliedHeight: Int? = null
+        private val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (active) ensureHeight()
+        }
+
+        fun attach(row: View) {
+            this.row = WeakReference(row)
+            panel.get()?.addOnLayoutChangeListener(layoutListener)
+            setActive(true)
+        }
+
+        fun setActive(active: Boolean) {
+            if (this.active == active) return
+            this.active = active
+            if (active) scheduleMeasurement() else restoreHeight()
+        }
+
+        fun release() {
+            active = false
+            panel.get()?.removeOnLayoutChangeListener(layoutListener)
+            restoreHeight()
+            row?.clear()
+            row = null
+        }
+
+        private fun scheduleMeasurement() {
+            val row = row?.get() ?: return
+            row.doOnLayout {
+                if (active) ensureHeight()
+            }
+            row.requestLayout()
+            panel.get()?.requestLayout()
+        }
+
+        private fun ensureHeight() {
+            val panel = panel.get() ?: return
+            val row = row?.get()?.takeIf { it.isVisible } ?: return
+            val rowParams = row.layoutParams as? ViewGroup.MarginLayoutParams
+            val reservedHeight = row.measuredHeight +
+                (rowParams?.topMargin ?: 0) +
+                (rowParams?.bottomMargin ?: 0)
+            if (reservedHeight <= 0) {
+                scheduleMeasurement()
+                return
+            }
+            val contentHeight = panel.visibleVerticalContentHeight()
+            val requiredHeight = FitClipPanelLayoutPolicy.requiredHeight(
+                originalPanelHeight = originalRenderedHeight,
+                customRowHeight = reservedHeight,
+                measuredContentHeight = contentHeight,
+                availableHeight = (panel.parent as? View)?.height ?: 0,
+            )
+            if (panel.height >= requiredHeight) return
+            panel.layoutParams = panel.layoutParams.apply { height = requiredHeight }
+            appliedHeight = requiredHeight
+            panel.requestLayout()
+            (panel.parent as? View)?.requestLayout()
+            ModuleLog.debug(
+                COMPONENT,
+                "reserved FitClip Ultra panel height base=$originalRenderedHeight " +
+                    "row=$reservedHeight content=$contentHeight target=$requiredHeight",
+            )
+        }
+
+        private fun restoreHeight() {
+            val panel = panel.get() ?: return
+            if (appliedHeight == null) return
+            panel.layoutParams = panel.layoutParams.apply { height = originalLayoutHeight }
+            panel.requestLayout()
+            (panel.parent as? View)?.requestLayout()
+            appliedHeight = null
+        }
+
+        private fun LinearLayout.visibleVerticalContentHeight(): Int =
+            paddingTop + paddingBottom + (0 until childCount).sumOf { index ->
+                val child = getChildAt(index)
+                if (child.isGone) return@sumOf 0
+                val params = child.layoutParams as? ViewGroup.MarginLayoutParams
+                child.measuredHeight +
+                    (params?.topMargin ?: 0) +
+                    (params?.bottomMargin ?: 0)
+            }
     }
 
     private fun createHostToggle(
@@ -228,6 +338,22 @@ internal object FitClipUltraGameModeMiLinkCardAdapter : MiLinkCardAdapter {
     private const val GAME_MODE_LABEL = "游戏模式"
     private const val ENABLED_ALPHA = 1.0f
     private const val DISABLED_ALPHA = 0.45f
+}
+
+/** Pure sizing policy shared by the Android binding and unit tests. */
+internal object FitClipPanelLayoutPolicy {
+    fun requiredHeight(
+        originalPanelHeight: Int,
+        customRowHeight: Int,
+        measuredContentHeight: Int,
+        availableHeight: Int,
+    ): Int {
+        val required = maxOf(
+            measuredContentHeight.coerceAtLeast(0),
+            originalPanelHeight.coerceAtLeast(0) + customRowHeight.coerceAtLeast(0),
+        )
+        return if (availableHeight > 0) required.coerceAtMost(availableHeight) else required
+    }
 }
 
 /** Pure projection from authoritative device state to the FitClip game-mode control. */

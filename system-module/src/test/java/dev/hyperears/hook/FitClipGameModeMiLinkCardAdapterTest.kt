@@ -15,6 +15,41 @@ import org.junit.Test
 
 class FitClipGameModeMiLinkCardAdapterTest {
     @Test
+    fun panelHeightAddsTheMeasuredCustomRowToTheHostBase() {
+        assertEquals(
+            700,
+            FitClipPanelLayoutPolicy.requiredHeight(
+                originalPanelHeight = 600,
+                customRowHeight = 100,
+                measuredContentHeight = 680,
+                availableHeight = 1_000,
+            ),
+        )
+    }
+
+    @Test
+    fun panelHeightUsesRealContentAndRespectsTheAvailableWindow() {
+        assertEquals(
+            740,
+            FitClipPanelLayoutPolicy.requiredHeight(
+                originalPanelHeight = 600,
+                customRowHeight = 100,
+                measuredContentHeight = 740,
+                availableHeight = 1_000,
+            ),
+        )
+        assertEquals(
+            720,
+            FitClipPanelLayoutPolicy.requiredHeight(
+                originalPanelHeight = 600,
+                customRowHeight = 100,
+                measuredContentHeight = 740,
+                availableHeight = 720,
+            ),
+        )
+    }
+
+    @Test
     fun confirmedFeatureEnablesTheToggleAndProjectsTheReportedValue() {
         val enabled = connectedState(gameMode = true)
         val disabled = connectedState(gameMode = false)
