@@ -49,10 +49,10 @@ LinkBuds S。未知 `WH/WI/MDR` 或 `WF/LinkBuds` 产品先进入协议家族；
 
 协议帧依据公开协议文档、SonyHeadphonesClient 和 Gadgetbridge 的可互操作行为独立
 实现。上述型号当前属于公开实现画像，尚未完成 HyperEars 本地逐型号实机验证；
-WF-1000XM6 的 v2 握手、双耳与充电盒电量、`0x19` 环境声通知解析，以及 WH-1000XM4
-的 v1 握手重发、整机电量、`0x02` 环境声方言均已依据真实设备流量验证（XM4 的握手
-行为与 Sound Connect 抓包逐字节一致），模式切换写入待实机确认。型号名用于选择候选
-Adapter 配置，Sony 私有 RFCOMM 初始化响应用于确认协议和家族能力；公共 iAP2
+WF-1000XM6 的 v2 握手、双耳与充电盒电量、`0x19` 环境声通知解析和三态写入，以及
+WH-1000XM4 的 v1 握手重发、整机电量、`0x02` 环境声方言和模式写入均已依据真实设备
+流量验证；XM4 的握手行为和 XM6 的确认音标志均与 Sound Connect 抓包一致。型号名用于
+选择候选 Adapter 配置，Sony 私有 RFCOMM 初始化响应用于确认协议和家族能力；公共 iAP2
 accessory UUID 不参与 Sony 品牌判型；`LE_` 广播影子名称不会创建第二个设备会话。
 
 完整来源、固定提交和许可证见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
