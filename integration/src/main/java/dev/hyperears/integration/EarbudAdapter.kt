@@ -388,6 +388,14 @@ abstract class EarbudAdapter(
 
     fun runtimeState(): AdapterRuntimeState = runtimeState
 
+    /** Removes one Adapter-owned transient feature when its protocol evidence is reset. */
+    protected fun removeFeatureState(featureId: String) {
+        val next = runtimeState.features.remove(featureId)
+        if (next != runtimeState.features) {
+            runtimeState = runtimeState.copy(features = next)
+        }
+    }
+
     fun snapshot(): AdapterSnapshot = AdapterSnapshot(
         id = id,
         displayName = displayName,
@@ -599,6 +607,7 @@ object EarbudAdapterRegistry {
     private val huaweiGroup = GroupMetadata("huawei", "华为")
     private val sonyGroup = GroupMetadata("sony", "Sony")
     private val qcyGroup = GroupMetadata("qcy", "QCY")
+    private val technicsGroup = GroupMetadata("technics", "Technics")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
 
     private val initialRegistrations: List<Registration> = buildList {
@@ -620,6 +629,7 @@ object EarbudAdapterRegistry {
         add(Registration(edifierGroup, ::EdifierHeadphonesAdapter))
         add(Registration(edifierGroup, ::EdifierEarbudAdapter))
         add(Registration(roseGroup, ::FurinaEndlessAdapter))
+        add(Registration(roseGroup, ::RoseLuliXAdapter))
         add(Registration(roseGroup, ::RoseLuliUltraAdapter))
         add(Registration(roseGroup, ::RoseEarfreeI5Adapter))
         add(Registration(roseGroup, ::RoseEarfreeProtocolFamilyAdapter))
@@ -632,11 +642,13 @@ object EarbudAdapterRegistry {
         add(Registration(moondropGroup, ::MoondropRobinAdapter))
         add(Registration(moondropGroup, ::MoondropEarbudAdapter))
         add(Registration(honorGroup, ::HonorX5sProAdapter))
+        add(Registration(huaweiGroup, ::HuaweiFreebuds5iAdapter))
         add(Registration(huaweiGroup, ::HuaweiFreebudsPro3Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreeBuds4Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreebudsFamilyAdapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))
+        add(Registration(technicsGroup, ::TechnicsEarbudAdapter))
         // Apple devices are handled by the platform; keep AAP code available for explicit use,
         // but do not add Apple adapters to HyperEars' default matching chain.
         addAll(SonyAdapterRegistry.factories.map { Registration(sonyGroup, it) })

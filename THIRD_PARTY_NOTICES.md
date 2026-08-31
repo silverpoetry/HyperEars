@@ -161,17 +161,37 @@ Gadgetbridge 的 AGPL 程序代码，也不分发 SonyHeadphonesClient、厂商�
 不分发 QCYpods 的应用、界面、图片、品牌资源或构建产物。上游许可证状态按固定提交如实
 记录，具体条款以其仓库声明为准。
 
+## TechincsPods / Technics RACE research
+
+- MartinKayJr/TechincsPods:
+  <https://github.com/MartinKayJr/TechincsPods/tree/a378106659d4a90ed7ac28a4ac94d592bebbec85>
+- Reviewed revision: `a378106659d4a90ed7ac28a4ac94d592bebbec85`
+- Declared license: GPL-3.0（仓库 README 声明；该固定提交未包含独立的许可证文件）
+
+用于核对 Technics EAH-AZ TWS 的 Airoha RACE 帧、RFCOMM UUID、组件电量查询和噪声模式
+写入序列。协议事实以固定提交的当前代码为准，不采用其 README 中英文功能说明或旧协议笔记
+作为当前行为证据。HyperEars 只在自身 WireCodec、ProtocolSession 与 Adapter 边界内实现
+MiLink 所需子集，不分发 TechincsPods 的应用、界面、图片、APK、抓包或厂商品牌资源。
+上游许可证状态按固定提交如实记录，具体条款以其仓库声明为准。
+
 ## OpenFreebuds (Huawei protocol research)
 
 - melianmiko/OpenFreebuds: <https://github.com/melianmiko/OpenFreebuds>
 - Reviewed revision: `035bf2a87cdda9e9c8e8e90c662b7fa61270c6ee`
 - Upstream license: GNU GPL-3.0（仓库 `LICENSE` 文件，版权归 MelianMiko）
 
-用于核对华为 FreeBuds Pro 3 的私有 SPP 通道 1 帧格式与 CRC16-XMODEM 校验、电量查询、
-组件电量与整机充电标志语义，以及 ANC 状态读取 `[level, mode]`、控制写入
-`[mode, level]`、档位枚举和 `2B 03` 变更通知等协议事实。HyperEars 在自身
+用于理解华为 FreeBuds Pro 3 的私有 SPP 通道 1 帧格式与 CRC16-XMODEM 校验、电量查询
+（读响应 `[level, mode]` 与写命令 `[mode, level]` 的字节序差异、组件电量与整机充电标志
+语义）、ANC 档位与透传档位枚举、`2B 03` 降噪变更通知等协议事实；共享帧格式和校验规则也
+用于交叉核对 FreeBuds 5i 的独立捕获记录。HyperEars 在自身
 WireCodec、ProtocolSession 与 Adapter 边界内重新组织实现，不复制或分发 OpenFreebuds 的
 程序代码、应用、界面、图片或品牌资源；上游 GPL-3.0 义务以该仓库 `LICENSE` 原文为准。
+
+## Huawei FreeBuds 5i capture evidence (hardware-verified)
+
+FreeBuds 5i 的型号专属证据来自用户提供的 Android `btsnoop_hci` 文件和同步人工时间线，并已由
+HyperEars 端到端实机验证复核。Channel 16、短模式帧和模式值的语义按“抓包确认”或“强推断”分别
+标注，不能证明其他固件或其他型号通用。该材料不包含可再分发的软件代码、厂商资源或独立许可证要求。
 
 ## Huawei FreeBuds Pro 3 / 智慧音频
 

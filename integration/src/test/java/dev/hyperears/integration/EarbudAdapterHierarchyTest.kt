@@ -38,6 +38,8 @@ class EarbudAdapterHierarchyTest {
         assertTrue(resolve("EDIFIER FitClip Ultra", standard = true) is EdifierFitClipUltraAdapter)
         assertTrue(resolve("HUAWEI FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
         assertTrue(resolve("FreeBuds Pro 3", standard = true) is HuaweiFreebudsPro3Adapter)
+        assertTrue(resolve("HUAWEI FreeBuds 5i", standard = true) is HuaweiFreebuds5iAdapter)
+        assertTrue(resolve("FreeBuds 5i", standard = true) is HuaweiFreebuds5iAdapter)
         assertTrue(resolve("HUAWEI FreeBuds 4", standard = true) is HuaweiFreeBuds4Adapter)
         assertTrue(resolve("FreeBuds 4", standard = true) is HuaweiFreeBuds4Adapter)
         assertTrue(resolve("Unknown headset", standard = true) is StandardEarbudAdapter)
@@ -308,11 +310,14 @@ class EarbudAdapterHierarchyTest {
         val adapter = EdifierFitClipUltraAdapter()
 
         assertEquals(AdapterResolution.EXACT_MATCH, adapter.snapshot().resolution)
+        assertNull(adapter.snapshot().presentationId)
         assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertFalse(adapter.supportsControl(EdifierControlRequest.SetGameMode(enabled = true)))
         assertEquals(
             listOf(
                 EdifierWireCodec.queryDeviceState.toList(),
                 EdifierWireCodec.queryFunction.toList(),
+                EdifierWireCodec.queryGameState.toList(),
             ),
             adapter.beginHandshake().commands.map(ByteArray::toList),
         )
@@ -331,10 +336,37 @@ class EarbudAdapterHierarchyTest {
     }
 
     @Test
+    fun fitClipUltraUnlocksGameModeOnlyAfterAValidDeviceResponse() {
+        val adapter = EdifierFitClipUltraAdapter()
+
+        val observed = adapter.receive(hex("BB EC 08 00 01 A5 55"))
+
+        assertEquals(HandshakeResult.Ready, observed.handshake)
+        assertEquals(
+            EdifierGameModeFeatureState(enabled = false),
+            adapter.runtimeState().features.get<EdifierGameModeFeatureState>(),
+        )
+        assertEquals(EdifierMiLinkPresentationIds.GAME_MODE, adapter.snapshot().presentationId)
+
+        val control = adapter.executeControl(EdifierControlRequest.SetGameMode(enabled = true))
+        assertTrue(control.accepted)
+        assertFalse(control.stateChanged)
+        assertEquals(
+            listOf(EdifierWireCodec.setGameMode(enabled = true).toList()),
+            control.commands.map(ByteArray::toList),
+        )
+        assertEquals(
+            listOf(EdifierWireCodec.queryGameState.toList()),
+            control.readback.map(ByteArray::toList),
+        )
+    }
+
+    @Test
     fun fitClipUltraResetRestoresTheSystemBatteryFallback() {
         val adapter = EdifierFitClipUltraAdapter()
         adapter.onSystemBatteryChanged(61)
         adapter.receive(hex("BB EC F2 00 06 A6 C1 C7 A5 A6 B4 CC"))
+        adapter.receive(hex("BB EC 08 00 01 A4 54"))
 
         adapter.resetProtocolSession()
         adapter.onSystemBatteryChanged(61)
@@ -343,6 +375,9 @@ class EarbudAdapterHierarchyTest {
         assertEquals(61, adapter.runtimeState().battery.left.percent)
         assertEquals(61, adapter.runtimeState().battery.right.percent)
         assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertNull(adapter.runtimeState().features.get<EdifierGameModeFeatureState>())
+        assertNull(adapter.snapshot().presentationId)
+        assertFalse(adapter.supportsControl(EdifierControlRequest.SetGameMode(enabled = false)))
     }
 
     @Test
@@ -542,6 +577,144 @@ class EarbudAdapterHierarchyTest {
 
         assertTrue(earfree is RoseEarfreeProtocolFamilyAdapter)
         assertTrue(budsFeel is RoseBudsFeelProtocolFamilyAdapter)
+    }
+
+    @Test
+    fun roseCeramicsXNameSelectsCapturedCompanionGattAdapter() {
+        val adapter = requireNotNull(
+            EarbudAdapterRegistry.resolve(
+                EarbudIdentity(
+                    deviceName = "ROSE Ceramics X",
+                    standardHeadset = true,
+                    serviceUuids = emptySet(),
+                ),
+            ),
+        )
+
+        assertTrue(adapter is RoseLuliXAdapter)
+        assertEquals(AdapterResolution.EXACT_MATCH, adapter.resolution)
+        assertTrue(adapter.privateProtocolRequired)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        val transport = adapter.transports.single() as GattTransportSpec
+        assertEquals(RoseLuliXAdapter.SERVICE_UUID, transport.serviceUuid)
+        assertEquals(
+            RoseLuliXAdapter.WRITE_CHARACTERISTIC_UUID,
+            transport.writeCharacteristicUuid,
+        )
+        assertEquals(
+            RoseLuliXAdapter.NOTIFY_CHARACTERISTIC_UUID,
+            transport.notifyCharacteristicUuid,
+        )
+        assertEquals(RoseLuliXAdapter.WRITE_ATTRIBUTE_HANDLE, transport.writeInstanceId)
+        assertEquals(RoseLuliXAdapter.NOTIFY_ATTRIBUTE_HANDLE, transport.notifyInstanceId)
+        assertEquals(GattWriteMode.WITHOUT_RESPONSE, transport.writeMode)
+        assertTrue(transport.notificationsRequired)
+        val selection = transport.peerSelection as GattPeerSelection.CompanionDevice
+        assertEquals(RoseLuliXAdapter.COMPANION_DEVICE_NAME, selection.filter.deviceName)
+        assertEquals(
+            InitialProtocolFailureResolution.KeepDormant,
+            adapter.onInitialProtocolUnavailable(),
+        )
+    }
+
+    @Test
+    fun roseLuliXAliasSelectsExactAdapter() {
+        assertTrue(resolve("ROSE Luli X", standard = true) is RoseLuliXAdapter)
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherAssociatesUnnamedAdvertisementWithAudioAddress() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "00:11:22:33:D7:84")
+
+        assertTrue(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                            hex("01 09 00 01 02 03 04 D7 84 04 64 64 00"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherRejectsUnlinkedOrMalformedManufacturerData() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "00:11:22:33:D7:84")
+
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                            hex("01 09 00 01 02 03 04 10 20 04 64 64 00"),
+                    ),
+                ),
+            ),
+        )
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to byteArrayOf(0x01),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherRejectsUnrelatedBlePeers() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "00:11:22:33:44:55")
+        assertTrue(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity("CERAMICS X BLE", "66:77:88:99:AA:BB"),
+            ),
+        )
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity("Other BLE", "66:77:88:99:AA:BB"),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXEnablesAncControlOnlyAfterCapturedModeReport() {
+        val adapter = RoseLuliXAdapter()
+
+        assertFalse(adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).accepted)
+        assertEquals(
+            HandshakeResult.Ready,
+            adapter.receive(hex("00 27 02 00 03 0C 01 03")).handshake,
+        )
+        assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
+
+        val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+
+        assertTrue(result.accepted)
+        assertEquals(
+            listOf(0x00, 0x2C, 0x01, 0x00, 0x01, 0x01),
+            result.commands.single().map { it.toInt() and 0xFF },
+        )
+        assertEquals(
+            listOf(0x00, 0x27, 0x01, 0x00, 0x01, 0x0C),
+            result.readback.single().map { it.toInt() and 0xFF },
+        )
+        adapter.receive(hex("00 28 02 00 03 0C 01 01"))
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
     }
 
     @Test
@@ -837,6 +1010,133 @@ class EarbudAdapterHierarchyTest {
             ),
             adapter.beginHandshake().commands.map(ByteArray::toList),
         )
+    }
+
+    @Test
+    fun huaweiFreebuds5iUsesChannel16AndStandardNoiseModes() {
+        val adapter = HuaweiFreebuds5iAdapter()
+
+        assertEquals(AdapterResolution.EXACT_MATCH, adapter.snapshot().resolution)
+        assertTrue(adapter.snapshot().privateProtocolRequired)
+        assertEquals(
+            listOf(16),
+            adapter.transports.map { (it as RfcommEndpointSpec.Channel).number },
+        )
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+
+        val result = adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0x02, 0x01))),
+        )
+
+        assertEquals(HandshakeResult.Ready, result.handshake)
+        assertTrue(adapter.snapshot().capabilities.noiseControl)
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+        assertEquals(
+            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            adapter.snapshot().supportedNoiseModes,
+        )
+        assertNull(adapter.runtimeState().features.get<HuaweiAncLevelFeatureState>())
+
+        val control = adapter.executeControl(
+            StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY),
+        )
+
+        assertTrue(control.accepted)
+        assertEquals(
+            HuaweiFreebudsSppCodec
+                .noiseModeCommand(HuaweiFreebudsSppCodec.NoiseMode.TRANSPARENCY)
+                .toList(),
+            control.commands.single().toList(),
+        )
+        assertEquals(
+            HuaweiFreebudsSppCodec.queryNoiseState.toList(),
+            control.readback.single().toList(),
+        )
+    }
+
+    @Test
+    fun huaweiFreebuds5iMatchingDoesNotCaptureNeighboringModels() {
+        assertTrue(resolve("HUAWEI FreeBuds 5i", standard = true) is HuaweiFreebuds5iAdapter)
+        assertTrue(resolve("FreeBuds 5", standard = true) is HuaweiFreebudsFamilyAdapter)
+        assertTrue(resolve("FreeBuds 5i Pro", standard = true) is HuaweiFreebudsFamilyAdapter)
+        assertFalse(resolve("HONOR FreeBuds 5i", standard = true) is HuaweiFreebuds5iAdapter)
+    }
+
+    @Test
+    fun huaweiFreebuds5iBatteryAndNoiseEvidenceUnlockIndependently() {
+        val adapter = HuaweiFreebuds5iAdapter()
+        val batteryFrame = HuaweiFreebudsSppCodec.packet(
+            0x0108,
+            listOf(
+                1 to byteArrayOf(0x40),
+                2 to byteArrayOf(0x10, 0x20, 0x30),
+                3 to byteArrayOf(0x00, 0x01, 0x00),
+            ),
+        )
+
+        adapter.receive(batteryFrame)
+
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        assertEquals(16, adapter.runtimeState().battery.left.percent)
+        assertEquals(32, adapter.runtimeState().battery.right.percent)
+        assertEquals(48, adapter.runtimeState().battery.case.percent)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
+
+        adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0x02, 0x01))),
+        )
+
+        assertTrue(adapter.snapshot().capabilities.noiseControl)
+        assertEquals(
+            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            adapter.snapshot().supportedNoiseModes,
+        )
+    }
+
+    @Test
+    fun huaweiFreebuds5iResetRevokesPrivateEvidence() {
+        val adapter = HuaweiFreebuds5iAdapter()
+        adapter.onSystemBatteryChanged(72)
+        adapter.receive(
+            HuaweiFreebudsSppCodec.packet(
+                0x0108,
+                listOf(
+                    1 to byteArrayOf(0x40),
+                    2 to byteArrayOf(0x10, 0x20, 0x30),
+                    3 to byteArrayOf(0x00, 0x01, 0x00),
+                ),
+            ),
+        )
+        adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0x02, 0x01))),
+        )
+
+        adapter.resetProtocolSession()
+        adapter.onSystemBatteryChanged(72)
+
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        assertEquals(72, adapter.runtimeState().battery.left.percent)
+        assertEquals(72, adapter.runtimeState().battery.right.percent)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
+        assertNull(adapter.runtimeState().noiseMode)
+    }
+
+    @Test
+    fun huaweiFreebuds5iRejectsUnsupportedWindMode() {
+        val adapter = HuaweiFreebuds5iAdapter()
+        adapter.receive(
+            HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0x00, 0x00))),
+        )
+
+        val result = adapter.executeControl(
+            StandardControlRequest.SetNoiseMode(NoiseMode.WIND),
+        )
+
+        assertFalse(result.accepted)
     }
 
     @Test

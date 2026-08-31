@@ -123,15 +123,24 @@ StarRing Ultra 使用 GATT `7777/8888` 特征，厂商 RFCOMM 为回退通道。
 | ROSESELSA EARFREE i5 | 具体型号 | 公开实现 | 规范化名称精确匹配；合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | ROSESELSA EARFREE / EARFEEL 产品线 | 产品线 | 家族外推 | 产品线名称或 GATT 服务选择候选；合法状态响应确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | Furina Endless Solo of Solitude | 具体型号 | 实机验证 | 规范化名称选择候选；BudsFeel 合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
+| ROSE Ceramics X（琉璃 X） | 具体型号 | 实机验证 | 规范化名称精确匹配 Classic 音频端点；精确名称关联 `CERAMICS X BLE` 控制端点；合法 `0x27/0x28` 模式响应确认能力 | 系统整机 | 降噪、关闭、通透、抗风噪 |
 | ROSE Ceramics Ultra（琉璃 Ultra） | 具体型号 | 实机验证 | 规范化名称选择候选；BudsFeel 扩展流中的合法电量与模式记录分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | ROSE BudsFeel MK2 | 具体型号 | 公开实现 | 规范化名称精确匹配；合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | ROSE BudsFeel 产品线 | 产品线 | 家族外推 | 产品线名称或 RFCOMM 服务选择候选；合法状态响应确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | 其他 ROSESELSA / ROSE 耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
 EARFREE / EARFEEL 使用 GATT 服务 `011bf5da`、`7777/8888` 特征；BudsFeel 使用 RFCOMM
-UUID `0cf12d31-…`。Furina Endless Solo of Solitude 复用 BudsFeel 帧格式，实机确认可独立
-上报左耳、右耳和充电盒电量。ROSE Ceramics Ultra（琉璃 Ultra）由 RoseLink 官方 App
-经同一 `0cf12d31` RFCOMM 通道控制，实机确认复用 BudsFeel 帧格式；其状态响应在首个
+UUID `0cf12d31-…`。琉璃 X 使用与 Classic 音频地址分离的 `CERAMICS X BLE` 伴生端点；
+实机 HCI Snoop 确认 ATT value handle `0x0015` 以 Write Command 写入、`0x0017` 接收通知。
+厂商 value 使用 `0x27` 查询、`0x2C` 设置和 `0x28` 状态回报，模式值分别为抗风噪
+`0x00`、降噪 `0x01`、通透 `0x02`、关闭 `0x03`。初始仅保留系统整机电量；收到合法
+`00 27/28 02 00 03 0C 01 <mode>` 报告后才开放四态控制；设置后同时接受 `0x28` 主动通知，
+并执行一次 `0x27` 只读查询完成状态矫正。抓包尚未确认私有电量字段，因此不发布组件电量。
+无名广播中的 `0x8418` 仅为一次观测，在缺少稳定完整载荷前不作为配套端点身份依据。
+Furina Endless Solo of
+Solitude 复用 BudsFeel 帧格式，实机确认可独立上报左耳、右耳和充电盒电量。ROSE Ceramics
+Ultra（琉璃 Ultra）由 RoseLink 官方 App 经同一 `0cf12d31` RFCOMM 通道控制，实机确认复用
+BudsFeel 帧格式；其状态响应在首个
 块之后追加无长度头的扩展 TLV 流（噪声 `09`、电量 `0C` 记录位于扩展流内），
 解码器按扩展帧路径解析。该型号还会上报自适应降噪 `0x05` 与极致降噪 `0x06`，两者统一
 投影为系统卡片的“降噪”状态；组件电量百分比位于低七位，尚未确认语义的高位不会被投影为
@@ -184,17 +193,19 @@ X5s Pro 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只
 
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|
+| HUAWEI FreeBuds 5i | 具体型号 | 实机验证 | 规范化型号精确匹配；固定优先 RFCOMM Channel 16；合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透 |
 | HUAWEI FreeBuds Pro 3（T0018 / T0018C） | 具体型号 | 实机验证 | 规范化型号精确匹配；SPP 合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透 + 降噪四档与透传两档（类型化扩展） |
 | HUAWEI FreeBuds 4 | 具体型号 | 公开实现 | 规范化型号精确匹配；Channel 1 合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件或整机 | 降噪、关闭 |
 | 其他名称符合 HUAWEI FreeBuds / FreeClip / FreeLace 规则的耳机 | 品牌家族 | 家族外推 | 产品线名称选择一个家族候选；按顺序试探 Channel 1、16；合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件或整机 | 协议确认后支持降噪、关闭、通透；不开放档位 |
 | 其他华为耳机 | 标准回退 | 标准回退 | Android 标准耳机身份匹配 | 系统整机 | 无 |
 
-FreeBuds Pro 3 与 FreeBuds 4 使用 RFCOMM Channel 1；家族候选在同一 Adapter 中依次尝试
-Channel 1、16，前一端点协议确认失败后才进入下一端点。通道号只用于传输，不参与品牌或
-型号判定。组件电量和模式分别在收到 CRC 与字段均合法的协议帧后开放；未获有效响应时保持
-系统标准回退。降噪档位（均衡/舒适/超强/动态）与透传档位（人声增强/均衡）以
-`huawei.freebuds_pro3` 类型化状态与控制接入 v2.0.0 传输架构。三态模式切换与
-降噪档位切换已在 FreeBuds Pro 3 实机验证通过；家族 Adapter 不开放档位。智慧音频运行时，HyperEars 按
+FreeBuds 5i 的型号识别和 Channel 16 先由一台真实设备的 HCI 捕获记录确认，随后在设备上完成
+HyperEars 端到端实机验证（识别、私有连接、状态读取、控制写入与卡片回读）。FreeBuds 5i 使用
+RFCOMM Channel 16；FreeBuds Pro 3 与 FreeBuds 4 使用 Channel 1；家族
+候选在同一 Adapter 中依次尝试 Channel 1、16，前一端点协议确认失败后才进入下一端点。
+通道号只用于传输，不参与品牌或型号判定。组件电量和模式分别在收到 CRC 与字段均合法的协议帧后
+开放；未获有效响应时保持系统标准回退。FreeBuds Pro 3 的档位使用
+`huawei.freebuds_pro3` 类型化状态；FreeBuds 5i 型号专属档位测试失败，待完善。智慧音频运行时，HyperEars 按
 [1.4 厂商控制 App](#14-厂商控制-app)的运行时控制权退避机制让出私有控制，仅保留
 系统整机电量与音频流转。
 
@@ -242,7 +253,26 @@ HyperEars 实机验证。协议边界见 [QCY 标准 GATT 协议](qcy-standard-g
 
 私有传输使用 Sony RFCOMM v1/v2；具体型号决定协议优先级、电量形态和 Ambient 方言。
 
-### 2.13 通用蓝牙耳机
+### 2.13 Technics
+
+| 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
+|---|---|---|---|---|---|
+| EAH-AZ80 | 具体型号 | 实机验证 | 规范化型号选择候选；合法 RACE 组件电量和 `0x000A` 模式状态响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透（三态写入与设备回读已实测） |
+| EAH-AZ60 / AZ60M2 / AZ70 / AZ100 等 EAH-AZ TWS | 产品线 | 公开实现 | 产品线名称选择候选；合法 RACE 组件电量和 `0x000A` 模式状态响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透（AZ80 实测，其他型号沿用参考实现证据） |
+
+私有传输依次尝试 Technics / Airoha 厂商 RFCOMM UUID `00000000-0000-0000-0099-aabbccddeeff`
+与 Bluetooth SIG 标准 SPP UUID。UUID 只用于连接端点，不参与品牌判定；Android 通过 SDP
+解析实际 channel，本次 AZ80 的 channel 21 只是单机观测，不固定 channel 15。
+
+实现依据 TechincsPods 固定提交 `a378106` 的当前代码。贡献者已在 AZ100、AZ80、AZ60 等
+型号上验证该参考实现可用；本分支由贡献者使用 AZ80 验证。AZ80 实测 `0x000A`
+Outside Control GET 两次均返回完整模式与等级，组件电量及关闭、降噪、通透三态写入和
+设备回读均正常，因此该具体型号标为“实机验证”；其他型号仍为公开实现证据。运行时只使用
+`0x000A` 回读。合法组件电量只开放
+私有电量；合法 `0x000A` 响应才开放标准三态。自适应、等级调节和游戏模式均不提供。详见
+[`technics-race-protocol.md`](technics-race-protocol.md)。
+
+### 2.14 通用蓝牙耳机
 
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|

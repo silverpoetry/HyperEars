@@ -219,6 +219,12 @@ internal val supportBrands = listOf(
                 noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
             ),
             SupportEntry(
+                name = "ROSE Ceramics X（琉璃 X）",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.SYSTEM,
+                noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
+            ),
+            SupportEntry(
                 name = "ROSE Ceramics Ultra（琉璃 Ultra）",
                 evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.COMPONENT,
@@ -298,6 +304,12 @@ internal val supportBrands = listOf(
     SupportBrand(
         name = "华为",
         entries = listOf(
+            SupportEntry(
+                name = "HUAWEI FreeBuds 5i",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
             SupportEntry(
                 name = "HUAWEI FreeBuds Pro 3",
                 evidence = EvidenceLevel.VERIFIED,

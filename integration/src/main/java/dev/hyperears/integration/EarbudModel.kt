@@ -410,11 +410,13 @@ fun interface GattPeerMatcher {
 data class GattScanFilterSpec(
     val manufacturerId: Int? = null,
     val serviceUuid: String? = null,
+    val deviceName: String? = null,
 ) {
     init {
         require(manufacturerId == null || manufacturerId in 0..0xFFFF)
         require(serviceUuid == null || serviceUuid.isNotBlank())
-        require(manufacturerId != null || serviceUuid != null) {
+        require(deviceName == null || deviceName.isNotBlank())
+        require(manufacturerId != null || serviceUuid != null || deviceName != null) {
             "A companion GATT scan requires at least one stable filter"
         }
     }
@@ -447,6 +449,11 @@ sealed interface GattPeerSelection {
     }
 }
 
+enum class GattWriteMode {
+    WITH_RESPONSE,
+    WITHOUT_RESPONSE,
+}
+
 /**
  * BLE GATT transport whose characteristics carry the protocol's unmodified business frames.
  *
@@ -460,11 +467,15 @@ data class GattTransportSpec(
     val notifyCharacteristicUuid: String,
     val writeInstanceId: Int? = null,
     val notifyInstanceId: Int? = null,
+    val writeMode: GattWriteMode = GattWriteMode.WITH_RESPONSE,
+    val notificationsRequired: Boolean = false,
     val peerSelection: GattPeerSelection = GattPeerSelection.SessionDevice,
     override val id: String,
 ) : EarbudTransportSpec {
     init {
         require(serviceUuid == null || serviceUuid.isNotBlank())
+        require(writeCharacteristicUuid.isNotBlank())
+        require(notifyCharacteristicUuid.isNotBlank())
     }
 }
 

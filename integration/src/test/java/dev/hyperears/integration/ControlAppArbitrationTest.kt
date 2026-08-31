@@ -26,6 +26,10 @@ class ControlAppArbitrationTest {
             SonyEarbudAdapter().controlApps,
         )
         assertEquals(
+            listOf(ControlAppCatalog.technicsAudioConnect),
+            TechnicsEarbudAdapter().controlApps,
+        )
+        assertEquals(
             listOf(ControlAppCatalog.huaweiSmartAudio),
             HuaweiFreebudsPro3Adapter().controlApps,
         )
