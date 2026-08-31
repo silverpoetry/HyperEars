@@ -110,11 +110,7 @@ internal class MiLinkServiceHook : HookContext() {
                 }
             }
             hookBluetoothDeviceResult(className, "getAncState") { device, adapter ->
-                if (adapter.capabilities.noiseControl) {
-                    nativeAncState(stateFor(device))
-                } else {
-                    NO_ANC_STATE
-                }
+                nativeAncStateForSurface(stateFor(device), adapter)
             }
             hookBluetoothDeviceResult(className, "getDeviceRunInfo") { _, _ -> 0 }
             hookBluetoothDeviceResult(className, "getWearStatus") { _, adapter ->
@@ -400,11 +396,7 @@ internal class MiLinkServiceHook : HookContext() {
             "com.miui.headset.runtime.AncBatteryController",
             "getAncState",
         ) { device, adapter ->
-            if (adapter.capabilities.noiseControl) {
-                nativeAncState(stateFor(device))
-            } else {
-                NO_ANC_STATE
-            }
+            nativeAncStateForSurface(stateFor(device), adapter)
         }
         hookBluetoothDeviceResult(
             "com.miui.headset.runtime.AncBatteryController",
@@ -417,7 +409,9 @@ internal class MiLinkServiceHook : HookContext() {
             "com.miui.headset.runtime.AncBatteryController",
             "getSwitchState",
         ) { address ->
-            if (adapterForAddress(address)?.capabilities?.noiseControl == true) 1 else 0
+            adapterForAddress(address)
+                ?.let(::supportsNativeAncSurface)
+                ?.let { supported -> if (supported) 1 else 0 }
         }
 
         runCatching {
@@ -472,26 +466,20 @@ internal class MiLinkServiceHook : HookContext() {
         }
         hookHeadsetInfo("getMode") { info ->
             val state = activeStateForHeadsetInfo(info) ?: return@hookHeadsetInfo null
-            adapterIdentity(state)?.let { adapter ->
-                if (adapter.capabilities.noiseControl) nativeAncState(state) else NO_ANC_STATE
-            }
+            adapterIdentity(state)?.let { adapter -> nativeAncStateForSurface(state, adapter) }
         }
         hookHeadsetInfo("component5") { info ->
             val state = activeStateForHeadsetInfo(info) ?: return@hookHeadsetInfo null
-            adapterIdentity(state)?.let { adapter ->
-                if (adapter.capabilities.noiseControl) nativeAncState(state) else NO_ANC_STATE
-            }
+            adapterIdentity(state)?.let { adapter -> nativeAncStateForSurface(state, adapter) }
         }
         hookHeadsetInfo("getSwitchState") { info ->
             adapterForHeadsetInfo(info)
-                ?.capabilities
-                ?.noiseControl
+                ?.let(::supportsNativeAncSurface)
                 ?.let { supported -> if (supported) 1 else 0 }
         }
         hookHeadsetInfo("component8") { info ->
             adapterForHeadsetInfo(info)
-                ?.capabilities
-                ?.noiseControl
+                ?.let(::supportsNativeAncSurface)
                 ?.let { supported -> if (supported) 1 else 0 }
         }
     }
@@ -699,6 +687,10 @@ internal class MiLinkServiceHook : HookContext() {
                     val address = args.firstOrNull() as? String ?: return@hookBefore
                     val adapter = adapterForAddress(address) ?: return@hookBefore
                     result = when {
+                        nativeCardAdapter(adapter)?.nativeSurface ==
+                            MiLinkNativeCardSurface.ANC_THREE_STATE ->
+                            MILINK_RAW_ANC_ALL_MODES
+
                         !adapter.capabilities.noiseControl -> NO_ANC_CAPABILITY
                         NoiseMode.TRANSPARENCY in adapter.supportedNoiseModes ->
                             MILINK_RAW_ANC_ALL_MODES
@@ -1105,7 +1097,9 @@ internal class MiLinkServiceHook : HookContext() {
         val propertyListeners = propertyChangeListeners()
         if (owners.isEmpty() && propertyListeners.isEmpty()) return
 
-        val capabilities = adapterIdentity(snapshot)?.capabilities ?: return
+        val adapter = adapterIdentity(snapshot) ?: return
+        val capabilities = adapter.capabilities
+        val previousAdapter = adapterIdentity(previous)
         val identityChanged =
             previous.modelId != snapshot.modelId ||
                 previous.address != snapshot.address
@@ -1114,9 +1108,25 @@ internal class MiLinkServiceHook : HookContext() {
         val batteryChanged =
             capabilities.battery &&
                 (identityChanged || adapterChanged || previous.battery != snapshot.battery)
+        val previousAncSurface = previousAdapter?.let(::supportsNativeAncSurface) == true
+        val currentAncSurface = supportsNativeAncSurface(adapter)
+        val previousAncState = previousAdapter
+            ?.takeIf { previousAncSurface }
+            ?.let { nativeAncStateForSurface(previous, it) }
+            ?: NO_ANC_STATE
+        val currentAncState = if (currentAncSurface) {
+            nativeAncStateForSurface(snapshot, adapter)
+        } else {
+            NO_ANC_STATE
+        }
         val ancChanged =
-            capabilities.noiseControl &&
-                (identityChanged || adapterChanged || previous.noiseMode != snapshot.noiseMode)
+            (previousAncSurface || currentAncSurface) &&
+                (
+                    identityChanged ||
+                        adapterChanged ||
+                        previousAncSurface != currentAncSurface ||
+                        previousAncState != currentAncState
+                )
         if (!adapterChanged && !connectionChanged && !batteryChanged && !ancChanged) return
 
         val address = snapshot.address ?: return
@@ -1140,7 +1150,7 @@ internal class MiLinkServiceHook : HookContext() {
         )
 
         val battery = batteryLevelsFor(snapshot)?.toIntArray() ?: return
-        val anc = nativeAncState(snapshot)
+        val anc = currentAncState
         val deviceId = adapterIdentity(snapshot)
             ?.let(MiLinkCarrierIdentity::deviceId)
             ?: return
@@ -1232,6 +1242,25 @@ internal class MiLinkServiceHook : HookContext() {
             projectedMode?.let { state.withFeature(NoiseModeFeatureState(it)) } ?: state,
         )
     }
+
+    private fun nativeAncStateForSurface(
+        state: EarbudState,
+        adapter: AdapterSnapshot,
+    ): Int {
+        if (adapter.capabilities.noiseControl) return nativeAncState(state)
+        val mode = nativeCardAdapter(adapter)
+            ?.takeIf { it.nativeSurface == MiLinkNativeCardSurface.ANC_THREE_STATE }
+            ?.nativeSurfaceNoiseMode(state)
+            ?: return NO_ANC_STATE
+        return MiLinkStateCodec.ancState(state.withFeature(NoiseModeFeatureState(mode)))
+    }
+
+    private fun supportsNativeAncSurface(adapter: AdapterSnapshot): Boolean =
+        adapter.capabilities.noiseControl ||
+            nativeCardAdapter(adapter)?.nativeSurface == MiLinkNativeCardSurface.ANC_THREE_STATE
+
+    private fun nativeCardAdapter(adapter: AdapterSnapshot): MiLinkCardAdapter? =
+        adapter.presentationId?.let(MiLinkCardAdapterRegistry::resolve)
 
     private fun requestState() {
         context?.sendBroadcast(

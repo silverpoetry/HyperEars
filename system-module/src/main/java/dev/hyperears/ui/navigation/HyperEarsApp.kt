@@ -2,36 +2,18 @@ package dev.hyperears.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
-import dev.hyperears.R
 import dev.hyperears.integration.EarbudAdapterRegistry
 import dev.hyperears.integration.NoiseMode
 import dev.hyperears.root.RootAction
@@ -45,46 +27,33 @@ import dev.hyperears.ui.dashboard.DashboardScreen
 import dev.hyperears.ui.dashboard.DashboardUiState
 import dev.hyperears.ui.dashboard.MiuixDashboardScreen
 import dev.hyperears.ui.settings.AdapterSettingsScreen
+import dev.hyperears.ui.settings.AppearanceSettingsScreen
 import dev.hyperears.ui.settings.DebugSettingsScreen
 import dev.hyperears.ui.settings.MiuixAdapterSettingsScreen
+import dev.hyperears.ui.settings.MiuixAppearanceSettingsScreen
 import dev.hyperears.ui.settings.MiuixDebugSettingsScreen
 import dev.hyperears.ui.settings.MiuixSettingsScreen
 import dev.hyperears.ui.settings.SettingsScreen
+import dev.hyperears.ui.theme.UiPreferences
 import dev.hyperears.ui.theme.UiStyle
 import dev.hyperears.update.ReleaseInfo
 import dev.hyperears.update.UpdateCheckResult
 import dev.hyperears.update.UpdateCheckUiState
-import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
-import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
-import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
-import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
 import top.yukonga.miuix.kmp.window.WindowDialog
 
-private data class AppPage(
-    val id: String,
-    val label: String,
-    val iconRes: Int,
-)
-
-private val appPages = listOf(
-    AppPage("dashboard", "主页", R.drawable.ic_dashboard),
-    AppPage("settings", "设置", R.drawable.ic_settings),
-    AppPage("about", "关于", R.drawable.ic_info_outline),
-)
-
-private const val TOP_LEVEL_PAGE_PRELOAD_COUNT = 1
-
 private enum class SecondaryDestination {
+    APPEARANCE,
     DEBUG,
     ADAPTERS,
     COMPATIBILITY,
 }
 
 /**
- * Owns navigation state shared by both visual renderers. Material 3 and Miuix only render the
- * current destination; switching style never recreates the selected page or subpage destination.
+ * Routes shared application state into renderer-specific screens. Top-level pager and bottom-bar
+ * state live in [HyperEarsTopLevelNavigation]; this function only owns secondary destinations and
+ * application dialogs.
  */
 @Composable
 fun HyperEarsApp(
@@ -104,141 +73,147 @@ fun HyperEarsApp(
     onCheckUpdates: () -> Unit,
     onDismissUpdate: () -> Unit,
     onOpenRelease: (ReleaseInfo) -> Unit,
-    uiStyle: UiStyle,
-    onUiStyleChanged: (UiStyle) -> Unit,
+    uiPreferences: UiPreferences,
+    onUiPreferencesChanged: (UiPreferences) -> Unit,
 ) {
-    val pagerState = rememberPagerState(pageCount = { appPages.size })
-    val coroutineScope = rememberCoroutineScope()
+    val uiStyle = uiPreferences.style
     var secondaryDestination by rememberSaveable { mutableStateOf<SecondaryDestination?>(null) }
+    val navigationStateHolder = rememberSaveableStateHolder()
 
     BackHandler(enabled = secondaryDestination != null) {
         secondaryDestination = previousSecondaryDestination(secondaryDestination)
     }
 
-    if (secondaryDestination != null) {
-        RenderSecondaryDestination(
-            style = uiStyle,
-            destination = secondaryDestination ?: return,
-            settings = settings,
-            rootAvailable = rootAvailable,
-            onSettingsChanged = onSettingsChanged,
-            onExportLogs = onExportLogs,
-            onOpenAdapters = { secondaryDestination = SecondaryDestination.ADAPTERS },
-            onNavigateBack = {
-                secondaryDestination = previousSecondaryDestination(secondaryDestination)
-            },
-        )
+    val activeSecondaryDestination = secondaryDestination
+    if (activeSecondaryDestination != null) {
+        navigationStateHolder.SaveableStateProvider(
+            key = activeSecondaryDestination.stateKey,
+        ) {
+            RenderSecondaryDestination(
+                style = uiStyle,
+                destination = activeSecondaryDestination,
+                uiPreferences = uiPreferences,
+                onUiPreferencesChanged = onUiPreferencesChanged,
+                settings = settings,
+                rootAvailable = rootAvailable,
+                onSettingsChanged = onSettingsChanged,
+                onExportLogs = onExportLogs,
+                onOpenAdapters = { secondaryDestination = SecondaryDestination.ADAPTERS },
+                onNavigateBack = {
+                    secondaryDestination = previousSecondaryDestination(secondaryDestination)
+                },
+            )
+        }
         return
     }
 
-    val selectedPage = pagerState.settledPage
-    val dashboardVisible = selectedPage == 0
-    LaunchedEffect(dashboardVisible) {
-        onDashboardVisibilityChanged(dashboardVisible)
-    }
-    DisposableEffect(Unit) {
-        onDispose { onDashboardVisibilityChanged(false) }
-    }
+    navigationStateHolder.SaveableStateProvider(key = TOP_LEVEL_STATE_KEY) {
+        HyperEarsTopLevelNavigation(
+            preferences = uiPreferences,
+            onDashboardVisibilityChanged = onDashboardVisibilityChanged,
+        ) { destination, bottomContentPadding ->
+            when (uiStyle) {
+                UiStyle.MATERIAL3 -> when (destination) {
+                    TopLevelDestination.DASHBOARD -> DashboardScreen(
+                        uiState = uiState,
+                        onRefresh = onRefresh,
+                        onSetNoiseMode = onSetNoiseMode,
+                        bottomContentPadding = bottomContentPadding,
+                    )
+                    TopLevelDestination.SETTINGS -> SettingsScreen(
+                        settings = settings,
+                        autoCheckUpdates = autoCheckUpdates,
+                        rootAvailable = rootAvailable,
+                        rootActionState = rootActionState,
+                        onSettingsChanged = onSettingsChanged,
+                        onAutoCheckUpdatesChanged = onAutoCheckUpdatesChanged,
+                        onRunRootAction = onRunRootAction,
+                        uiPreferences = uiPreferences,
+                        onUiPreferencesChanged = onUiPreferencesChanged,
+                        onOpenAppearance = {
+                            secondaryDestination = SecondaryDestination.APPEARANCE
+                        },
+                        onOpenDebug = { secondaryDestination = SecondaryDestination.DEBUG },
+                        bottomContentPadding = bottomContentPadding,
+                    )
 
-    val navigateToPage: (Int) -> Unit = remember(pagerState, coroutineScope) {
-        { index ->
-            if (index != pagerState.settledPage) {
-                coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                    TopLevelDestination.ABOUT -> AboutScreen(
+                        updateCheckState = updateCheckState,
+                        onCheckUpdates = onCheckUpdates,
+                        onOpenRelease = onOpenRelease,
+                        onOpenCompatibility = {
+                            secondaryDestination = SecondaryDestination.COMPATIBILITY
+                        },
+                        bottomContentPadding = bottomContentPadding,
+                    )
+                }
+
+                UiStyle.MIUIX -> when (destination) {
+                    TopLevelDestination.DASHBOARD -> MiuixDashboardScreen(
+                        uiState = uiState,
+                        onRefresh = onRefresh,
+                        onSetNoiseMode = onSetNoiseMode,
+                        bottomContentPadding = bottomContentPadding,
+                    )
+                    TopLevelDestination.SETTINGS -> MiuixSettingsScreen(
+                        settings = settings,
+                        autoCheckUpdates = autoCheckUpdates,
+                        rootAvailable = rootAvailable,
+                        rootActionState = rootActionState,
+                        onSettingsChanged = onSettingsChanged,
+                        onAutoCheckUpdatesChanged = onAutoCheckUpdatesChanged,
+                        onRunRootAction = onRunRootAction,
+                        uiPreferences = uiPreferences,
+                        onUiPreferencesChanged = onUiPreferencesChanged,
+                        onOpenAppearance = {
+                            secondaryDestination = SecondaryDestination.APPEARANCE
+                        },
+                        onOpenDebug = { secondaryDestination = SecondaryDestination.DEBUG },
+                        bottomContentPadding = bottomContentPadding,
+                    )
+
+                    TopLevelDestination.ABOUT -> MiuixAboutScreen(
+                        updateCheckState = updateCheckState,
+                        onCheckUpdates = onCheckUpdates,
+                        onOpenRelease = onOpenRelease,
+                        onOpenCompatibility = {
+                            secondaryDestination = SecondaryDestination.COMPATIBILITY
+                        },
+                        bottomContentPadding = bottomContentPadding,
+                    )
+                }
             }
         }
-    }
-    val pageContent: @Composable (Int) -> Unit = { page ->
-        when (uiStyle) {
-            UiStyle.MATERIAL3 -> when (page) {
-                0 -> DashboardScreen(uiState, onRefresh, onSetNoiseMode)
-                1 -> SettingsScreen(
-                    settings = settings,
-                    autoCheckUpdates = autoCheckUpdates,
-                    rootAvailable = rootAvailable,
-                    rootActionState = rootActionState,
-                    uiStyle = uiStyle,
-                    onSettingsChanged = onSettingsChanged,
-                    onAutoCheckUpdatesChanged = onAutoCheckUpdatesChanged,
-                    onUiStyleChanged = onUiStyleChanged,
-                    onRunRootAction = onRunRootAction,
-                    onOpenDebug = { secondaryDestination = SecondaryDestination.DEBUG },
+
+        val available = updateCheckState.result as? UpdateCheckResult.Available
+        if (available != null && updateCheckState.showAvailableDialog) {
+            when (uiStyle) {
+                UiStyle.MATERIAL3 -> MaterialUpdateDialog(
+                    available = available,
+                    onDismiss = onDismissUpdate,
+                    onOpenRelease = onOpenRelease,
                 )
 
-                2 -> AboutScreen(
-                    updateCheckState = updateCheckState,
-                    onCheckUpdates = onCheckUpdates,
+                UiStyle.MIUIX -> MiuixUpdateDialog(
+                    available = available,
+                    onDismiss = onDismissUpdate,
                     onOpenRelease = onOpenRelease,
-                    onOpenCompatibility = {
-                        secondaryDestination = SecondaryDestination.COMPATIBILITY
-                    },
                 )
             }
-
-            UiStyle.MIUIX -> when (page) {
-                0 -> MiuixDashboardScreen(uiState, onRefresh, onSetNoiseMode)
-                1 -> MiuixSettingsScreen(
-                    settings = settings,
-                    autoCheckUpdates = autoCheckUpdates,
-                    rootAvailable = rootAvailable,
-                    rootActionState = rootActionState,
-                    uiStyle = uiStyle,
-                    onSettingsChanged = onSettingsChanged,
-                    onAutoCheckUpdatesChanged = onAutoCheckUpdatesChanged,
-                    onUiStyleChanged = onUiStyleChanged,
-                    onRunRootAction = onRunRootAction,
-                    onOpenDebug = { secondaryDestination = SecondaryDestination.DEBUG },
-                )
-
-                2 -> MiuixAboutScreen(
-                    updateCheckState = updateCheckState,
-                    onCheckUpdates = onCheckUpdates,
-                    onOpenRelease = onOpenRelease,
-                    onOpenCompatibility = {
-                        secondaryDestination = SecondaryDestination.COMPATIBILITY
-                    },
-                )
-            }
-        }
-    }
-
-    when (uiStyle) {
-        UiStyle.MATERIAL3 -> MaterialAppShell(
-            pagerState = pagerState,
-            selectedPage = selectedPage,
-            onNavigate = navigateToPage,
-            pageContent = pageContent,
-        )
-
-        UiStyle.MIUIX -> MiuixAppShell(
-            pagerState = pagerState,
-            selectedPage = selectedPage,
-            onNavigate = navigateToPage,
-            pageContent = pageContent,
-        )
-    }
-
-    val available = updateCheckState.result as? UpdateCheckResult.Available
-    if (available != null && updateCheckState.showAvailableDialog) {
-        when (uiStyle) {
-            UiStyle.MATERIAL3 -> MaterialUpdateDialog(
-                available = available,
-                onDismiss = onDismissUpdate,
-                onOpenRelease = onOpenRelease,
-            )
-
-            UiStyle.MIUIX -> MiuixUpdateDialog(
-                available = available,
-                onDismiss = onDismissUpdate,
-                onOpenRelease = onOpenRelease,
-            )
         }
     }
 }
+
+private const val TOP_LEVEL_STATE_KEY = "top-level"
+
+private val SecondaryDestination.stateKey: String
+    get() = "secondary-$name"
 
 private fun previousSecondaryDestination(
     destination: SecondaryDestination?,
 ): SecondaryDestination? = when (destination) {
     SecondaryDestination.ADAPTERS -> SecondaryDestination.DEBUG
+    SecondaryDestination.APPEARANCE,
     SecondaryDestination.DEBUG,
     SecondaryDestination.COMPATIBILITY,
     null,
@@ -249,6 +224,8 @@ private fun previousSecondaryDestination(
 private fun RenderSecondaryDestination(
     style: UiStyle,
     destination: SecondaryDestination,
+    uiPreferences: UiPreferences,
+    onUiPreferencesChanged: (UiPreferences) -> Unit,
     settings: ModuleSettings,
     rootAvailable: Boolean?,
     onSettingsChanged: (ModuleSettings) -> Unit,
@@ -258,6 +235,12 @@ private fun RenderSecondaryDestination(
 ) {
     when (style) {
         UiStyle.MATERIAL3 -> when (destination) {
+            SecondaryDestination.APPEARANCE -> AppearanceSettingsScreen(
+                preferences = uiPreferences,
+                onPreferencesChanged = onUiPreferencesChanged,
+                onNavigateBack = onNavigateBack,
+            )
+
             SecondaryDestination.ADAPTERS -> AdapterSettingsScreen(
                 groups = EarbudAdapterRegistry.groups,
                 settings = settings,
@@ -280,6 +263,12 @@ private fun RenderSecondaryDestination(
         }
 
         UiStyle.MIUIX -> when (destination) {
+            SecondaryDestination.APPEARANCE -> MiuixAppearanceSettingsScreen(
+                preferences = uiPreferences,
+                onPreferencesChanged = onUiPreferencesChanged,
+                onNavigateBack = onNavigateBack,
+            )
+
             SecondaryDestination.ADAPTERS -> MiuixAdapterSettingsScreen(
                 groups = EarbudAdapterRegistry.groups,
                 settings = settings,
@@ -301,81 +290,6 @@ private fun RenderSecondaryDestination(
             )
         }
     }
-}
-
-@Composable
-private fun MaterialAppShell(
-    pagerState: PagerState,
-    selectedPage: Int,
-    onNavigate: (Int) -> Unit,
-    pageContent: @Composable (Int) -> Unit,
-) {
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-            NavigationBar {
-                appPages.forEachIndexed { index, page ->
-                    NavigationBarItem(
-                        selected = selectedPage == index,
-                        onClick = { onNavigate(index) },
-                        icon = {
-                            Icon(
-                                painter = painterResource(page.iconRes),
-                                contentDescription = page.label,
-                            )
-                        },
-                        label = { Text(page.label) },
-                    )
-                }
-            }
-        },
-    ) { padding ->
-        AppPager(pagerState, padding, pageContent)
-    }
-}
-
-@Composable
-private fun MiuixAppShell(
-    pagerState: PagerState,
-    selectedPage: Int,
-    onNavigate: (Int) -> Unit,
-    pageContent: @Composable (Int) -> Unit,
-) {
-    val icons = appPages.map { ImageVector.vectorResource(it.iconRes) }
-    MiuixScaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-            MiuixNavigationBar {
-                appPages.forEachIndexed { index, page ->
-                    MiuixNavigationBarItem(
-                        selected = selectedPage == index,
-                        onClick = { onNavigate(index) },
-                        icon = icons[index],
-                        label = page.label,
-                    )
-                }
-            }
-        },
-    ) { padding ->
-        AppPager(pagerState, padding, pageContent)
-    }
-}
-
-@Composable
-private fun AppPager(
-    pagerState: PagerState,
-    padding: PaddingValues,
-    pageContent: @Composable (Int) -> Unit,
-) {
-    HorizontalPager(
-        state = pagerState,
-        key = { appPages[it].id },
-        beyondViewportPageCount = TOP_LEVEL_PAGE_PRELOAD_COUNT,
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding),
-        pageContent = { page -> pageContent(page) },
-    )
 }
 
 @Composable

@@ -208,12 +208,23 @@ HyperEars 端到端实机验证复核。Channel 16、短模式帧和模式值的
 
 ## Miuix
 
-- yukonga/miuix: <https://github.com/miuix-kotlin-multiplatform/miuix>
+- compose-miuix-ui/miuix: <https://github.com/compose-miuix-ui/miuix>
+- Reviewed release: `v0.9.3` (`c36fab72391801d1e3ea5a00f966bf16bac28d4c`)
 - Version used by HyperEars: `0.9.3`
 - Upstream license: Apache License 2.0
 
-用于提供可选的 Miuix 应用界面。HyperEars 只复用该库公开的主题与 Compose 控件 API；
-应用状态、导航、设置、耳机会话及 MiLink 集成仍由 HyperEars 自身的共享层维护。
+用于提供 Miuix 应用界面、菜单栏背景捕获与模糊能力。应用状态、导航、设置、耳机会话及
+MiLink 集成仍由 HyperEars 自身的共享层维护。
+
+## KernelSU UI reference
+
+- tiann/KernelSU: <https://github.com/tiann/KernelSU/tree/4521784328352c54334beb29e05c74360b60d7cb>
+- Upstream license: GNU GPL-3.0
+
+界面设置的独立页面、实时预览和界面缩放参考 KernelSU Manager。Miuix 悬浮底栏基于上述
+固定提交中的 `FloatingBottomBar`、动画和手势结构适配，统一维护图标、文字、选中胶囊与
+拖动交互。HyperEars 仅接入自身三个顶层页面，未引入 KernelSU 的 Root 管理业务、品牌资源
+或应用状态代码。
 
 ## DexKit
 

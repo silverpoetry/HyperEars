@@ -388,6 +388,14 @@ abstract class EarbudAdapter(
 
     fun runtimeState(): AdapterRuntimeState = runtimeState
 
+    /** Removes one Adapter-owned transient feature when its protocol evidence is reset. */
+    protected fun removeFeatureState(featureId: String) {
+        val next = runtimeState.features.remove(featureId)
+        if (next != runtimeState.features) {
+            runtimeState = runtimeState.copy(features = next)
+        }
+    }
+
     fun snapshot(): AdapterSnapshot = AdapterSnapshot(
         id = id,
         displayName = displayName,

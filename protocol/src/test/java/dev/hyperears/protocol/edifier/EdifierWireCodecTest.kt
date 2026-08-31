@@ -68,6 +68,24 @@ class EdifierWireCodecTest {
         )
     }
 
+    /** FitClip Ultra: decrypted payload 03 39 06 46 01 11 carries L/R/case and charging state. */
+    @Test
+    fun `parse FitClip Ultra F2 response includes an online charging case`() {
+        val frame = EdifierWireCodec.Decoder().offer(
+            hex("BB EC F2 00 06 A6 9C A3 E3 A4 B4 BF"),
+        ).single()
+
+        assertEquals(
+            EdifierWireCodec.BatteryState.TwsComponents(
+                leftPercent = 57,
+                rightPercent = 6,
+                casePercent = 70,
+                caseCharging = true,
+            ),
+            EdifierWireCodec.parseBatteryState(frame),
+        )
+    }
+
     @Test
     fun `Evo Pro F2 metadata byte is never accepted as aggregate battery`() {
         val frame = EdifierWireCodec.Decoder().offer(
@@ -124,6 +142,39 @@ class EdifierWireCodecTest {
         )
         val actual = EdifierWireCodec.setAnc(EdifierWireCodec.ANC_VALUE_OFF)
         assertEquals(expected.toHex(), actual.toHex())
+    }
+
+    @Test
+    fun `game-mode query and writes match captured framing`() {
+        assertEquals(
+            hex("AA EC 08 00 00 9E").toHex(),
+            EdifierWireCodec.queryGameState.toHex(),
+        )
+        assertEquals(
+            hex("AA EC 09 00 01 A4 44").toHex(),
+            EdifierWireCodec.setGameMode(enabled = true).toHex(),
+        )
+        assertEquals(
+            hex("AA EC 09 00 01 A5 45").toHex(),
+            EdifierWireCodec.setGameMode(enabled = false).toHex(),
+        )
+    }
+
+    @Test
+    fun `game-mode query and set responses expose only valid boolean values`() {
+        val queryOn = EdifierWireCodec.Decoder().offer(
+            hex("BB EC 08 00 01 A4 54"),
+        ).single()
+        val queryOff = EdifierWireCodec.Decoder().offer(
+            hex("BB EC 08 00 01 A5 55"),
+        ).single()
+        val setOn = EdifierWireCodec.Decoder().offer(
+            hex("BB EC 09 00 01 A4 55"),
+        ).single()
+
+        assertEquals(true, EdifierWireCodec.parseGameModeState(queryOn))
+        assertEquals(false, EdifierWireCodec.parseGameModeState(queryOff))
+        assertEquals(true, EdifierWireCodec.parseGameModeState(setOn))
     }
 
     @Test
