@@ -42,6 +42,10 @@ class EarbudAdapterHierarchyTest {
         assertTrue(resolve("FreeBuds 5i", standard = true) is HuaweiFreebuds5iAdapter)
         assertTrue(resolve("HUAWEI FreeBuds 4", standard = true) is HuaweiFreeBuds4Adapter)
         assertTrue(resolve("FreeBuds 4", standard = true) is HuaweiFreeBuds4Adapter)
+        assertTrue(resolve("HUAWEI FreeClip 2", standard = true) is HuaweiFreeClip2Adapter)
+        assertTrue(resolve("FreeClip 2", standard = true) is HuaweiFreeClip2Adapter)
+        assertTrue(resolve("HUAWEI FreeClip", standard = true) is HuaweiFreebudsFamilyAdapter)
+        assertTrue(resolve("FreeClip", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertTrue(resolve("Unknown headset", standard = true) is StandardEarbudAdapter)
     }
 
@@ -1248,7 +1252,7 @@ class EarbudAdapterHierarchyTest {
     fun huaweiFamilyMatchesAudioProductLinesWithoutCapturingHonorOrGenericHuaweiDevices() {
         assertTrue(resolve("HUAWEI FreeBuds Pro", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertTrue(resolve("FreeBuds Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
-        assertTrue(resolve("HUAWEI FreeClip", standard = true) is HuaweiFreebudsFamilyAdapter)
+        assertTrue(resolve("FreeClip Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertTrue(resolve("FreeLace Pro", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertFalse(resolve("HONOR Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertFalse(resolve("HUAWEI Sound Joy", standard = true) is HuaweiFreebudsFamilyAdapter)
