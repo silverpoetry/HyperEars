@@ -25,14 +25,15 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.hyperears.integration.EarbudAdapterGroup
-import dev.hyperears.integration.EarbudAdapterKind
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
 import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.MoreSettingsTarget
 import dev.hyperears.ui.components.MiuixHyperEarsPage
 import dev.hyperears.ui.components.rememberSwitchHaptics
+import dev.hyperears.ui.theme.UiPreferences
 import dev.hyperears.ui.theme.UiStyle
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -51,12 +52,14 @@ fun MiuixSettingsScreen(
     autoCheckUpdates: Boolean,
     rootAvailable: Boolean?,
     rootActionState: RootActionState,
-    uiStyle: UiStyle,
     onSettingsChanged: (ModuleSettings) -> Unit,
     onAutoCheckUpdatesChanged: (Boolean) -> Unit,
-    onUiStyleChanged: (UiStyle) -> Unit,
     onRunRootAction: (RootAction) -> Unit,
+    uiPreferences: UiPreferences,
+    onUiPreferencesChanged: (UiPreferences) -> Unit,
+    onOpenAppearance: () -> Unit,
     onOpenDebug: () -> Unit,
+    bottomContentPadding: Dp = 0.dp,
 ) {
     MiuixHyperEarsPage(title = "设置") { pagePadding, scrollBehavior ->
         LazyColumn(
@@ -69,7 +72,7 @@ fun MiuixSettingsScreen(
                 start = 12.dp,
                 end = 12.dp,
                 top = 12.dp,
-                bottom = 0.dp,
+                bottom = bottomContentPadding,
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -97,11 +100,40 @@ fun MiuixSettingsScreen(
                 }
             }
             item(key = "application-header") {
-                MiuixPreferenceSectionTitle("界面与行为")
+                MiuixPreferenceSectionTitle("界面")
             }
             item(key = "application-preferences") {
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    MiuixUiStylePreference(uiStyle, onUiStyleChanged)
+                    WindowSpinnerPreference(
+                        items = UiStyle.entries.map { style ->
+                            DropdownItem(text = style.displayName)
+                        },
+                        selectedIndex = UiStyle.entries.indexOf(uiPreferences.style),
+                        title = "界面风格",
+                        onSelectedIndexChange = { index ->
+                            UiStyle.entries.getOrNull(index)?.let { style ->
+                                if (style != uiPreferences.style) {
+                                    onUiPreferencesChanged(uiPreferences.copy(style = style))
+                                }
+                            }
+                        },
+                    )
+                    ArrowPreference(
+                        title = "界面设置",
+                        summary = if (uiPreferences.style == UiStyle.MIUIX) {
+                            "主题、菜单栏与界面缩放。"
+                        } else {
+                            "主题与界面缩放。"
+                        },
+                        onClick = onOpenAppearance,
+                    )
+                }
+            }
+            item(key = "behavior-header") {
+                MiuixPreferenceSectionTitle("行为")
+            }
+            item(key = "behavior-preferences") {
+                Card(modifier = Modifier.fillMaxWidth()) {
                     MiuixMoreSettingsPreference(
                         selected = settings.moreSettingsTarget,
                         onSelected = { target ->
@@ -222,6 +254,7 @@ fun MiuixAdapterSettingsScreen(
 ) {
     MiuixHyperEarsPage(title = "适配器", onNavigateBack = onNavigateBack) { padding, behavior ->
         var expandedGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+        val presentations = remember(groups) { groups.toAdapterGroupPresentations() }
         LazyColumn(
             state = rememberLazyListState(),
             modifier = Modifier
@@ -232,14 +265,10 @@ fun MiuixAdapterSettingsScreen(
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(items = groups, key = EarbudAdapterGroup::id) { group ->
+            items(items = presentations, key = { it.group.id }) { presentation ->
+                val group = presentation.group
                 val expanded = expandedGroupId == group.id
-                val adapterIds = remember(group) {
-                    group.adapters.mapTo(linkedSetOf()) { it.id }
-                }
-                val enabledCount = group.adapters.count { adapter ->
-                    adapter.id !in settings.disabledAdapterIds
-                }
+                val enabledCount = presentation.enabledCount(settings.disabledAdapterIds)
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     MiuixPreferenceSectionTitle(group.displayName)
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -250,49 +279,38 @@ fun MiuixAdapterSettingsScreen(
                             expanded = expanded,
                             enabled = enabledCount > 0,
                             onEnabledChange = { enabled ->
-                                val disabled = if (enabled) {
-                                    settings.disabledAdapterIds - adapterIds
-                                } else {
-                                    settings.disabledAdapterIds + adapterIds
-                                }
-                                onSettingsChanged(settings.copy(disabledAdapterIds = disabled))
+                                onSettingsChanged(
+                                    settings.withAdapterGroupEnabled(presentation, enabled),
+                                )
                             },
                             onClick = {
                                 expandedGroupId = group.id.takeUnless { expanded }
                             },
                         )
                         if (expanded) {
-                            EarbudAdapterKind.entries.forEach { kind ->
-                                val adapters = group.adapters.filter { it.kind == kind }
-                                if (adapters.isNotEmpty()) {
-                                    Text(
-                                        text = kind.miuixSectionTitle,
-                                        modifier = Modifier.padding(
-                                            start = 16.dp,
-                                            end = 16.dp,
-                                            top = 12.dp,
-                                            bottom = 4.dp,
-                                        ),
-                                        style = MiuixTheme.textStyles.subtitle,
-                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            presentation.sections.forEach { section ->
+                                Text(
+                                    text = section.kind.sectionTitle,
+                                    modifier = Modifier.padding(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = 12.dp,
+                                        bottom = 4.dp,
+                                    ),
+                                    style = MiuixTheme.textStyles.subtitle,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                )
+                                section.adapters.forEach { adapter ->
+                                    MiuixSwitchPreference(
+                                        title = adapter.displayName,
+                                        summary = adapter.id,
+                                        checked = adapter.id !in settings.disabledAdapterIds,
+                                        onCheckedChange = { enabled ->
+                                            onSettingsChanged(
+                                                settings.withAdapterEnabled(adapter.id, enabled),
+                                            )
+                                        },
                                     )
-                                    adapters.forEach { adapter ->
-                                        MiuixSwitchPreference(
-                                            title = adapter.displayName,
-                                            summary = adapter.id,
-                                            checked = adapter.id !in settings.disabledAdapterIds,
-                                            onCheckedChange = { enabled ->
-                                                val disabled = if (enabled) {
-                                                    settings.disabledAdapterIds - adapter.id
-                                                } else {
-                                                    settings.disabledAdapterIds + adapter.id
-                                                }
-                                                onSettingsChanged(
-                                                    settings.copy(disabledAdapterIds = disabled),
-                                                )
-                                            },
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -304,30 +322,12 @@ fun MiuixAdapterSettingsScreen(
 }
 
 @Composable
-private fun MiuixUiStylePreference(
-    selected: UiStyle,
-    onSelected: (UiStyle) -> Unit,
-) {
-    val items = UiStyle.entries.map { style -> DropdownItem(text = style.displayName) }
-    WindowSpinnerPreference(
-        items = items,
-        selectedIndex = UiStyle.entries.indexOf(selected),
-        title = "界面风格",
-        onSelectedIndexChange = { index ->
-            UiStyle.entries.getOrNull(index)?.let { style ->
-                if (style != selected) onSelected(style)
-            }
-        },
-    )
-}
-
-@Composable
 private fun MiuixMoreSettingsPreference(
     selected: MoreSettingsTarget,
     onSelected: (MoreSettingsTarget) -> Unit,
 ) {
     val items = MoreSettingsTarget.entries.map { target ->
-        DropdownItem(text = target.miuixActionLabel)
+        DropdownItem(text = target.actionLabel)
     }
     WindowSpinnerPreference(
         items = items,
@@ -440,17 +440,3 @@ private fun MiuixPreferenceSectionTitle(title: String) {
         color = MiuixTheme.colorScheme.onBackgroundVariant,
     )
 }
-
-private val MoreSettingsTarget.miuixActionLabel: String
-    get() = when (this) {
-        MoreSettingsTarget.SYSTEM_SETTINGS -> "打开系统设置"
-        MoreSettingsTarget.VENDOR_APP -> "打开厂商 App"
-        MoreSettingsTarget.HYPEREARS -> "打开 HyperEars"
-    }
-
-private val EarbudAdapterKind.miuixSectionTitle: String
-    get() = when (this) {
-        EarbudAdapterKind.MODEL -> "具体型号"
-        EarbudAdapterKind.FAMILY -> "家族回退"
-        EarbudAdapterKind.STANDARD -> "标准回退"
-    }

@@ -28,6 +28,7 @@ androidx-compose-material-icons-extended = { module = "androidx.compose.material
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui-android", version.ref = "miuix" }
 miuix-preference = { module = "top.yukonga.miuix.kmp:miuix-preference-android", version.ref = "miuix" }
+miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur-android", version.ref = "miuix" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 junit = { module = "junit:junit", version.ref = "junit" }
