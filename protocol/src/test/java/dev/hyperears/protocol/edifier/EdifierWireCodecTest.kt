@@ -87,6 +87,23 @@ class EdifierWireCodecTest {
     }
 
     @Test
+    fun `single worn earbud reports percent 0 as not-connected null`() {
+        // Left earbud disconnected (decrypts to 0) should surface as null, right earbud 98%.
+        // payload bytes 1/2 = 0xA5/0xC7 -> decrypt 0x00/0x62 = 0%/98%. Byte 0 metadata=0x03.
+        val frame = EdifierWireCodec.Decoder().offer(
+            hex("BB EC F2 00 06 A6 A5 C7 A5 A6 B4 B0"),
+        ).single()
+
+        assertEquals(
+            EdifierWireCodec.BatteryState.TwsComponents(
+                leftPercent = null,
+                rightPercent = 98,
+            ),
+            EdifierWireCodec.parseBatteryState(frame),
+        )
+    }
+
+    @Test
     fun `Evo Pro F2 metadata byte is never accepted as aggregate battery`() {
         val frame = EdifierWireCodec.Decoder().offer(
             hex("BB EC F2 00 06 A6 C1 C7 A5 A6 B4 CC"),
