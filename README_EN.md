@@ -42,7 +42,11 @@ StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY and Sony devices.
 
 ### Settings and diagnostics
 
-- Switches instantly between Material 3 and Miuix while preserving the current page, settings destination and earbud sessions.
+- The primary Settings page switches directly between Material 3 and Miuix. Appearance settings
+  provide light and dark modes, interface scaling and the navigation options supported by the
+  active renderer. Material 3 always uses system-derived colors and its standard bottom bar;
+  Miuix alone exposes blur and floating-bottom-bar options with a preview. Switching preserves
+  the current page, settings destination and earbud sessions.
 - Provides a drop-down for choosing what the MiLink card's “More settings” action opens, plus settings for runtime yielding, automatic update checks and pausing the integration.
 - Provides a Debug > Adapters page that groups every model, family fallback and standard fallback Adapter by brand, with a group switch that disables or restores all Adapters in that brand.
 - Provides a Debug page for detailed logging and diagnostic export.

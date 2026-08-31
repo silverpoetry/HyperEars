@@ -94,6 +94,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.miuix.ui)
     implementation(libs.miuix.preference)
+    implementation(libs.miuix.blur)
     implementation(libs.kotlinx.coroutines.android)
     compileOnly(libs.libxposed.api)
     implementation(libs.libxposed.service)

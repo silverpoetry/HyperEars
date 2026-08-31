@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.hyperears.BuildConfig
 import dev.hyperears.ui.components.MiuixHyperEarsPage
 import dev.hyperears.update.ReleaseInfo
@@ -29,6 +30,7 @@ fun MiuixAboutScreen(
     onCheckUpdates: () -> Unit,
     onOpenRelease: (ReleaseInfo) -> Unit,
     onOpenCompatibility: () -> Unit,
+    bottomContentPadding: Dp = 0.dp,
 ) {
     MiuixHyperEarsPage(title = "关于") { pagePadding, scrollBehavior ->
         val uriHandler = LocalUriHandler.current
@@ -38,7 +40,12 @@ fun MiuixAboutScreen(
                 .fillMaxSize()
                 .padding(pagePadding)
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp),
+            contentPadding = PaddingValues(
+                start = 12.dp,
+                end = 12.dp,
+                top = 12.dp,
+                bottom = bottomContentPadding,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(key = "introduction") {
