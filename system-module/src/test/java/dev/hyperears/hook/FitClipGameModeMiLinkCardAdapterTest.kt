@@ -4,47 +4,32 @@ import dev.hyperears.integration.AdapterRuntimeState
 import dev.hyperears.integration.DeviceLifecycle
 import dev.hyperears.integration.EdifierGameModeFeatureState
 import dev.hyperears.integration.EarbudState
+import dev.hyperears.integration.NoiseMode
 import dev.hyperears.integration.PrivateTransportState
 import dev.hyperears.integration.ProtocolHandshakeState
 import dev.hyperears.integration.SystemProfileState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FitClipGameModeMiLinkCardAdapterTest {
     @Test
-    fun panelHeightAddsTheMeasuredCustomRowToTheHostBase() {
+    fun gameModePresentationUsesTheStockThreeStateSurface() {
         assertEquals(
-            700,
-            FitClipPanelLayoutPolicy.requiredHeight(
-                originalPanelHeight = 600,
-                customRowHeight = 100,
-                measuredContentHeight = 680,
-                availableHeight = 1_000,
-            ),
+            MiLinkNativeCardSurface.ANC_THREE_STATE,
+            FitClipUltraGameModeMiLinkCardAdapter.nativeSurface,
         )
-    }
-
-    @Test
-    fun panelHeightUsesRealContentAndRespectsTheAvailableWindow() {
         assertEquals(
-            740,
-            FitClipPanelLayoutPolicy.requiredHeight(
-                originalPanelHeight = 600,
-                customRowHeight = 100,
-                measuredContentHeight = 740,
-                availableHeight = 1_000,
+            NoiseMode.OFF,
+            FitClipUltraGameModeMiLinkCardAdapter.nativeSurfaceNoiseMode(
+                connectedState(gameMode = false),
             ),
         )
         assertEquals(
-            720,
-            FitClipPanelLayoutPolicy.requiredHeight(
-                originalPanelHeight = 600,
-                customRowHeight = 100,
-                measuredContentHeight = 740,
-                availableHeight = 720,
+            NoiseMode.ANC,
+            FitClipUltraGameModeMiLinkCardAdapter.nativeSurfaceNoiseMode(
+                connectedState(gameMode = true),
             ),
         )
     }
@@ -55,12 +40,12 @@ class FitClipGameModeMiLinkCardAdapterTest {
         val disabled = connectedState(gameMode = false)
 
         assertEquals(
-            FitClipGameModeTogglePolicy.ToggleState(checked = true, enabled = true),
-            FitClipGameModeTogglePolicy.render(enabled),
+            FitClipGameModeCardPolicy.CardState(gameMode = true, enabled = true),
+            FitClipGameModeCardPolicy.render(enabled),
         )
         assertEquals(
-            FitClipGameModeTogglePolicy.ToggleState(checked = false, enabled = true),
-            FitClipGameModeTogglePolicy.render(disabled),
+            FitClipGameModeCardPolicy.CardState(gameMode = false, enabled = true),
+            FitClipGameModeCardPolicy.render(disabled),
         )
     }
 
@@ -68,8 +53,8 @@ class FitClipGameModeMiLinkCardAdapterTest {
     fun missingProtocolEvidenceNeverCreatesAnActionableControl() {
         val state = connectedState(gameMode = null)
 
-        assertFalse(FitClipGameModeTogglePolicy.render(state).enabled)
-        assertNull(FitClipGameModeTogglePolicy.request(state, checked = true))
+        assertFalse(FitClipGameModeCardPolicy.render(state).enabled)
+        assertNull(FitClipGameModeCardPolicy.request(state, gameMode = true))
     }
 
     @Test
@@ -79,9 +64,9 @@ class FitClipGameModeMiLinkCardAdapterTest {
             lifecycle = off.lifecycle.copy(systemProfile = SystemProfileState.DISCONNECTED),
         )
 
-        assertEquals(true, FitClipGameModeTogglePolicy.request(off, checked = true))
-        assertNull(FitClipGameModeTogglePolicy.request(off, checked = false))
-        assertNull(FitClipGameModeTogglePolicy.request(disconnected, checked = true))
+        assertEquals(true, FitClipGameModeCardPolicy.request(off, gameMode = true))
+        assertNull(FitClipGameModeCardPolicy.request(off, gameMode = false))
+        assertNull(FitClipGameModeCardPolicy.request(disconnected, gameMode = true))
     }
 
     private fun connectedState(gameMode: Boolean?): EarbudState {
