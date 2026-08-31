@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.hyperears.integration.EarbudAdapterDescriptor
 import dev.hyperears.integration.EarbudAdapterGroup
 import dev.hyperears.integration.EarbudAdapterKind
@@ -55,6 +56,7 @@ import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.MoreSettingsTarget
 import dev.hyperears.ui.components.HyperEarsPage
 import dev.hyperears.ui.components.rememberSwitchHaptics
+import dev.hyperears.ui.theme.UiPreferences
 import dev.hyperears.ui.theme.UiStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,12 +66,14 @@ fun SettingsScreen(
     autoCheckUpdates: Boolean,
     rootAvailable: Boolean?,
     rootActionState: RootActionState,
-    uiStyle: UiStyle,
     onSettingsChanged: (ModuleSettings) -> Unit,
     onAutoCheckUpdatesChanged: (Boolean) -> Unit,
-    onUiStyleChanged: (UiStyle) -> Unit,
     onRunRootAction: (RootAction) -> Unit,
+    uiPreferences: UiPreferences,
+    onUiPreferencesChanged: (UiPreferences) -> Unit,
+    onOpenAppearance: () -> Unit,
     onOpenDebug: () -> Unit,
+    bottomContentPadding: Dp = 0.dp,
 ) {
     HyperEarsPage(title = "设置") { pagePadding, scrollBehavior ->
         val listState = rememberLazyListState()
@@ -84,7 +88,7 @@ fun SettingsScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 12.dp,
-                bottom = 0.dp,
+                bottom = bottomContentPadding,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -113,15 +117,33 @@ fun SettingsScreen(
                 }
             }
             item(key = "application-header") {
-                PreferenceSectionTitle("界面与行为")
+                PreferenceSectionTitle("界面")
             }
             item(key = "application-preferences") {
                 SettingsGroupCard {
                     UiStylePreference(
-                        selected = uiStyle,
-                        onSelected = onUiStyleChanged,
+                        selected = uiPreferences.style,
+                        onSelected = { style ->
+                            onUiPreferencesChanged(uiPreferences.copy(style = style))
+                        },
                     )
                     PreferenceDivider()
+                    NavigationPreference(
+                        title = "界面设置",
+                        detail = if (uiPreferences.style == UiStyle.MIUIX) {
+                            "主题、菜单栏与界面缩放。"
+                        } else {
+                            "主题与界面缩放。"
+                        },
+                        onClick = onOpenAppearance,
+                    )
+                }
+            }
+            item(key = "behavior-header") {
+                PreferenceSectionTitle("行为")
+            }
+            item(key = "behavior-preferences") {
+                SettingsGroupCard {
                     MoreSettingsTargetPreference(
                         selected = settings.moreSettingsTarget,
                         onSelected = { target ->
@@ -183,16 +205,6 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun PreferenceSectionTitle(title: String) {
-    Text(
-        text = title,
-        modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 2.dp),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@Composable
 private fun UiStylePreference(
     selected: UiStyle,
     onSelected: (UiStyle) -> Unit,
@@ -212,14 +224,9 @@ private fun UiStylePreference(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = selected.displayName,
-                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "选择界面风格",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "选择界面风格")
                     }
                     DropdownMenu(
                         expanded = expanded,
@@ -235,7 +242,7 @@ private fun UiStylePreference(
                                 trailingIcon = if (style == selected) {
                                     {
                                         Icon(
-                                            imageVector = Icons.Default.Check,
+                                            Icons.Default.Check,
                                             contentDescription = "当前选项",
                                         )
                                     }
@@ -248,11 +255,19 @@ private fun UiStylePreference(
                 }
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true },
+            modifier = Modifier.clickable { expanded = true },
         )
     }
+}
+
+@Composable
+private fun PreferenceSectionTitle(title: String) {
+    Text(
+        text = title,
+        modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 2.dp),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+    )
 }
 
 @Composable
@@ -317,13 +332,6 @@ private fun MoreSettingsTargetPreference(
         )
     }
 }
-
-private val MoreSettingsTarget.actionLabel: String
-    get() = when (this) {
-        MoreSettingsTarget.SYSTEM_SETTINGS -> "打开系统设置"
-        MoreSettingsTarget.VENDOR_APP -> "打开厂商 App"
-        MoreSettingsTarget.HYPEREARS -> "打开 HyperEars"
-    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -407,8 +415,9 @@ fun AdapterSettingsScreen(
     HyperEarsPage(title = "适配器", onNavigateBack = onNavigateBack) { pagePadding, scrollBehavior ->
         val listState = rememberLazyListState()
         var expandedGroupId by rememberSaveable { mutableStateOf<String?>(null) }
-        val rows = remember(groups, expandedGroupId) {
-            buildAdapterRows(groups, expandedGroupId)
+        val presentations = remember(groups) { groups.toAdapterGroupPresentations() }
+        val rows = remember(presentations, expandedGroupId) {
+            buildAdapterRows(presentations, expandedGroupId)
         }
         LazyColumn(
             state = listState,
@@ -431,10 +440,9 @@ fun AdapterSettingsScreen(
             ) { row ->
                 when (row) {
                     is AdapterListRow.GroupHeader -> {
-                        val group = row.group
-                        val enabledCount = group.adapters.count { adapter ->
-                            adapter.id !in settings.disabledAdapterIds
-                        }
+                        val presentation = row.presentation
+                        val group = presentation.group
+                        val enabledCount = presentation.enabledCount(settings.disabledAdapterIds)
                         AdapterListSurface(
                             position = if (row.expanded) {
                                 AdapterListPosition.TOP
@@ -449,13 +457,8 @@ fun AdapterSettingsScreen(
                                 expanded = row.expanded,
                                 enabled = enabledCount > 0,
                                 onEnabledChange = { enabled ->
-                                    val disabled = if (enabled) {
-                                        settings.disabledAdapterIds - row.adapterIds
-                                    } else {
-                                        settings.disabledAdapterIds + row.adapterIds
-                                    }
                                     onSettingsChanged(
-                                        settings.copy(disabledAdapterIds = disabled),
+                                        settings.withAdapterGroupEnabled(presentation, enabled),
                                     )
                                 },
                                 onClick = {
@@ -496,13 +499,8 @@ fun AdapterSettingsScreen(
                                 detail = row.adapter.id,
                                 checked = row.adapter.id !in settings.disabledAdapterIds,
                                 onCheckedChange = { enabled ->
-                                    val disabled = if (enabled) {
-                                        settings.disabledAdapterIds - row.adapter.id
-                                    } else {
-                                        settings.disabledAdapterIds + row.adapter.id
-                                    }
                                     onSettingsChanged(
-                                        settings.copy(disabledAdapterIds = disabled),
+                                        settings.withAdapterEnabled(row.adapter.id, enabled),
                                     )
                                 },
                             )
@@ -519,11 +517,10 @@ private sealed interface AdapterListRow {
     val contentType: String
 
     data class GroupHeader(
-        val group: EarbudAdapterGroup,
+        val presentation: AdapterGroupPresentation,
         val expanded: Boolean,
-        val adapterIds: Set<String>,
     ) : AdapterListRow {
-        override val key: String = "group:${group.id}"
+        override val key: String = "group:${presentation.group.id}"
         override val contentType: String = "group"
     }
 
@@ -546,34 +543,29 @@ private sealed interface AdapterListRow {
 }
 
 private fun buildAdapterRows(
-    groups: List<EarbudAdapterGroup>,
+    groups: List<AdapterGroupPresentation>,
     expandedGroupId: String?,
 ): List<AdapterListRow> = buildList {
-    groups.forEach { group ->
+    groups.forEach { presentation ->
+        val group = presentation.group
         val expanded = group.id == expandedGroupId
         add(
             AdapterListRow.GroupHeader(
-                group = group,
+                presentation = presentation,
                 expanded = expanded,
-                adapterIds = group.adapters.mapTo(linkedSetOf(), EarbudAdapterDescriptor::id),
             ),
         )
         if (!expanded) return@forEach
 
-        val sections = EarbudAdapterKind.entries.mapNotNull { kind ->
-            group.adapters.filter { it.kind == kind }
-                .takeIf(List<EarbudAdapterDescriptor>::isNotEmpty)
-                ?.let { kind to it }
-        }
-        sections.forEachIndexed { sectionIndex, (kind, adapters) ->
-            add(AdapterListRow.SectionHeader(group.id, kind))
-            adapters.forEachIndexed { adapterIndex, adapter ->
+        presentation.sections.forEachIndexed { sectionIndex, section ->
+            add(AdapterListRow.SectionHeader(group.id, section.kind))
+            section.adapters.forEachIndexed { adapterIndex, adapter ->
                 add(
                     AdapterListRow.AdapterToggle(
                         adapter = adapter,
                         showTopDivider = adapterIndex > 0,
-                        endsGroup = sectionIndex == sections.lastIndex &&
-                            adapterIndex == adapters.lastIndex,
+                        endsGroup = sectionIndex == presentation.sections.lastIndex &&
+                            adapterIndex == section.adapters.lastIndex,
                     ),
                 )
             }
@@ -619,12 +611,6 @@ private fun AdapterListSurface(
 private val AdapterListPosition.endsGroup: Boolean
     get() = this == AdapterListPosition.SINGLE || this == AdapterListPosition.BOTTOM
 
-private val EarbudAdapterKind.sectionTitle: String
-    get() = when (this) {
-        EarbudAdapterKind.MODEL -> "具体型号"
-        EarbudAdapterKind.FAMILY -> "家族回退"
-        EarbudAdapterKind.STANDARD -> "标准回退"
-    }
 
 @Composable
 private fun AdapterGroupHeader(

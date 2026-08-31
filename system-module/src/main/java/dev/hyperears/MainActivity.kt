@@ -8,9 +8,16 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.net.toUri
 import dev.hyperears.bridge.ModuleContract
@@ -31,8 +38,7 @@ import dev.hyperears.ui.dashboard.DeviceSessionReducer
 import dev.hyperears.ui.dashboard.DeviceSessionSnapshot
 import dev.hyperears.ui.navigation.HyperEarsApp
 import dev.hyperears.ui.theme.HyperEarsTheme
-import dev.hyperears.ui.theme.UiStyle
-import dev.hyperears.ui.theme.UiStyleStore
+import dev.hyperears.ui.theme.UiPreferencesStore
 import dev.hyperears.update.ReleaseInfo
 import dev.hyperears.update.UpdateCheckCoordinator
 import dev.hyperears.update.UpdateCheckPreferences
@@ -61,7 +67,7 @@ class MainActivity : ComponentActivity() {
             currentVersion = BuildConfig.VERSION_NAME,
         )
     }
-    private val uiStyleStore by lazy { UiStyleStore(this) }
+    private val uiPreferencesStore by lazy { UiPreferencesStore(this) }
     private val dashboardRefreshedSessionTokens = mutableSetOf<String>()
     private var remotePreferences: SharedPreferences? = null
     private var activityStarted = false
@@ -92,14 +98,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener {
-            preferences,
-            _,
-        ->
-        runOnUiThread {
-            settings.value = ModuleSettingsStore.read(preferences)
+    private val preferenceChangeListener =
+        SharedPreferences.OnSharedPreferenceChangeListener { preferences, _ ->
+            runOnUiThread {
+                settings.value = ModuleSettingsStore.read(preferences)
+            }
         }
-    }
 
     private val modulePreferencesListener = object : HyperEarsApplication.PreferencesListener {
         override fun onPreferencesChanged(preferences: SharedPreferences?) {
@@ -162,54 +166,78 @@ class MainActivity : ComponentActivity() {
             Context.RECEIVER_EXPORTED,
         )
         setContent {
-            val currentUiStyle = uiStyleStore.style
+            val uiPreferences = uiPreferencesStore.state
                 .collectAsStateWithLifecycle()
                 .value
-            HyperEarsTheme(style = currentUiStyle) {
-                val activeSessions = sessionCollection
-                    .collectAsStateWithLifecycle()
-                    .value
-                    .sessions
-                val online = runtimeResponsive.collectAsStateWithLifecycle().value
-                val bridgeProcesses = miLinkProcesses.collectAsStateWithLifecycle().value
-                val updatedAt = lastUpdatedAtMillis.collectAsStateWithLifecycle().value
-                val currentSettings = settings.collectAsStateWithLifecycle().value
-                val hasRoot = rootAvailable.collectAsStateWithLifecycle().value
-                val rootAction = rootActionState.collectAsStateWithLifecycle().value
-                val updateCheck = updateCheckCoordinator.state
-                    .collectAsStateWithLifecycle()
-                    .value
-                val automaticUpdates = autoCheckUpdates.collectAsStateWithLifecycle().value
-
-                HyperEarsApp(
-                    uiState = DashboardUiState(
-                        sessions = activeSessions.values
-                            .sortedBy { it.state.deviceName.orEmpty() },
-                        runtimeResponsive = online,
-                        miLinkProcesses = bridgeProcesses,
-                        lastUpdatedAtMillis = updatedAt,
+            val darkTheme = uiPreferences.themeMode.resolveDark(isSystemInDarkTheme())
+            LaunchedEffect(darkTheme) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(
+                        lightScrim = transparent,
+                        darkScrim = transparent,
+                        detectDarkMode = { darkTheme },
                     ),
-                    onRefresh = {
-                        requestRuntimeState()
-                        activeSessions.values.forEach(::sendRefreshControl)
-                    },
-                    onSetNoiseMode = ::sendNoiseModeControl,
-                    onDashboardVisibilityChanged = ::onDashboardVisibilityChanged,
-                    settings = currentSettings,
-                    autoCheckUpdates = automaticUpdates,
-                    rootAvailable = hasRoot,
-                    rootActionState = rootAction,
-                    onSettingsChanged = ::updateSettings,
-                    onAutoCheckUpdatesChanged = ::updateAutoCheckUpdates,
-                    onRunRootAction = ::runRootAction,
-                    onExportLogs = ::exportLogs,
-                    updateCheckState = updateCheck,
-                    onCheckUpdates = updateCheckCoordinator::checkManually,
-                    onDismissUpdate = updateCheckCoordinator::dismissAvailableDialog,
-                    onOpenRelease = ::openRelease,
-                    uiStyle = currentUiStyle,
-                    onUiStyleChanged = uiStyleStore::update,
+                    navigationBarStyle = SystemBarStyle.auto(
+                        lightScrim = transparent,
+                        darkScrim = transparent,
+                        detectDarkMode = { darkTheme },
+                    ),
                 )
+            }
+            val activeSessions = sessionCollection
+                .collectAsStateWithLifecycle()
+                .value
+                .sessions
+            val online = runtimeResponsive.collectAsStateWithLifecycle().value
+            val bridgeProcesses = miLinkProcesses.collectAsStateWithLifecycle().value
+            val updatedAt = lastUpdatedAtMillis.collectAsStateWithLifecycle().value
+            val currentSettings = settings.collectAsStateWithLifecycle().value
+            val hasRoot = rootAvailable.collectAsStateWithLifecycle().value
+            val rootAction = rootActionState.collectAsStateWithLifecycle().value
+            val updateCheck = updateCheckCoordinator.state
+                .collectAsStateWithLifecycle()
+                .value
+            val automaticUpdates = autoCheckUpdates.collectAsStateWithLifecycle().value
+            val systemDensity = LocalDensity.current
+            val scaledDensity = remember(systemDensity, uiPreferences.interfaceScale) {
+                Density(
+                    density = systemDensity.density * uiPreferences.interfaceScale,
+                    fontScale = systemDensity.fontScale,
+                )
+            }
+            HyperEarsTheme(preferences = uiPreferences) {
+                CompositionLocalProvider(LocalDensity provides scaledDensity) {
+                    HyperEarsApp(
+                        uiState = DashboardUiState(
+                            sessions = activeSessions.values
+                                .sortedBy { it.state.deviceName.orEmpty() },
+                            runtimeResponsive = online,
+                            miLinkProcesses = bridgeProcesses,
+                            lastUpdatedAtMillis = updatedAt,
+                        ),
+                        onRefresh = {
+                            requestRuntimeState()
+                            activeSessions.values.forEach(::sendRefreshControl)
+                        },
+                        onSetNoiseMode = ::sendNoiseModeControl,
+                        onDashboardVisibilityChanged = ::onDashboardVisibilityChanged,
+                        settings = currentSettings,
+                        autoCheckUpdates = automaticUpdates,
+                        rootAvailable = hasRoot,
+                        rootActionState = rootAction,
+                        onSettingsChanged = ::updateSettings,
+                        onAutoCheckUpdatesChanged = ::updateAutoCheckUpdates,
+                        onRunRootAction = ::runRootAction,
+                        onExportLogs = ::exportLogs,
+                        updateCheckState = updateCheck,
+                        onCheckUpdates = updateCheckCoordinator::checkManually,
+                        onDismissUpdate = updateCheckCoordinator::dismissAvailableDialog,
+                        onOpenRelease = ::openRelease,
+                        uiPreferences = uiPreferences,
+                        onUiPreferencesChanged = uiPreferencesStore::update,
+                    )
+                }
             }
         }
         activityScope.launch {

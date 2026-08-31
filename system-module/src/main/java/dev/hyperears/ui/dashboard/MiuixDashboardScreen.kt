@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import dev.hyperears.integration.NoiseMode
 import dev.hyperears.ui.components.MiuixHyperEarsPage
@@ -56,6 +57,7 @@ fun MiuixDashboardScreen(
     uiState: DashboardUiState,
     onRefresh: () -> Unit,
     onSetNoiseMode: (address: String, sessionToken: String, mode: NoiseMode) -> Unit,
+    bottomContentPadding: Dp = 0.dp,
 ) {
     MiuixHyperEarsPage(title = "HyperEars") { pagePadding, scrollBehavior ->
         LazyColumn(
@@ -68,7 +70,7 @@ fun MiuixDashboardScreen(
                 start = 12.dp,
                 end = 12.dp,
                 top = 12.dp,
-                bottom = 0.dp,
+                bottom = bottomContentPadding,
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

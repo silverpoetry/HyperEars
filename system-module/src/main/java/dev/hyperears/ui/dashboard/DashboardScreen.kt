@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.hyperears.ui.components.HyperEarsPage
 import dev.hyperears.integration.NoiseMode
 import java.text.DateFormat
@@ -56,6 +57,7 @@ fun DashboardScreen(
     uiState: DashboardUiState,
     onRefresh: () -> Unit,
     onSetNoiseMode: (address: String, sessionToken: String, mode: NoiseMode) -> Unit,
+    bottomContentPadding: Dp = 0.dp,
 ) {
     HyperEarsPage(title = "HyperEars") { pagePadding, scrollBehavior ->
         val listState = rememberLazyListState()
@@ -69,7 +71,7 @@ fun DashboardScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 12.dp,
-                bottom = 0.dp,
+                bottom = bottomContentPadding,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

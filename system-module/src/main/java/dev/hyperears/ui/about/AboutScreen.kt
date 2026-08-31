@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.hyperears.BuildConfig
 import dev.hyperears.ui.components.HyperEarsPage
 import dev.hyperears.update.ReleaseInfo
@@ -452,6 +453,7 @@ fun AboutScreen(
     onCheckUpdates: () -> Unit,
     onOpenRelease: (ReleaseInfo) -> Unit,
     onOpenCompatibility: () -> Unit,
+    bottomContentPadding: Dp = 0.dp,
 ) {
     HyperEarsPage(title = "关于") { pagePadding, scrollBehavior ->
         val uriHandler = LocalUriHandler.current
@@ -463,7 +465,12 @@ fun AboutScreen(
                 .fillMaxSize()
                 .padding(pagePadding)
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp,
+                bottom = bottomContentPadding,
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
         item(key = "header") {

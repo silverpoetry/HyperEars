@@ -18,6 +18,12 @@ import dev.hyperears.integration.NoiseMode
 internal interface MiLinkCardAdapter {
     val presentationId: MiLinkCardPresentationId
 
+    /** Stock MiLink section required as the presentation's visual and sizing carrier. */
+    val nativeSurface: MiLinkNativeCardSurface get() = MiLinkNativeCardSurface.NONE
+
+    /** State projected only into the stock carrier while the concrete CardAdapter owns its UI. */
+    fun nativeSurfaceNoiseMode(state: EarbudState): NoiseMode? = null
+
     /**
      * Projects a model-specific mode onto MiLink's native three-state controller.
      *
@@ -35,6 +41,11 @@ internal interface MiLinkCardAdapter {
         address: String,
         environment: MiLinkCardEnvironment,
     ): MiLinkCardBinding?
+}
+
+internal enum class MiLinkNativeCardSurface {
+    NONE,
+    ANC_THREE_STATE,
 }
 
 internal fun interface MiLinkCardBinding {
@@ -67,6 +78,7 @@ internal object MiLinkCardAdapterRegistry {
         BoseAnrMiLinkCardAdapter,
         BoseTwoModeMiLinkCardAdapter,
         EdifierFourModeMiLinkCardAdapter,
+        FitClipUltraGameModeMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
     )
     private val byId = adapters.associateBy(MiLinkCardAdapter::presentationId)

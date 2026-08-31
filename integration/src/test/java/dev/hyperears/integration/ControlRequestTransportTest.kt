@@ -29,6 +29,16 @@ class ControlRequestTransportTest {
     }
 
     @Test
+    fun edifierGameModeRequestRoundTripsWithoutExtendingTheStandardRequestFamily() {
+        val request = EdifierControlRequest.SetGameMode(enabled = true)
+        val encoded = ControlRequestTransport.encode(request)
+
+        assertTrue(encoded.contains("\"command\":\"edifier.set_game_mode\""))
+        assertFalse(encoded.contains("standard.set_game_mode"))
+        assertEquals(request, ControlRequestTransport.decode(encoded))
+    }
+
+    @Test
     fun malformedUnknownAndOversizedEnvelopesAreRejected() {
         assertNull(
             ControlRequestTransport.decode(

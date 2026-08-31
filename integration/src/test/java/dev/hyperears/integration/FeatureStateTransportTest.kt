@@ -30,6 +30,16 @@ class FeatureStateTransportTest {
     }
 
     @Test
+    fun edifierGameModeStateRoundTripsAsAnAdapterOwnedFeature() {
+        val snapshot = DeviceFeatureSnapshot()
+            .update(EdifierGameModeFeatureState(enabled = true))
+        val encoded = FeatureStateTransport.encode(snapshot)
+
+        assertTrue(encoded.contains("\"feature\":\"edifier.game_mode\""))
+        assertEquals(snapshot, FeatureStateTransport.decode(encoded))
+    }
+
+    @Test
     fun sameFeatureIdentityReplacesThePreviousValue() {
         val snapshot = DeviceFeatureSnapshot()
             .update(NoiseModeFeatureState(NoiseMode.ANC))
