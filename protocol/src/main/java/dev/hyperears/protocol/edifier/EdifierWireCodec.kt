@@ -68,8 +68,8 @@ object EdifierWireCodec {
          * out of the public model until their charging/case semantics are independently verified.
          */
         data class TwsComponents(
-            val leftPercent: Int,
-            val rightPercent: Int,
+            val leftPercent: Int?,
+            val rightPercent: Int?,
             val casePercent: Int? = null,
             val caseCharging: Boolean = false,
         ) : BatteryState
@@ -124,8 +124,9 @@ object EdifierWireCodec {
             CMD_DEVICE_STATE_QUERY -> frame.payload
                 .takeIf { it.size >= TWS_COMPONENT_FIELD_COUNT }
                 ?.let { payload ->
-                    val left = payload[TWS_LEFT_BATTERY_OFFSET].decryptPercent() ?: return@let null
-                    val right = payload[TWS_RIGHT_BATTERY_OFFSET].decryptPercent() ?: return@let null
+                    val left = payload[TWS_LEFT_BATTERY_OFFSET].decryptPercent()?.percentOrNull()
+                    val right = payload[TWS_RIGHT_BATTERY_OFFSET].decryptPercent()?.percentOrNull()
+                    if (left == null && right == null) return@let null
                     val caseState = payload.getOrNull(TWS_CASE_STATE_OFFSET)
                         ?.unsigned()?.let { it xor RESPONSE_XOR_KEY }
                     // Verified on-device (FitClip Ultra): byte3 = case percent, byte4 = case
@@ -318,6 +319,9 @@ object EdifierWireCodec {
 
     private fun Byte.decryptPercent(): Int? =
         (unsigned() xor RESPONSE_XOR_KEY).takeIf { it in 0..100 }
+
+    /** TWS component level: 0 means that earbud is not connected, so map it to null (unknown). */
+    private fun Int.percentOrNull(): Int? = takeIf { it in 1..100 }
 
     private const val TWS_COMPONENT_FIELD_COUNT = 3
     private const val TWS_LEFT_BATTERY_OFFSET = 1
