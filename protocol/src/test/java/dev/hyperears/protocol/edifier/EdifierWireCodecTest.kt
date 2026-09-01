@@ -108,6 +108,53 @@ class EdifierWireCodecTest {
         assertEquals(6, anc.level)
     }
 
+    // ── Plaintext payload devices (e.g. FitBuds Turbo) ──
+
+    /** FitBuds Turbo ANC response is PLAINTEXT: BB EC CC 00 02 1B 06 -> slot 0x1B, level 6. */
+    @Test
+    fun `parse plaintext ANC response without XOR gives Evo Pro slot`() {
+        val frame = EdifierWireCodec.Decoder().offer(
+            hex("BB EC CC 00 02 1B 06 96"),
+        ).single()
+
+        // Default path assumes XOR-encrypted -> mangled mode, must NOT resolve to 0x1B.
+        val encrypted = EdifierWireCodec.parseAncState(frame)
+        assertNull(encrypted?.let { if (it.mode == 0x1B) it else null })
+
+        // Plaintext path reads the payload verbatim -> slot 0x1B, level 6 (OFF).
+        val plain = requireNotNull(EdifierWireCodec.parseAncState(frame, encrypted = false))
+        assertEquals(0x1B, plain.mode)
+        assertEquals(6, plain.level)
+    }
+
+    /** FitBuds Turbo F2 battery response is PLAINTEXT: 03 64 64 00 03 11 -> L/R 100%. */
+    @Test
+    fun `parse plaintext F2 response gives independent ear batteries`() {
+        val frame = EdifierWireCodec.Decoder().offer(
+            hex("BB EC F2 00 06 03 64 64 00 03 11 7E"),
+        ).single()
+
+        val plain = requireNotNull(EdifierWireCodec.parseBatteryState(frame, encrypted = false))
+        assertEquals(
+            EdifierWireCodec.BatteryState.TwsComponents(leftPercent = 100, rightPercent = 100),
+            plain,
+        )
+    }
+
+    /** Plaintext set commands must NOT be XOR-obfuscated on the wire. */
+    @Test
+    fun `plaintext ANC set stays unencrypted`() {
+        // EVO_PRO slot 0x1B, deep NC value 1 -> plaintext payload 1B 01. CRC=0x75.
+        val expected = byteArrayOf(
+            0xAA.toByte(), 0xEC.toByte(), 0xC1.toByte(), 0x00.toByte(), 0x02.toByte(),
+            0x1B.toByte(), 0x01.toByte(), 0x75.toByte(),
+        )
+        assertEquals(
+            expected.toHex(),
+            EdifierWireCodec.setAnc(1, ancIndex = 0x1B, encrypt = false).toHex(),
+        )
+    }
+
     // ── Send framing ──
 
     /** Battery query: AA EC D0 00 00 66 */
