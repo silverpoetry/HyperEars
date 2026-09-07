@@ -196,6 +196,18 @@ internal val supportBrands = listOf(
                 noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
             ),
             SupportEntry(
+                name = "FitClip Ultra",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "无；支持游戏模式",
+            ),
+            SupportEntry(
+                name = "FitBuds Turbo",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.LEFT_RIGHT,
+                noiseControl = "降噪 / 关闭 / 通透 / 抗风噪；支持游戏模式",
+            ),
+            SupportEntry(
                 name = "其他 Edifier 耳机",
                 evidence = EvidenceLevel.FAMILY_PROBE,
                 battery = BatteryCapability.DEVICE_OR_AGGREGATE,

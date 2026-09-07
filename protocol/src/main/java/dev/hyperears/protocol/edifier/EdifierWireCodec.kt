@@ -10,7 +10,8 @@ package dev.hyperears.protocol.edifier
  * - Receive: [0xBB][APP_CODE][CMD_INDEX][LEN_H][LEN_L][PAYLOAD...][CRC8]  (older: 0xCC)
  *
  * CRC: sum of all preceding bytes & 0xFF (verified: AA+EC+D8+00+00 = 0x26E -> &0xFF = 0x6E)
- * Payloads in both directions use XOR `0xA5`. ANC set plaintext is [ancIndex][ancValue].
+ * Payloads normally use XOR `0xA5`; the adapter selects plaintext for verified variants.
+ * ANC set plaintext is [ancIndex][ancValue].
  */
 object EdifierWireCodec {
     const val SEND_HEADER = 0xAA
@@ -184,7 +185,7 @@ object EdifierWireCodec {
         if (frame.commandIndex != CMD_GAME_STATE_QUERY && frame.commandIndex != CMD_GAME_STATE_SET) {
             return null
         }
-        val value = frame.payload.firstOrNull()?.unsigned()
+        val value = frame.payload.singleOrNull()?.unsigned()
             ?.let { if (encrypted) it xor RESPONSE_XOR_KEY else it } ?: return null
         return when (value) {
             0 -> false

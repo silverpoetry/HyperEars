@@ -103,6 +103,7 @@ class MiLinkCardAdapterRegistryTest {
         )
         val idleToggle = FitBudsTurboGameModePolicy.render(idle)
         assertFalse("game switch must be disabled without the feature", idleToggle.enabled)
+        assertFalse(idleToggle.available)
     }
 
     @Test

@@ -184,7 +184,7 @@ class EdifierEvoProAdapter : EdifierEarbudAdapter() {
  *    the RFCOMM channel when probed. The adapter therefore disables ANC discovery entirely so
  *    the handshake never emits `0xCC`.
  */
-class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
+class EdifierFitClipUltraAdapter : EdifierGameModeAdapter() {
     override val id: String = ID
     override val displayName: String = "Edifier FitClip Ultra"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
@@ -192,31 +192,12 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
         get() = EdifierMiLinkPresentationIds.GAME_MODE.takeIf {
             runtimeState().features.get<EdifierGameModeFeatureState>() != null
         }
-    override val featureStateContract: DeviceFeatureStateContract =
-        StandardDeviceFeatureStateContract.extending { _, state ->
-            state is EdifierGameModeFeatureState
-        }
-    override val controlRequestContract: ControlRequestContract =
-        StandardControlRequestContract.extending { adapter, request ->
-            request is EdifierControlRequest.SetGameMode &&
-                adapter.runtimeState().features.get<EdifierGameModeFeatureState>() != null
-        }
     override val wireConfig: EdifierWireConfig = EdifierWireConfig(
         batteryQueries = listOf(EdifierBatteryQuery.DEVICE_STATE),
         batteryProjection = EdifierBatteryProjection.TWS_AGGREGATE,
         ancDialects = emptyList(),
         gameModeQuery = true,
     )
-
-    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy = when (request) {
-        is EdifierControlRequest.SetGameMode ->
-            ControlExecutionPolicy(confirmation = ControlConfirmationPolicy.DEVICE_REPORT)
-        else -> super.controlPolicy(request)
-    }
-
-    override fun onProtocolReset() {
-        removeFeatureState(EdifierGameModeFeatureState.FEATURE_ID)
-    }
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
@@ -237,12 +218,7 @@ object EdifierMiLinkPresentationIds {
     val FOUR_MODE = MiLinkCardPresentationId("edifier-four-mode")
     val GAME_MODE = MiLinkCardPresentationId("edifier-fitclip-game")
 
-    /**
-     * FitBuds Turbo-specific card: the ANC four-mode card (transparency / ANC / off / wind)
-     * plus a game-mode switch beside the native title. Kept as its own ID so the Turbo adapter
-     * does not share the generic four-mode card and can expose both wind-noise and low-latency
-     * game control on a single MiLink card.
-     */
+    /** Native ANC with independently confirmed wind and game options. */
     val FITBUDS_TURBO = MiLinkCardPresentationId("edifier-fitbuds-turbo")
 }
 
@@ -322,17 +298,10 @@ data class EdifierWireConfig(
     ),
     val preferredAncIndex: Int? = null,
     val gameModeQuery: Boolean = false,
-    /**
-     * When true the device answers the Edifier BES protocol with **plaintext** response
-     * payloads (no XOR 0xA5 obfuscation) and expects plaintext set commands.
-     *
-     * Most Edifier headsets (W860NB PRO, Evo Pro, FitClip Ultra) XOR their response payloads with
-     * [EdifierWireCodec.RESPONSE_XOR_KEY] and require set commands to be XOR-obfuscated the same
-     * way. FitBuds Turbo is an exception: its query responses are plaintext and its set commands
-     * are accepted without the XOR transform. Confirmed on-device (2026-09-01) by the ANC query
-     * returning `1B 06` verbatim (EVO_PRO ANC slot + OFF value) which the XOR decode mangles.
-     */
+    /** PR #62 confirms plaintext responses and writes for FitBuds Turbo; other models use XOR. */
     val plaintextPayloads: Boolean = false,
+    /** One read-only mode query after a write, for models whose response is not a full state. */
+    val noiseModeReadback: Boolean = false,
 ) {
     init {
         require(batteryQueries.isNotEmpty())
@@ -406,7 +375,8 @@ private class EdifierProtocolSession(
         // The W860NB PRO executes ANC writes immediately and reports state via the write
         // acknowledgement. Skip the extra readback round-trip to reduce perceived latency.
         request === StandardControlRequest.Refresh -> emptyList()
-        request is StandardControlRequest.SetNoiseMode -> emptyList()
+        request is StandardControlRequest.SetNoiseMode ->
+            listOf(EdifierWireCodec.queryAnc).takeIf { configuration.noiseModeReadback }.orEmpty()
         request is EdifierControlRequest.SetGameMode -> listOf(EdifierWireCodec.queryGameState)
         else -> emptyList()
     }
@@ -469,15 +439,17 @@ private class EdifierProtocolSession(
             }
 
             // Game-mode state from 0x08 query or 0x09 set response
-            EdifierWireCodec.parseGameModeState(frame, encrypted = encryptPayloads)?.let { enabled ->
-                add(
-                    ProtocolEvent.FeatureStateChanged(
-                        EdifierGameModeFeatureState(enabled),
-                    ),
-                )
-                publishHandshakeIfNeeded()
-                return@forEach
-            }
+            EdifierWireCodec.parseGameModeState(frame, encrypted = encryptPayloads)
+                ?.takeIf { configuration.gameModeQuery }
+                ?.let { enabled ->
+                    add(
+                        ProtocolEvent.FeatureStateChanged(
+                            EdifierGameModeFeatureState(enabled),
+                        ),
+                    )
+                    publishHandshakeIfNeeded()
+                    return@forEach
+                }
 
             add(
                 ProtocolEvent.UnknownFrame(

@@ -132,6 +132,15 @@ v8.4.39 的互操作行为分析，并由真实设备通信验证。花再 Evo P
 厂商应用、反编译产物、图片或品牌资源；其他 Edifier 型号只在合法 BES 响应确认相应
 能力后开放。
 
+FitClip Ultra 的游戏模式、盒电量与单耳零值报告由 aodianjun 在
+[PR #54](https://github.com/silverpoetry/HyperEars/pull/54)、
+[PR #59](https://github.com/silverpoetry/HyperEars/pull/59) 和
+[PR #61](https://github.com/silverpoetry/HyperEars/pull/61) 中提供；FitBuds Turbo 的明文 BES
+负载、`0x1B` 模式及游戏控制由 sksnnjj 在
+[PR #62](https://github.com/silverpoetry/HyperEars/pull/62) 中提供（原提交
+`6bd1312947c4f831197ba5129fbe9368adaeebf3`）。原作者提交保留在维护分支历史中，后续按本项目
+GPL-3.0-only 许可整理状态生命周期、能力门禁与共享卡片实现。
+
 ## Sony Headphones protocol research
 
 - Plutoberth/SonyHeadphonesClient:
