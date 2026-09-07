@@ -68,7 +68,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 | OPPO Enco | 参考协议 | 私有组件电量 | 降噪、关闭、通透 |
 | StarRing / 籁特易耳 | Ultra 实机验证；其他标准回退 | Ultra 私有组件电量；其他系统整机电量 | Ultra 支持降噪、关闭、通透、抗风噪 |
 | Bose | 一个型号实机验证；其余公开实现、参考协议或家族外推 | 私有整机或组件电量 | 按 BMAP 产品和控制方言开放明确的模式子集 |
-| Edifier / 漫步者 | W860NB PRO、花再 Evo Pro 实机验证；其余家族外推 | 头戴整机、TWS 左右耳或聚合电量 | 降噪、关闭、通透、抗风噪 |
+| Edifier / 漫步者 | W860NB PRO、花再 Evo Pro、FitClip Ultra、FitBuds Turbo 实机验证；其余家族外推 | 头戴整机、TWS 组件或聚合电量 | 按型号提供降噪、关闭、通透、抗风噪；FitClip Ultra 仅游戏模式，Turbo 另有游戏模式 |
 | ROSESELSA / 弱水时砂 | Furina Endless Solo of Solitude、ROSE Ceramics Ultra 实机验证；两个型号公开实现；产品线家族外推；其余标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透、抗风噪 |
 | NiceHCK / YuanDao | OriG in 公开实现；其他标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | OriG in 支持降噪、关闭、通透、抗风噪 |
 | MOONDROP / 水月雨 | Robin 公开协议；Pudding 实机验证；其他标准回退 | Robin 协议确认后提供左右耳电量；Pudding 协议确认后提供左右耳与充电盒电量，回退设备使用系统整机电量 | Robin 协议确认后支持降噪、关闭、通透；Pudding 实机验证后支持降噪、关闭、通透 |

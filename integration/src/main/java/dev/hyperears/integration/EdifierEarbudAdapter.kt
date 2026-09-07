@@ -184,7 +184,7 @@ class EdifierEvoProAdapter : EdifierEarbudAdapter() {
  *    the RFCOMM channel when probed. The adapter therefore disables ANC discovery entirely so
  *    the handshake never emits `0xCC`.
  */
-class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
+class EdifierFitClipUltraAdapter : EdifierGameModeAdapter() {
     override val id: String = ID
     override val displayName: String = "Edifier FitClip Ultra"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
@@ -192,31 +192,12 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
         get() = EdifierMiLinkPresentationIds.GAME_MODE.takeIf {
             runtimeState().features.get<EdifierGameModeFeatureState>() != null
         }
-    override val featureStateContract: DeviceFeatureStateContract =
-        StandardDeviceFeatureStateContract.extending { _, state ->
-            state is EdifierGameModeFeatureState
-        }
-    override val controlRequestContract: ControlRequestContract =
-        StandardControlRequestContract.extending { adapter, request ->
-            request is EdifierControlRequest.SetGameMode &&
-                adapter.runtimeState().features.get<EdifierGameModeFeatureState>() != null
-        }
     override val wireConfig: EdifierWireConfig = EdifierWireConfig(
         batteryQueries = listOf(EdifierBatteryQuery.DEVICE_STATE),
         batteryProjection = EdifierBatteryProjection.TWS_AGGREGATE,
         ancDialects = emptyList(),
         gameModeQuery = true,
     )
-
-    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy = when (request) {
-        is EdifierControlRequest.SetGameMode ->
-            ControlExecutionPolicy(confirmation = ControlConfirmationPolicy.DEVICE_REPORT)
-        else -> super.controlPolicy(request)
-    }
-
-    override fun onProtocolReset() {
-        removeFeatureState(EdifierGameModeFeatureState.FEATURE_ID)
-    }
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
@@ -236,6 +217,9 @@ class EdifierFitClipUltraAdapter : EdifierEarbudAdapter() {
 object EdifierMiLinkPresentationIds {
     val FOUR_MODE = MiLinkCardPresentationId("edifier-four-mode")
     val GAME_MODE = MiLinkCardPresentationId("edifier-fitclip-game")
+
+    /** Native ANC with independently confirmed wind and game options. */
+    val FITBUDS_TURBO = MiLinkCardPresentationId("edifier-fitbuds-turbo")
 }
 
 enum class EdifierBatteryQuery(val commandIndex: Int) {
@@ -314,6 +298,10 @@ data class EdifierWireConfig(
     ),
     val preferredAncIndex: Int? = null,
     val gameModeQuery: Boolean = false,
+    /** PR #62 confirms plaintext responses and writes for FitBuds Turbo; other models use XOR. */
+    val plaintextPayloads: Boolean = false,
+    /** One read-only mode query after a write, for models whose response is not a full state. */
+    val noiseModeReadback: Boolean = false,
 ) {
     init {
         require(batteryQueries.isNotEmpty())
@@ -337,6 +325,9 @@ private class EdifierProtocolSession(
     private var handshakePublished = false
     private var activeAncDialect: EdifierAncDialect? =
         configuration.preferredAncIndex?.let(configuration::dialect)
+
+    /** True when this device requires the XOR 0xA5 obfuscation on responses and set commands. */
+    private val encryptPayloads: Boolean get() = !configuration.plaintextPayloads
 
     override fun initialReadCommands(): List<ByteArray> = buildList {
         addAll(configuration.batteryQueries.map { batteryQueryPacket(it) })
@@ -363,13 +354,19 @@ private class EdifierProtocolSession(
             val dialect = activeAncDialect
             val ancValue = dialect?.writeValues?.get(request.mode)
             if (ancValue != null) {
-                listOf(EdifierWireCodec.setAnc(ancValue = ancValue, ancIndex = dialect.index))
+                listOf(
+                    EdifierWireCodec.setAnc(
+                        ancValue = ancValue,
+                        ancIndex = dialect.index,
+                        encrypt = encryptPayloads,
+                    ),
+                )
             } else {
                 emptyList()
             }
         }
         request is EdifierControlRequest.SetGameMode ->
-            listOf(EdifierWireCodec.setGameMode(request.enabled))
+            listOf(EdifierWireCodec.setGameMode(request.enabled, encrypt = encryptPayloads))
 
         else -> emptyList()
     }
@@ -378,7 +375,8 @@ private class EdifierProtocolSession(
         // The W860NB PRO executes ANC writes immediately and reports state via the write
         // acknowledgement. Skip the extra readback round-trip to reduce perceived latency.
         request === StandardControlRequest.Refresh -> emptyList()
-        request is StandardControlRequest.SetNoiseMode -> emptyList()
+        request is StandardControlRequest.SetNoiseMode ->
+            listOf(EdifierWireCodec.queryAnc).takeIf { configuration.noiseModeReadback }.orEmpty()
         request is EdifierControlRequest.SetGameMode -> listOf(EdifierWireCodec.queryGameState)
         else -> emptyList()
     }
@@ -399,7 +397,7 @@ private class EdifierProtocolSession(
             val acceptsBatteryCommand = configuration.batteryQueries.any {
                 it.commandIndex == frame.commandIndex
             }
-            EdifierWireCodec.parseBatteryState(frame)
+            EdifierWireCodec.parseBatteryState(frame, encrypted = encryptPayloads)
                 ?.takeIf { acceptsBatteryCommand }
                 ?.let { battery ->
                     add(ProtocolEvent.CapabilitiesIdentified(battery = true))
@@ -412,7 +410,7 @@ private class EdifierProtocolSession(
                     return@forEach
                 }
 
-            EdifierWireCodec.parseAncState(frame)?.let { anc ->
+            EdifierWireCodec.parseAncState(frame, encrypted = encryptPayloads)?.let { anc ->
                 val dialect = configuration.dialect(anc.mode) ?: return@let
                 activeAncDialect = dialect
                 val mode = anc.level?.let(dialect.readValues::get)
@@ -441,15 +439,17 @@ private class EdifierProtocolSession(
             }
 
             // Game-mode state from 0x08 query or 0x09 set response
-            EdifierWireCodec.parseGameModeState(frame)?.let { enabled ->
-                add(
-                    ProtocolEvent.FeatureStateChanged(
-                        EdifierGameModeFeatureState(enabled),
-                    ),
-                )
-                publishHandshakeIfNeeded()
-                return@forEach
-            }
+            EdifierWireCodec.parseGameModeState(frame, encrypted = encryptPayloads)
+                ?.takeIf { configuration.gameModeQuery }
+                ?.let { enabled ->
+                    add(
+                        ProtocolEvent.FeatureStateChanged(
+                            EdifierGameModeFeatureState(enabled),
+                        ),
+                    )
+                    publishHandshakeIfNeeded()
+                    return@forEach
+                }
 
             add(
                 ProtocolEvent.UnknownFrame(
