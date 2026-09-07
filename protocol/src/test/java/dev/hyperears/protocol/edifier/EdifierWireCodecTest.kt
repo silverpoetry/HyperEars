@@ -87,6 +87,23 @@ class EdifierWireCodecTest {
     }
 
     @Test
+    fun `single worn earbud reports percent 0 as not-connected null`() {
+        // Left earbud disconnected (decrypts to 0) should surface as null, right earbud 98%.
+        // payload bytes 1/2 = 0xA5/0xC7 -> decrypt 0x00/0x62 = 0%/98%. Byte 0 metadata=0x03.
+        val frame = EdifierWireCodec.Decoder().offer(
+            hex("BB EC F2 00 06 A6 A5 C7 A5 A6 B4 B0"),
+        ).single()
+
+        assertEquals(
+            EdifierWireCodec.BatteryState.TwsComponents(
+                leftPercent = null,
+                rightPercent = 98,
+            ),
+            EdifierWireCodec.parseBatteryState(frame),
+        )
+    }
+
+    @Test
     fun `Evo Pro F2 metadata byte is never accepted as aggregate battery`() {
         val frame = EdifierWireCodec.Decoder().offer(
             hex("BB EC F2 00 06 A6 C1 C7 A5 A6 B4 CC"),
@@ -95,6 +112,54 @@ class EdifierWireCodecTest {
         val battery = EdifierWireCodec.parseBatteryState(frame)
         assertEquals(100, (battery as EdifierWireCodec.BatteryState.TwsComponents).leftPercent)
     }
+
+    @Test
+    fun `both unavailable ears preserve a readable case including zero percent`() {
+        listOf(0, 70, 100).forEach { case ->
+            assertEquals(
+                EdifierWireCodec.BatteryState.TwsComponents(null, null, case, true),
+                EdifierWireCodec.parseBatteryState(batteryResponse(0, 0, case, 1)),
+            )
+        }
+    }
+
+    @Test
+    fun `all unavailable components are a valid clearing snapshot`() {
+        assertEquals(
+            EdifierWireCodec.BatteryState.TwsComponents(null, null),
+            EdifierWireCodec.parseBatteryState(batteryResponse(0, 0, 70, 3)),
+        )
+        assertEquals(
+            EdifierWireCodec.BatteryState.TwsComponents(98, null),
+            EdifierWireCodec.parseBatteryState(batteryResponse(98, 0, 0, 3)),
+        )
+    }
+
+    @Test
+    fun `invalid ear values are rejected rather than treated as unavailable`() {
+        listOf(101, 127, 255).forEach { invalid ->
+            assertNull(EdifierWireCodec.parseBatteryState(batteryResponse(invalid, 98, 70, 1)))
+            assertNull(EdifierWireCodec.parseBatteryState(batteryResponse(98, invalid, 70, 1)))
+        }
+    }
+
+    @Test
+    fun `aggregate zero remains a real battery level`() {
+        val frame = EdifierWireCodec.Frame(
+            EdifierWireCodec.RECEIVE_HEADER, EdifierWireCodec.APP_CODE,
+            EdifierWireCodec.CMD_BATTERY_QUERY, byteArrayOf(0xA5.toByte()), byteArrayOf(),
+        )
+        assertEquals(EdifierWireCodec.BatteryState.Aggregate(0), EdifierWireCodec.parseBatteryState(frame))
+    }
+
+    private fun batteryResponse(left: Int, right: Int, case: Int, caseState: Int): EdifierWireCodec.Frame =
+        EdifierWireCodec.Frame(
+            EdifierWireCodec.RECEIVE_HEADER,
+            EdifierWireCodec.APP_CODE,
+            EdifierWireCodec.CMD_DEVICE_STATE_QUERY,
+            listOf(3, left, right, case, caseState, 0x11).map { (it xor 0xA5).toByte() }.toByteArray(),
+            byteArrayOf(),
+        )
 
     /** Evo Pro ANC response: BE^A5=1B slot, A3^A5=06 (off). */
     @Test

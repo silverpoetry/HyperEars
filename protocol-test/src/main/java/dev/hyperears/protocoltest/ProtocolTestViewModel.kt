@@ -800,9 +800,11 @@ internal class ProtocolTestViewModel(application: Application) : AndroidViewMode
                         observation = BatteryObservation(
                             leftPercent = battery.leftPercent,
                             rightPercent = battery.rightPercent,
-                            casePercent = null,
+                            casePercent = battery.casePercent,
                         )
-                        summary = "左=${battery.leftPercent}% 右=${battery.rightPercent}% 盒=—"
+                        summary = "左=${battery.leftPercent?.let { "$it%" } ?: "—"} " +
+                            "右=${battery.rightPercent?.let { "$it%" } ?: "—"} " +
+                            "盒=${battery.casePercent?.let { "$it%" } ?: "—"}"
                     }
                 }
                 mutableState.value = mutableState.value.copy(
