@@ -149,9 +149,7 @@ AA EC C1 00 02 BE A1 B8
                  └─ plaintext 1B 04
 ```
 
-## Other Key Commands (confirmed live)
-
-### FitBuds Turbo plaintext dialect
+## FitBuds Turbo plaintext dialect
 
 The exact normalized names `edifierfitbudsturbo` and `fitbudsturbo` select this candidate. It uses
 the shared BES RFCOMM endpoints with plaintext responses and writes (`plaintextPayloads=true`).
@@ -175,7 +173,7 @@ independently visible wind/game options after noise confirmation. The shared car
 the original title, items and layout on unbind. Contributor protocol verification and subsequent
 maintenance-layout verification are tracked separately in the PR.
 
-### Unavailable TWS batteries
+## Unavailable TWS batteries
 
 The shared `0xF2` parser maps left/right zero values to unavailable (`null`), following the
 single-ear report supplied in [PR #61](https://github.com/silverpoetry/HyperEars/pull/61).
@@ -184,6 +182,8 @@ A valid report with both ears unavailable is still a complete snapshot: it clear
 levels and retains any readable case level. An offline case clears the old case reading too.
 Aggregate `0xD0` and online case levels retain genuine zero percent values. The protocol-test
 display uses a dash for missing readings and includes readable case telemetry.
+
+## Other Key Commands (confirmed live)
 
 | Command | Index (hex) | Direction | Notes |
 |---------|-------------|-----------|-------|
@@ -209,7 +209,7 @@ display uses a dash for missing readings and includes readable case telemetry.
 4. CRC = sum of all preceding bytes & 0xFF — confirmed
 5. W860NB PRO uses slot `0x10` with values 1=depth, 2=comfort, 3=wind, 4=ambient, 5=off
 6. Evo Pro uses slot `0x1B` with values 1/2/3=ANC, 4=wind, 5=ambient, 6=off
-7. **Send payloads are also XOR-0xA5-encrypted** (not just responses)
+7. Default send and response payloads use XOR `0xA5`; FitBuds Turbo explicitly uses plaintext
 8. The W860NB PRO executes ANC writes immediately; HyperEars skips the readback
    round-trip to keep control latency low
 9. Family candidates start with no private battery or noise-control capability. A valid battery

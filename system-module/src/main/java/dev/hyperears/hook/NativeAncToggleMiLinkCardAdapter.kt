@@ -78,7 +78,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         )
         wrapper.addView(title)
         // Multiple options occupy the existing title row rather than overlapping its caption.
-        if (toggles.size > 1) title.visibility = View.GONE
+        if (toggles.size > 1) title.visibility = View.INVISIBLE
 
         val accessory = LinearLayout(root.context).apply {
             gravity = Gravity.CENTER_VERTICAL
