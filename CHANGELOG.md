@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### 构建依赖
+
+- 升级 Android Gradle Plugin 至 9.4.0，并同步 Gradle Wrapper 至所需的 9.6.0。
+- 升级 Navigation Compose 至 2.10.0、kotlinx.serialization 至 1.11.0，以及 CI、签名构建和
+  发布流程使用的 setup-java 至 6.0.0。
+- 升级 libxposed API 与 service 依赖至 102.0.0；现有调用与模块最低 API 要求保持 101，
+  本次不启用热重载。
+
 ## [2.6.0] - 2026-09-01
 
 本版新增 Technics、ROSE、华为和 Sony 多款耳机适配，为 Edifier FitClip Ultra 增加
