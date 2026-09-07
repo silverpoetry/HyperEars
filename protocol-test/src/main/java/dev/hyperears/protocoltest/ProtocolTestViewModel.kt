@@ -802,7 +802,7 @@ internal class ProtocolTestViewModel(application: Application) : AndroidViewMode
                             rightPercent = battery.rightPercent,
                             casePercent = null,
                         )
-                        summary = "左=${battery.leftPercent}% 右=${battery.rightPercent}% 盒=—"
+                        summary = "左=${battery.leftPercent ?: "—"}% 右=${battery.rightPercent ?: "—"}% 盒=—"
                     }
                 }
                 mutableState.value = mutableState.value.copy(
