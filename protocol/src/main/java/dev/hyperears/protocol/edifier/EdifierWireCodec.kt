@@ -64,8 +64,8 @@ object EdifierWireCodec {
         /**
          * Component levels carried by the TWS `0xF2` device-state response.
          *
-         * The captured Evo Pro frame proves the left/right fields. The remaining bytes are kept
-         * out of the public model until their charging/case semantics are independently verified.
+         * Zero-valued ear fields denote unavailable components. A complete snapshot with both
+         * ears unavailable still carries case telemetry and clears previously observed ear levels.
          */
         data class TwsComponents(
             val leftPercent: Int?,
@@ -124,9 +124,10 @@ object EdifierWireCodec {
             CMD_DEVICE_STATE_QUERY -> frame.payload
                 .takeIf { it.size >= TWS_COMPONENT_FIELD_COUNT }
                 ?.let { payload ->
-                    val left = payload[TWS_LEFT_BATTERY_OFFSET].decryptPercent()?.percentOrNull()
-                    val right = payload[TWS_RIGHT_BATTERY_OFFSET].decryptPercent()?.percentOrNull()
-                    if (left == null && right == null) return@let null
+                    // Validate before mapping zero to unavailable: an invalid byte is not a
+                    // disconnected ear, and must not overwrite the previous valid snapshot.
+                    val left = payload[TWS_LEFT_BATTERY_OFFSET].decryptPercent() ?: return@let null
+                    val right = payload[TWS_RIGHT_BATTERY_OFFSET].decryptPercent() ?: return@let null
                     val caseState = payload.getOrNull(TWS_CASE_STATE_OFFSET)
                         ?.unsigned()?.let { it xor RESPONSE_XOR_KEY }
                     // Verified on-device (FitClip Ultra): byte3 = case percent, byte4 = case
@@ -140,8 +141,8 @@ object EdifierWireCodec {
                         else -> null
                     }
                     BatteryState.TwsComponents(
-                        leftPercent = left,
-                        rightPercent = right,
+                        leftPercent = left.percentOrNull(),
+                        rightPercent = right.percentOrNull(),
                         casePercent = casePercent,
                         caseCharging = caseState == TWS_CASE_STATE_CHARGING,
                     )

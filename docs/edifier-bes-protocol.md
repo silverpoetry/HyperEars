@@ -148,6 +148,16 @@ AA EC C1 00 02 BE A1 B8
 
 ## Other Key Commands (confirmed live)
 
+### Unavailable TWS batteries
+
+The shared `0xF2` parser maps left/right zero values to unavailable (`null`), following the
+single-ear report supplied in [PR #61](https://github.com/silverpoetry/HyperEars/pull/61).
+Each ear field must first decode to `0..100`; out-of-range fields invalidate the report.
+A valid report with both ears unavailable is still a complete snapshot: it clears stale ear
+levels and retains any readable case level. An offline case clears the old case reading too.
+Aggregate `0xD0` and online case levels retain genuine zero percent values. The protocol-test
+display uses a dash for missing readings and includes readable case telemetry.
+
 | Command | Index (hex) | Direction | Notes |
 |---------|-------------|-----------|-------|
 | battery_query | 0xD0 | query | battery |
