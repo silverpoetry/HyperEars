@@ -78,6 +78,7 @@ internal object MiLinkCardAdapterRegistry {
         BoseAnrMiLinkCardAdapter,
         BoseTwoModeMiLinkCardAdapter,
         EdifierFourModeMiLinkCardAdapter,
+        EdifierFitBudsTurboMiLinkCardAdapter,
         FitClipUltraGameModeMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
     )
