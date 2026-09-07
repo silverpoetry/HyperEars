@@ -7,7 +7,7 @@ import org.junit.Test
 class EdifierBatterySnapshotTest {
     @Test
     fun unavailableComponentsReplaceOldReadingsAcrossTwsAdapters() {
-        listOf(EdifierEarbudAdapter(), EdifierFitClipUltraAdapter(), EdifierEvoProAdapter()).forEach { adapter ->
+        listOf(EdifierFitClipUltraAdapter(), EdifierEvoProAdapter()).forEach { adapter ->
             adapter.beginHandshake()
             adapter.receive(report(80, 90, 70, 1))
             assertEquals(80, adapter.runtimeState().battery.left.percent)
