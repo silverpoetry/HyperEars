@@ -18,6 +18,8 @@
 - [ ] `:system-module:lintRelease`
 - [ ] `:system-module:assembleRelease`
 - [ ] Hardware validation, when behavior changes on a physical headset
+- [ ] For a maintained device PR: the final maintenance version has received device revalidation;
+      keep this PR in Draft and the original PR open until that feedback arrives
 - [ ] Logs, screenshots and Bluetooth addresses are redacted
 - [ ] Documentation and compatibility status are updated
 - [ ] If controller apps changed: catalog, Adapter declarations, `scope.list`, tests and
