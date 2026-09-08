@@ -98,6 +98,9 @@ accepted state frame. Bose devices are refined by
 their on-wire BMAP product ID. Unknown BMAP devices retain battery telemetry and use GET-only
 AudioModes, ANR and CNC discovery; no write is exposed before a valid status response.
 
+FitBuds Turbo device evidence covers the contributor's original implementation. The maintained
+shared card layout still awaits device revalidation.
+
 Sony private adapters require a valid RFCOMM v1/v2 initialization response. Exact model adapters
 select battery topology and the ambient-control dialect; unknown product-line models use
 conservative family fallbacks. The exhaustive model list, transports, evidence and known limits are

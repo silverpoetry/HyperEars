@@ -84,6 +84,8 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 合法状态帧。完整型号、证据等级、判型条件、私有传输和开放能力见
 [兼容性文档](docs/compatibility.md)。
 
+FitBuds Turbo 的实测证据来自贡献者原版实现；维护后的共享卡片布局尚待实机复核。
+
 ## 系统要求
 
 - Xiaomi HyperOS，Android 15 或更高版本；
