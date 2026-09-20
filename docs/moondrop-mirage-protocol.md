@@ -3,7 +3,7 @@
 HyperEars 为 MOONDROP MIRAGE 提供**候选适配**，证据等级为「参考协议」：判型与协议行为
 来自同族推断与离线快照，**本型号尚未完成任何实机验证**。MIRAGE 的零售身份为
 HATSUNE MIKU × MOONDROP 联名 TWS（以官方渲染图确认）；Adapter 显示名使用
-`MOONDROP MIRAGE`，Bluetooth 广播名为推断值（见 §1）。帧格式、握手、电量与噪声模式
+`MOONDROP MIRAGE`，Bluetooth 广播名已由实机官方 App 连接记录佐证（见 §1 与 §7.2）。帧格式、握手、电量与噪声模式
 沿用已在 Pudding 实机确认的帧集，本文 §2–§5 为同构引用并逐项声明待本型号复核。
 本文不包含任何「已验证支持」表述。
 
@@ -14,9 +14,11 @@ HATSUNE MIKU × MOONDROP 联名 TWS（以官方渲染图确认）；Adapter 显�
 形态 BT-TWS、EQ 10 段、含 OTA 配置；`relations/uuids` 唯一关联型号为 MOONDROP Pudding
 （UUID `291a21ef-bca1-4cf1-baf8-151c457bf082`）。
 
-平面推断链（推断，非实测）：同 `chipType`（jieli）且唯一同族 sibling 为 Pudding
+平面推断链：同 `chipType`（jieli）且唯一同族 sibling 为 Pudding
 （HyperEars 已实机验证的 FF-SPP 帧面），因此 MIRAGE 最可能走 FF-SPP/jieli 平面。
-BLE GATT `9ECA…` 平面在服务端目录无任何型号映射，本适配不对其作宣称。
+实机官方 App 连接记录与该推断一致：设备以真实 MAC 登记于经典蓝牙面，且其 SN 字段
+命名与 APK 的 BLE identity 面命令吻合（SPP 控制面 + BLE identity 面并存，见 §7.2）。
+BLE GATT `9ECA…` 控制平面在服务端目录与实机记录中均无证据，本适配不对其作宣称。
 
 Adapter 只在下列名称规则之一成立时选择 MIRAGE。归一化 = 转小写并仅保留字母与数字
 （与 Pudding 相同）。联名身份使别名集覆盖双品牌族，且品牌 token 强制共现以防泛词误中：
@@ -35,8 +37,8 @@ Android 系统整机聚合，不开放任何私有能力。第二款联名临近
 
 负例：`Desired Mirage 500` 与 `MIKU Speaker` 不含水月雨品牌 token，不进入 MOONDROP
 适配；`MOONDROP Xyz` 只命中家族回退。服务端目录不携带 MAC、OUI 或传输层字段，因此
-名称归一化与后续协议响应证据是仅有的两道判型门；广播名精确串（含中文别名）待实机
-确认。
+名称归一化与后续协议响应证据是仅有的两道判型门；广播名精确串经实机官方 App 记录佐证
+为 `MOONDROP MIRAGE`（§7.2），中文别名形态仍待实机确认。
 
 传输使用 Bluetooth SIG 标准 SPP UUID `00001101-0000-1000-8000-00805f9b34fb`。该 UUID
 被大量蓝牙设备共同使用，只负责建立 RFCOMM 端点，不属于水月雨身份依据，也不会让
@@ -92,13 +94,22 @@ Android 系统整机，收到合法电量帧后切换为私有左右耳与充电
 
 ### 7.1 实机验证
 
-- 无。本适配没有任何 MIRAGE 实机捕获、识别、控制或回读证据；所有帧与行为描述均为
-  待复核的参考协议（§2–§5）。
+- 无（帧侧）。本适配没有任何 MIRAGE 的 HyperEars 帧捕获、控制或回读证据；实机官方
+  App 连接记录（2026-09-20 导出，红摘）仅佐证身份与平面事实（§7.2），不可替代帧级
+  复核。所有帧与行为描述均为待复核的参考协议（§2–§5）。
 
 ### 7.2 参考协议来源
 
 - 服务端快照：`GET https://cdn-service.moondroplab.tech/api/v1/products/all`，抓取日期
   2026-09-16；本型号 UUID 见 §1；原始 JSON 响应未入库；
+- 实机官方 App 数据记录（2026-09-20 从用户设备导出，红摘；数据目录含真实 MAC、
+  SN 与登录态，未入库）：官方 App 连接记录中 `name` 与 `deviceModel` 均为
+  `MOONDROP MIRAGE`，UUID 与 §1 目录一致，固件版本 `3.5.2`，SN 为 20 位数字（左右耳
+  各一，红摘）；App 缓存的服务端 `funcList` 为 15 项 `/jieli` 模块清单（含 eq、peq、
+  ancV2、touchV2、led、onebringtwo、lhdc、ota、voicecontrol 等）——该清单是 App 模块
+  列表而非帧真值，本适配据此维持保守降级，不开放任何清单内新能力面；OTA 配置载体
+  扩展名为 `.ufw`；官方 EQ 预设仅「标准」；联名标识（MIKU/HATSUNE/初音）在设备数据
+  中零出现，广播名以 `MOONDROP MIRAGE` 为准；
 - `MOONDROP.apk` `classes.dex` 的 baksmali 2.5.2 蒸馏（仅互操作研究，APK 不入库）。
   关键样例：`BleSourceSwitchFrames.smali:870`（`0xA5` 帧魔数）、`QTILFeature.smali:1003`
   （`ANC_V2 = 0x20`）、`FactorySppProtocol` array-data（`55 AA 43 58 57`）。注意：APK 字符串
@@ -111,7 +122,8 @@ Android 系统整机，收到合法电量帧后切换为私有左右耳与充电
 
 ### 7.3 待实机清单
 
-1. 广播名精确串与中文/联名别名的实际归一化形态；
+1. 广播名的 HyperEars 侧实测（精确串已由官方 App 记录佐证，§7.2；中文/联名别名的
+   实际归一化形态仍待确认）；
 2. 握手请求与响应捕获（若握手无响应，则平面推断不成立，保持标准回退并撤下候选）；
 3. 电量查询与连接后主动推送捕获（含分侧 `00`/`FF` 与充电盒 `FF` 语义）；
 4. 降噪/关闭/通透三态写入与回读；
