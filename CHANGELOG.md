@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### MOONDROP MIRAGE
+
+- 接入 MOONDROP MIRAGE 候选适配（参考协议，待实机复核）：名称规则（含 HATSUNE MIKU ×
+  MOONDROP 联名别名）选择候选 Adapter，与 Pudding 同构的严格握手与逐项合法响应确认后才
+  开放电量和噪声能力；该路径尚未在 MIRAGE 实机上验证，不构成对 MIRAGE 的支持承诺。
+  协议与证据分层见 [MOONDROP MIRAGE 协议适配](docs/moondrop-mirage-protocol.md)。
+
 ## [2.7.0] - 2026-09-08
 
 本版新增 Edifier FitBuds Turbo 适配，修复漫步者 TWS 单耳和双耳不可用时的电量显示，

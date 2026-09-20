@@ -105,6 +105,19 @@ SPP 握手、电量查询与三态噪声控制协议事实。Robin 参考固定�
 相关文档在引用处保留来源链接；HyperEars 根据互操作协议事实独立实现 WireCodec 与
 ProtocolSession，不复制上游程序、厂商资源或应用代码。上游文档采用 CC BY-SA 4.0。
 
+## MOONDROP 产品目录快照与客户端协议蒸馏
+
+- MOONDROP 公开产品 API 快照：
+  <https://cdn-service.moondroplab.tech/api/v1/products/all>（只读 GET，抓取日期
+  2026-09-16）
+- MOONDROP Android 客户端二进制的 `classes.dex` 全量反汇编（baksmali 2.5.2），仅作
+  互操作研究，反编译产物不入库。
+
+用于蒸馏 `MoondropModelCatalog` 的 MIRAGE / Pudding / Robin 三行型号事实（UUID、
+`chipType`、EQ 段数、OTA 与形态标记），以及 MIRAGE 候选适配的平面推断与协议边界
+登记。本仓库只记录可互操作事实与 `文件:行` 引用，不分发 APK、原始响应、频响曲线、
+壁纸或其他厂商版权素材；快照更新仅通过人工再蒸馏提交完成，运行时零外联。
+
 ## ScrewVivoTWS
 
 - moculll/ScrewVivoTWS: <https://github.com/moculll/ScrewVivoTWS>
