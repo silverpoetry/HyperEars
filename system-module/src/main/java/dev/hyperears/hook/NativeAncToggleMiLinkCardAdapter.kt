@@ -31,6 +31,19 @@ internal interface MiLinkToggleSpec {
     fun request(state: EarbudState, checked: Boolean): ControlRequest?
 }
 
+internal interface MiLinkToggleDetailsSpec : MiLinkToggleSpec {
+    fun openDetails(
+        anchor: View,
+        address: String,
+        environment: MiLinkCardEnvironment,
+    ): MiLinkToggleDetails
+}
+
+internal interface MiLinkToggleDetails {
+    fun render(state: EarbudState)
+    fun dismiss()
+}
+
 /** Native ANC layout and restoration shared by model-owned, protocol-confirmed toggle options. */
 internal open class NativeAncToggleMiLinkCardAdapter(
     final override val presentationId: MiLinkCardPresentationId,
@@ -65,6 +78,10 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         val originalParams = title.layoutParams
         val originalWidth = originalParams.width
         val originalTitleVisibility = title.visibility
+        val replacesTitle = toggles.size > 1
+        val duplicateTitles = root.findNativeNoiseControlTitles()
+            .filter { it !== title }
+            .map { duplicate -> RestorableVisibility(WeakReference(duplicate), duplicate.visibility) }
 
         parent.removeViewAt(index)
         val wrapper = FrameLayout(root.context).apply {
@@ -72,24 +89,29 @@ internal open class NativeAncToggleMiLinkCardAdapter(
                 width = ViewGroup.LayoutParams.MATCH_PARENT
             }
         }
-        title.layoutParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
-        )
-        wrapper.addView(title)
-        // Multiple options occupy the existing title row rather than overlapping its caption.
-        if (toggles.size > 1) title.visibility = View.INVISIBLE
+        if (!replacesTitle) {
+            title.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            wrapper.addView(title)
+        } else {
+            // Keep the native caption fully detached. MiLink writes visibility during its
+            // first render, so leaving this view in the hierarchy can make it flash or overlap.
+            title.visibility = View.INVISIBLE
+        }
+        duplicateTitles.forEach { it.view.get()?.visibility = View.INVISIBLE }
 
         val accessory = LinearLayout(root.context).apply {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         }
-        val controller = createControls(accessory, title, address, environment, fillWidth = toggles.size > 1)
+        val controller = createControls(accessory, title, address, environment, fillWidth = replacesTitle)
         wrapper.addView(
             accessory,
             FrameLayout.LayoutParams(
-                if (toggles.size > 1) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT,
+                if (replacesTitle) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 Gravity.END or Gravity.CENTER_VERTICAL,
             ),
@@ -102,7 +124,8 @@ internal open class NativeAncToggleMiLinkCardAdapter(
             originalLayoutParams = originalParams,
             originalWidth = originalWidth,
             originalTitleVisibility = originalTitleVisibility,
-            replacesTitle = toggles.size > 1,
+            duplicateTitles = duplicateTitles,
+            replacesTitle = replacesTitle,
             wrapper = wrapper,
             title = title,
             ancCard = ancCard,
@@ -127,6 +150,12 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         val originalIndex = parent.indexOfChild(host.container).takeIf { it >= 0 } ?: return null
         val originalLayoutParams = host.container.layoutParams
         val originalBackground = host.container.background
+        // Older MiLink variants do not expose the caption as anc_card_title. In those
+        // layouts it remains an absolutely positioned TextView and would draw over this
+        // accessory row. Preserve and hide every recognised native noise-control caption.
+        val originalTitles = root.findNativeNoiseControlTitles().map { title ->
+            RestorableVisibility(WeakReference(title), title.visibility)
+        }
 
         val accessory = LinearLayout(root.context).apply {
             gravity = Gravity.CENTER_VERTICAL
@@ -161,6 +190,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         )
         wrapper.addView(host.container)
         parent.addView(wrapper, originalIndex)
+        originalTitles.forEach { it.view.get()?.visibility = View.INVISIBLE }
 
         return EmbeddedBinding(
             parent = parent,
@@ -170,6 +200,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
             wrapper = wrapper,
             ancCard = host.container,
             accessory = accessory,
+            originalTitles = originalTitles,
             controller = controller,
         ).also {
             controller.bind()
@@ -186,6 +217,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         private val originalLayoutParams: ViewGroup.LayoutParams,
         private val originalWidth: Int,
         private val originalTitleVisibility: Int,
+        private val duplicateTitles: List<RestorableVisibility>,
         private val replacesTitle: Boolean,
         wrapper: View,
         title: View,
@@ -196,26 +228,33 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         private val parent = WeakReference(parent)
         private val wrapper = WeakReference(wrapper)
         private val title = WeakReference(title)
+        // A replaced caption has no parent to retain it. Keep it until unbind so GC cannot
+        // interrupt state delivery or prevent restoration of the native card.
+        private var detachedTitle: View? = title.takeIf { replacesTitle }
         private val ancCard = WeakReference(ancCard)
         private val accessory = WeakReference(accessory)
 
         override fun render(state: EarbudState) {
+            controller.render(state)
             val wrapper = wrapper.get() ?: return
             val title = title.get() ?: return
             val ancCard = ancCard.get() ?: return
             val accessory = accessory.get() ?: return
 
+            if (replacesTitle) title.visibility = View.INVISIBLE
+            duplicateTitles.forEach { it.view.get()?.visibility = View.INVISIBLE }
             wrapper.visibility = ancCard.visibility
             accessory.visibility =
                 if (ancCard.isVisible && (replacesTitle || title.isVisible)) View.VISIBLE else View.GONE
-            controller.render(state)
         }
 
         override fun unbind() {
+            controller.unbind()
+            val retainedTitle = detachedTitle ?: title.get()
+            detachedTitle = null
             val parent = parent.get() ?: return
             val wrapper = wrapper.get() ?: return
-            val title = title.get() ?: return
-            controller.unbind()
+            val title = retainedTitle ?: return
             if (wrapper.parent !== parent) return
 
             (title.parent as? ViewGroup)?.removeView(title)
@@ -223,6 +262,9 @@ internal open class NativeAncToggleMiLinkCardAdapter(
             originalLayoutParams.width = originalWidth
             title.layoutParams = originalLayoutParams
             title.visibility = originalTitleVisibility
+            duplicateTitles.forEach { original ->
+                original.view.get()?.visibility = original.visibility
+            }
             parent.addView(title, originalIndex.coerceAtMost(parent.childCount))
         }
     }
@@ -235,6 +277,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         wrapper: ViewGroup,
         ancCard: LinearLayout,
         accessory: View,
+        private val originalTitles: List<RestorableVisibility>,
         private val controller: ToggleController,
     ) : MiLinkCardBinding {
         private val parent = WeakReference(parent)
@@ -246,6 +289,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
             val wrapper = wrapper.get() ?: return
             val ancCard = ancCard.get() ?: return
             val accessory = accessory.get() ?: return
+            originalTitles.forEach { it.view.get()?.visibility = View.INVISIBLE }
             wrapper.visibility = ancCard.visibility
             accessory.visibility = if (ancCard.isVisible) View.VISIBLE else View.GONE
             controller.render(state)
@@ -253,6 +297,9 @@ internal open class NativeAncToggleMiLinkCardAdapter(
 
         override fun unbind() {
             controller.unbind()
+            originalTitles.forEach { original ->
+                original.view.get()?.visibility = original.visibility
+            }
             val parent = parent.get() ?: return
             val wrapper = wrapper.get() ?: return
             val ancCard = ancCard.get() ?: return
@@ -280,14 +327,18 @@ internal open class NativeAncToggleMiLinkCardAdapter(
                 if (index > 0) setPadding(context.dp(LABEL_END_PADDING_DP), 0, 0, 0)
             }
             val label = TextView(accessory.context).apply {
-                text = spec.label
+                text = if (spec is MiLinkToggleDetailsSpec) "${spec.label} ›" else spec.label
                 setTextColor(style.textColors)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, style.textSize)
                 typeface = style.typeface
                 gravity = Gravity.CENTER_VERTICAL
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                importantForAccessibility = if (spec is MiLinkToggleDetailsSpec) {
+                    View.IMPORTANT_FOR_ACCESSIBILITY_YES
+                } else {
+                    View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
                 setPadding(0, 0, context.dp(LABEL_END_PADDING_DP), 0)
             }
             val toggle = createHostToggle(accessory.context, environment.hostClassLoader).apply {
@@ -305,7 +356,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 if (fillWidth) 1f else 0f,
             ))
-            ToggleEntry(spec, WeakReference(group), WeakReference(toggle))
+            ToggleEntry(spec, WeakReference(group), WeakReference(label), WeakReference(toggle))
         }
         return ToggleController(entries, address, environment)
     }
@@ -313,7 +364,11 @@ internal open class NativeAncToggleMiLinkCardAdapter(
     private data class ToggleEntry(
         val spec: MiLinkToggleSpec,
         val group: WeakReference<View>,
+        val label: WeakReference<View>,
         val toggle: WeakReference<CompoundButton>,
+        var pendingChecked: Boolean? = null,
+        var pendingGeneration: Int = 0,
+        var details: MiLinkToggleDetails? = null,
     )
 
     private class ToggleController(
@@ -326,7 +381,15 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         fun bind() {
             entries.forEach { entry ->
                 entry.toggle.get()?.setOnCheckedChangeListener { button, checked ->
-                    onToggleChanged(entry.spec, button, checked)
+                    onToggleChanged(entry, button, checked)
+                }
+                (entry.spec as? MiLinkToggleDetailsSpec)?.let { detailsSpec ->
+                    entry.label.get()?.setOnClickListener { anchor ->
+                        entry.details?.dismiss()
+                        entry.details = detailsSpec.openDetails(anchor, address, environment).also {
+                            it.render(environment.stateProvider(address))
+                        }
+                    }
                 }
             }
         }
@@ -335,12 +398,14 @@ internal open class NativeAncToggleMiLinkCardAdapter(
             rendering = true
             try {
                 entries.forEach { entry ->
+                    entry.details?.render(state)
                     val toggle = entry.toggle.get() ?: return@forEach
                     val value = entry.spec.render(state)
+                    if (entry.pendingChecked == value.checked) entry.pendingChecked = null
                     entry.group.get()?.visibility = if (value.available) View.VISIBLE else View.GONE
                     entry.group.get()?.alpha = if (value.enabled) ENABLED_ALPHA else DISABLED_ALPHA
-                    toggle.isChecked = value.checked
-                    toggle.isEnabled = value.available && value.enabled
+                    toggle.isChecked = entry.pendingChecked ?: value.checked
+                    toggle.isEnabled = value.available && value.enabled && entry.pendingChecked == null
                 }
             } finally {
                 rendering = false
@@ -348,28 +413,50 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         }
 
         fun unbind() {
-            entries.forEach { it.toggle.get()?.setOnCheckedChangeListener(null) }
+            entries.forEach { entry ->
+                entry.pendingGeneration += 1
+                entry.pendingChecked = null
+                entry.toggle.get()?.setOnCheckedChangeListener(null)
+                entry.label.get()?.setOnClickListener(null)
+                entry.details?.dismiss()
+                entry.details = null
+            }
         }
 
-        private fun onToggleChanged(spec: MiLinkToggleSpec, button: CompoundButton, checked: Boolean) {
+        private fun onToggleChanged(entry: ToggleEntry, button: CompoundButton, checked: Boolean) {
             if (rendering) return
             val current = environment.stateProvider(address)
-            val currentToggleState = spec.render(current)
+            val currentToggleState = entry.spec.render(current)
 
-            // A UI gesture is only a request. Restore the authoritative value until the device
-            // reports the new mode through the normal protocol state pipeline.
-            rendering = true
-            try {
-                button.isChecked = currentToggleState.checked
-            } finally {
-                rendering = false
+            val request = if (currentToggleState.available && currentToggleState.enabled) {
+                entry.spec.request(current, checked)
+            } else {
+                null
+            }
+            if (request == null) {
+                rendering = true
+                try {
+                    button.isChecked = currentToggleState.checked
+                } finally {
+                    rendering = false
+                }
+                return
             }
 
-            if (!currentToggleState.available || !currentToggleState.enabled) return
-            val request = spec.request(current, checked) ?: return
-            environment.controlSender(
-                address,
-                request,
+            entry.pendingChecked = checked
+            entry.pendingGeneration += 1
+            val generation = entry.pendingGeneration
+            button.isEnabled = false
+            environment.controlSender(address, request)
+            button.postDelayed(
+                {
+                    if (entry.pendingGeneration != generation || entry.pendingChecked == null) {
+                        return@postDelayed
+                    }
+                    entry.pendingChecked = null
+                    render(environment.stateProvider(address))
+                },
+                CONTROL_CONFIRMATION_TIMEOUT_MS,
             )
         }
     }
@@ -389,6 +476,21 @@ internal open class NativeAncToggleMiLinkCardAdapter(
 
     private fun Context.dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    private fun View.findNativeNoiseControlTitles(): List<View> {
+        val matches = mutableListOf<View>()
+        fun visit(view: View) {
+            if (view is TextView) {
+                val normalized = view.text?.toString()?.trim()?.lowercase()
+                if (normalized in NATIVE_NOISE_CONTROL_TITLES) matches += view
+            }
+            if (view is ViewGroup) {
+                for (index in 0 until view.childCount) visit(view.getChildAt(index))
+            }
+        }
+        visit(this)
+        return matches
+    }
 
     private fun resolveTitleAncCard(root: View): TitleAncCard? =
         resolveSelectAncCard(root) ?: resolveOriginalTitleAncCard(root)
@@ -455,6 +557,11 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         val styleSource: TextView,
     )
 
+    private data class RestorableVisibility(
+        val view: WeakReference<View>,
+        val visibility: Int,
+    )
+
     private enum class NativeAncCardGeneration(val logName: String) {
         ORIGINAL("original"),
         SELECT_CARD("select-card"),
@@ -482,5 +589,12 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         const val EMBEDDED_HEADER_HORIZONTAL_PADDING_DP = 20
         const val ENABLED_ALPHA = 1.0f
         const val DISABLED_ALPHA = 0.45f
+        const val CONTROL_CONFIRMATION_TIMEOUT_MS = 1_500L
+        val NATIVE_NOISE_CONTROL_TITLES = setOf(
+            "噪声控制",
+            "噪音控制",
+            "noise control",
+            "noise controls",
+        )
     }
 }

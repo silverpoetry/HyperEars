@@ -40,6 +40,38 @@ class FeatureStateTransportTest {
     }
 
     @Test
+    fun samsungSettingsStateRoundTripsAsAnAdapterOwnedFeature() {
+        val feature = SamsungBudsSettingsFeatureState(
+            equalizerEnabled = true, equalizerPreset = 2, touchpadLocked = false,
+            singleTapEnabled = true, doubleTapEnabled = true, tripleTapEnabled = true,
+            touchHoldEnabled = true, doubleTapCallEnabled = true, touchHoldCallEnabled = true,
+            touchHoldLeftAction = SamsungTouchAction.NOISE_CONTROL,
+            touchHoldRightAction = SamsungTouchAction.VOLUME,
+            ambientVolume = 3, voiceDetectEnabled = true,
+            noiseControlsWithOneEarbud = true, seamlessConnectionEnabled = true,
+            outsideDoubleTapEnabled = true, sidetoneEnabled = true,
+            extraHighAmbientEnabled = true,
+            touchHoldActionsPending = true,
+            requestedLeftAction = SamsungTouchAction.VOICE_ASSISTANT,
+            requestedRightAction = SamsungTouchAction.NOISE_CONTROL,
+            touchHoldActionsTimedOut = true,
+            touchHoldLeftCycle = SamsungNoiseCycle.ANC_AMBIENT,
+            touchHoldRightCycle = SamsungNoiseCycle.ANC_OFF,
+            touchHoldCyclesPending = true,
+            requestedLeftCycle = SamsungNoiseCycle.ANC_OFF,
+            requestedRightCycle = SamsungNoiseCycle.AMBIENT_OFF,
+            touchHoldCyclesTimedOut = true,
+            voiceDetectSupported = true,
+        )
+        val snapshot = DeviceFeatureSnapshot().update(feature)
+
+        val encoded = FeatureStateTransport.encode(snapshot)
+
+        assertTrue(encoded.contains("\"feature\":\"samsung.buds_settings\""))
+        assertEquals(snapshot, FeatureStateTransport.decode(encoded))
+    }
+
+    @Test
     fun sameFeatureIdentityReplacesThePreviousValue() {
         val snapshot = DeviceFeatureSnapshot()
             .update(NoiseModeFeatureState(NoiseMode.ANC))

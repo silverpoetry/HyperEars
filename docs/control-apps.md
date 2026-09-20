@@ -34,6 +34,13 @@ Sony | Headphones Connect。
 | Sony | Sony \| Sound Connect | `com.sony.songpal.mdr` | 1 |
 | Technics EAH-AZ TWS | Technics Audio Connect | `com.panasonic.technicsaudioconnect` | 1 |
 | 华为 FreeBuds 系列 | 智慧音频 | `com.huawei.smartaudio` | 1 |
+| Samsung Galaxy Buds2 Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds2 Pro | Galaxy Buds2 Pro Manager | `com.samsung.accessory.zenithmgr` | 2 |
+| Samsung Galaxy Buds2 | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds2 | Galaxy Buds2 Manager | `com.samsung.accessory.berrymgr` | 2 |
+| Samsung Galaxy Buds FE | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds FE | Galaxy Buds FE Manager | `com.samsung.accessory.pearlmgr` | 2 |
+| Samsung Galaxy Buds（共享服务回退） | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
 
 “Adapter 声明顺序”只在同一家族声明了多个控制 App 时使用：
 

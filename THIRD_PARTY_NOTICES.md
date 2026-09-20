@@ -210,6 +210,16 @@ HyperEars 端到端实机验证复核。Channel 16、短模式帧和模式值的
 品牌或型号的识别证据。HyperEars 不随 APK 分发华为应用、反编译产物、固件、抓包文件、
 图片或品牌资源；所有商标、产品名称归其各自权利人所有。
 
+## GalaxyBudsClient / Samsung Galaxy Buds protocol research
+
+- timschneeb/GalaxyBudsClient: <https://github.com/timschneeb/GalaxyBudsClient>
+- Reviewed release: `5.1.2`（用户提供的源码归档，修订标识 `b39e90c`）
+- Upstream license: GNU GPL-3.0
+
+用于核对 Galaxy Buds2 Pro 的 RFCOMM UUID、`FD/ DD` 帧、CRC16-XMODEM、扩展状态字段、
+三态降噪与设置命令。HyperEars 在自身 WireCodec、ProtocolSession 和 Adapter 边界中重新组织
+实现，不分发上游应用、界面、图片或三星品牌资源。
+
 ## Android and LSPosed APIs
 
 - Android Open Source Project: <https://source.android.com/>

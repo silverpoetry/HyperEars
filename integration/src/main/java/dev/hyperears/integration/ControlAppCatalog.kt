@@ -82,6 +82,26 @@ object ControlAppCatalog {
         displayName = "MOONDROP",
     )
 
+    val galaxyWearable = ControlAppSpec(
+        packageName = "com.samsung.android.app.watchmanager",
+        displayName = "Galaxy Wearable",
+    )
+
+    val galaxyBuds2ProManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.zenithmgr",
+        displayName = "Galaxy Buds2 Pro Manager",
+    )
+
+    val galaxyBuds2Manager = ControlAppSpec(
+        packageName = "com.samsung.accessory.berrymgr",
+        displayName = "Galaxy Buds2 Manager",
+    )
+
+    val galaxyBudsFeManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.pearlmgr",
+        displayName = "Galaxy Buds FE Manager",
+    )
+
     val all: List<ControlAppSpec> = listOf(
         vivoEarphones,
         heyMelody,
@@ -98,6 +118,10 @@ object ControlAppCatalog {
         technicsAudioConnect,
         huaweiSmartAudio,
         moondrop,
+        galaxyWearable,
+        galaxyBuds2ProManager,
+        galaxyBuds2Manager,
+        galaxyBudsFeManager,
     )
 
     private val byPackage = all.associateBy(ControlAppSpec::packageName)

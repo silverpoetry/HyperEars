@@ -59,6 +59,8 @@ internal data class MiLinkCardEnvironment(
     val hostClassLoader: ClassLoader,
     val stateProvider: (String) -> EarbudState,
     val controlSender: (String, ControlRequest) -> Unit,
+    /** Observe accepted state while a details window is open; returned callback unsubscribes. */
+    val observeState: (String, (EarbudState) -> Unit) -> (() -> Unit),
 )
 
 /**
@@ -81,6 +83,7 @@ internal object MiLinkCardAdapterRegistry {
         EdifierFitBudsTurboMiLinkCardAdapter,
         FitClipUltraGameModeMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
+        SamsungBuds2ProMiLinkCardAdapter,
     )
     private val byId = adapters.associateBy(MiLinkCardAdapter::presentationId)
 

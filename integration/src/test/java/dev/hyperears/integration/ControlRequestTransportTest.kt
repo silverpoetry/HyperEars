@@ -8,6 +8,17 @@ import org.junit.Test
 
 class ControlRequestTransportTest {
     @Test
+    fun samsungSecondaryControlsRoundTrip() {
+        val requests = SamsungTouchGesture.entries.flatMap { gesture ->
+            listOf(true, false).map { SamsungControlRequest.SetTouchGesture(gesture, it) }
+        } + SamsungTouchAction.entries.map {
+            SamsungControlRequest.SetTouchHoldActions(it, it)
+        }
+        requests.forEach { request ->
+            assertEquals(request, ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+        }
+    }
+    @Test
     fun standardRequestsRoundTripWithStableDiscriminators() {
         val requests = listOf(
             StandardControlRequest.Refresh,
@@ -35,6 +46,15 @@ class ControlRequestTransportTest {
 
         assertTrue(encoded.contains("\"command\":\"edifier.set_game_mode\""))
         assertFalse(encoded.contains("standard.set_game_mode"))
+        assertEquals(request, ControlRequestTransport.decode(encoded))
+    }
+
+    @Test
+    fun samsungSettingsRequestRoundTripsWithModelDiscriminator() {
+        val request = SamsungControlRequest.SetEqualizer(enabled = true, preset = 2)
+        val encoded = ControlRequestTransport.encode(request)
+
+        assertTrue(encoded.contains("\"command\":\"samsung.set_equalizer\""))
         assertEquals(request, ControlRequestTransport.decode(encoded))
     }
 

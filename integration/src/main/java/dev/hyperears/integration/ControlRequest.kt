@@ -5,6 +5,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
 /**
  * A semantic control request for one active headset session.
@@ -102,6 +105,13 @@ object ControlRequestTransport {
     private const val MAX_ENCODED_BYTES = 4 * 1024
 
     private val json = Json {
+        serializersModule = SerializersModule {
+            polymorphic(ControlRequest::class) {
+                subclass(SamsungControlRequest.SetTouchGesture::class, SamsungControlRequest.SetTouchGesture.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldActions::class, SamsungControlRequest.SetTouchHoldActions.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldNoiseCycles::class, SamsungControlRequest.SetTouchHoldNoiseCycles.serializer())
+            }
+        }
         classDiscriminator = "command"
         encodeDefaults = true
         explicitNulls = false
