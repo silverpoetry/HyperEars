@@ -37,6 +37,10 @@ class ControlAppArbitrationTest {
             listOf(ControlAppCatalog.moondrop),
             MoondropPuddingAdapter().controlApps,
         )
+        assertEquals(
+            listOf(ControlAppCatalog.moondrop),
+            MoondropMirageAdapter().controlApps,
+        )
         assertTrue(StandardEarbudAdapter().controlApps.isEmpty())
     }
 
