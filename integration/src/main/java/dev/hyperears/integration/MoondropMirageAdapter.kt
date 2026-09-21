@@ -3,18 +3,22 @@ package dev.hyperears.integration
 import dev.hyperears.protocol.moondrop.MoondropPuddingWireCodec
 
 /**
- * Candidate protocol adapter for the MOONDROP MIRAGE TWS headset (assumed Bluetooth name
- * "MOONDROP MIRAGE"; retail identity is a HATSUNE MIKU × MOONDROP co-branded TWS).
+ * Candidate protocol adapter for the MOONDROP MIRAGE TWS headset (Bluetooth name
+ * "MOONDROP MIRAGE" confirmed on device; retail identity is a HATSUNE MIKU × MOONDROP
+ * co-branded TWS).
  *
- * Reference protocol, not device-verified: the FF frame set, handshake, battery bootstrap and
- * noise-mode confirmation are inherited from the same-family Pudding model (shared vendor
- * `chipType=jieli` and a unique catalog relation to Pudding in the 2026-09-16
- * `products/all` snapshot). The decoder is reused unchanged from
- * [MoondropPuddingWireCodec]; a fresh [MoondropPuddingWireCodec.Decoder] instance lives in
+ * Partially device-verified (2026-09-21 HyperEars session): the FF handshake, the private
+ * left/right/case battery and the noise-mode three-state read/write were confirmed on this
+ * model. The frame set, handshake, battery bootstrap and noise-mode confirmation are inherited
+ * from the same-family Pudding model (shared vendor `chipType=jieli` and a unique catalog
+ * relation to Pudding in the 2026-09-16 `products/all` snapshot). The decoder is reused unchanged
+ * from [MoondropPuddingWireCodec]; a fresh [MoondropPuddingWireCodec.Decoder] instance lives in
  * every session, so no state is shared across models or devices. Private battery and noise
  * capabilities stay locked until this device itself answers the strict handshake and the
- * corresponding read responses. See `docs/moondrop-mirage-protocol.md` for the evidence
- * layering and the pending device-validation checklist.
+ * corresponding read responses. Observed device gap: the "noise cancellation" write lands on the
+ * headset's basic ANC level, while the vendor app exposes further levels (e.g. adaptive ANC);
+ * the level-to-byte mapping awaits a device capture. See `docs/moondrop-mirage-protocol.md` for
+ * the evidence layering and the pending device-validation checklist.
  */
 class MoondropMirageAdapter : MoondropEarbudAdapter() {
     private var batteryBootstrapAttempt = 0
