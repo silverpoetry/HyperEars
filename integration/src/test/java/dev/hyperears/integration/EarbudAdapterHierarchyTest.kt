@@ -601,7 +601,13 @@ class EarbudAdapterHierarchyTest {
         assertFalse(adapter.snapshot().capabilities.noiseControl)
         assertTrue(adapter.snapshot().supportedNoiseModes.isEmpty())
         assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
-        val transport = adapter.transports.single() as GattTransportSpec
+        assertEquals(
+            listOf("rose-luli-x-session-gatt", "rose-luli-x-companion-gatt"),
+            adapter.transports.map { it.id },
+        )
+        val transport = adapter.transports
+            .filterIsInstance<GattTransportSpec>()
+            .first { it.peerSelection is GattPeerSelection.CompanionDevice }
         assertEquals(RoseLuliXAdapter.SERVICE_UUID, transport.serviceUuid)
         assertEquals(
             RoseLuliXAdapter.WRITE_CHARACTERISTIC_UUID,
@@ -641,6 +647,25 @@ class EarbudAdapterHierarchyTest {
                     manufacturerData = mapOf(
                         RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
                             hex("01 09 00 01 02 03 04 D7 84 04 64 64 00"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherAcceptsAlternateLengthField() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "BC:87:FA:00:00:01")
+
+        assertTrue(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                            hex("01 12 00 BC 87 FA 00 00 01 03 4F 4D 57"),
                     ),
                 ),
             ),

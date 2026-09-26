@@ -438,6 +438,12 @@ sealed interface GattPeerSelection {
         val filter: GattScanFilterSpec,
         val matcher: GattPeerMatcher,
         val scanTimeoutMs: Long = DEFAULT_SCAN_TIMEOUT_MS,
+        /**
+         * Some units expose the vendor-control advertisement on the same LE identity as the
+         * Classic audio endpoint. When true, the session address is no longer excluded from the
+         * companion association rule; the Adapter-owned matcher still decides.
+         */
+        val allowSessionAddress: Boolean = false,
     ) : GattPeerSelection {
         init {
             require(scanTimeoutMs in 1_000L..30_000L)

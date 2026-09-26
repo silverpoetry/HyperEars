@@ -15,6 +15,15 @@ class RoseCeramicsXAdvertisementCodecTest {
     }
 
     @Test
+    fun parsesRetailUnitPayloadWithAlternateLengthField() {
+        val advertisement = RoseCeramicsXAdvertisementCodec.parse(
+            hex("01 12 00 BC 87 FA 00 00 01 03 4F 4D 57"),
+        )
+
+        assertEquals(0x0001, advertisement?.audioDeviceAddressSuffix)
+    }
+
+    @Test
     fun rejectsTruncatedOrStructurallyDifferentPayloads() {
         assertNull(RoseCeramicsXAdvertisementCodec.parse(hex("01 09 00 D7 84")))
         assertNull(
