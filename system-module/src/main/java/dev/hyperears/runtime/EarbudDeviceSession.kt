@@ -298,17 +298,25 @@ internal class EarbudDeviceSession(
         val policy = adapter.controlPolicy(request)
         val activeChannel = channel ?: return false
         if (!isControlPacingReady(policy.cooldownMs)) return false
+        val queuedAt = SystemClock.elapsedRealtime()
         scope.launch {
             runCatching {
                 transactionMutex.withLock {
                     val result = adapter.executeControl(request)
                     if (!result.accepted) return@withLock
+                    val writeStartedAt = SystemClock.elapsedRealtime()
                     sendCommands(
                         activeChannel = activeChannel,
                         commands = result.commands,
-                        gapMs = COMMAND_GAP_MS,
+                        gapMs = policy.commandGapMs,
                         description = request.description(),
                     )
+                    ModuleLog.debug(COMPONENT) {
+                        "${request.description()} dispatched frames=${result.commands.size} " +
+                            "queueMs=${writeStartedAt - queuedAt} " +
+                            "writeMs=${SystemClock.elapsedRealtime() - writeStartedAt} " +
+                            "gapMs=${policy.commandGapMs}"
+                    }
                     applyAdapterEffects(
                         activeChannel = activeChannel,
                         expectedAdapter = adapter,
@@ -744,7 +752,7 @@ internal class EarbudDeviceSession(
         gapMs: Long,
         description: String,
     ) {
-        commands.forEachIndexed { index, command ->
+        writeCommandSequence(commands, gapMs) { command ->
             currentCoroutineContext().ensureActive()
             if (closed.get() || channel !== activeChannel) {
                 throw CancellationException("stale vendor-channel writer")
@@ -757,7 +765,6 @@ internal class EarbudDeviceSession(
                 COMPONENT,
                 "$description wrote bytes=${command.toHex()}",
             )
-            if (index != commands.lastIndex) delay(gapMs)
         }
     }
 

@@ -82,6 +82,55 @@ object ControlAppCatalog {
         displayName = "MOONDROP",
     )
 
+    val galaxyWearable = ControlAppSpec(
+        packageName = "com.samsung.android.app.watchmanager",
+        displayName = "Galaxy Wearable",
+    )
+
+    val galaxyBuds2ProManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.zenithmgr",
+        displayName = "Galaxy Buds2 Pro Manager",
+    )
+
+    val galaxyBuds2Manager = ControlAppSpec(
+        packageName = "com.samsung.accessory.berrymgr",
+        displayName = "Galaxy Buds2 Manager",
+    )
+
+    val galaxyBudsFeManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.pearlmgr",
+        displayName = "Galaxy Buds FE Manager",
+    )
+
+    val galaxyBudsProManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.atticmgr",
+        displayName = "Galaxy Buds Pro Manager",
+    )
+    val galaxyBudsLiveManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.neobeanmgr",
+        displayName = "Galaxy Buds Live Manager",
+    )
+    val galaxyBuds3Manager = ControlAppSpec(
+        packageName = "com.samsung.accessory.jellymgr",
+        displayName = "Galaxy Buds3 Manager",
+    )
+    val galaxyBuds3ProManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.paranmgr",
+        displayName = "Galaxy Buds3 Pro Manager",
+    )
+    val galaxyBudsCoreManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.pianomgr",
+        displayName = "Galaxy Buds Core Manager",
+    )
+    val galaxyBuds3FeManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.gemstonemgr",
+        displayName = "Galaxy Buds3 FE Manager",
+    )
+    val galaxyBudsUnified = ControlAppSpec(
+        packageName = "com.samsung.accessory.budsunitemgr",
+        displayName = "Galaxy Buds",
+    )
+
     val all: List<ControlAppSpec> = listOf(
         vivoEarphones,
         heyMelody,
@@ -98,6 +147,17 @@ object ControlAppCatalog {
         technicsAudioConnect,
         huaweiSmartAudio,
         moondrop,
+        galaxyWearable,
+        galaxyBuds2ProManager,
+        galaxyBuds2Manager,
+        galaxyBudsFeManager,
+        galaxyBudsProManager,
+        galaxyBudsLiveManager,
+        galaxyBuds3Manager,
+        galaxyBuds3ProManager,
+        galaxyBudsCoreManager,
+        galaxyBuds3FeManager,
+        galaxyBudsUnified,
     )
 
     private val byPackage = all.associateBy(ControlAppSpec::packageName)

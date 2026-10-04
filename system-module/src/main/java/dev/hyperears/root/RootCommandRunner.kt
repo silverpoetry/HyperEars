@@ -35,7 +35,9 @@ enum class RootAction(
             "com.edifier.edifierconnect cn.ikaile.ruoshui.client " +
             "cn.lightyeartech.android com.yuandao.nicehck com.sony.songpal.mdr " +
             "com.qcymall.googleearphonesetup com.panasonic.technicsaudioconnect " +
-            "com.huawei.smartaudio; " +
+            "com.huawei.smartaudio com.moondroplab.moondrop.moondrop_app " +
+            "com.samsung.android.app.watchmanager com.samsung.accessory.zenithmgr " +
+            "com.samsung.accessory.berrymgr com.samsung.accessory.pearlmgr; " +
             "do am force-stop \"\$p\" >/dev/null 2>&1 || true; done",
         verificationCommand = "for p in " +
             "com.vivo.vivotws com.heytap.headset com.oplus.melody " +
@@ -43,7 +45,9 @@ enum class RootAction(
             "com.edifier.edifierconnect cn.ikaile.ruoshui.client " +
             "cn.lightyeartech.android com.yuandao.nicehck com.sony.songpal.mdr " +
             "com.qcymall.googleearphonesetup com.panasonic.technicsaudioconnect " +
-            "com.huawei.smartaudio; " +
+            "com.huawei.smartaudio com.moondroplab.moondrop.moondrop_app " +
+            "com.samsung.android.app.watchmanager com.samsung.accessory.zenithmgr " +
+            "com.samsung.accessory.berrymgr com.samsung.accessory.pearlmgr; " +
             "do pidof \"\$p\" && exit 1; done; exit 0",
         verificationSuccess = { it.isBlank() },
     ),

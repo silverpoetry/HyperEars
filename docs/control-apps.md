@@ -34,6 +34,34 @@ Sony | Headphones Connect。
 | Sony | Sony \| Sound Connect | `com.sony.songpal.mdr` | 1 |
 | Technics EAH-AZ TWS | Technics Audio Connect | `com.panasonic.technicsaudioconnect` | 1 |
 | 华为 FreeBuds 系列 | 智慧音频 | `com.huawei.smartaudio` | 1 |
+| Samsung Galaxy Buds2 Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds2 Pro | Galaxy Buds2 Pro Manager | `com.samsung.accessory.zenithmgr` | 2 |
+| Samsung Galaxy Buds2 | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds2 | Galaxy Buds2 Manager | `com.samsung.accessory.berrymgr` | 2 |
+| Samsung Galaxy Buds FE | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds FE | Galaxy Buds FE Manager | `com.samsung.accessory.pearlmgr` | 2 |
+| Samsung Galaxy Buds Live | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds Live | Galaxy Buds Live Manager | `com.samsung.accessory.neobeanmgr` | 2 |
+| Samsung Galaxy Buds Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds Pro | Galaxy Buds Pro Manager | `com.samsung.accessory.atticmgr` | 2 |
+| Samsung Galaxy Buds3 | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds3 | Galaxy Buds3 Manager | `com.samsung.accessory.jellymgr` | 2 |
+| Samsung Galaxy Buds3 Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds3 Pro | Galaxy Buds3 Pro Manager | `com.samsung.accessory.paranmgr` | 2 |
+| Samsung Galaxy Buds Core | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds Core | Galaxy Buds Core Manager | `com.samsung.accessory.pianomgr` | 2 |
+| Samsung Galaxy Buds3 FE | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds3 FE | Galaxy Buds3 FE Manager | `com.samsung.accessory.gemstonemgr` | 2 |
+| Samsung Galaxy Buds4 / Buds4 Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds4 / Buds4 Pro | Galaxy Buds | `com.samsung.accessory.budsunitemgr` | 2 |
+| 其余已配置的 Samsung Galaxy Buds 具体型号 | Galaxy Buds | `com.samsung.accessory.budsunitemgr` | 3 |
+| Samsung Galaxy Buds（共享服务回退） | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+
+三星新增控制器包名与显示名已于 2026-10-03 核对 Samsung 发布的
+[Google Play 列表](https://play.google.com/store/apps/dev?id=5200379633052405703)；
+统一 Galaxy Buds 控制器的包名以
+[官方应用页面](https://play.google.com/store/apps/details?id=com.samsung.accessory.budsunitemgr) 为准。
+以上只声明导航与进程控制权优先顺序；不表示各型号导航与退避已实机验证。
 
 “Adapter 声明顺序”只在同一家族声明了多个控制 App 时使用：
 

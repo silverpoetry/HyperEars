@@ -799,6 +799,7 @@ internal class MiLinkServiceHook : HookContext() {
             ?.let(ProcessStateStore::knownSnapshot)
             ?: EarbudState()
         val state = ProcessStateStore.accept(intent) ?: return
+        ModuleLog.debug("MiLink", "accepted state rev=${state.revision}")
         state.address?.let {
             val normalized = normalizeAddress(it)
             val systemOwned = deviceOwnership.isSystemOwned(it)
