@@ -142,6 +142,13 @@ class ControlRequestTransportTest {
         )
     }
 
+    @Test
+    fun commandGapDefaultsRemainCompatibleAndCannotBeNegative() {
+        assertEquals(120L, ControlExecutionPolicy().commandGapMs)
+        assertEquals(0L, ControlExecutionPolicy(commandGapMs = 0L).commandGapMs)
+        assertTrue(runCatching { ControlExecutionPolicy(commandGapMs = -1L) }.isFailure)
+    }
+
     private class TestControlAdapter(
         private val policy: ControlExecutionPolicy,
     ) : EarbudAdapter() {

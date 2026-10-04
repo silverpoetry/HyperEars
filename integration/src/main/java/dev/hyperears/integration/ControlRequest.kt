@@ -49,10 +49,12 @@ data class ControlExecutionPolicy(
     val cooldownMs: Long = 0L,
     val readbackDelayMs: Long = DEFAULT_READBACK_DELAY_MS,
     val stateAfterWrite: DeviceFeatureState? = null,
+    val commandGapMs: Long = DEFAULT_COMMAND_GAP_MS,
 ) {
     init {
         require(cooldownMs >= 0L) { "Control cooldown cannot be negative" }
         require(readbackDelayMs >= 0L) { "Control readback delay cannot be negative" }
+        require(commandGapMs >= 0L) { "Control command gap cannot be negative" }
         require(
             confirmation == ControlConfirmationPolicy.DEVICE_REPORT || stateAfterWrite != null,
         ) { "Optimistic control policies require a state to publish" }
@@ -60,6 +62,7 @@ data class ControlExecutionPolicy(
 
     companion object {
         const val DEFAULT_READBACK_DELAY_MS = 120L
+        const val DEFAULT_COMMAND_GAP_MS = 120L
     }
 }
 

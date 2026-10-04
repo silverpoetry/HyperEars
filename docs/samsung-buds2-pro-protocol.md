@@ -108,6 +108,90 @@ Fix19 需核对：卡片长时间打开后修改左右长按；超过 4 秒的�
 改用同版本 `markdownlint-cli2@0.18.1` 时依赖加载报 `ERR_MODULE_NOT_FOUND: globby`。
 这些验证缺项与目标设备复核需在合入前补齐；测试 APK、密钥和原始用户日志不进入仓库。
 
+### 2026-10-03 本地审查修订与 Fix24 实机反馈
+
+- Fix25（`2.7.0-samsung.25` / 20725）按用户要求扩大三星 ANC / 长按适配，待实机复核。
+  新增名称与 SM-R 型号候选覆盖 Live R180、Pro R190、Buds3 R530、3 Pro R630、
+  Core R410、3 FE R420、Buds4 R540、4 Pro R640；名称只选择配置，不证明功能。
+  Live / Pro 使用标准 SPP；其余沿用新 SPP。Live 使用 `0x98` 布尔 ANC，接收 `0x9B`
+  或扩展状态布尔噪声字段，拒绝通透；Pro 与 Live 用单字节非反转锁定值。
+  共同动作仍是 `0x92` 左右两字节，合法 `payload[11]` 两半字节 1–4 才开放。
+  新款要求至少 44 字节合法共同报告；不把尾部充电位或可选控制字段写成已确认能力。
+  Pro 耳缘音量仅在 revision 7+ 且 `payload[31]` 合法布尔值存在时开放，缺失不推断支持。
+  Live / Pro 与新款不重发旧六字节 `0x79`；新款噪声组合格式未充分确认，四级页不开放。
+  新款分项手势、耳缘双击和可选设置隐藏/拒绝，不将无依据 ACK 转成能力。
+  全部已配置型号长按动作不插入模块侧间隔，其他控制发送节奏保持原值。
+  本次依据 GalaxyBudsClient
+  [固定提交](https://github.com/timschneeb/GalaxyBudsClient/tree/754b6fdfb1c151b022cece775c8aaad4eb185afa)
+  的型号配置、状态解析和动作/锁编码。Core / 3 FE 在该客户端仍明确标为布局 TODO，
+  本实现仅采用共同字段，属于实验性家族外推；不宣称所有三星设备和所有固件已支持。
+  控制器包名以 Samsung 官方商店核对，统一维护 Catalog、Adapter、scope 与控制 App 文档。
+  Fix25 Linux 验证：protocol 165、integration 237、system-module 70，共 472 项测试，
+  0 失败、0 错误、0 跳过；文档校验、Release Lint 和完整构建通过。
+  Fix24 用户实测不能替代此版本重验，代码与签名构建亦不替代设备反馈。
+
+- Fix24（`2.7.0-samsung.24` / 20724）针对实际长按生效延迟优化模块侧发送。
+  当前手机模块日志显示：18:31:42.914 转发动作请求，18:31:42.916 写出 `0x92`，
+  18:31:43.042 写出 `0x79`；18:31:43.147 收到 `0x79` ACK，未看到对应 `0x92` ACK。
+  另几次转发到首次写入也仅为 2–3 毫秒；此证据不支持入口存在数秒等待，
+  也不能仅凭写入确认长按功能已生效。用户反馈其他功能正常，但实际长按修改仍延迟。
+  Fix24 用 Adapter 的 `ControlExecutionPolicy.commandGapMs=0` 去掉 Buds2 Pro
+  动作组内的主动等待；框架默认及其他三星型号仍为 120 毫秒，未改名称识别。
+  按现有参考流程顺序发送 `0x92` 后 `0x79`，不等待 ACK、不新增查询、重试或轮询，
+  也不将请求目标标成设备确认。新增按需耗时日志区分排队、写入和配置间隔。
+  已核对当前公开 [SetTouchOptionsEncoder](https://github.com/timschneeb/GalaxyBudsClient/blob/master/GalaxyBudsClient/Message/Encoder/SetTouchOptionsEncoder.cs)
+  仍使用原消息 ID 与左右两字节动作格式；不尝试未知保存指令或盲目重发。
+  该改动只消除模块侧已知主动等待，不据此承诺耳机固件响应时间为零。
+  Fix24 Linux 验证：protocol 158、integration 227、system-module 70，共 455 项测试，
+  0 失败、0 错误、0 跳过；文档校验、Release Lint 和 Release 构建通过。
+  同日用户在安装最终 Fix24 测试包后反馈“测试完成已确认无问题”，记录为该版本
+  Buds2 Pro / HyperOS 4.0 实机复核通过。固件此前称为最新但无具体编号，未提供
+  新版协议日志、逐项清单或量化时延；不推定设备 ACK 已补齐、全部边界场景已验证，
+  也不外推其他型号。以下待复核说明保留各历史修订当时的状态。
+- Fix23 修复隔离诊断确认的三个协议边界和一个菜单状态问题，版本为
+  `2.7.0-samsung.23`（20723）。控制编码前统一处理 90 秒目标过期，静置期间无回包也不再
+  将过期噪声组合带入随后长按动作命令；未过期的连续操作仍合并目标。
+  扩展设置校验 EQ 0–5、左右动作 1–4、环境声等级 0–3；非法设置不夹取为确认值，
+  独立合法电量、噪声字段仍可发布，原已确认设置不被异常回包替换。
+  依据 GalaxyBudsClient 的 `ExtendedStatusUpdateDecoder`，超高环境声字段只在
+  Buds2 Pro revision 13+ 的可选 `payload[45]` 存在且为 0/1 时证明支持。
+  缺失/旧修订不开放该控制；无字段证据的 `0x96` ACK 不提升能力。
+  新增 `extraHighAmbientSupported` 为型号 feature 字段，旧序列化数据缺省为 false。
+  四级页移除未提交草稿，直接使用最新 feature 的对应耳显示组合，点击仍立即提交。
+  新增测试覆盖过期/未过期组合、缺失/旧修订字段、有效开关值、重置、异常回报保留基础能力、
+  合法范围边界及最新组合状态投影。菜单实际渲染仍需 HyperOS 设备复测。
+  不修改型号识别，不新增后台任务、重试或轮询；本次未上传或宣称设备验证通过。
+  Fix23 最终 Linux 验证：protocol 158、integration 224、system-module 65，共 447 项测试，
+  无失败、错误或跳过；Release 构建、Release Lint、协议测试 App 构建和文档检查通过。
+  其中新增 10 项回归测试；跨进程序列化测试同时覆盖新增能力字段及旧数据的 false 缺省。
+  以下 437/436 项记录为本日此前修订的历史结果，不是 Fix23 的最终测试数量。
+- 再次审查补充 ACK 参数范围校验：布尔字段只接受 0/1，环境声等级只接受 0–3，
+  均衡器只接受 0–5，触控 ACK 接受单字节或完整七字节布尔回报；越界或部分字段回报
+  不发布新的确认状态。新增回归测试在修订前失败、修订后通过。
+  最终 Linux 验证共 437 项标准 Gradle 测试通过（protocol 155、integration 217、
+  system-module 65），失败、错误和跳过均为 0；Release 构建、Lint 和文档检查通过。
+  下方 436 项为首次 Linux 验证的历史记录。本次 ACK 行为修订仍需实机复核。
+- 总开关锁定前的耳缘双击音量偏好只记录一次，重复锁定不以禁用回报覆盖原值。
+  同会话解锁时显式发送保存的值，即使禁用 ACK 尚未返回，也不会漏发恢复命令。
+  重连仍清除会话内保存值，不持久化或写回未经确认的默认设置。
+- 帧校验失败时仅丢弃当前起始字节再寻找帧头，避免损坏的长度字段吞掉后续合法帧；
+  合法帧仍整体消费，不改变 CRC 校验、型号识别或能力开放条件。
+- 新增 3 项回归测试，修复前均失败，修复后通过。直接使用已编译类和依赖运行
+  JUnitCore：三星相关 21 项通过，protocol/integration 全部 371 项通过。
+  Gradle 测试执行器仍无法执行测试类，因此不宣称标准 Gradle 测试任务通过。
+- Release 构建、Release Lint、文档结构校验及 `git diff --check` 通过。
+  本次未发布新签名验证包，也未上传到 GitHub。
+- 后续使用 WSL2 / Ubuntu 24.04 的独立 Linux 文件系统副本、JDK 17、Node.js 22、
+  Android SDK 37.0 和 Gradle Wrapper 9.6.0 完成标准 Gradle 验证。
+  `testDebugUnitTest` 执行 protocol 155 项、integration 216 项、system-module 65 项，
+  共 436 项，失败、错误、跳过均为 0；`:protocol-test:assembleDebug`、
+  `:system-module:lintRelease`、`:system-module:assembleRelease` 均通过。
+  `markdownlint-cli2@0.18.1` 检查 31 份文件无错误，文档结构校验也通过。
+  此结果补齐本修订的本地标准测试和文档检查；Windows 测试执行器故障根因尚未确认，
+  Linux 构建通过仍不替代耳机实机复核。
+- 实机复核重点：触控总开关快速关开、重复关闭后开启、耳缘音量原本开启/关闭两种情况、
+  断开重连后是否保持设备实际状态。Fix22 的旧实测结果不替代本次修订复核。
+
 Fix16 需要在目标 HyperOS / MiLink 版本上重点核对：快速连续关闭多个触控手势时是否都保留；
 长按动作和噪声组合的显示是否只在对应确认后结束同步；Galaxy Wearable 前后台切换时的运行时
 退避与恢复。Buds2、Buds FE 和其他共享服务型号还需分别核对电量位置、三态降噪及设置边界。

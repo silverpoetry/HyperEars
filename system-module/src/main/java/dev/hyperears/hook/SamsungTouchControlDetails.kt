@@ -38,7 +38,6 @@ internal class SamsungTouchControlDetails private constructor(
     private lateinit var mainBody: LinearLayout
     private var page = 2
     private var cycleLeft = true
-    private var cycleDraft: SamsungNoiseCycle? = null
     private var controlsAvailable = false
     private val gestureRows = mutableListOf<GestureRow>()
     private lateinit var masterRow: ToggleRow
@@ -47,6 +46,8 @@ internal class SamsungTouchControlDetails private constructor(
     private lateinit var volumeTouchRow: ToggleRow
     private var rendering = false
     private var lastState: SamsungBudsSettingsFeatureState? = null
+    private val gestureSections = mutableListOf<View>()
+    private var volumeSection: View? = null
     private var unsubscribeState: (() -> Unit)? = null
 
     init {
@@ -101,9 +102,15 @@ internal class SamsungTouchControlDetails private constructor(
         try {
             masterRow.render(!feature.touchpadLocked, state.sessionActive && state.connected)
             val touchEnabled = !feature.touchpadLocked
-            gestureRows.forEach { it.render(feature, touchEnabled && state.sessionActive && state.connected) }
+            gestureRows.forEach {
+                it.toggle.container.get()?.visibility = if (feature.touchGesturesSupported) View.VISIBLE else View.GONE
+                it.render(feature, feature.touchGesturesSupported && touchEnabled && state.sessionActive && state.connected)
+            }
+            gestureSections.forEach { it.visibility = if (feature.touchGesturesSupported) View.VISIBLE else View.GONE }
             renderHoldFeedback()
             volumeTouchRow.render(feature.outsideDoubleTapEnabled, touchEnabled && state.sessionActive && state.connected)
+            volumeTouchRow.container.get()?.visibility = if (feature.outsideDoubleTapSupported) View.VISIBLE else View.GONE
+            volumeSection?.visibility = if (feature.outsideDoubleTapSupported) View.VISIBLE else View.GONE
             if (feature != previousFeature || controlsAvailable != previouslyAvailable) {
                 if (page == 3) showHoldPage()
                 if (page == 4) showCyclePage()
@@ -173,7 +180,7 @@ internal class SamsungTouchControlDetails private constructor(
             sendMaster(enabled)
         }
 
-        addSection(body, "媒体控制", secondary)
+        gestureSections += addSection(body, "媒体控制", secondary)
         gestureRows += addGesture(body, "播放或暂停歌曲", "点击", SamsungTouchGesture.SINGLE_TAP) { singleTapEnabled }
         gestureRows += addGesture(body, "播放下一首歌曲", "双击", SamsungTouchGesture.DOUBLE_TAP) { doubleTapEnabled }
         gestureRows += addGesture(body, "播放上一首歌曲", "点击三次", SamsungTouchGesture.TRIPLE_TAP) { tripleTapEnabled }
@@ -183,12 +190,12 @@ internal class SamsungTouchControlDetails private constructor(
         leftActionRow = addAction(body, "左耳长按")
         rightActionRow = addAction(body, "右耳长按")
 
-        addSection(body, "音量触摸控制", secondary)
+        volumeSection = addSection(body, "音量触摸控制", secondary)
         volumeTouchRow = addToggle(body, "双击耳机边缘调节音量", "左侧减小 · 右侧增大") { enabled ->
             if (!rendering) sendVolumeTouch(enabled)
         }
 
-        addSection(body, "通话控制", secondary)
+        gestureSections += addSection(body, "通话控制", secondary)
         gestureRows += addGesture(body, "接听来电或结束通话", "双击", SamsungTouchGesture.DOUBLE_TAP_CALL) {
             doubleTapCallEnabled
         }
@@ -205,10 +212,12 @@ internal class SamsungTouchControlDetails private constructor(
         return panel
     }
 
-    private fun addSection(parent: LinearLayout, title: String, color: Int) {
-        parent.addView(text(title, 14f, color).apply {
+    private fun addSection(parent: LinearLayout, title: String, color: Int): View {
+        val heading = text(title, 14f, color).apply {
             setPadding(context.dp(4), context.dp(18), 0, context.dp(8))
-        })
+        }
+        parent.addView(heading)
+        return heading
     }
 
     private fun addGesture(
@@ -278,7 +287,7 @@ internal class SamsungTouchControlDetails private constructor(
 
     private fun navigateBack() {
         when (page) {
-            4 -> { cycleDraft = null; showHoldPage() }
+            4 -> showHoldPage()
             3 -> {
                 renderHoldFeedback()
                 displayPage(2, "触摸控制", mainBody)
@@ -299,15 +308,16 @@ internal class SamsungTouchControlDetails private constructor(
             // if it was configured elsewhere without advertising an unverified action.
             listOf(SamsungTouchAction.NOISE_CONTROL, SamsungTouchAction.VOICE_ASSISTANT,
                 SamsungTouchAction.VOLUME).forEach { action ->
-                val subtitle = if (action == SamsungTouchAction.NOISE_CONTROL) cycleLabel(cycle) + "  ›" else ""
+                val cyclesSupported = feature.touchHoldLeftCycle != null && feature.touchHoldRightCycle != null
+                val subtitle = if (action == SamsungTouchAction.NOISE_CONTROL && cyclesSupported)
+                    cycleLabel(cycle) + "  ›" else ""
                 addChoice(body, if (action == SamsungTouchAction.VOLUME) {
                     if (left) "音量减小" else "音量增加"
                 } else actionLabel(action), subtitle, current == action, controlsAvailable) {
                     if (!controlsAvailable) return@addChoice
                     sendAction(if (left) action else null, if (left) null else action)
-                    if (action == SamsungTouchAction.NOISE_CONTROL) {
+                    if (action == SamsungTouchAction.NOISE_CONTROL && cyclesSupported) {
                         cycleLeft = left
-                        cycleDraft = if (left) lastState?.displayedLeftCycle else lastState?.displayedRightCycle
                         showCyclePage()
                     }
                 }
@@ -322,19 +332,18 @@ internal class SamsungTouchControlDetails private constructor(
     private fun showCyclePage() {
         val feature = lastState ?: return
         val body = pageBody()
+        val selected = if (cycleLeft) feature.displayedLeftCycle else feature.displayedRightCycle
         addSection(body, if (cycleLeft) "左侧 · 切换噪声控制" else "右侧 · 切换噪声控制",
             context.themeColor(android.R.attr.textColorSecondary, Color.GRAY))
         SamsungNoiseCycle.entries.forEach { cycle ->
-            addChoice(body, cycleLabel(cycle), "", cycleDraft == cycle, controlsAvailable) {
-                cycleDraft = cycle
-                sendCycleDraft()
+            addChoice(body, cycleLabel(cycle), "", selected == cycle, controlsAvailable) {
+                if (controlsAvailable) sendCycle(cycle)
             }
         }
         displayPage(4, "噪声切换组合", body)
     }
 
-    private fun sendCycleDraft() {
-        val selected = cycleDraft ?: return
+    private fun sendCycle(selected: SamsungNoiseCycle) {
         val current = lastState ?: return
         val left = if (cycleLeft) selected else current.displayedLeftCycle ?: return
         val right = if (!cycleLeft) selected else current.displayedRightCycle ?: return
@@ -343,7 +352,6 @@ internal class SamsungTouchControlDetails private constructor(
             lastState = current.copy(requestedLeftCycle = left, requestedRightCycle = right,
                 touchHoldCyclesPending = true, touchHoldCyclesTimedOut = false)
         }
-        cycleDraft = null
         showHoldPage()
     }
 
@@ -477,7 +485,7 @@ internal class SamsungTouchControlDetails private constructor(
     }
 
     private inner class ToggleRow(
-        private val container: WeakReference<View>,
+        val container: WeakReference<View>,
         private val toggle: WeakReference<CompoundButton>,
         var pending: Boolean? = null,
         var generation: Int = 0,

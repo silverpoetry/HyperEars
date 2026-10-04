@@ -51,6 +51,7 @@ class FeatureStateTransportTest {
             noiseControlsWithOneEarbud = true, seamlessConnectionEnabled = true,
             outsideDoubleTapEnabled = true, sidetoneEnabled = true,
             extraHighAmbientEnabled = true,
+            extraHighAmbientSupported = true,
             touchHoldActionsPending = true,
             requestedLeftAction = SamsungTouchAction.VOICE_ASSISTANT,
             requestedRightAction = SamsungTouchAction.NOISE_CONTROL,
@@ -69,6 +70,10 @@ class FeatureStateTransportTest {
 
         assertTrue(encoded.contains("\"feature\":\"samsung.buds_settings\""))
         assertEquals(snapshot, FeatureStateTransport.decode(encoded))
+        val legacyEncoded = encoded.replace(",\"extraHighAmbientSupported\":true", "")
+        assertFalse(legacyEncoded.contains("extraHighAmbientSupported"))
+        assertEquals(feature.copy(extraHighAmbientSupported = false),
+            FeatureStateTransport.decode(legacyEncoded)?.get<SamsungBudsSettingsFeatureState>())
     }
 
     @Test

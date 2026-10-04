@@ -5,7 +5,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
-/** Samsung Galaxy Buds2 Pro (SM-R510) private RFCOMM integration. */
+/** Samsung ANC-capable Galaxy Buds family; model selection never proves a capability. */
 class SamsungBuds2ProAdapter(
     private val model: SamsungBudsCodec.Model = SamsungBudsCodec.Model.BUDS2_PRO,
 ) : StandardEarbudAdapter() {
@@ -13,12 +13,28 @@ class SamsungBuds2ProAdapter(
         SamsungBudsCodec.Model.BUDS2_PRO -> ID
         SamsungBudsCodec.Model.BUDS2 -> "samsung-galaxy-buds2"
         SamsungBudsCodec.Model.BUDS_FE -> "samsung-galaxy-buds-fe"
+        SamsungBudsCodec.Model.BUDS_LIVE -> "samsung-galaxy-buds-live"
+        SamsungBudsCodec.Model.BUDS_PRO -> "samsung-galaxy-buds-pro"
+        SamsungBudsCodec.Model.BUDS3 -> "samsung-galaxy-buds3"
+        SamsungBudsCodec.Model.BUDS3_PRO -> "samsung-galaxy-buds3-pro"
+        SamsungBudsCodec.Model.BUDS_CORE -> "samsung-galaxy-buds-core"
+        SamsungBudsCodec.Model.BUDS3_FE -> "samsung-galaxy-buds3-fe"
+        SamsungBudsCodec.Model.BUDS4 -> "samsung-galaxy-buds4"
+        SamsungBudsCodec.Model.BUDS4_PRO -> "samsung-galaxy-buds4-pro"
         SamsungBudsCodec.Model.UNKNOWN -> "samsung-galaxy-buds-family"
     }
     override val displayName: String = when (model) {
         SamsungBudsCodec.Model.BUDS2_PRO -> "Samsung Galaxy Buds2 Pro"
         SamsungBudsCodec.Model.BUDS2 -> "Samsung Galaxy Buds2"
         SamsungBudsCodec.Model.BUDS_FE -> "Samsung Galaxy Buds FE"
+        SamsungBudsCodec.Model.BUDS_LIVE -> "Samsung Galaxy Buds Live"
+        SamsungBudsCodec.Model.BUDS_PRO -> "Samsung Galaxy Buds Pro"
+        SamsungBudsCodec.Model.BUDS3 -> "Samsung Galaxy Buds3"
+        SamsungBudsCodec.Model.BUDS3_PRO -> "Samsung Galaxy Buds3 Pro"
+        SamsungBudsCodec.Model.BUDS_CORE -> "Samsung Galaxy Buds Core"
+        SamsungBudsCodec.Model.BUDS3_FE -> "Samsung Galaxy Buds3 FE"
+        SamsungBudsCodec.Model.BUDS4 -> "Samsung Galaxy Buds4"
+        SamsungBudsCodec.Model.BUDS4_PRO -> "Samsung Galaxy Buds4 Pro"
         SamsungBudsCodec.Model.UNKNOWN -> "Samsung Galaxy Buds (shared service)"
     }
     override val resolution: AdapterResolution = if (model == SamsungBudsCodec.Model.UNKNOWN)
@@ -26,7 +42,8 @@ class SamsungBuds2ProAdapter(
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
     override val transports: List<EarbudTransportSpec> = listOf(
-        RfcommEndpointSpec.ServiceUuid(BUDS2_PRO_UUID, "samsung-buds2-pro-rfcomm"),
+        RfcommEndpointSpec.ServiceUuid(if (model.legacyTouch) STANDARD_SPP_UUID else BUDS2_PRO_UUID,
+            "samsung-buds-rfcomm"),
     )
     override val controlApps: List<ControlAppSpec> = buildList {
         add(ControlAppCatalog.galaxyWearable)
@@ -34,8 +51,18 @@ class SamsungBuds2ProAdapter(
             SamsungBudsCodec.Model.BUDS2_PRO -> add(ControlAppCatalog.galaxyBuds2ProManager)
             SamsungBudsCodec.Model.BUDS2 -> add(ControlAppCatalog.galaxyBuds2Manager)
             SamsungBudsCodec.Model.BUDS_FE -> add(ControlAppCatalog.galaxyBudsFeManager)
+            SamsungBudsCodec.Model.BUDS_PRO -> add(ControlAppCatalog.galaxyBudsProManager)
+            SamsungBudsCodec.Model.BUDS_LIVE -> add(ControlAppCatalog.galaxyBudsLiveManager)
+            SamsungBudsCodec.Model.BUDS3 -> add(ControlAppCatalog.galaxyBuds3Manager)
+            SamsungBudsCodec.Model.BUDS3_PRO -> add(ControlAppCatalog.galaxyBuds3ProManager)
+            SamsungBudsCodec.Model.BUDS_CORE -> add(ControlAppCatalog.galaxyBudsCoreManager)
+            SamsungBudsCodec.Model.BUDS3_FE -> add(ControlAppCatalog.galaxyBuds3FeManager)
+            SamsungBudsCodec.Model.BUDS4, SamsungBudsCodec.Model.BUDS4_PRO -> Unit
             SamsungBudsCodec.Model.UNKNOWN -> Unit
         }
+        // Samsung's newer unified controller is a control-ownership boundary,
+        // never a model-identification hint.
+        if (model != SamsungBudsCodec.Model.UNKNOWN) add(ControlAppCatalog.galaxyBudsUnified)
     }
     override val featureStateContract: DeviceFeatureStateContract =
         StandardDeviceFeatureStateContract.extending { _, state -> state is SamsungBudsSettingsFeatureState }
@@ -43,19 +70,19 @@ class SamsungBuds2ProAdapter(
         StandardControlRequestContract.extending { adapter, request ->
             val settings = adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()
             settings != null && when (request) {
-                is SamsungControlRequest.SetAmbientVolume -> request.level in 0..3
-                is SamsungControlRequest.SetEqualizer -> request.preset in 0..4
+                is SamsungControlRequest.SetAmbientVolume -> settings.optionalSettingsSupported && request.level in 0..3
+                is SamsungControlRequest.SetEqualizer -> settings.optionalSettingsSupported && request.preset in 0..4
                 is SamsungControlRequest.SetTouchHoldNoiseCycles ->
                     settings.touchHoldLeftCycle != null && settings.touchHoldRightCycle != null
                 is SamsungControlRequest.SetVoiceDetect -> settings.voiceDetectSupported
-                is SamsungControlRequest.SetExtraHighAmbient -> model == SamsungBudsCodec.Model.BUDS2_PRO
-                is SamsungControlRequest.SetTouchpadLock,
-                is SamsungControlRequest.SetTouchGesture,
-                is SamsungControlRequest.SetTouchHoldActions,
+                is SamsungControlRequest.SetExtraHighAmbient -> settings.extraHighAmbientSupported
+                is SamsungControlRequest.SetTouchGesture -> settings.touchGesturesSupported
+                is SamsungControlRequest.SetOutsideDoubleTap -> settings.outsideDoubleTapSupported
                 is SamsungControlRequest.SetNoiseControlsWithOneEarbud,
                 is SamsungControlRequest.SetSeamlessConnection,
-                is SamsungControlRequest.SetOutsideDoubleTap,
-                is SamsungControlRequest.SetSidetone,
+                is SamsungControlRequest.SetSidetone -> settings.optionalSettingsSupported
+                is SamsungControlRequest.SetTouchpadLock,
+                is SamsungControlRequest.SetTouchHoldActions,
                 -> true
                 else -> false
             }
@@ -67,6 +94,9 @@ class SamsungBuds2ProAdapter(
         return when (request) {
             is SamsungControlRequest.SetTouchHoldActions -> ControlExecutionPolicy(
                 confirmation = ControlConfirmationPolicy.PUBLISH_AFTER_WRITE,
+                // Immediate ordered submission for all supported Samsung hold
+                // actions; per-model encoders select which frames are valid.
+                commandGapMs = 0L,
                 stateAfterWrite = current.copy(
                     requestedLeftAction = request.left,
                     requestedRightAction = request.right,
@@ -97,6 +127,14 @@ class SamsungBuds2ProAdapter(
         val name = normalizeDeviceName(identity.deviceName.orEmpty())
         val namedModel = when {
             MODEL_MARKERS.any(name::contains) -> SamsungBudsCodec.Model.BUDS2_PRO
+            name.contains("buds4pro") || name.contains("smr640") -> SamsungBudsCodec.Model.BUDS4_PRO
+            name.contains("buds4") || name.contains("smr540") -> SamsungBudsCodec.Model.BUDS4
+            name.contains("buds3pro") || name.contains("smr630") -> SamsungBudsCodec.Model.BUDS3_PRO
+            name.contains("buds3fe") || name.contains("smr420") -> SamsungBudsCodec.Model.BUDS3_FE
+            name.contains("buds3") || name.contains("smr530") -> SamsungBudsCodec.Model.BUDS3
+            name.contains("budscore") || name.contains("smr410") -> SamsungBudsCodec.Model.BUDS_CORE
+            name.contains("budspro") || name.contains("smr190") -> SamsungBudsCodec.Model.BUDS_PRO
+            name.contains("budslive") || name.contains("smr180") -> SamsungBudsCodec.Model.BUDS_LIVE
             name.contains("buds2") || name.contains("smr177") -> SamsungBudsCodec.Model.BUDS2
             name.contains("budsfe") || name.contains("smr400") -> SamsungBudsCodec.Model.BUDS_FE
             else -> SamsungBudsCodec.Model.UNKNOWN
@@ -114,6 +152,7 @@ class SamsungBuds2ProAdapter(
     companion object {
         const val ID = "samsung-galaxy-buds2-pro"
         const val BUDS2_PRO_UUID = "2e73a4ad-332d-41fc-90e2-16bef06523f2"
+        const val STANDARD_SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb"
         private val MODEL_MARKERS = setOf("galaxybuds2pro", "buds2pro", "smr510")
     }
 }
@@ -154,6 +193,10 @@ data class SamsungBudsSettingsFeatureState(
     val touchHoldActionsTimedOut: Boolean = false,
     val touchHoldCyclesTimedOut: Boolean = false,
     val voiceDetectSupported: Boolean = true,
+    val extraHighAmbientSupported: Boolean = false,
+    val touchGesturesSupported: Boolean = true,
+    val outsideDoubleTapSupported: Boolean = true,
+    val optionalSettingsSupported: Boolean = true,
 ) : DeviceFeatureState {
     @Transient
     override val featureId: String = FEATURE_ID
@@ -253,30 +296,43 @@ internal class SamsungBuds2ProProtocolSession(
 
     override fun initialReadCommands(): List<ByteArray> = emptyList()
 
-    override fun encode(request: ControlRequest): List<ByteArray> = when (request) {
+    override fun encode(request: ControlRequest): List<ByteArray> {
+        // A new request can arrive after a quiet period with no status/ACK to
+        // expire old targets. Never replay those targets in a later command.
+        expirePending()
+        return encodeCurrent(request)
+    }
+
+    private fun encodeCurrent(request: ControlRequest): List<ByteArray> = when (request) {
         StandardControlRequest.Refresh -> listOf(SamsungBudsCodec.managerInfoCommand())
         is StandardControlRequest.SetNoiseMode -> request.mode.toSamsungMode()
-            ?.let(SamsungBudsCodec::noiseModeCommand)?.let(::listOf).orEmpty()
+            ?.let { SamsungBudsCodec.noiseModeCommand(it, model) }?.let(::listOf).orEmpty()
         is SamsungControlRequest.SetAmbientVolume ->
             listOf(SamsungBudsCodec.packet(SamsungBudsCodec.AMBIENT_VOLUME, byteArrayOf(request.level.toByte())))
         is SamsungControlRequest.SetEqualizer ->
             listOf(SamsungBudsCodec.equalizerCommand(request.enabled, request.preset))
         is SamsungControlRequest.SetTouchpadLock -> settings?.let { confirmed ->
-            expirePending()
             val current = touchTarget(confirmed)
             pendingTouchLock = request.enabled
             touchDeadline = elapsedMs() + HOLD_CONFIRMATION_WINDOW_MS
             buildList {
-                add(SamsungBudsCodec.touchpadLockCommand(request.enabled, current))
-                if (request.enabled) {
-                    outsideDoubleTapBeforeTouchLock = current.outsideDoubleTapEnabled
+                add(SamsungBudsCodec.touchpadLockCommand(request.enabled, current, model))
+                if (request.enabled && current.outsideDoubleTapSupported) {
+                    // Repeated lock requests must not replace the pre-lock preference
+                    // with the disabled value reported after the first request.
+                    if (outsideDoubleTapBeforeTouchLock == null) {
+                        outsideDoubleTapBeforeTouchLock = current.outsideDoubleTapEnabled
+                    }
                     if (current.outsideDoubleTapEnabled) {
                         add(SamsungBudsCodec.boolCommand(SamsungBudsCodec.OUTSIDE_DOUBLE_TAP, false))
                     }
-                } else {
+                } else if (current.outsideDoubleTapSupported) {
                     val restoreOutsideDoubleTap = outsideDoubleTapBeforeTouchLock
                         ?: current.outsideDoubleTapEnabled
-                    if (current.outsideDoubleTapEnabled != restoreOutsideDoubleTap) {
+                    // The disable ACK may still be in flight. When restoring a saved
+                    // preference, send it even if the last report still matches it.
+                    if (outsideDoubleTapBeforeTouchLock != null ||
+                        current.outsideDoubleTapEnabled != restoreOutsideDoubleTap) {
                         add(
                             SamsungBudsCodec.boolCommand(
                                 SamsungBudsCodec.OUTSIDE_DOUBLE_TAP,
@@ -289,11 +345,10 @@ internal class SamsungBuds2ProProtocolSession(
             }
         }.orEmpty()
         is SamsungControlRequest.SetTouchGesture -> settings?.let { confirmed ->
-            expirePending()
             pendingGestures[request.gesture] = request.enabled
             touchDeadline = elapsedMs() + HOLD_CONFIRMATION_WINDOW_MS
             val target = touchTarget(confirmed)
-            listOf(SamsungBudsCodec.touchpadLockCommand(target.touchpadLocked, target))
+            listOf(SamsungBudsCodec.touchpadLockCommand(target.touchpadLocked, target, model))
         }.orEmpty()
         is SamsungControlRequest.SetTouchHoldActions -> {
             pendingTouchHoldActions = request.left.wire to request.right.wire
@@ -349,9 +404,9 @@ internal class SamsungBuds2ProProtocolSession(
                 add(ProtocolEvent.CapabilitiesIdentified(battery = true))
                 add(ProtocolEvent.FeatureStateChanged(BatteryFeatureState(battery.toDomain())))
             }
-            SamsungBudsCodec.parseNoiseMode(frame)?.let { mode ->
+            SamsungBudsCodec.parseNoiseMode(frame, model)?.let { mode ->
                 accepted = true
-                add(ProtocolEvent.CapabilitiesIdentified(false, THREE_STATE_NOISE_MODES))
+                add(ProtocolEvent.CapabilitiesIdentified(false, noiseModes))
                 add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode.toDomain())))
             }
             SamsungBudsCodec.parseExtendedStatus(frame, model)?.settings?.let { reported ->
@@ -363,10 +418,11 @@ internal class SamsungBuds2ProProtocolSession(
             }
             SamsungBudsCodec.parseAcknowledgement(frame)?.let { ack ->
                 when (ack.commandId) {
-                    SamsungBudsCodec.NOISE_CONTROLS -> ack.parameters.firstOrNull()
+                    noiseCommandId -> ack.parameters.firstOrNull()
                         ?.toInt()?.and(0xFF)?.toSamsungNoiseMode()?.let { mode ->
+                            if (mode.toDomain() !in noiseModes) return@let
                             accepted = true
-                            add(ProtocolEvent.CapabilitiesIdentified(false, THREE_STATE_NOISE_MODES))
+                            add(ProtocolEvent.CapabilitiesIdentified(false, noiseModes))
                             add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode.toDomain())))
                         }
                     else -> settings?.applyAcknowledgement(ack)?.let { reported ->
@@ -494,12 +550,23 @@ internal class SamsungBuds2ProProtocolSession(
         ack: SamsungBudsCodec.Acknowledgement,
     ): SamsungBudsCodec.SettingsState? {
         val value = ack.parameters.firstOrNull()?.toInt()?.and(0xFF) ?: return null
+        if (ack.commandId == SamsungBudsCodec.SET_DETECT_CONVERSATIONS && !voiceDetectSupported) return null
+        if (ack.commandId == SamsungBudsCodec.OUTSIDE_DOUBLE_TAP && !outsideDoubleTapSupported) return null
+        if (ack.commandId == SamsungBudsCodec.SET_TOUCH_AND_HOLD_NOISE_CONTROLS &&
+            (touchHoldLeftCycle == null || touchHoldRightCycle == null)) return null
+        if (ack.commandId in OPTIONAL_ACK_COMMANDS && !optionalSettingsSupported) return null
+        if (ack.commandId in BOOLEAN_ACK_COMMANDS && value !in 0..1) return null
+        if (ack.commandId == SamsungBudsCodec.LOCK_TOUCHPAD &&
+            (ack.parameters.size !in (if (model.legacyTouch) setOf(1) else setOf(1, 7)) ||
+                ack.parameters.any { it.toInt() !in 0..1 })) {
+            return null
+        }
         return when (ack.commandId) {
             SamsungBudsCodec.SET_DETECT_CONVERSATIONS -> copy(voiceDetectEnabled = value != 0)
             SamsungBudsCodec.LOCK_TOUCHPAD -> copy(
                 // Buds2 Pro echoes the protocol's touch-enabled bit here. The command
                 // encodes a locked touchpad as 0 and an unlocked touchpad as 1.
-                touchpadLocked = value == 0,
+                touchpadLocked = if (model.legacyTouch) value == 1 else value == 0,
                 singleTapEnabled = ack.parameters.getOrNull(1)?.let { it.toInt() == 1 }
                     ?: singleTapEnabled,
                 doubleTapEnabled = ack.parameters.getOrNull(2)?.let { it.toInt() == 1 }
@@ -527,18 +594,20 @@ internal class SamsungBuds2ProProtocolSession(
                 copy(touchHoldLeftCycle = mask(0) ?: return null,
                     touchHoldRightCycle = mask(3) ?: return null)
             }
-            SamsungBudsCodec.AMBIENT_VOLUME -> copy(ambientVolume = value.coerceIn(0, 3))
-            SamsungBudsCodec.EQUALIZER -> copy(
+            SamsungBudsCodec.AMBIENT_VOLUME ->
+                if (value in 0..3) copy(ambientVolume = value) else null
+            SamsungBudsCodec.EQUALIZER -> if (value in 0..5) copy(
                 equalizerEnabled = value != 0,
                 equalizerPreset = (value - 1).coerceIn(0, 4),
-            )
+            ) else null
             SamsungBudsCodec.SET_ANC_WITH_ONE_EARBUD ->
                 copy(noiseControlsWithOneEarbud = value != 0)
             SamsungBudsCodec.SET_SEAMLESS_CONNECTION ->
                 copy(seamlessConnectionEnabled = value == 0)
             SamsungBudsCodec.OUTSIDE_DOUBLE_TAP -> copy(outsideDoubleTapEnabled = value != 0)
             SamsungBudsCodec.SET_SIDETONE -> copy(sidetoneEnabled = value != 0)
-            SamsungBudsCodec.EXTRA_HIGH_AMBIENT -> copy(extraHighAmbientEnabled = value != 0)
+            SamsungBudsCodec.EXTRA_HIGH_AMBIENT ->
+                if (extraHighAmbientSupported) copy(extraHighAmbientEnabled = value != 0) else null
             else -> null
         }
     }
@@ -579,11 +648,33 @@ internal class SamsungBuds2ProProtocolSession(
         requestedRightCycle = SamsungNoiseCycle.entries.firstOrNull { it.mask == pendingTouchHoldCycles?.second },
         touchHoldActionsTimedOut = actionsTimedOut,
         touchHoldCyclesTimedOut = cyclesTimedOut,
-        voiceDetectSupported = model == SamsungBudsCodec.Model.BUDS2_PRO,
+        voiceDetectSupported = voiceDetectSupported,
+        extraHighAmbientSupported = extraHighAmbientSupported,
+        touchGesturesSupported = touchGesturesSupported,
+        outsideDoubleTapSupported = outsideDoubleTapSupported,
+        optionalSettingsSupported = optionalSettingsSupported,
     )
+
+    private val noiseModes: Set<NoiseMode> get() = if (model.ambient) THREE_STATE_NOISE_MODES
+        else setOf(NoiseMode.ANC, NoiseMode.OFF)
+    private val noiseCommandId: Int get() = if (model == SamsungBudsCodec.Model.BUDS_LIVE)
+        SamsungBudsCodec.SET_NOISE_REDUCTION else SamsungBudsCodec.NOISE_CONTROLS
 
     private companion object {
         const val HOLD_CONFIRMATION_WINDOW_MS = 90_000L
+        val OPTIONAL_ACK_COMMANDS = setOf(
+            SamsungBudsCodec.AMBIENT_VOLUME, SamsungBudsCodec.EQUALIZER,
+            SamsungBudsCodec.SET_ANC_WITH_ONE_EARBUD, SamsungBudsCodec.SET_SEAMLESS_CONNECTION,
+            SamsungBudsCodec.SET_SIDETONE,
+        )
         val THREE_STATE_NOISE_MODES = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY)
+        val BOOLEAN_ACK_COMMANDS = setOf(
+            SamsungBudsCodec.SET_DETECT_CONVERSATIONS,
+            SamsungBudsCodec.SET_ANC_WITH_ONE_EARBUD,
+            SamsungBudsCodec.SET_SEAMLESS_CONNECTION,
+            SamsungBudsCodec.OUTSIDE_DOUBLE_TAP,
+            SamsungBudsCodec.SET_SIDETONE,
+            SamsungBudsCodec.EXTRA_HIGH_AMBIENT,
+        )
     }
 }

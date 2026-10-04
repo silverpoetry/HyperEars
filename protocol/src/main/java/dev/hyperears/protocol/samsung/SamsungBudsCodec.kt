@@ -2,7 +2,18 @@ package dev.hyperears.protocol.samsung
 
 /** Samsung Galaxy Buds message framing used by Buds2 Pro over its RFCOMM service. */
 object SamsungBudsCodec {
-    enum class Model { BUDS2_PRO, BUDS2, BUDS_FE, UNKNOWN }
+    enum class Model {
+        BUDS2_PRO, BUDS2, BUDS_FE, BUDS_LIVE, BUDS_PRO,
+        BUDS3, BUDS3_PRO, BUDS_CORE, BUDS3_FE, BUDS4, BUDS4_PRO, UNKNOWN;
+
+        val legacyTouch: Boolean get() = this == BUDS_LIVE || this == BUDS_PRO
+        // Newer models expose only the researched common hold/noise controls.
+        // Do not replay Buds2 Pro noise-cycle or optional-setting bytes on them.
+        val commonHoldOnly: Boolean get() = this in setOf(
+            BUDS3, BUDS3_PRO, BUDS_CORE, BUDS3_FE, BUDS4, BUDS4_PRO,
+        )
+        val ambient: Boolean get() = this !in setOf(BUDS_LIVE, BUDS3, BUDS4)
+    }
     const val UNIVERSAL_ACK = 0x42
     const val STATUS_UPDATED = 0x60
     const val EXTENDED_STATUS_UPDATED = 0x61
@@ -21,6 +32,9 @@ object SamsungBudsCodec {
     const val OUTSIDE_DOUBLE_TAP = 0x95
     const val EXTRA_HIGH_AMBIENT = 0x96
     const val SET_SEAMLESS_CONNECTION = 0xAF
+    // GalaxyBudsClient Buds Live uses a separate boolean ANC command/report.
+    const val SET_NOISE_REDUCTION = 0x98
+    const val NOISE_REDUCTION_MODE_UPDATE = 0x9B
 
     enum class NoiseMode(val wire: Int) { OFF(0), ANC(1), AMBIENT(2) }
 
@@ -58,6 +72,11 @@ object SamsungBudsCodec {
         val extraHighAmbientEnabled: Boolean,
         val touchHoldLeftCycle: Int? = null,
         val touchHoldRightCycle: Int? = null,
+        val extraHighAmbientSupported: Boolean = false,
+        val touchGesturesSupported: Boolean = true,
+        val outsideDoubleTapSupported: Boolean = true,
+        val voiceDetectSupported: Boolean = false,
+        val optionalSettingsSupported: Boolean = true,
     )
 
     data class ExtendedStatus(
@@ -86,7 +105,11 @@ object SamsungBudsCodec {
     fun boolCommand(id: Int, enabled: Boolean): ByteArray =
         packet(id, byteArrayOf(enabled.byte()))
 
-    fun noiseModeCommand(mode: NoiseMode): ByteArray = packet(NOISE_CONTROLS, byteArrayOf(mode.wire.toByte()))
+    fun noiseModeCommand(mode: NoiseMode, model: Model = Model.BUDS2_PRO): ByteArray {
+        require(model.ambient || mode != NoiseMode.AMBIENT)
+        return if (model == Model.BUDS_LIVE) boolCommand(SET_NOISE_REDUCTION, mode == NoiseMode.ANC)
+        else packet(NOISE_CONTROLS, byteArrayOf(mode.wire.toByte()))
+    }
 
     fun managerInfoCommand(androidSdk: Int = 35): ByteArray =
         packet(MANAGER_INFO, byteArrayOf(1, 2, androidSdk.coerceIn(0, 255).toByte()))
@@ -96,7 +119,8 @@ object SamsungBudsCodec {
         return packet(EQUALIZER, byteArrayOf(if (enabled) (preset + 1).toByte() else 0.toByte()))
     }
 
-    fun touchpadLockCommand(enabled: Boolean, state: SettingsState): ByteArray = packet(
+    fun touchpadLockCommand(enabled: Boolean, state: SettingsState, model: Model = Model.BUDS2_PRO): ByteArray =
+        if (model.legacyTouch) boolCommand(LOCK_TOUCHPAD, enabled) else packet(
         LOCK_TOUCHPAD,
         byteArrayOf(
             (!enabled).byte(),
@@ -136,7 +160,7 @@ object SamsungBudsCodec {
 
     fun parseBattery(frame: Frame, model: Model = Model.BUDS2_PRO): BatteryState? = when (frame.id) {
         STATUS_UPDATED -> frame.payload.takeIf { it.size >= 7 }?.let { p ->
-            val charging = p.getOrNull(7)?.u() ?: 0
+            val charging = if (model.legacyTouch) 0 else p.getOrNull(7)?.u() ?: 0
             BatteryState(
                 p[1].u().percent(), p[2].u().percent(), p[6].u().percent(),
                 charging and 0x10 != 0, charging and 0x04 != 0, charging and 0x01 != 0,
@@ -146,7 +170,7 @@ object SamsungBudsCodec {
             val chargingIndex = when (model) {
                 Model.BUDS2 -> 36
                 Model.BUDS2_PRO, Model.BUDS_FE -> 43
-                Model.UNKNOWN -> -1
+                else -> -1
             }
             val charging = p.getOrNull(chargingIndex)?.u() ?: 0
             BatteryState(p[2].u().percent(), p[3].u().percent(), p[7].u().percent(),
@@ -160,13 +184,21 @@ object SamsungBudsCodec {
         return Acknowledgement(frame.payload[0].u(), frame.payload.copyOfRange(1, frame.payload.size))
     }
 
-    fun parseNoiseMode(frame: Frame): NoiseMode? = when (frame.id) {
+    fun parseNoiseMode(frame: Frame, model: Model = Model.BUDS2_PRO): NoiseMode? {
+        val mode = if (model == Model.BUDS_LIVE) when (frame.id) {
+            NOISE_REDUCTION_MODE_UPDATE -> frame.payload.firstOrNull()?.u()?.takeIf { it in 0..1 }?.toNoiseMode()
+            EXTENDED_STATUS_UPDATED -> frame.payload.getOrNull(12)?.u()?.takeIf { it in 0..1 }?.toNoiseMode()
+            else -> null
+        } else when (frame.id) {
         NOISE_CONTROLS_UPDATE -> frame.payload.firstOrNull()?.u()?.toNoiseMode()
         EXTENDED_STATUS_UPDATED -> frame.payload.getOrNull(12)?.u()?.toNoiseMode()
         else -> null
+        }
+        return mode?.takeIf { model.ambient || it != NoiseMode.AMBIENT }
     }
 
     fun parseExtendedStatus(frame: Frame, model: Model = Model.BUDS2_PRO): ExtendedStatus? {
+        if (model.legacyTouch) return parseLegacyExtendedStatus(frame, model)
         if (frame.id != EXTENDED_STATUS_UPDATED || frame.payload.size < 35) return null
         val p = frame.payload
         if (model == Model.UNKNOWN) return null
@@ -174,14 +206,29 @@ object SamsungBudsCodec {
         // Earlier firmware retains battery/noise support without advertising advanced settings.
         if (model == Model.BUDS2 && p[0].u() < 7) return null
         if (model == Model.BUDS_FE && p.size < 44) return null
+        if (model.commonHoldOnly && p.size < 44) return null
         val touch = p[10].u()
         val eq = p[9].u()
+        val leftAction = p[11].u() shr 4
+        val rightAction = p[11].u() and 0x0F
+        val ambientVolume = p[23].u()
+        // Unknown settings must not be clamped into values later sent back to
+        // the device. Battery/noise parsers remain independent of this check.
+        val maxEq = if (model.commonHoldOnly) 6 else 5
+        val maxAmbient = if (model == Model.BUDS4_PRO) 4 else 3
+        if (eq !in 0..maxEq || leftAction !in 1..4 || rightAction !in 1..4 || ambientVolume !in 0..maxAmbient) {
+            return null
+        }
+        // GalaxyBudsClient's Buds2 Pro revision 13+ optional trailing field.
+        // Missing fields are not evidence of a disabled but supported setting.
+        val extraHighAmbient = if (model == Model.BUDS2_PRO && p[0].u() >= 13) p.getOrNull(45)?.u() else null
+        if (extraHighAmbient != null && extraHighAmbient !in 0..1) return null
         return ExtendedStatus(
             battery = parseBattery(frame, model) ?: return null,
-            noiseMode = p[12].u().toNoiseMode() ?: return null,
+            noiseMode = parseNoiseMode(frame, model) ?: return null,
             settings = SettingsState(
                 equalizerEnabled = eq != 0,
-                equalizerPreset = (eq - 1).coerceIn(0, 4),
+                equalizerPreset = if (eq == 0) 0 else eq - 1,
                 touchpadLocked = touch and 0x80 != 0x80,
                 singleTapEnabled = touch and 0x08 != 0,
                 doubleTapEnabled = touch and 0x04 != 0,
@@ -189,19 +236,52 @@ object SamsungBudsCodec {
                 touchHoldEnabled = touch and 0x01 != 0,
                 doubleTapCallEnabled = touch and 0x10 != 0,
                 touchHoldCallEnabled = touch and 0x20 != 0,
-                touchHoldLeftAction = (p[11].u() shr 4).coerceIn(1, 4),
-                touchHoldRightAction = (p[11].u() and 0x0F).coerceIn(1, 4),
-                ambientVolume = p[23].u().coerceIn(0, 3),
-                voiceDetectEnabled = model == Model.BUDS2_PRO && p[26].u() != 0,
+                touchHoldLeftAction = leftAction,
+                touchHoldRightAction = rightAction,
+                ambientVolume = ambientVolume,
+                voiceDetectEnabled = model == Model.BUDS2_PRO && p[26].u() == 1,
                 noiseControlsWithOneEarbud = p[28].u() != 0,
                 seamlessConnectionEnabled = p[19].u() == 0,
                 outsideDoubleTapEnabled = p[32].u() != 0,
                 sidetoneEnabled = p[33].u() != 0,
-                extraHighAmbientEnabled = model == Model.BUDS2_PRO && p.getOrNull(45)?.u() == 1,
-                touchHoldLeftCycle = parseNoiseCycle((p[21].u() shr 4) and 7),
-                touchHoldRightCycle = parseNoiseCycle(p[21].u() and 7),
+                extraHighAmbientEnabled = extraHighAmbient == 1,
+                extraHighAmbientSupported = extraHighAmbient != null,
+                touchHoldLeftCycle = if (model.commonHoldOnly) null else parseNoiseCycle((p[21].u() shr 4) and 7),
+                touchHoldRightCycle = if (model.commonHoldOnly) null else parseNoiseCycle(p[21].u() and 7),
+                touchGesturesSupported = !model.commonHoldOnly,
+                outsideDoubleTapSupported = !model.commonHoldOnly,
+                voiceDetectSupported = model == Model.BUDS2_PRO,
+                optionalSettingsSupported = !model.commonHoldOnly,
             ),
         )
+    }
+
+    private fun parseLegacyExtendedStatus(frame: Frame, model: Model): ExtendedStatus? {
+        if (frame.id != EXTENDED_STATUS_UPDATED) return null
+        val p = frame.payload
+        val minimum = if (model == Model.BUDS_LIVE) 20 else 28
+        if (p.size < minimum) return null
+        val eq = p[9].u()
+        val left = p[11].u() shr 4
+        val right = p[11].u() and 15
+        if (eq !in 0..5 || p[10].u() !in 0..1 || left !in 1..4 || right !in 1..4) return null
+        val ambientVolume = if (model == Model.BUDS_LIVE) 0 else p[23].u()
+        if (ambientVolume !in 0..3) return null
+        val noise = parseNoiseMode(frame, model) ?: return null
+        return ExtendedStatus(parseBattery(frame, model) ?: return null, noise, SettingsState(
+            equalizerEnabled = eq != 0, equalizerPreset = if (eq == 0) 0 else eq - 1,
+            touchpadLocked = p[10].u() == 1,
+            singleTapEnabled = true, doubleTapEnabled = true, tripleTapEnabled = true,
+            touchHoldEnabled = true, doubleTapCallEnabled = true, touchHoldCallEnabled = true,
+            touchHoldLeftAction = left, touchHoldRightAction = right,
+            ambientVolume = ambientVolume, voiceDetectEnabled = false,
+            noiseControlsWithOneEarbud = false, seamlessConnectionEnabled = false,
+            outsideDoubleTapEnabled = model == Model.BUDS_PRO && p[0].u() >= 7 && p.getOrNull(31)?.u() == 1,
+            sidetoneEnabled = false, extraHighAmbientEnabled = false,
+            touchGesturesSupported = false,
+            outsideDoubleTapSupported = model == Model.BUDS_PRO && p[0].u() >= 7 && p.getOrNull(31)?.u() in 0..1,
+            optionalSettingsSupported = false,
+        ))
     }
 
     fun crc16Xmodem(data: ByteArray): Int {
@@ -228,8 +308,14 @@ object SamsungBudsCodec {
                 if (size < 3 || total > MAX_FRAME_SIZE) { pending = pending.copyOfRange(1, pending.size); continue }
                 if (pending.size < total) break
                 val candidate = pending.copyOfRange(0, total)
-                pending = pending.copyOfRange(total, pending.size)
-                if (parseFrame(candidate) != null) result += candidate
+                if (parseFrame(candidate) != null) {
+                    result += candidate
+                    pending = pending.copyOfRange(total, pending.size)
+                } else {
+                    // A corrupt length can overlap the next packet. Resynchronize
+                    // from the next byte instead of discarding that packet's start.
+                    pending = pending.copyOfRange(1, pending.size)
+                }
             }
             return result
         }

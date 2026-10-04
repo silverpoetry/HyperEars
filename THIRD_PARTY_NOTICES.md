@@ -214,11 +214,14 @@ HyperEars 端到端实机验证复核。Channel 16、短模式帧和模式值的
 
 - timschneeb/GalaxyBudsClient: <https://github.com/timschneeb/GalaxyBudsClient>
 - Reviewed release: `5.1.2`（用户提供的源码归档，修订标识 `b39e90c`）
+- Family expansion review: `754b6fdfb1c151b022cece775c8aaad4eb185afa`（2026-10-03）
 - Upstream license: GNU GPL-3.0
 
 用于核对 Galaxy Buds2 Pro 的 RFCOMM UUID、`FD/ DD` 帧、CRC16-XMODEM、扩展状态字段、
 三态降噪与设置命令。HyperEars 在自身 WireCodec、ProtocolSession 和 Adapter 边界中重新组织
-实现，不分发上游应用、界面、图片或三星品牌资源。
+实现；Fix25 同时核对 Live / Pro 的传统 SPP、布尔 ANC 与触控锁，以及新款共同长按字段。
+Core / Buds3 FE 的参考布局仍有 TODO，不把家族外推记为实测，不分发参考二进制或固件。
+不分发上游应用、界面、图片或三星品牌资源。
 
 ## Android and LSPosed APIs
 

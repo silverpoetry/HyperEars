@@ -273,10 +273,10 @@ class SamsungBuds2ProAdapterTest {
     fun knownSamsungModelsUseExactAdaptersAndRenamedSharedServiceUsesFamilyFallback() {
         val buds2 = EarbudAdapterRegistry.resolve(EarbudIdentity("Galaxy Buds2", true))!!
         assertEquals("samsung-galaxy-buds2", buds2.id)
-        assertEquals(ControlAppCatalog.galaxyBuds2Manager, buds2.controlApps.last())
+        assertEquals(ControlAppCatalog.galaxyBuds2Manager, buds2.controlApps[1])
         val budsFe = EarbudAdapterRegistry.resolve(EarbudIdentity("Galaxy Buds FE", true))!!
         assertEquals("samsung-galaxy-buds-fe", budsFe.id)
-        assertEquals(ControlAppCatalog.galaxyBudsFeManager, budsFe.controlApps.last())
+        assertEquals(ControlAppCatalog.galaxyBudsFeManager, budsFe.controlApps[1])
         val renamed = EarbudAdapterRegistry.resolve(EarbudIdentity(
             "我的耳机", true, serviceUuids = setOf(SamsungBuds2ProAdapter.BUDS2_PRO_UUID),
         ))
@@ -306,6 +306,56 @@ class SamsungBuds2ProAdapterTest {
         state = adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!
         assertFalse(state.leftActionPending)
         assertFalse(state.rightActionPending)
+    }
+
+    @Test
+    fun rapidUnlockRestoresVolumeTouchBeforeDisableAckArrives() {
+        val adapter = SamsungBuds2ProAdapter()
+        adapter.receive(extendedStatus())
+        adapter.executeControl(SamsungControlRequest.SetTouchpadLock(true))
+        val unlock = adapter.executeControl(SamsungControlRequest.SetTouchpadLock(false))
+        assertEquals(2, unlock.commands.size)
+        assertArrayEquals(byteArrayOf(1),
+            SamsungBudsCodec.parseFrame(unlock.commands.last())?.payload)
+    }
+
+    @Test
+    fun repeatedLockDoesNotLoseOriginalVolumeTouchPreference() {
+        val adapter = SamsungBuds2ProAdapter()
+        adapter.receive(extendedStatus())
+        adapter.executeControl(SamsungControlRequest.SetTouchpadLock(true))
+        adapter.receive(SamsungBudsCodec.packet(SamsungBudsCodec.UNIVERSAL_ACK,
+            byteArrayOf(SamsungBudsCodec.OUTSIDE_DOUBLE_TAP.toByte(), 0)))
+        adapter.executeControl(SamsungControlRequest.SetTouchpadLock(true))
+        val unlock = adapter.executeControl(SamsungControlRequest.SetTouchpadLock(false))
+        assertEquals(2, unlock.commands.size)
+        assertArrayEquals(byteArrayOf(1),
+            SamsungBudsCodec.parseFrame(unlock.commands.last())?.payload)
+    }
+
+    @Test
+    fun invalidSettingAcknowledgementsDoNotPublishConfirmedState() {
+        val session = SamsungBuds2ProProtocolSession()
+        session.offer(extendedStatus())
+        val booleanCommands = listOf(
+            SamsungBudsCodec.SET_DETECT_CONVERSATIONS,
+            SamsungBudsCodec.SET_ANC_WITH_ONE_EARBUD,
+            SamsungBudsCodec.SET_SEAMLESS_CONNECTION,
+            SamsungBudsCodec.OUTSIDE_DOUBLE_TAP,
+            SamsungBudsCodec.SET_SIDETONE,
+            SamsungBudsCodec.EXTRA_HIGH_AMBIENT,
+        )
+        val invalidParameters = booleanCommands.map { it to byteArrayOf(2) } + listOf(
+            SamsungBudsCodec.AMBIENT_VOLUME to byteArrayOf(4),
+            SamsungBudsCodec.EQUALIZER to byteArrayOf(6),
+            SamsungBudsCodec.LOCK_TOUCHPAD to byteArrayOf(1, 1, 2, 1, 1, 1, 1),
+            SamsungBudsCodec.LOCK_TOUCHPAD to byteArrayOf(1, 1),
+        )
+        invalidParameters.forEach { (command, parameters) ->
+            assertTrue("Invalid ACK for command $command must be ignored",
+                session.offer(SamsungBudsCodec.packet(SamsungBudsCodec.UNIVERSAL_ACK,
+                    byteArrayOf(command.toByte()) + parameters)).isEmpty())
+        }
     }
 
     private fun extendedStatus(): ByteArray = hex(

@@ -652,10 +652,9 @@ object EarbudAdapterRegistry {
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))
         add(Registration(technicsGroup, ::TechnicsEarbudAdapter))
-        add(Registration(samsungGroup) { SamsungBuds2ProAdapter() })
-        add(Registration(samsungGroup) { SamsungBuds2ProAdapter(dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.BUDS2) })
-        add(Registration(samsungGroup) { SamsungBuds2ProAdapter(dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.BUDS_FE) })
-        add(Registration(samsungGroup) { SamsungBuds2ProAdapter(dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.UNKNOWN) })
+        dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.entries.forEach { model ->
+            add(Registration(samsungGroup) { SamsungBuds2ProAdapter(model) })
+        }
         // Apple devices are handled by the platform; keep AAP code available for explicit use,
         // but do not add Apple adapters to HyperEars' default matching chain.
         addAll(SonyAdapterRegistry.factories.map { Registration(sonyGroup, it) })

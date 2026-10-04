@@ -89,6 +89,7 @@ class SamsungBudsCodecTest {
             assertEquals(0x79, frame.id)
             assertArrayEquals(l + r, frame.payload)
             val payload = ByteArray(35)
+            payload[11] = 0x22
             payload[21] = ((left shl 4) or right).toByte()
             val state = SamsungBudsCodec.parseExtendedStatus(SamsungBudsCodec.Frame(0x61, payload))!!.settings
             assertEquals(left, state.touchHoldLeftCycle)
@@ -110,6 +111,66 @@ class SamsungBudsCodecTest {
         assertEquals(SamsungBudsCodec.NoiseMode.OFF,
             SamsungBudsCodec.parseNoiseMode(frame))
         assertEquals(null, SamsungBudsCodec.parseExtendedStatus(frame, SamsungBudsCodec.Model.UNKNOWN))
+    }
+
+    @Test
+    fun corruptFrameLengthDoesNotConsumeFollowingValidFrame() {
+        val good = SamsungBudsCodec.boolCommand(SamsungBudsCodec.SET_SIDETONE, true)
+        // Invalid candidate overlaps the next valid frame, including its start marker.
+        val corrupt = byteArrayOf(0xFD.toByte(), 8, 0, 0)
+        val decoder = SamsungBudsCodec.Decoder()
+        val frames = decoder.offer(corrupt + good)
+        assertEquals(1, frames.size)
+        assertArrayEquals(good, frames.single())
+    }
+
+    @Test
+    fun invalidExtendedSettingsAreRejectedWithoutClamping() {
+        val invalidFields = listOf(
+            9 to 6, 9 to 255,
+            11 to 0x02, 11 to 0x20, 11 to 0x52, 11 to 0x25,
+            23 to 4, 23 to 255, 45 to 2,
+        )
+        invalidFields.forEach { (index, value) ->
+            val p = legalSettingsPayload().apply { this[index] = value.toByte() }
+            val frame = SamsungBudsCodec.Frame(0x61, p)
+            assertEquals("Invalid setting at index $index", null, SamsungBudsCodec.parseExtendedStatus(frame))
+            assertNotNull(SamsungBudsCodec.parseBattery(frame))
+            assertEquals(SamsungBudsCodec.NoiseMode.OFF, SamsungBudsCodec.parseNoiseMode(frame))
+        }
+    }
+
+    @Test
+    fun validSettingBoundariesArePreserved() {
+        (0..5).forEach { eq -> (1..4).forEach { action -> (0..3).forEach { ambient ->
+            val p = legalSettingsPayload().apply {
+                this[9] = eq.toByte()
+                this[11] = ((action shl 4) or action).toByte()
+                this[23] = ambient.toByte()
+            }
+            val settings = SamsungBudsCodec.parseExtendedStatus(SamsungBudsCodec.Frame(0x61, p))!!.settings
+            assertEquals(eq != 0, settings.equalizerEnabled)
+            assertEquals(if (eq == 0) 0 else eq - 1, settings.equalizerPreset)
+            assertEquals(action, settings.touchHoldLeftAction)
+            assertEquals(action, settings.touchHoldRightAction)
+            assertEquals(ambient, settings.ambientVolume)
+        } } }
+    }
+
+    @Test
+    fun optionalExtraHighAmbientFieldIsModelAndRevisionSpecific() {
+        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN }.forEach { model ->
+            val settings = SamsungBudsCodec.parseExtendedStatus(
+                SamsungBudsCodec.Frame(0x61, legalSettingsPayload().apply { this[45] = 1 }), model,
+            )!!.settings
+            assertEquals(model == SamsungBudsCodec.Model.BUDS2_PRO, settings.extraHighAmbientSupported)
+            assertEquals(model == SamsungBudsCodec.Model.BUDS2_PRO, settings.extraHighAmbientEnabled)
+        }
+    }
+
+    private fun legalSettingsPayload() = ByteArray(46).apply {
+        this[0] = 13
+        this[11] = 0x22
     }
 
     private fun hex(value: String): ByteArray = value.trim().split(Regex("\\s+"))
