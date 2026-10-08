@@ -29,7 +29,7 @@ class MoondropFamilyIdentityTest {
         assertFalse(adapter.matches(EarbudIdentity(
             deviceName = "Space Travel 2 Ultra", standardHeadset = true, nativeSystemEarbud = true,
         )))
-        assertFalse(adapter.matches(EarbudIdentity(deviceName = "Space Travel 2 Ultra")))
+        assertFalse(adapter.matches(EarbudIdentity(deviceName = "Space Travel 2 Ultra", standardHeadset = false)))
     }
 
     @Test
