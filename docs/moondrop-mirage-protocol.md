@@ -27,15 +27,9 @@ Adapter 只在下列名称规则之一成立时选择 MIRAGE。归一化 = 转�
 
 - 归一化完整名称为 `moondropmirage`；
 - 名称同时包含 `moondrop` 与 `mirage`；
-- 名称同时包含“水月雨”与 `mirage`；
-- 名称同时包含 `moondrop` 与 `hatsunemiku`（覆盖 `HATSUNE MIKU × MOONDROP` 的归一化
-  形态）。
+- 名称同时包含“水月雨”与 `mirage`。
 
-其中 `moondrop` + `hatsunemiku` 共现规则不要求 `mirage` token，系有意为之的已知设计
-决策：零售联名广播名可能只带双品牌 token 而不含 "MIRAGE" 字样，收紧该臂反而会漏判
-真机。已知副作用：未来若推出第二款 MOONDROP × 初音联名型号，将先命中本 Adapter
-候选而非走家族回退；爆炸半径有界——握手失败即 `KeepDormant` 能力全锁、电量沿用
-Android 系统整机聚合，不开放任何私有能力。第二款联名临近时须复核并收紧此臂。
+仅含 `moondrop` 与 `hatsunemiku` 的联名名称保持家族回退；型号名称需包含 `mirage`。
 
 负例：`Desired Mirage 500` 与 `MIKU Speaker` 不含水月雨品牌 token，不进入 MOONDROP
 适配；`MOONDROP Xyz` 只命中家族回退。服务端目录不携带 MAC、OUI 或传输层字段，因此
@@ -46,14 +40,14 @@ Android 系统整机聚合，不开放任何私有能力。第二款联名临近
 被大量蓝牙设备共同使用，只负责建立 RFCOMM 端点，不属于水月雨身份依据，也不会让
 其他 SPP 耳机进入 MIRAGE Adapter。
 
-## 2. 帧格式（同构引用，待本型号复核）
+## 2. 帧格式（复用 Pudding，原版实机验证）
 
 FF 帧的字段布局、分片与尾字节处理见
 [`moondrop-pudding-protocol.md` §2](moondrop-pudding-protocol.md#2-帧格式)。MIRAGE 复用
 同一个 `MoondropPuddingWireCodec`（未新建 codec）；该帧集来自 Pudding 实机捕获与
-Robin 公开协议，MIRAGE 自身尚无帧捕获，待 §7.3 复核。
+Robin 公开协议；贡献者记录了 MIRAGE 原版握手、电量和三态实测结果（§7.1）。
 
-## 3. 握手（同构引用，待本型号复核）
+## 3. 握手（原版实机验证）
 
 ```text
 发送：FF 01 00 00 00 0A 03 00
@@ -65,7 +59,7 @@ Robin 公开协议，MIRAGE 自身尚无帧捕获，待 §7.3 复核。
 握手失败时 Adapter 保持登记但能力全锁（`KeepDormant`，统一有界退避），不改判为其他
 品牌，也不开放任何私有能力。
 
-## 4. 电量（同构引用，待本型号复核）
+## 4. 电量（原版实机验证）
 
 查询命令与响应布局见 [`moondrop-pudding-protocol.md` §4](moondrop-pudding-protocol.md#4-电量)。
 握手确认后在连接生命周期内查询电量与噪声模式；不创建常驻轮询。协议确认前电量沿用
@@ -77,7 +71,7 @@ Android 系统整机，收到合法电量帧后切换为私有左右耳与充电
 实机结果（2026-09-21）：握手确认后私有左右耳与充电盒电量正常上报（红摘设备报告见 §7.1）；
 bootstrap 期间未观察到错误值。
 
-## 5. 噪声模式（同构引用，待本型号复核）
+## 5. 噪声模式（基础三态原版实机验证）
 
 三态（关闭/降噪/通透）的查询、设置帧与回显确认见
 [`moondrop-pudding-protocol.md` §5](moondrop-pudding-protocol.md#5-噪声模式)。降噪能力仅由
@@ -94,13 +88,16 @@ APK `AncV2Handler` 校验模式 `0..5` 共六档，档位标签在无法静态�
 
 ## 6. 代码边界
 
-- `MoondropMirageAdapter`：名称判型、联名别名集、传输候选、能力门禁与其有界状态；
-- `MoondropMirageProtocolSession`：握手进度、遥测查询、控制编码和回读；
+- `MoondropMirageAdapter`：型号名称与控制端点标识；继承 `MoondropJieliAdapter` 的确认策略；
+- `MoondropJieliAdapter`：Pudding / MIRAGE 共用的能力门禁与有界状态处理，各实例独立；
+- `MoondropPuddingProtocolSession`：握手、遥测查询、控制编码和回读，各会话独立；
 - `MoondropPuddingWireCodec`：复用，不新建 codec；纯字节帧、流式解码和字段校验，
   Decoder 实例每会话独立；
-- `MoondropModelCatalog`（protocol 模块）：离线蒸馏快照表（镜像 `BoseProductCatalog`
-  先例），仅用于型号数据对账与测试，不参与设备匹配，运行时零外联；
+- 厂商目录快照：协议来源资料，记录于本文，不参与运行时匹配或网络访问；
 - MiLink：只读取 Adapter 确认发布的标准电量与噪声状态，不增加自定义卡片。
+
+维护版复核：本次合并 Pudding / MIRAGE 的重复会话并收紧型号别名。原 PR 的实测结果保留；
+最终维护版的连接、组件电量、三态写入与回读、重连及控制 App 退避恢复仍待实机复核。
 
 ## 7. 来源与证据
 
@@ -141,7 +138,7 @@ APK `AncV2Handler` 校验模式 `0..5` 共六档，档位标签在无法静态�
 ### 7.3 待实机清单
 
 1. 已完成（2026-09-21）：广播名 `MOONDROP MIRAGE` 精确匹配臂实机命中；中文/联名别名的
-   实际归一化形态仍待确认（臂 2–4 保留）；
+   实际归一化形态仍待确认；只有包含型号名的别名参与匹配；
 2. 已完成（2026-09-21）：握手请求与合法响应实机捕获，平面推断成立；
 3. 已完成（2026-09-21）：私有左/右耳与充电盒电量实机上报；分侧 `00`/`FF` 与充电盒 `FF`
    的未连接语义细节待补充捕获；

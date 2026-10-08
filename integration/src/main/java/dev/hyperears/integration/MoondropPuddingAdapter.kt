@@ -10,14 +10,34 @@ import dev.hyperears.protocol.moondrop.MoondropPuddingWireCodec
  * `1D 40/41 03/04` noise-mode query/write pair. Private component battery and
  * noise control are exposed only after their corresponding valid responses.
  */
-class MoondropPuddingAdapter : MoondropEarbudAdapter() {
+class MoondropPuddingAdapter : MoondropJieliAdapter("moondrop-pudding-spp") {
+    override val id: String = ID
+    override val displayName: String = "MOONDROP Pudding"
+
+    override fun matches(identity: EarbudIdentity): Boolean {
+        if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
+        val name = normalizeDeviceName(identity.deviceName.orEmpty())
+        return ("moondrop" in name || "水月雨" in name) && "pudding" in name
+    }
+
+    companion object {
+        const val ID = "moondrop-pudding"
+        const val STANDARD_SPP_UUID = MoondropJieliAdapter.STANDARD_SPP_UUID
+        internal const val INITIAL_MODE_QUERY_DELAY_MS = MoondropJieliAdapter.INITIAL_MODE_QUERY_DELAY_MS
+        internal val BATTERY_BOOTSTRAP_DELAYS_MS = MoondropJieliAdapter.BATTERY_BOOTSTRAP_DELAYS_MS
+        internal val MODE_CONFIRMATION_DELAYS_MS = MoondropJieliAdapter.MODE_CONFIRMATION_DELAYS_MS
+    }
+}
+
+/** Shared FF/Jieli dialogue and bounded report policy, with state owned by each adapter instance. */
+abstract class MoondropJieliAdapter(
+    endpointId: String,
+) : MoondropEarbudAdapter() {
     private var batteryBootstrapAttempt = 0
     private var privateBatteryCommitted = false
     private var expectedNoiseMode: NoiseMode? = null
     private var noiseModeAttempt = 0
 
-    override val id: String = ID
-    override val displayName: String = "MOONDROP Pudding"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
@@ -30,17 +50,9 @@ class MoondropPuddingAdapter : MoondropEarbudAdapter() {
     override val transports: List<EarbudTransportSpec> = listOf(
         RfcommEndpointSpec.ServiceUuid(
             uuid = STANDARD_SPP_UUID,
-            id = "moondrop-pudding-spp",
+            id = endpointId,
         ),
     )
-
-    override fun matches(identity: EarbudIdentity): Boolean {
-        if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
-        val name = normalizeDeviceName(identity.deviceName.orEmpty())
-        return name in EXACT_NAMES ||
-            ("moondrop" in name && "pudding" in name) ||
-            ("水月雨" in name && "pudding" in name)
-    }
 
     override fun createProtocolSession(): ProtocolSession = MoondropPuddingProtocolSession()
 
@@ -128,15 +140,11 @@ class MoondropPuddingAdapter : MoondropEarbudAdapter() {
         InitialProtocolFailureResolution.KeepDormant
 
     companion object {
-        const val ID = "moondrop-pudding"
         const val STANDARD_SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb"
         internal const val INITIAL_MODE_QUERY_DELAY_MS = 600L
         internal val BATTERY_BOOTSTRAP_DELAYS_MS = longArrayOf(500L, 800L, 1_200L, 1_600L)
         internal val MODE_CONFIRMATION_DELAYS_MS = longArrayOf(500L, 700L, 900L, 1_200L)
 
-        private val EXACT_NAMES = setOf(
-            "moondroppudding",
-        )
     }
 }
 

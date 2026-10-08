@@ -113,7 +113,7 @@ ProtocolSession，不复制上游程序、厂商资源或应用代码。上游�
 - MOONDROP Android 客户端二进制的 `classes.dex` 全量反汇编（baksmali 2.5.2），仅作
   互操作研究，反编译产物不入库。
 
-用于蒸馏 `MoondropModelCatalog` 的 MIRAGE / Pudding / Robin 三行型号事实（UUID、
+用于协议文档中 MIRAGE / Pudding / Robin 的型号事实（UUID、
 `chipType`、EQ 段数、OTA 与形态标记），以及 MIRAGE 候选适配的平面推断与协议边界
 登记。本仓库只记录可互操作事实与 `文件:行` 引用，不分发 APK、原始响应、频响曲线、
 壁纸或其他厂商版权素材；快照更新仅通过人工再蒸馏提交完成，运行时零外联。

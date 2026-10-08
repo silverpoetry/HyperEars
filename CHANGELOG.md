@@ -6,11 +6,11 @@
 
 ### MOONDROP MIRAGE
 
-- 接入 MOONDROP MIRAGE 适配：名称规则（含 HATSUNE MIKU ×
-  MOONDROP 联名别名）选择候选 Adapter，与 Pudding 同构的严格握手与逐项合法响应确认后才
+- 接入 MOONDROP MIRAGE 适配：品牌与型号名称选择候选 Adapter，共用 Pudding 的会话与
+  有界状态处理，严格握手与逐项合法响应确认后才
   开放电量和噪声能力。2026-09-21 实机会话已确认握手、私有左右耳与充电盒电量及噪声三态
   读写；「降噪」写入实测落在设备基础降噪档，自适应降噪档的帧字节待实机抓包补充，
-  不构成对未验证行为的承诺。
+  最终维护版仍待实机复核。
   协议与证据分层见 [MOONDROP MIRAGE 协议适配](docs/moondrop-mirage-protocol.md)。
 
 ## [2.7.0] - 2026-09-08

@@ -22,7 +22,7 @@ class MoondropMirageAdapterTest {
     }
 
     @Test
-    fun coBrandNameSelectsMirage() {
+    fun coBrandNameWithoutModelRemainsFamilyCandidate() {
         val adapter = requireNotNull(
             EarbudAdapterRegistry.resolve(
                 EarbudIdentity(
@@ -31,7 +31,9 @@ class MoondropMirageAdapterTest {
                 ),
             ),
         )
-        assertTrue(adapter is MoondropMirageAdapter)
+        assertTrue(adapter is MoondropEarbudAdapter)
+        assertFalse(adapter is MoondropMirageAdapter)
+        assertFalse(adapter.privateProtocolRequired)
     }
 
     @Test
@@ -278,6 +280,17 @@ class MoondropMirageAdapterTest {
             listOf(AdapterEffect.CancelStateRequest(NoiseModeFeatureState.FEATURE_ID)),
             finalResult.effects,
         )
+    }
+
+    @Test
+    fun sharedProtocolKeepsPuddingAndMirageSessionsIndependent() {
+        val mirage = readyAdapterWithNoiseMode(NoiseMode.ANC)
+        val pudding = MoondropPuddingAdapter()
+        assertTrue(mirage.snapshot().capabilities.noiseControl)
+        assertFalse(pudding.snapshot().capabilities.noiseControl)
+        mirage.resetProtocolSession()
+        assertFalse(mirage.snapshot().capabilities.noiseControl)
+        assertFalse(pudding.snapshot().capabilities.noiseControl)
     }
 
     private fun readyAdapter(): MoondropMirageAdapter = MoondropMirageAdapter().also(
