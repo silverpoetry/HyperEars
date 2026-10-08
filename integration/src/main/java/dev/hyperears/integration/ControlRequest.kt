@@ -113,6 +113,8 @@ object ControlRequestTransport {
                 subclass(SamsungControlRequest.SetTouchGesture::class, SamsungControlRequest.SetTouchGesture.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldActions::class, SamsungControlRequest.SetTouchHoldActions.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldNoiseCycles::class, SamsungControlRequest.SetTouchHoldNoiseCycles.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldAction::class, SamsungControlRequest.SetTouchHoldAction.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldNoiseCycle::class, SamsungControlRequest.SetTouchHoldNoiseCycle.serializer())
             }
         }
         classDiscriminator = "command"

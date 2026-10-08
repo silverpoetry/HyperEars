@@ -14,7 +14,8 @@ class SamsungBuds2ProAdapterTest {
         val byName = EarbudAdapterRegistry.resolve(EarbudIdentity("Galaxy Buds2 Pro (1234)", true))
         assertEquals(SamsungBuds2ProAdapter.ID, byName?.id)
         val byCustomizedName = EarbudAdapterRegistry.resolve(
-            EarbudIdentity("尚振雨 的 Buds2 Pro", true),
+            EarbudIdentity("尚振雨 的 Buds2 Pro", true,
+                serviceUuids = setOf(SamsungBuds2ProAdapter.BUDS2_PRO_UUID)),
         )
         assertEquals(SamsungBuds2ProAdapter.ID, byCustomizedName?.id)
         val byService = EarbudAdapterRegistry.resolve(

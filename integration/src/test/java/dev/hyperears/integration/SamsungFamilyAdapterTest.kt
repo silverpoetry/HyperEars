@@ -19,14 +19,32 @@ class SamsungFamilyAdapterTest {
         )
         models.forEach { (name, number) ->
             val expected = "samsung-galaxy-" + name.lowercase().replace(' ', '-')
-            listOf("Galaxy $name", "我的 $name", number).forEach { alias ->
+            listOf("Galaxy $name", "Samsung Galaxy $name", number).forEach { alias ->
                 val adapter = EarbudAdapterRegistry.resolve(EarbudIdentity(alias, true))!!
                 assertEquals(alias, expected, adapter.id)
                 assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
                 assertFalse(adapter.supportsControl(actions()))
                 assertNull(adapter.miLinkCardPresentationId)
             }
+            val customized = EarbudAdapterRegistry.resolve(EarbudIdentity(
+                "我的 $name", true,
+                serviceUuids = setOf(SamsungBuds2ProAdapter.BUDS2_PRO_UUID),
+            ))!!
+            assertEquals(expected, customized.id)
         }
+    }
+
+    @Test
+    fun genericBudsNamesWithoutSamsungIdentityStayOutsideSamsungCandidates() {
+        listOf("CMF Buds Pro", "CMF Buds 2", "Redmi Buds 3 Pro", "Other Buds FE", "我的 Buds2 Pro")
+            .forEach { name ->
+                val identity = EarbudIdentity(name, true)
+                SamsungBudsCodec.Model.entries.forEach { model ->
+                    assertFalse(name + model, SamsungBuds2ProAdapter(model).matches(identity))
+                }
+            }
+        val adapter = EarbudAdapterRegistry.resolve(EarbudIdentity("CMF Buds Pro", true))!!
+        assertEquals(StandardEarbudAdapter.ID, adapter.id)
     }
 
     @Test

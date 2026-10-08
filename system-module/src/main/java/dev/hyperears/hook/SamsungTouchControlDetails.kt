@@ -20,6 +20,7 @@ import dev.hyperears.integration.SamsungBudsSettingsFeatureState
 import dev.hyperears.integration.SamsungControlRequest
 import dev.hyperears.integration.SamsungTouchAction
 import dev.hyperears.integration.SamsungTouchGesture
+import dev.hyperears.integration.SamsungTouchSide
 import dev.hyperears.integration.SamsungNoiseCycle
 import java.lang.ref.WeakReference
 
@@ -63,7 +64,7 @@ internal class SamsungTouchControlDetails private constructor(
                 closed = true
                 unsubscribeState?.invoke()
                 unsubscribeState = null
-                clearPending()
+
             }
         }
         unsubscribeState = environment.observeState(address) { state -> render(state) }
@@ -124,7 +125,7 @@ internal class SamsungTouchControlDetails private constructor(
         closed = true
         unsubscribeState?.invoke()
         unsubscribeState = null
-        clearPending()
+
         if (popup.isShowing) popup.dismiss()
     }
 
@@ -345,12 +346,12 @@ internal class SamsungTouchControlDetails private constructor(
 
     private fun sendCycle(selected: SamsungNoiseCycle) {
         val current = lastState ?: return
-        val left = if (cycleLeft) selected else current.displayedLeftCycle ?: return
-        val right = if (!cycleLeft) selected else current.displayedRightCycle ?: return
-        if (left != current.displayedLeftCycle || right != current.displayedRightCycle) {
-            environment.controlSender(address, SamsungControlRequest.SetTouchHoldNoiseCycles(left, right))
-            lastState = current.copy(requestedLeftCycle = left, requestedRightCycle = right,
-                touchHoldCyclesPending = true, touchHoldCyclesTimedOut = false)
+        val previous = if (cycleLeft) current.displayedLeftCycle else current.displayedRightCycle
+        if (previous != selected) {
+            environment.controlSender(address, SamsungControlRequest.SetTouchHoldNoiseCycle(
+                if (cycleLeft) SamsungTouchSide.LEFT else SamsungTouchSide.RIGHT,
+                selected,
+            ))
         }
         showHoldPage()
     }
@@ -385,9 +386,7 @@ internal class SamsungTouchControlDetails private constructor(
     private fun sendMaster(enabled: Boolean) {
         val feature = lastState ?: return
         if ((!feature.touchpadLocked) == enabled) return
-        masterRow.pending = enabled
         environment.controlSender(address, SamsungControlRequest.SetTouchpadLock(!enabled))
-        schedulePendingClear(masterRow)
         render(environment.stateProvider(address))
     }
 
@@ -395,9 +394,7 @@ internal class SamsungTouchControlDetails private constructor(
         val row = gestureRows.firstOrNull { it.gesture == gesture } ?: return
         val feature = lastState ?: return
         if (row.value(feature) == enabled) return
-        row.toggle.pending = enabled
         environment.controlSender(address, SamsungControlRequest.SetTouchGesture(gesture, enabled))
-        schedulePendingClear(row.toggle)
         render(environment.stateProvider(address))
     }
 
@@ -406,34 +403,18 @@ internal class SamsungTouchControlDetails private constructor(
         right: SamsungTouchAction? = null,
     ) {
         val feature = lastState ?: return
-        val nextLeft = left ?: feature.displayedLeftAction
-        val nextRight = right ?: feature.displayedRightAction
-        if (nextLeft == feature.displayedLeftAction && nextRight == feature.displayedRightAction) return
-        environment.controlSender(address, SamsungControlRequest.SetTouchHoldActions(nextLeft, nextRight))
-        lastState = feature.copy(requestedLeftAction = nextLeft, requestedRightAction = nextRight,
-            touchHoldActionsPending = true, touchHoldActionsTimedOut = false)
-        renderHoldFeedback()
-        showHoldPage()
+        val side = if (left != null) SamsungTouchSide.LEFT else SamsungTouchSide.RIGHT
+        val action = left ?: right ?: return
+        val previous = if (side == SamsungTouchSide.LEFT) feature.displayedLeftAction else feature.displayedRightAction
+        if (previous == action) return
+        environment.controlSender(address, SamsungControlRequest.SetTouchHoldAction(side, action))
     }
 
     private fun sendVolumeTouch(enabled: Boolean) {
         val feature = lastState ?: return
         if (feature.outsideDoubleTapEnabled == enabled) return
-        volumeTouchRow.pending = enabled
         environment.controlSender(address, SamsungControlRequest.SetOutsideDoubleTap(enabled))
-        schedulePendingClear(volumeTouchRow)
         render(environment.stateProvider(address))
-    }
-
-    private fun schedulePendingClear(row: ToggleRow) {
-        row.generation += 1
-        val generation = row.generation
-        popup.contentView.postDelayed({
-            if (row.generation == generation) {
-                row.pending = null
-                render(environment.stateProvider(address))
-            }
-        }, CONFIRMATION_TIMEOUT_MS)
     }
 
     private fun renderHoldFeedback() {
@@ -442,11 +423,6 @@ internal class SamsungTouchControlDetails private constructor(
         rightActionRow.render(feature.displayedRightAction, controlsAvailable)
     }
 
-    private fun clearPending() {
-        masterRow.pending = null
-        gestureRows.forEach { it.toggle.pending = null }
-        if (::volumeTouchRow.isInitialized) volumeTouchRow.pending = null
-    }
 
     private fun cardRow() = LinearLayout(context).apply {
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -487,15 +463,11 @@ internal class SamsungTouchControlDetails private constructor(
     private inner class ToggleRow(
         val container: WeakReference<View>,
         private val toggle: WeakReference<CompoundButton>,
-        var pending: Boolean? = null,
-        var generation: Int = 0,
     ) {
         fun render(value: Boolean, enabled: Boolean) {
-            if (pending == value) pending = null
-            val display = pending ?: value
             toggle.get()?.apply {
-                isChecked = display
-                isEnabled = enabled && pending == null
+                isChecked = value
+                isEnabled = enabled
             }
             container.get()?.alpha = if (enabled) 1f else 0.45f
         }
@@ -528,8 +500,6 @@ internal class SamsungTouchControlDetails private constructor(
     }
 
     companion object {
-        private const val CONFIRMATION_TIMEOUT_MS = 1_800L
-
         fun open(
             anchor: View,
             address: String,

@@ -10,6 +10,55 @@ import org.junit.Test
 
 class SamsungAuditRegressionTest {
     @Test
+    fun sequentialSingleEarRequestsMergePendingTargetsInProtocolAndAdapterState() {
+        val adapter = SamsungBuds2ProAdapter()
+        adapter.receive(SamsungBudsCodec.packet(0x61, statusPayload().apply { this[11] = 0x22 }))
+        adapter.executeControl(SamsungControlRequest.SetTouchHoldAction(
+            SamsungTouchSide.LEFT, SamsungTouchAction.VOICE_ASSISTANT,
+        ))
+        val right = adapter.executeControl(SamsungControlRequest.SetTouchHoldAction(
+            SamsungTouchSide.RIGHT, SamsungTouchAction.VOLUME,
+        ))
+        assertArrayEquals(
+            byteArrayOf(1, 3),
+            SamsungBudsCodec.parseFrame(right.commands.first())!!.payload,
+        )
+        val feature = adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!
+        assertEquals(SamsungTouchAction.VOICE_ASSISTANT, feature.displayedLeftAction)
+        assertEquals(SamsungTouchAction.VOLUME, feature.displayedRightAction)
+        assertEquals(SamsungTouchAction.NOISE_CONTROL, feature.touchHoldLeftAction)
+        assertEquals(SamsungTouchAction.NOISE_CONTROL, feature.touchHoldRightAction)
+        assertEquals(
+            SamsungControlRequest.SetTouchHoldAction(SamsungTouchSide.LEFT, SamsungTouchAction.VOLUME),
+            ControlRequestTransport.decode(ControlRequestTransport.encode(
+                SamsungControlRequest.SetTouchHoldAction(SamsungTouchSide.LEFT, SamsungTouchAction.VOLUME),
+            )),
+        )
+    }
+
+    @Test
+    fun singleEarCycleRequestsPreserveTheOtherPendingCycle() {
+        val adapter = SamsungBuds2ProAdapter()
+        adapter.receive(SamsungBudsCodec.packet(0x61, statusPayload().apply { this[21] = 0x65 }))
+        adapter.executeControl(SamsungControlRequest.SetTouchHoldNoiseCycle(
+            SamsungTouchSide.LEFT, SamsungNoiseCycle.AMBIENT_OFF,
+        ))
+        val right = adapter.executeControl(SamsungControlRequest.SetTouchHoldNoiseCycle(
+            SamsungTouchSide.RIGHT, SamsungNoiseCycle.ANC_AMBIENT,
+        ))
+        assertArrayEquals(SamsungBudsCodec.touchHoldNoiseCyclesCommand(3, 6), right.commands.single())
+        val feature = adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!
+        assertEquals(SamsungNoiseCycle.AMBIENT_OFF, feature.displayedLeftCycle)
+        assertEquals(SamsungNoiseCycle.ANC_AMBIENT, feature.displayedRightCycle)
+        assertEquals(
+            SamsungControlRequest.SetTouchHoldNoiseCycle(SamsungTouchSide.RIGHT, SamsungNoiseCycle.ANC_OFF),
+            ControlRequestTransport.decode(ControlRequestTransport.encode(
+                SamsungControlRequest.SetTouchHoldNoiseCycle(SamsungTouchSide.RIGHT, SamsungNoiseCycle.ANC_OFF),
+            )),
+        )
+    }
+
+    @Test
     fun expiredCycleTargetMustNotBeReplayedByLaterActionChange() {
         var now = 0L
         val session = SamsungBuds2ProProtocolSession(elapsedMs = { now })

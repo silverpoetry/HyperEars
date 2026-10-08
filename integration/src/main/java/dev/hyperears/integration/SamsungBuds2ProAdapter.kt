@@ -72,6 +72,7 @@ class SamsungBuds2ProAdapter(
             settings != null && when (request) {
                 is SamsungControlRequest.SetAmbientVolume -> settings.optionalSettingsSupported && request.level in 0..3
                 is SamsungControlRequest.SetEqualizer -> settings.optionalSettingsSupported && request.preset in 0..4
+                is SamsungControlRequest.SetTouchHoldNoiseCycle,
                 is SamsungControlRequest.SetTouchHoldNoiseCycles ->
                     settings.touchHoldLeftCycle != null && settings.touchHoldRightCycle != null
                 is SamsungControlRequest.SetVoiceDetect -> settings.voiceDetectSupported
@@ -83,6 +84,7 @@ class SamsungBuds2ProAdapter(
                 is SamsungControlRequest.SetSidetone -> settings.optionalSettingsSupported
                 is SamsungControlRequest.SetTouchpadLock,
                 is SamsungControlRequest.SetTouchHoldActions,
+                is SamsungControlRequest.SetTouchHoldAction,
                 -> true
                 else -> false
             }
@@ -91,24 +93,39 @@ class SamsungBuds2ProAdapter(
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy {
         val current = runtimeState().features.get<SamsungBudsSettingsFeatureState>()
             ?: return super.controlPolicy(request)
-        return when (request) {
-            is SamsungControlRequest.SetTouchHoldActions -> ControlExecutionPolicy(
+        val actions = when (request) {
+            is SamsungControlRequest.SetTouchHoldActions -> request
+            is SamsungControlRequest.SetTouchHoldAction -> SamsungControlRequest.SetTouchHoldActions(
+                if (request.side == SamsungTouchSide.LEFT) request.action else current.displayedLeftAction,
+                if (request.side == SamsungTouchSide.RIGHT) request.action else current.displayedRightAction,
+            )
+            else -> null
+        }
+        val cycles = when (request) {
+            is SamsungControlRequest.SetTouchHoldNoiseCycles -> request
+            is SamsungControlRequest.SetTouchHoldNoiseCycle -> {
+                val left = if (request.side == SamsungTouchSide.LEFT) request.cycle else current.displayedLeftCycle
+                val right = if (request.side == SamsungTouchSide.RIGHT) request.cycle else current.displayedRightCycle
+                if (left == null || right == null) null else SamsungControlRequest.SetTouchHoldNoiseCycles(left, right)
+            }
+            else -> null
+        }
+        return when {
+            actions != null -> ControlExecutionPolicy(
                 confirmation = ControlConfirmationPolicy.PUBLISH_AFTER_WRITE,
-                // Immediate ordered submission for all supported Samsung hold
-                // actions; per-model encoders select which frames are valid.
                 commandGapMs = 0L,
                 stateAfterWrite = current.copy(
-                    requestedLeftAction = request.left,
-                    requestedRightAction = request.right,
+                    requestedLeftAction = actions.left,
+                    requestedRightAction = actions.right,
                     touchHoldActionsPending = true,
                     touchHoldActionsTimedOut = false,
                 ),
             )
-            is SamsungControlRequest.SetTouchHoldNoiseCycles -> ControlExecutionPolicy(
+            cycles != null -> ControlExecutionPolicy(
                 confirmation = ControlConfirmationPolicy.PUBLISH_AFTER_WRITE,
                 stateAfterWrite = current.copy(
-                    requestedLeftCycle = request.left,
-                    requestedRightCycle = request.right,
+                    requestedLeftCycle = cycles.left,
+                    requestedRightCycle = cycles.right,
                     touchHoldCyclesPending = true,
                     touchHoldCyclesTimedOut = false,
                 ),
@@ -125,22 +142,14 @@ class SamsungBuds2ProAdapter(
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         val name = normalizeDeviceName(identity.deviceName.orEmpty())
-        val namedModel = when {
-            MODEL_MARKERS.any(name::contains) -> SamsungBudsCodec.Model.BUDS2_PRO
-            name.contains("buds4pro") || name.contains("smr640") -> SamsungBudsCodec.Model.BUDS4_PRO
-            name.contains("buds4") || name.contains("smr540") -> SamsungBudsCodec.Model.BUDS4
-            name.contains("buds3pro") || name.contains("smr630") -> SamsungBudsCodec.Model.BUDS3_PRO
-            name.contains("buds3fe") || name.contains("smr420") -> SamsungBudsCodec.Model.BUDS3_FE
-            name.contains("buds3") || name.contains("smr530") -> SamsungBudsCodec.Model.BUDS3
-            name.contains("budscore") || name.contains("smr410") -> SamsungBudsCodec.Model.BUDS_CORE
-            name.contains("budspro") || name.contains("smr190") -> SamsungBudsCodec.Model.BUDS_PRO
-            name.contains("budslive") || name.contains("smr180") -> SamsungBudsCodec.Model.BUDS_LIVE
-            name.contains("buds2") || name.contains("smr177") -> SamsungBudsCodec.Model.BUDS2
-            name.contains("budsfe") || name.contains("smr400") -> SamsungBudsCodec.Model.BUDS_FE
-            else -> SamsungBudsCodec.Model.UNKNOWN
+        val privateService = identity.serviceUuids.any { it.equals(BUDS2_PRO_UUID, ignoreCase = true) }
+        if (model == SamsungBudsCodec.Model.UNKNOWN) return privateService
+        val aliases = MODEL_ALIASES.getValue(model)
+        val officialName = aliases.any { alias ->
+            name == alias || (name.startsWith(alias) &&
+                name.removePrefix(alias).matches(Regex("[a-f0-9]{4}")))
         }
-        return if (model != SamsungBudsCodec.Model.UNKNOWN) namedModel == model else
-            identity.serviceUuids.any { it.equals(BUDS2_PRO_UUID, ignoreCase = true) }
+        return officialName || (privateService && MODEL_SUFFIXES.getValue(model).any(name::endsWith))
     }
 
     override fun createProtocolSession(): ProtocolSession = SamsungBuds2ProProtocolSession(model = model)
@@ -153,7 +162,25 @@ class SamsungBuds2ProAdapter(
         const val ID = "samsung-galaxy-buds2-pro"
         const val BUDS2_PRO_UUID = "2e73a4ad-332d-41fc-90e2-16bef06523f2"
         const val STANDARD_SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb"
-        private val MODEL_MARKERS = setOf("galaxybuds2pro", "buds2pro", "smr510")
+        private val MODEL_SUFFIXES = mapOf(
+            SamsungBudsCodec.Model.BUDS2_PRO to setOf("buds2pro", "smr510"),
+            SamsungBudsCodec.Model.BUDS2 to setOf("buds2", "smr177"),
+            SamsungBudsCodec.Model.BUDS_FE to setOf("budsfe", "smr400"),
+            SamsungBudsCodec.Model.BUDS_LIVE to setOf("budslive", "smr180"),
+            SamsungBudsCodec.Model.BUDS_PRO to setOf("budspro", "smr190"),
+            SamsungBudsCodec.Model.BUDS3 to setOf("buds3", "smr530"),
+            SamsungBudsCodec.Model.BUDS3_PRO to setOf("buds3pro", "smr630"),
+            SamsungBudsCodec.Model.BUDS_CORE to setOf("budscore", "smr410"),
+            SamsungBudsCodec.Model.BUDS3_FE to setOf("buds3fe", "smr420"),
+            SamsungBudsCodec.Model.BUDS4 to setOf("buds4", "smr540"),
+            SamsungBudsCodec.Model.BUDS4_PRO to setOf("buds4pro", "smr640"),
+        )
+        private val MODEL_ALIASES = MODEL_SUFFIXES.mapValues { (_, suffixes) ->
+            suffixes.flatMap { suffix ->
+                if (suffix.startsWith("smr")) listOf(suffix)
+                else listOf("galaxy$suffix", "samsunggalaxy$suffix")
+            }.toSet()
+        }
     }
 }
 
@@ -234,6 +261,9 @@ enum class SamsungTouchAction(val wire: Int) {
 }
 
 @Serializable
+enum class SamsungTouchSide { LEFT, RIGHT }
+
+@Serializable
 enum class SamsungNoiseCycle(val mask: Int) {
     ANC_AMBIENT(6), ANC_OFF(5), AMBIENT_OFF(3),
 }
@@ -260,6 +290,16 @@ sealed interface SamsungControlRequest : ControlRequest {
     data class SetTouchHoldNoiseCycles(
         val left: SamsungNoiseCycle,
         val right: SamsungNoiseCycle,
+    ) : SamsungControlRequest
+    @Serializable @SerialName("samsung.set_touch_hold_action")
+    data class SetTouchHoldAction(
+        val side: SamsungTouchSide,
+        val action: SamsungTouchAction,
+    ) : SamsungControlRequest
+    @Serializable @SerialName("samsung.set_touch_hold_noise_cycle")
+    data class SetTouchHoldNoiseCycle(
+        val side: SamsungTouchSide,
+        val cycle: SamsungNoiseCycle,
     ) : SamsungControlRequest
     @Serializable @SerialName("samsung.set_voice_detect")
     data class SetVoiceDetect(val enabled: Boolean) : SamsungControlRequest
@@ -349,6 +389,26 @@ internal class SamsungBuds2ProProtocolSession(
             touchDeadline = elapsedMs() + HOLD_CONFIRMATION_WINDOW_MS
             val target = touchTarget(confirmed)
             listOf(SamsungBudsCodec.touchpadLockCommand(target.touchpadLocked, target, model))
+        }.orEmpty()
+        is SamsungControlRequest.SetTouchHoldAction -> settings?.let { confirmed ->
+            val left = if (request.side == SamsungTouchSide.LEFT) request.action.wire
+                else pendingTouchHoldActions?.first ?: confirmed.touchHoldLeftAction
+            val right = if (request.side == SamsungTouchSide.RIGHT) request.action.wire
+                else pendingTouchHoldActions?.second ?: confirmed.touchHoldRightAction
+            encodeCurrent(SamsungControlRequest.SetTouchHoldActions(
+                SamsungTouchAction.entries.first { it.wire == left },
+                SamsungTouchAction.entries.first { it.wire == right },
+            ))
+        }.orEmpty()
+        is SamsungControlRequest.SetTouchHoldNoiseCycle -> settings?.let { confirmed ->
+            val left = if (request.side == SamsungTouchSide.LEFT) request.cycle.mask
+                else pendingTouchHoldCycles?.first ?: confirmed.touchHoldLeftCycle ?: return@let emptyList()
+            val right = if (request.side == SamsungTouchSide.RIGHT) request.cycle.mask
+                else pendingTouchHoldCycles?.second ?: confirmed.touchHoldRightCycle ?: return@let emptyList()
+            encodeCurrent(SamsungControlRequest.SetTouchHoldNoiseCycles(
+                SamsungNoiseCycle.entries.first { it.mask == left },
+                SamsungNoiseCycle.entries.first { it.mask == right },
+            ))
         }.orEmpty()
         is SamsungControlRequest.SetTouchHoldActions -> {
             pendingTouchHoldActions = request.left.wire to request.right.wire
