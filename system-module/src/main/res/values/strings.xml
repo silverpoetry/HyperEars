@@ -18,5 +18,10 @@
         <item>com.qcymall.googleearphonesetup</item>
         <item>com.panasonic.technicsaudioconnect</item>
         <item>com.huawei.smartaudio</item>
+        <item>com.moondroplab.moondrop.moondrop_app</item>
+        <item>com.samsung.android.app.watchmanager</item>
+        <item>com.samsung.accessory.zenithmgr</item>
+        <item>com.samsung.accessory.berrymgr</item>
+        <item>com.samsung.accessory.pearlmgr</item>
     </string-array>
 </resources>

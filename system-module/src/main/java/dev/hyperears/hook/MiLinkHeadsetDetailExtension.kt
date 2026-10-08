@@ -30,10 +30,17 @@ internal class MiLinkHeadsetDetailExtension(
         var binding: MiLinkCardBinding? = null
     }
 
+    private val stateObservers = linkedMapOf<Any, Pair<String, (EarbudState) -> Unit>>()
     private val environment = MiLinkCardEnvironment(
         hostClassLoader = hostClassLoader,
         stateProvider = stateProvider,
         controlSender = controlSender,
+        observeState = { address, observer ->
+            val key = Any()
+            stateObservers[key] = address.uppercase(Locale.ROOT) to observer
+            val unsubscribe: () -> Unit = { stateObservers.remove(key) }
+            unsubscribe
+        },
     )
     private val targetLock = Any()
     private val targets = WeakHashMap<View, Target>()
@@ -87,6 +94,13 @@ internal class MiLinkHeadsetDetailExtension(
 
     fun onStateChanged(state: EarbudState) {
         val address = state.address?.uppercase(Locale.ROOT) ?: return
+        // State receivers and popup lifecycle run on the main thread. Snapshot before delivery:
+        // a disconnected state can dismiss a popup and remove its subscription reentrantly.
+        stateObservers.values.toList().filter { it.first == address }.forEach { (_, observer) ->
+            runCatching { observer(state) }.onFailure {
+                ModuleLog.warn("MiLinkUi", "details state observer failed rev=${state.revision}", it)
+            }
+        }
         val matchingTargets = synchronized(targetLock) {
             targets.values.filter { it.address == address }
         }

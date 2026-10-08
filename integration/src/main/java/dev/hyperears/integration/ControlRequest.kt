@@ -5,6 +5,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
 /**
  * A semantic control request for one active headset session.
@@ -46,10 +49,12 @@ data class ControlExecutionPolicy(
     val cooldownMs: Long = 0L,
     val readbackDelayMs: Long = DEFAULT_READBACK_DELAY_MS,
     val stateAfterWrite: DeviceFeatureState? = null,
+    val commandGapMs: Long = DEFAULT_COMMAND_GAP_MS,
 ) {
     init {
         require(cooldownMs >= 0L) { "Control cooldown cannot be negative" }
         require(readbackDelayMs >= 0L) { "Control readback delay cannot be negative" }
+        require(commandGapMs >= 0L) { "Control command gap cannot be negative" }
         require(
             confirmation == ControlConfirmationPolicy.DEVICE_REPORT || stateAfterWrite != null,
         ) { "Optimistic control policies require a state to publish" }
@@ -57,6 +62,7 @@ data class ControlExecutionPolicy(
 
     companion object {
         const val DEFAULT_READBACK_DELAY_MS = 120L
+        const val DEFAULT_COMMAND_GAP_MS = 120L
     }
 }
 
@@ -102,6 +108,15 @@ object ControlRequestTransport {
     private const val MAX_ENCODED_BYTES = 4 * 1024
 
     private val json = Json {
+        serializersModule = SerializersModule {
+            polymorphic(ControlRequest::class) {
+                subclass(SamsungControlRequest.SetTouchGesture::class, SamsungControlRequest.SetTouchGesture.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldActions::class, SamsungControlRequest.SetTouchHoldActions.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldNoiseCycles::class, SamsungControlRequest.SetTouchHoldNoiseCycles.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldAction::class, SamsungControlRequest.SetTouchHoldAction.serializer())
+                subclass(SamsungControlRequest.SetTouchHoldNoiseCycle::class, SamsungControlRequest.SetTouchHoldNoiseCycle.serializer())
+            }
+        }
         classDiscriminator = "command"
         encodeDefaults = true
         explicitNulls = false
