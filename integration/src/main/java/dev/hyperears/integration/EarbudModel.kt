@@ -428,16 +428,23 @@ sealed interface GattPeerSelection {
     data object SessionDevice : GattPeerSelection
 
     /**
-     * Resolves a separately advertised vendor-control endpoint.
+     * Resolves an associated vendor-control endpoint from its advertised identity.
      *
      * The Android runtime owns the bounded scan. The Adapter-owned matcher receives only stable,
      * platform-independent observations and therefore keeps vendor address layouts out of the
-     * transport implementation.
+     * transport implementation. A model may explicitly allow the audio session's address when
+     * its control service shares that LE identity; the matcher still verifies association.
      */
     data class CompanionDevice(
         val filter: GattScanFilterSpec,
         val matcher: GattPeerMatcher,
         val scanTimeoutMs: Long = DEFAULT_SCAN_TIMEOUT_MS,
+        /**
+         * Some units expose the vendor-control advertisement on the same LE identity as the
+         * Classic audio endpoint. When true, the session address is no longer excluded from the
+         * companion association rule; the Adapter-owned matcher still decides.
+         */
+        val allowSessionAddress: Boolean = false,
     ) : GattPeerSelection {
         init {
             require(scanTimeoutMs in 1_000L..30_000L)

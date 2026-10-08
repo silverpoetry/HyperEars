@@ -616,6 +616,7 @@ class EarbudAdapterHierarchyTest {
         assertEquals(GattWriteMode.WITHOUT_RESPONSE, transport.writeMode)
         assertTrue(transport.notificationsRequired)
         val selection = transport.peerSelection as GattPeerSelection.CompanionDevice
+        assertTrue(selection.allowSessionAddress)
         assertEquals(RoseLuliXAdapter.COMPANION_DEVICE_NAME, selection.filter.deviceName)
         assertEquals(
             InitialProtocolFailureResolution.KeepDormant,
@@ -642,6 +643,78 @@ class EarbudAdapterHierarchyTest {
                         RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
                             hex("01 09 00 01 02 03 04 D7 84 04 64 64 00"),
                     ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXCompanionMatcherAcceptsAlternateLengthField() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "BC:87:FA:00:00:01")
+
+        assertTrue(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = "66:77:88:99:AA:BB",
+                    manufacturerData = mapOf(
+                        RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                            hex("01 12 00 BC 87 FA 00 00 01 03 4F 4D 57"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXSameAddressRequiresAssociatedAdvertisement() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "BC:87:FA:00:00:01")
+        val candidate = GattPeerIdentity(
+            deviceName = "ROSE Ceramics X",
+            deviceAddress = session.deviceAddress,
+        )
+        assertFalse(RoseLuliXGattPeerMatcher.matches(session, candidate))
+        assertTrue(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                candidate.copy(manufacturerData = mapOf(
+                    RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                        hex("01 12 00 BC 87 FA 00 00 01 03 4F 4D 57"),
+                )),
+            ),
+        )
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                candidate.copy(manufacturerData = mapOf(
+                    RoseLuliXAdapter.COMPANION_MANUFACTURER_ID to
+                        hex("01 12 00 BC 87 FA 00 00 02 03 4F 4D 57"),
+                )),
+            ),
+        )
+    }
+
+    @Test
+    fun roseLuliXRejectsGenericCeramicsNamesAndWrongManufacturer() {
+        val session = GattPeerIdentity("ROSE Ceramics X", "BC:87:FA:00:00:01")
+        listOf("ROSE Ceramics Ultra", "Other Ceramics", "ROSE Ceramics X").forEach { name ->
+            assertFalse(
+                name,
+                RoseLuliXGattPeerMatcher.matches(
+                    session,
+                    GattPeerIdentity(name, "66:77:88:99:AA:BB"),
+                ),
+            )
+        }
+        assertFalse(
+            RoseLuliXGattPeerMatcher.matches(
+                session,
+                GattPeerIdentity(
+                    deviceName = null,
+                    deviceAddress = session.deviceAddress,
+                    manufacturerData = mapOf(0x1234 to
+                        hex("01 12 00 BC 87 FA 00 00 01 03 4F 4D 57")),
                 ),
             ),
         )
