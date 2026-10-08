@@ -14,11 +14,12 @@ open class MoondropEarbudAdapter(
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         val name = normalizeDeviceName(identity.deviceName.orEmpty())
-        return "moondrop" in name || "水月雨" in name
+        return "moondrop" in name || "水月雨" in name || name in UNBRANDED_MODEL_NAMES
     }
 
     companion object {
         const val ID = "moondrop-family"
+        private val UNBRANDED_MODEL_NAMES = setOf("spacetravel2ultra")
     }
 }
 

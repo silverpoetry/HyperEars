@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 设备识别
+
+- 补充 `Space Travel 2 Ultra` 的精确名称，归入水月雨家族；保留系统整机电量、音量与流转，
+  私有协议及降噪控制仍待独立确认。
+
 ### 构建依赖
 
 - 更新 Android Gradle Plugin 至 9.4.1、Kotlin 至 2.4.20、Navigation Compose 至 2.10.2。
