@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 构建依赖
+
+- 更新 Android Gradle Plugin 至 9.4.1、Kotlin 至 2.4.20、Navigation Compose 至 2.10.2。
+- 更新 Miuix 至 0.9.4、DexKit 至 2.3.0，以及构建工作流的 setup-java 至 6.0.1。
+
 ## [2.7.0] - 2026-09-08
 
 本版新增 Edifier FitBuds Turbo 适配，修复漫步者 TWS 单耳和双耳不可用时的电量显示，
