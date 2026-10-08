@@ -133,19 +133,9 @@ class RoseLuliXAdapter : RoseEarbudAdapter() {
     )
     // Retail units differ: some expose the control GATT server on a separate `CERAMICS X BLE`
     // endpoint, others (observed on Android 16 HyperOS) advertise only the 0x8418 identity on the
-    // Classic audio LE identity and host the same FDB3 service there. Try the session device
-    // first, then the separately advertised companion.
+    // Classic audio LE identity and host the same FDB3 service there. Resolve either identity
+    // through the same bounded association scan before opening the control service.
     override val transports: List<EarbudTransportSpec> = listOf(
-        GattTransportSpec(
-            serviceUuid = SERVICE_UUID,
-            writeCharacteristicUuid = WRITE_CHARACTERISTIC_UUID,
-            notifyCharacteristicUuid = NOTIFY_CHARACTERISTIC_UUID,
-            writeInstanceId = WRITE_ATTRIBUTE_HANDLE,
-            notifyInstanceId = NOTIFY_ATTRIBUTE_HANDLE,
-            writeMode = GattWriteMode.WITHOUT_RESPONSE,
-            notificationsRequired = true,
-            id = "rose-luli-x-session-gatt",
-        ),
         GattTransportSpec(
             serviceUuid = SERVICE_UUID,
             writeCharacteristicUuid = WRITE_CHARACTERISTIC_UUID,
@@ -204,7 +194,6 @@ internal object RoseLuliXGattPeerMatcher : GattPeerMatcher {
 
         val candidateName = normalize(candidate.deviceName)
         if (candidateName == normalize(RoseLuliXAdapter.COMPANION_DEVICE_NAME)) return true
-        if (candidateName.contains("ceramics")) return true
 
         val manufacturerData =
             candidate.manufacturerData[RoseLuliXAdapter.COMPANION_MANUFACTURER_ID]
