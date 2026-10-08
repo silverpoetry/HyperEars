@@ -171,6 +171,7 @@ OriG in 使用 RFCOMM UUID `a100`。
 |---|---|---|---|---|---|
 | Robin / 知更鸟（蓝牙名称 `Robin's Earphones`） | 具体型号 | 公开实现 | 已知完整名称或同时包含品牌与型号的名称规则选择候选；严格握手响应确认协议 | 私有左右耳 | 降噪、关闭、通透 |
 | Pudding（蓝牙名称 `MOONDROP Pudding`） | 具体型号 | 实机验证 | 名称规则选择候选；与 Robin 相同的严格握手响应确认协议 | 系统整机 → 私有左右耳与充电盒 | 降噪、关闭、通透 |
+| MIRAGE（蓝牙名称 `MOONDROP MIRAGE`） | 具体型号 | 原版部分实机验证；维护版待复核 | 品牌与型号名称选择候选；共用 Pudding 的严格握手与逐项响应确认后开放 | 系统整机 → 私有左右耳与充电盒 | 基础降噪、关闭、通透 |
 | 其他名称包含 MOONDROP / 水月雨的耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
 Robin 和 Pudding 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只用于选择
@@ -181,7 +182,9 @@ Robin 和 Pudding 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。�
 `40/41`、操作码 `03/04`）；电量帧 `01 <左> 02 <右> 03 <盒>` 中左右耳 `00` 与 `FF`
 均表示未连接并显示未知，充电盒 `FF` 为不可读。捕获记录中帧载荷之后的尾字节
 （如 `40`）不参与任何校验。详见
-[`moondrop-pudding-protocol.md`](moondrop-pudding-protocol.md)。
+[`moondrop-pudding-protocol.md`](moondrop-pudding-protocol.md)。MIRAGE 原 PR 已于 2026-09-21
+实机确认握手、私有电量与基础三态读写。自适应降噪命令待补证，最终维护版待复核，见
+[`moondrop-mirage-protocol.md`](moondrop-mirage-protocol.md)。
 
 ### 2.9 荣耀
 
