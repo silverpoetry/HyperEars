@@ -171,6 +171,7 @@ OriG in 使用 RFCOMM UUID `a100`。
 |---|---|---|---|---|---|
 | Robin / 知更鸟（蓝牙名称 `Robin's Earphones`） | 具体型号 | 公开实现 | 已知完整名称或同时包含品牌与型号的名称规则选择候选；严格握手响应确认协议 | 私有左右耳 | 降噪、关闭、通透 |
 | Pudding（蓝牙名称 `MOONDROP Pudding`） | 具体型号 | 实机验证 | 名称规则选择候选；与 Robin 相同的严格握手响应确认协议 | 系统整机 → 私有左右耳与充电盒 | 降噪、关闭、通透 |
+| Space Travel 2 Ultra（蓝牙名称 `Space Travel 2 Ultra`） | 标准回退 | 用户名称记录 | 精确名称选择水月雨家族；私有协议待确认 | 系统整机 | 无 |
 | 其他名称包含 MOONDROP / 水月雨的耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
 Robin 和 Pudding 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只用于选择
