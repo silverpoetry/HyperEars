@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Dreame / TheAstro（FloS2 运动耳机）
+
+- 加入 TheAstro OpenPro S2 具体型号候选与 Dreame Flo S2 同硬件家族候选，基于
+  `AC00/AC01/AC02` GATT 私有协议。
+- 收到合法状态响应后开放整机电量（设备端按 10% 一档量化；充电时设备关机，故不发布
+  充电状态）与音效切换（标准/游泳/人声/增强），设置后经状态回读确认。
+- 音效选择器复用 MiLink 原生模式卡槽位承载（与 FitClip Ultra 游戏模式同款机制），仅在
+  合法状态帧确认后出现；选项图标为模块自绘的四组矢量资源（on/off 两态，经状态选择器
+  随选中态切换，配色沿用原生图标），经包上下文加载注入 MiLink 进程，加载失败时回退为
+  宿主原生图标。
+- 协议与证据边界见 `docs/flos2-sport-protocol.md`；适配器实机复核按维护流程单独进行。
+
 ## [2.8.0] - 2026-10-23
 
 本版新增 Samsung Galaxy Buds 与 MOONDROP MIRAGE 适配，修复新版 MiLink 的 Bose

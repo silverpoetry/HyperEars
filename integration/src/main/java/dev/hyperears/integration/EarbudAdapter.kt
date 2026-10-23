@@ -607,6 +607,7 @@ object EarbudAdapterRegistry {
     private val huaweiGroup = GroupMetadata("huawei", "华为")
     private val sonyGroup = GroupMetadata("sony", "Sony")
     private val qcyGroup = GroupMetadata("qcy", "QCY")
+    private val flos2Group = GroupMetadata("flos2", "Dreame / TheAstro")
     private val technicsGroup = GroupMetadata("technics", "Technics")
     private val samsungGroup = GroupMetadata("samsung", "Samsung Galaxy Buds")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
@@ -652,6 +653,8 @@ object EarbudAdapterRegistry {
         add(Registration(huaweiGroup, ::HuaweiFreebudsFamilyAdapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))
+        add(Registration(flos2Group, ::TheAstroOpenProS2Adapter))
+        add(Registration(flos2Group, ::FloS2SportGattAdapter))
         add(Registration(technicsGroup, ::TechnicsEarbudAdapter))
         dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.entries.forEach { model ->
             add(Registration(samsungGroup) { SamsungBuds2ProAdapter(model) })
