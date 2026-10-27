@@ -281,4 +281,17 @@ fingerprint when stable symbols and the exact-version table are unavailable.
 Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不随项目分发厂商应用、
 抓包文件、固件或品牌资源。该贡献合入后的源代码遵循本项目的 GNU GPL-3.0-only 许可。
 
+## MOONDROP Link application research
+
+- MOONDROP Link for Android（`com.moondroplab.moondrop.moondrop_app`），官方下载
+  <https://download.moondroplab.com/moondroplink/android-release.apk>
+- 分析版本：官网 2.25.0c（未混淆构建）与 2.26.2c（混淆构建，用于常量交叉核对）
+
+仅为互操作性目的分析该闭源厂商应用，提取接口事实：MOONDROP GAIA 线协议族的 QTIL
+厂商 ID 29、feature/type/command 字编码、API 版本握手（vendor 10、`0x0300`）、电量
+组件表（左/右/盒）与标准 SPP 端点。ZZZ-ANGELS-OWS 适配据此独立实现，并与该 App 同
+设备实机抓包交叉验证。HyperEars 只记录可互操作的协议事实，不复制任何代码，不分发
+厂商应用、反编译产物、固件、图片或品牌资源；厂商应用的权利归成都水月雨科技有限公司
+所有。
+
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
