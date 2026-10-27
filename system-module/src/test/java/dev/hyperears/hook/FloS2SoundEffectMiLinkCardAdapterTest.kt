@@ -1,6 +1,8 @@
 package dev.hyperears.hook
 
 import dev.hyperears.integration.AdapterRuntimeState
+import dev.hyperears.integration.ControlAppSpec
+import dev.hyperears.integration.ControlOwnership
 import dev.hyperears.integration.DeviceLifecycle
 import dev.hyperears.integration.EarbudState
 import dev.hyperears.integration.FloS2ControlRequest
@@ -105,5 +107,23 @@ class FloS2SoundEffectMiLinkCardAdapterTest {
             ),
             features = runtime.features,
         )
+    }
+
+    @Test
+    fun staleFeatureDuringYieldOrRecoveryCannotEnableControls() {
+        val connected = connectedState(FloS2SoundEffect.STANDARD)
+        val states = listOf(
+            connected.copy(lifecycle = connected.lifecycle.copy(
+                controlOwnership = ControlOwnership.EXTERNAL_APP,
+                externalControlApp = ControlAppSpec("test.controller", "Test controller"),
+                privateTransport = PrivateTransportState.NOT_REQUIRED,
+            )),
+            connected.copy(lifecycle = connected.lifecycle.copy(privateTransport = PrivateTransportState.IDLE)),
+            connected.copy(lifecycle = connected.lifecycle.copy(protocolHandshake = ProtocolHandshakeState.PENDING)),
+        )
+        states.forEach {
+            assertFalse(FloS2SoundEffectCardPolicy.render(it).enabled)
+            assertNull(FloS2SoundEffectCardPolicy.request(it, FloS2SoundEffect.ENHANCED))
+        }
     }
 }

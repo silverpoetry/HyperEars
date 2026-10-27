@@ -1,20 +1,21 @@
 # Dreame / TheAstro FloS2 运动耳机协议适配
 
-HyperEars 实现流宇系运动耳机（Dreame Flo S2 与 TheAstro OpenPro S2，同一硬件双品牌）接入
+HyperEars 实现流宇系运动耳机（Dreame Flo S2 与 TheAstro OpenPro S2，贡献者报告为同硬件双品牌）接入
 MiLink 所需的最小子集：整机电量读取与音效切换。运动记录、结果文件同步、MP3 模式、语音
 播报、OTA 与其他厂商 App 功能不属于本适配范围。
 
 ## 1. 候选选择
 
-当前登记的具体型号为 TheAstro OpenPro S2（实机验证）；Dreame Flo S2 为同硬件双品牌，处于
+当前登记的具体型号为 TheAstro OpenPro S2（原 PR 实机验证，维护版待复核）；Dreame Flo S2 处于
 家族外推。两个品牌的设备以不同广播名出现，但协议内设备名相同，均为 `Flo S2`。具体型号
 Adapter 接受以下规范化名称：
 
 - `openpros2`。
+- `theastroopenpros2`（带品牌的完整名称）。
 
-名称包含 `flos2`、`openpros2` 或 `haptifit` 的标准蓝牙耳机进入同协议家族探测；广播携带
-私有服务 UUID `AC00` 的设备同样进入候选。名称与 UUID 只用于选择候选 Adapter，不会直接
-开放私有电量或音效控制。HyperOS 已原生接管的耳机仍由平台保留，不会进入 FloS2 匹配链。
+家族候选接受规范化完整名称 `flos2`、`dreameflos2` 以及上述 OpenPro S2 名称。
+`AC00` 只作为端点，不单独作为品牌证据；其他名称（包括尚未提供型号协议证据的 HaptiFit）
+保留标准回退。候选仍须取得合法状态帧才开放私有电量或音效控制，系统原生接管优先。
 
 ## 2. GATT 端点
 
@@ -115,6 +116,9 @@ AE | primary | sub | payloadLength | payload[payloadLength] | CRC16 LE
 确认后开放。卡片呈现复用 MiLink 原生模式卡槽位（与 FitClip Ultra 游戏模式同款机制）：
 标题替换为"音效"，三个原生项临时替换为四个同原生类项（标准/游泳/人声/增强），解绑时
 恢复原项。
+无标题控件的布局也可在已确认的原生模式区域显示四个带文字的选项；不另加高度或查找未知
+布局层级。第四项使用独立 View ID，避免与前三项重复。仅在协议确认、私有通道连通且控制权
+属于模块时允许点击；回读驱动选中态，关闭卡片时恢复原项和存在的标题。
 
 ## 7. 能力与失败回退
 
@@ -140,6 +144,17 @@ AE | primary | sub | payloadLength | payload[payloadLength] | CRC16 LE
   分析，以及 2026-10 的两场实机 HCI 采集（含 9 次音效切换逐帧核对、105 个电量样本统计，
   全部帧经 CRC 校验）。
 - 本文档如实区分：协议本身已完成实机验证；HyperEars 适配器的最终实机复核（MiLink 卡片
-  实际显示与控制）按项目维护流程单独进行，合入不代表补齐该复核。
+  实际显示与控制）按项目维护流程单独进行。#90 作者报告其原版 Debug 包在 HyperOS 4.0.2.0
+  的识别、电量、四档控制及选中态正常；本维护版的收窄判型、无标题兼容和资源保留仍待复核。
 - HyperEars 在自身 Adapter、ProtocolSession 与 WireCodec 边界内实现所需的互操作协议，
   不分发厂商 App、界面、图片、资源或构建产物。
+
+协议和脱敏向量来自 [Conastin 的 PR #90](https://github.com/silverpoetry/HyperEars/pull/90)，
+来源与许可证记录见 [第三方声明](../THIRD_PARTY_NOTICES.md#flos2-community-protocol-contribution)。
+
+## 10. 控制 App 待补信息
+
+贡献资料提及 Android 官方伴侣 App，但尚未提供可核对的名称、包名和版本。因此当前 Adapter
+不声明厂商 App，选择厂商设置会回退到系统蓝牙详情，也暂不支持该 App 的运行时退避。
+补齐身份后统一更新 `ControlAppCatalog`、`controlApps`、作用域和目录；不以推测的包名安装 Hook。
+实机复核时请先手动停止伴侣 App，避免其后台连接占用控制通道。

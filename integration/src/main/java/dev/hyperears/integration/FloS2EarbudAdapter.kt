@@ -1,7 +1,5 @@
 package dev.hyperears.integration
 
-import dev.hyperears.protocol.flos2.FloS2WireCodec
-
 /**
  * Shared brand policy for the Dreame Flo S2 / TheAstro OpenPro S2 sport earbuds; never registered
  * as a runtime fallback. The two brands ship identical hardware and protocol: the wire reports the
@@ -16,8 +14,7 @@ abstract class FloS2EarbudAdapter(
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         val name = normalizeDeviceName(identity.deviceName.orEmpty())
-        return BRAND_NAME_MARKERS.any(name::contains) ||
-            identity.serviceUuids.any { it.equals(FloS2SportGattAdapter.SERVICE_UUID, ignoreCase = true) }
+        return name in CANDIDATE_NAMES
     }
 
     override val controlRequestContract: ControlRequestContract =
@@ -46,8 +43,8 @@ abstract class FloS2EarbudAdapter(
     }
 
     companion object {
-        /** Brand identifiers used by the vendor app's own scan filter for both brand twins. */
-        val BRAND_NAME_MARKERS = listOf("flos2", "openpros2", "haptifit")
+        /** Known model names select a read-only candidate; AC00 alone has no identity authority. */
+        private val CANDIDATE_NAMES = setOf("flos2", "dreameflos2", "openpros2", "theastroopenpros2")
     }
 }
 
@@ -115,6 +112,6 @@ class TheAstroOpenProS2Adapter : FloS2SportGattAdapter() {
 
     companion object {
         const val ID = "theastro-openpro-s2"
-        private val MODEL_NAMES = setOf("openpros2")
+        private val MODEL_NAMES = setOf("openpros2", "theastroopenpros2")
     }
 }

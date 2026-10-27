@@ -21,9 +21,9 @@ class FloS2EarbudAdapterTest {
     }
 
     @Test
-    fun familyMatchesBrandNamesAndThePrivateServiceUuid() {
-        assertTrue(resolve("HaptiFit Terra") is FloS2SportGattAdapter)
-        assertTrue(
+    fun unverifiedNamesAndAnAc00ServiceCannotSelectTheFamily() {
+        assertFalse(resolve("HaptiFit Terra") is FloS2SportGattAdapter)
+        assertFalse(
             EarbudAdapterRegistry.resolve(
                 EarbudIdentity(
                     deviceName = "Sport Earbud",
@@ -35,6 +35,9 @@ class FloS2EarbudAdapterTest {
         val unrecognized = resolve("Flow S2")
         assertTrue(unrecognized is StandardEarbudAdapter)
         assertFalse(unrecognized is FloS2EarbudAdapter)
+        assertFalse(resolve("Other OpenPro S2 Clone") is FloS2EarbudAdapter)
+        assertTrue(resolve("Flo S2") is FloS2SportGattAdapter)
+        assertTrue(resolve("TheAstro OpenPro S2") is TheAstroOpenProS2Adapter)
     }
 
     @Test
@@ -161,6 +164,35 @@ class FloS2EarbudAdapterTest {
             standardHeadset = true,
         ),
     )
+
+    @Test
+    fun soundEffectRequestsAndStateRoundTripThroughTheSharedContracts() {
+        FloS2SoundEffect.entries.forEach { effect ->
+            val request = FloS2ControlRequest.SetSoundEffect(effect)
+            assertEquals(request, ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+            val features = DeviceFeatureSnapshot().update(FloS2SoundEffectFeatureState(effect))
+            assertEquals(features, FeatureStateTransport.decode(FeatureStateTransport.encode(features)))
+            assertFalse(StandardEarbudAdapter().supportsControl(request))
+        }
+    }
+
+    @Test
+    fun batteryEvidenceAloneDoesNotOpenSoundEffectControl() {
+        val adapter = TheAstroOpenProS2Adapter()
+        adapter.receive("AE 66 E0 02 3C 00 B0 11".hexBytes())
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        assertNull(adapter.miLinkCardPresentationId)
+        assertFalse(adapter.supportsControl(FloS2ControlRequest.SetSoundEffect(FloS2SoundEffect.ENHANCED)))
+    }
+
+    @Test
+    fun corruptStatusCannotOpenPrivateCapabilities() {
+        val adapter = TheAstroOpenProS2Adapter()
+        val corrupt = STATUS_STANDARD.hexBytes().also { it[it.lastIndex] = (it.last().toInt() xor 1).toByte() }
+        assertFalse(adapter.receive(corrupt).stateChanged)
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        assertNull(adapter.miLinkCardPresentationId)
+    }
 
     private fun resolveRequired(name: String): EarbudAdapter = requireNotNull(resolve(name))
 

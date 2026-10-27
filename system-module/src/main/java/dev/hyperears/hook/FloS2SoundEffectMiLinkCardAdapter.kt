@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import dev.hyperears.bridge.ModuleContract
+import dev.hyperears.integration.ControlOwnership
 import dev.hyperears.integration.EarbudState
 import dev.hyperears.integration.FloS2ControlRequest
 import dev.hyperears.integration.FloS2MiLinkPresentationIds
@@ -45,10 +46,13 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
             val source = host.sources[index % host.sources.size]
             host.createItem(root, source, EFFECT_LABELS.getValue(effect), effectIcon(root.context, effect))
                 ?: return skipped(address, "sound-effect-item-construction-failed")
+        }.onEachIndexed { index, item ->
+            // Additional choices must not reuse one of the three stock sibling IDs.
+            if (index >= host.sources.size) item.id = View.generateViewId()
         }
 
         val binding = Binding(host, items, address, environment)
-        host.install(SOUND_EFFECT_LABEL, items)
+        if (!host.install(SOUND_EFFECT_LABEL, items)) return skipped(address, "native-container-detached")
         items.forEachIndexed { index, item ->
             item.setOnClickListener { binding.onEffectClicked(FloS2SoundEffect.entries[index]) }
         }
@@ -115,7 +119,7 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
     }
 
     private class NativeAncHost(
-        title: TextView,
+        title: TextView?,
         row: NativeAncModeRow,
     ) {
         private data class OriginalItem(
@@ -129,9 +133,9 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
         val generation: String = layout.logName
         val sources: List<View> = row.items
 
-        private val title = WeakReference(title)
+        private val title = title?.let(::WeakReference)
         private val container = WeakReference(row.container)
-        private val originalTitle = title.text
+        private val originalTitle = title?.text
         private val originals = row.items.map { item ->
             OriginalItem(
                 view = item,
@@ -150,10 +154,9 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
             return item
         }
 
-        fun install(titleText: String, items: List<View>) {
-            val title = title.get() ?: return
-            val container = container.get() ?: return
-            title.text = titleText
+        fun install(titleText: String, items: List<View>): Boolean {
+            val container = container.get() ?: return false
+            title?.get()?.text = titleText
             originals.sortedByDescending(OriginalItem::index).forEach { original ->
                 if (original.view.parent === container) container.removeView(original.view)
             }
@@ -164,10 +167,10 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
                 container.addView(item, insertion + offset)
                 replacements += WeakReference(item)
             }
+            return true
         }
 
         fun restore() {
-            val title = title.get() ?: return
             val container = container.get() ?: return
             replacements.mapNotNull(WeakReference<View>::get).forEach { replacement ->
                 if (replacement.parent === container) container.removeView(replacement)
@@ -182,7 +185,7 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
                     )
                 }
             }
-            title.text = originalTitle
+            title?.get()?.text = originalTitle
             replacements.clear()
         }
     }
@@ -190,7 +193,7 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
     private fun resolveNativeHost(root: View): NativeAncHost? =
         listOf(NativeAncModeLayout.SELECT_CARD, NativeAncModeLayout.ORIGINAL).firstNotNullOfOrNull { layout ->
             val row = NativeAncModeRow.resolve(root, layout) ?: return@firstNotNullOfOrNull null
-            val title = root.findMiLinkView(layout.titleId) as? TextView ?: return@firstNotNullOfOrNull null
+            val title = root.findMiLinkView(layout.titleId) as? TextView
             NativeAncHost(title, row)
         }
 
@@ -265,7 +268,8 @@ internal object FloS2SoundEffectCardPolicy {
         val feature = state.features.get<FloS2SoundEffectFeatureState>()
         return CardState(
             effect = feature?.effect,
-            enabled = state.sessionActive && state.connected && feature != null,
+            enabled = state.sessionActive && state.privateChannelConnected && state.handshakeAccepted &&
+                state.lifecycle.controlOwnership == ControlOwnership.MODULE && feature != null,
         )
     }
 

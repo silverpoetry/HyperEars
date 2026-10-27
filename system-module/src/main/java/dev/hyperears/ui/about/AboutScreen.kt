@@ -366,6 +366,23 @@ internal val supportBrands = listOf(
         ),
     ),
     SupportBrand(
+        name = "Dreame / TheAstro",
+        entries = listOf(
+            SupportEntry(
+                name = "TheAstro OpenPro S2",
+                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                battery = BatteryCapability.DEVICE,
+                noiseControl = "无（音效四档）",
+            ),
+            SupportEntry(
+                name = "Dreame Flo S2",
+                evidence = EvidenceLevel.FAMILY_PROBE,
+                battery = BatteryCapability.DEVICE,
+                noiseControl = "无（音效四档）",
+            ),
+        ),
+    ),
+    SupportBrand(
         name = "Sony",
         entries = listOf(
             SupportEntry(
