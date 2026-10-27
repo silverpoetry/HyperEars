@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Dreame / TheAstro（FloS2 运动耳机）
+
+- 加入 TheAstro OpenPro S2 具体型号候选与 Dreame Flo S2 家族候选，基于
+  `AC00/AC01/AC02` GATT 私有协议。
+- 合法状态响应后开放整机电量与音效切换（标准／游泳／人声／增强），设置后经状态回读确认。
+- 音效选择器复用 MiLink 原生模式卡片和模块矢量图标，解绑恢复原有控件。
+- 协议与证据边界见 `docs/flos2-sport-protocol.md`；最终维护版待实机复核。
+
 ### ROSE Ceramics X
 
 - 兼容不再广播独立 `CERAMICS X BLE` 的零售批次：`0x8418` 身份载荷挂在 Classic 音频端点

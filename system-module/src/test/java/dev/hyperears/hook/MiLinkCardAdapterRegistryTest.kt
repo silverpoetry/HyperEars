@@ -6,6 +6,7 @@ import dev.hyperears.integration.DeviceLifecycle
 import dev.hyperears.integration.EarbudState
 import dev.hyperears.integration.EdifierGameModeFeatureState
 import dev.hyperears.integration.EdifierMiLinkPresentationIds
+import dev.hyperears.integration.FloS2MiLinkPresentationIds
 import dev.hyperears.integration.MiLinkCardPresentationId
 import dev.hyperears.integration.NiceHckYuanDaoOrigAdapter
 import dev.hyperears.integration.NoiseMode
@@ -80,6 +81,10 @@ class MiLinkCardAdapterRegistryTest {
         assertSame(
             FitClipUltraGameModeMiLinkCardAdapter,
             MiLinkCardAdapterRegistry.resolve(EdifierMiLinkPresentationIds.GAME_MODE),
+        )
+        assertSame(
+            FloS2SoundEffectMiLinkCardAdapter,
+            MiLinkCardAdapterRegistry.resolve(FloS2MiLinkPresentationIds.SOUND_EFFECT),
         )
         assertSame(
             SonyAmbientOnlyMiLinkCardAdapter,
