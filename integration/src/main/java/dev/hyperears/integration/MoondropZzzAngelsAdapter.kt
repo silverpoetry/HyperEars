@@ -22,8 +22,7 @@ import dev.hyperears.protocol.moondrop.MoondropZzzAngelsWireCodec
  * `docs/moondrop-zzz-angels-protocol.md` for the evidence trail.
  */
 class MoondropZzzAngelsAdapter : MoondropEarbudAdapter() {
-    /** Two-component bounded report policy shared with the family's Pudding adapter. */
-    private val batteryPolicy = MoondropFamilyBatteryPolicy()
+    private val batteryPolicy = MoondropZzzAngelsBatteryPolicy()
 
     override val id: String = ID
     override val displayName: String = "MOONDROP ZZZ-ANGELS-OWS"
@@ -47,14 +46,14 @@ class MoondropZzzAngelsAdapter : MoondropEarbudAdapter() {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         val name = normalizeDeviceName(identity.deviceName.orEmpty())
         if (name.endsWith(LEA_SUFFIX)) return false
-        return name in EXACT_NAMES || ("zzz" in name && "angel" in name)
+        return name in EXACT_NAMES
     }
 
     override fun createProtocolSession(): ProtocolSession = MoondropZzzAngelsProtocolSession()
 
     /**
      * Holds provisional battery reports until both earbuds are known or the bounded bootstrap
-     * sequence is exhausted, so a single-side connect does not publish a half-empty reading.
+     * sequence is exhausted; standard Android battery remains available while held.
      */
     override fun onFeatureReported(
         state: DeviceFeatureState,
@@ -144,13 +143,13 @@ internal class MoondropZzzAngelsProtocolSession : ProtocolSession {
         battery = EarbudBattery()
     }
 
-    /** Missing components keep their previous value so a one-side report does not clear state. */
+    /** Absent components keep their value; an explicitly unknown reading clears stale state. */
     private fun EarbudBattery.merge(
         report: MoondropZzzAngelsWireCodec.BatteryState,
     ): EarbudBattery = copy(
-        left = report.leftPercent?.let { BatteryReading(it, charging = false) } ?: left,
-        right = report.rightPercent?.let { BatteryReading(it, charging = false) } ?: right,
-        case = report.casePercent?.let { BatteryReading(it, charging = false) } ?: case,
+        left = report.left?.let { BatteryReading(it.percent, charging = false) } ?: left,
+        right = report.right?.let { BatteryReading(it.percent, charging = false) } ?: right,
+        case = report.chargingCase?.let { BatteryReading(it.percent, charging = false) } ?: case,
     )
 
     private fun telemetryQueries(): List<ByteArray> =

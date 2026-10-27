@@ -2,6 +2,7 @@ package dev.hyperears.protocol.moondrop
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,7 +34,7 @@ class MoondropZzzAngelsWireCodecTest {
             "FF 04 00 04 00 1D 1B 01 01 3C 02 64".hexBytes(),
         ).single()
         assertEquals(
-            MoondropZzzAngelsWireCodec.BatteryState(60, 100, casePercent = null),
+            MoondropZzzAngelsWireCodec.BatteryState(reading(60), reading(100), null),
             MoondropZzzAngelsWireCodec.parseBattery(battery),
         )
     }
@@ -88,21 +89,21 @@ class MoondropZzzAngelsWireCodecTest {
             ),
         ).single()
         assertEquals(
-            MoondropZzzAngelsWireCodec.BatteryState(91, 76, casePercent = 88),
+            MoondropZzzAngelsWireCodec.BatteryState(reading(91), reading(76), reading(88)),
             MoondropZzzAngelsWireCodec.parseBattery(withCase),
         )
 
-        val pushedOutOfOrder = decoder.offer(
+        val outOfOrder = decoder.offer(
             MoondropZzzAngelsWireCodec.frame(
                 command = 0x1D,
-                subcommand = 0x81,
+                subcommand = 0x1B,
                 opcode = 0x01,
                 parameters = byteArrayOf(2, 60, 1, 55),
             ),
         ).single()
         assertEquals(
-            MoondropZzzAngelsWireCodec.BatteryState(55, 60, casePercent = null),
-            MoondropZzzAngelsWireCodec.parseBattery(pushedOutOfOrder),
+            MoondropZzzAngelsWireCodec.BatteryState(reading(55), reading(60), null),
+            MoondropZzzAngelsWireCodec.parseBattery(outOfOrder),
         )
     }
 
@@ -118,7 +119,10 @@ class MoondropZzzAngelsWireCodecTest {
                 parameters = byteArrayOf(1, 0, 2, 0xFF.toByte()),
             ),
         ).single()
-        assertNull(MoondropZzzAngelsWireCodec.parseBattery(allUnreadable))
+        assertEquals(
+            MoondropZzzAngelsWireCodec.BatteryState(reading(null), reading(null), null),
+            MoondropZzzAngelsWireCodec.parseBattery(allUnreadable),
+        )
 
         val oneBudInCase = decoder.offer(
             MoondropZzzAngelsWireCodec.frame(
@@ -129,7 +133,7 @@ class MoondropZzzAngelsWireCodecTest {
             ),
         ).single()
         assertEquals(
-            MoondropZzzAngelsWireCodec.BatteryState(null, null, casePercent = 42),
+            MoondropZzzAngelsWireCodec.BatteryState(reading(null), reading(null), reading(42)),
             MoondropZzzAngelsWireCodec.parseBattery(oneBudInCase),
         )
     }
@@ -194,9 +198,40 @@ class MoondropZzzAngelsWireCodecTest {
         assertTrue(decoder.offer(first.copyOfRange(0, 5)).isEmpty())
         val frames = decoder.offer(first.copyOfRange(5, first.size) + second)
         assertEquals(2, frames.size)
-        assertEquals(91, MoondropZzzAngelsWireCodec.parseBattery(frames[0])?.leftPercent)
-        assertEquals(55, MoondropZzzAngelsWireCodec.parseBattery(frames[1])?.leftPercent)
+        assertEquals(91, MoondropZzzAngelsWireCodec.parseBattery(frames[0])?.left?.percent)
+        assertEquals(55, MoondropZzzAngelsWireCodec.parseBattery(frames[1])?.left?.percent)
     }
+
+    @Test
+    fun absentComponentsAndExplicitUnknownHaveDifferentMeanings() {
+        val partial = parseBattery(byteArrayOf(2, 0xFF.toByte()))!!
+        assertNull(partial.left)
+        assertNotNull(partial.right)
+        assertNull(partial.right?.percent)
+        assertNull(partial.chargingCase)
+        assertEquals(0, parseBattery(byteArrayOf(3, 0))?.chargingCase?.percent)
+    }
+
+    @Test
+    fun malformedPercentagesDoNotErasePreviousState() {
+        for (value in listOf(101, 127, 254)) {
+            assertNull(parseBattery(byteArrayOf(1, value.toByte(), 2, 70)))
+        }
+    }
+
+    @Test
+    fun unverifiedPushDialectsCannotPublishState() {
+        for ((sub, opcode) in listOf(0x1A to 0x81, 0x81 to 0x01)) {
+            val frame = MoondropZzzAngelsWireCodec.Frame(0x1D, sub, opcode, byteArrayOf(1, 60, 2, 70))
+            assertNull(MoondropZzzAngelsWireCodec.parseBattery(frame))
+        }
+    }
+
+    private fun reading(percent: Int?) = MoondropZzzAngelsWireCodec.BatteryReading(percent)
+
+    private fun parseBattery(parameters: ByteArray) = MoondropZzzAngelsWireCodec.parseBattery(
+        MoondropZzzAngelsWireCodec.Frame(0x1D, 0x1B, 0x01, parameters),
+    )
 
     private fun ByteArray.hex(): String = joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
 

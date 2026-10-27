@@ -79,6 +79,18 @@ class MoondropZzzAngelsAdapterTest {
     }
 
     @Test
+    fun arbitraryZzzAngelNamesAndSharedSppCannotSelectTheModel() {
+        val adapter = MoondropZzzAngelsAdapter()
+        for (name in listOf("ZZZ Angel Speaker", "ZZZ-ANGELS-OWS-LEA", "Other headset")) {
+            assertFalse(adapter.matches(EarbudIdentity(
+                deviceName = name,
+                standardHeadset = true,
+                serviceUuids = setOf(MoondropZzzAngelsAdapter.STANDARD_SPP_UUID),
+            )))
+        }
+    }
+
+    @Test
     fun declaresTheSppTransportAndLockedInitialCapabilities() {
         val adapter = MoondropZzzAngelsAdapter()
         assertEquals(
@@ -182,10 +194,50 @@ class MoondropZzzAngelsAdapterTest {
     fun batteryReportsMergeComponentWise() {
         val adapter = readyAdapter()
         adapter.receive(batteryFrame(91, 76, 88))
-        adapter.receive(batteryFrame(null, 70, null))
+        adapter.receive(MoondropZzzAngelsWireCodec.frame(
+            command = 0x1D, subcommand = 0x1B, opcode = 0x01,
+            parameters = byteArrayOf(2, 70),
+        ))
         assertEquals(91, adapter.runtimeState().battery.left.percent)
         assertEquals(70, adapter.runtimeState().battery.right.percent)
         assertEquals(88, adapter.runtimeState().battery.case.percent)
+    }
+
+    @Test
+    fun explicitUnreadableBudsClearStaleValuesWhileKeepingValidCase() {
+        val adapter = readyAdapter()
+        adapter.receive(batteryFrame(91, 76, 88))
+        val cleared = adapter.receive(batteryFrame(null, null, 42))
+        assertTrue(cleared.stateChanged)
+        assertNull(adapter.runtimeState().battery.left.percent)
+        assertNull(adapter.runtimeState().battery.right.percent)
+        assertEquals(42, adapter.runtimeState().battery.case.percent)
+        assertTrue(cleared.effects.isEmpty())
+    }
+
+    @Test
+    fun allUnknownReportClearsAllPreviousComponents() {
+        val adapter = readyAdapter()
+        adapter.receive(batteryFrame(91, 76, 88))
+        assertTrue(adapter.receive(batteryFrame(null, null, null)).stateChanged)
+        assertEquals(EarbudBattery(), adapter.runtimeState().battery)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+    }
+
+    @Test
+    fun batteryBeforeHandshakeAndUnverifiedPushAreIgnored() {
+        val adapter = MoondropZzzAngelsAdapter()
+        assertFalse(adapter.receive(batteryFrame(91, 76, null)).stateChanged)
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
+        adapter.receive(handshakeFrame())
+        for ((sub, opcode) in listOf(0x1A to 0x81, 0x81 to 0x01)) {
+            val result = adapter.receive(MoondropZzzAngelsWireCodec.frame(
+                command = 0x1D, subcommand = sub, opcode = opcode,
+                parameters = byteArrayOf(1, 60, 2, 70),
+            ))
+            assertFalse(result.stateChanged)
+        }
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
     }
 
     @Test
@@ -206,7 +258,7 @@ class MoondropZzzAngelsAdapterTest {
     @Test
     fun partialFirstBatteryIsHeldForBoundedFollowUpReads() {
         val adapter = readyAdapter()
-        MoondropFamilyBatteryPolicy.BOOTSTRAP_DELAYS_MS.forEach { delayMs ->
+        MoondropZzzAngelsBatteryPolicy.BOOTSTRAP_DELAYS_MS.forEach { delayMs ->
             val result = adapter.receive(batteryFrame(null, 70, null))
             assertFalse(result.stateChanged)
             assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
@@ -253,6 +305,18 @@ class MoondropZzzAngelsAdapterTest {
             val result = adapter.receive(handshakeFrame())
             assertEquals(HandshakeResult.Ready, result.handshake)
         }
+
+    @Test
+    fun reconnectResetsComponentCacheAndFirstReportPolicy() {
+        val adapter = readyAdapter()
+        adapter.receive(batteryFrame(91, 76, 88))
+        adapter.resetProtocolSession()
+        adapter.receive(handshakeFrame())
+        val partial = adapter.receive(batteryFrame(null, 70, null))
+        assertFalse(partial.stateChanged)
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
+        assertTrue(partial.effects.single() is AdapterEffect.RequestState)
+    }
 
     private fun handshakeFrame(): ByteArray = MoondropZzzAngelsWireCodec.frame(
         command = 0x0A,

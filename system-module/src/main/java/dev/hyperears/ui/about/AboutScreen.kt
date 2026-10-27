@@ -296,7 +296,7 @@ internal val supportBrands = listOf(
             ),
             SupportEntry(
                 name = "ZZZ-ANGELS-OWS（妄想天使）",
-                evidence = EvidenceLevel.VERIFIED,
+                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
                 battery = BatteryCapability.LEFT_RIGHT,
                 noiseControl = "无",
             ),

@@ -30,10 +30,14 @@ object MoondropZzzAngelsWireCodec {
         val parameters: ByteArray,
     )
 
+    /** A present component whose percent may explicitly be unknown. */
+    data class BatteryReading(val percent: Int?)
+
+    /** Null means the component was absent from this frame, not an unreadable value. */
     data class BatteryState(
-        val leftPercent: Int?,
-        val rightPercent: Int?,
-        val casePercent: Int?,
+        val left: BatteryReading?,
+        val right: BatteryReading?,
+        val chargingCase: BatteryReading?,
     )
 
     /** `FF 01 00 00 00 0A 03 00` — captured family API-version request. */
@@ -76,36 +80,36 @@ object MoondropZzzAngelsWireCodec {
             frame.parameters[0].unsigned() != 0x00
 
     /**
-     * Battery state from the query response (`1D 1B 01`) or an unsolicited push (`1D 1A 81`).
+     * Battery state from the captured query response (`1D 1B 01`). Push framing is unverified.
      *
      * The capture shows the device answering `01 3C 02 64` — two `<id> <value>` pairs for the
      * left and right buds. The vendor battery table also defines `03 <case>` and the family's
      * Pudding reports it, so two or three pairs in any order are accepted. For both buds `00`
-     * and `FF` mean "not connected / unreadable" and decode to null; the case keeps `0..100`
+     * and `FF` mean "not connected / unreadable" and decode to an unknown reading; the case keeps `0..100`
      * valid (an empty case is a real state) and `FF` decodes to null. Frames with unknown or
-     * duplicated ids, odd parameter lengths, or no readable component are rejected.
+     * duplicated ids, odd parameter lengths or out-of-range values are rejected. A valid frame
+     * containing only unknown readings still clears those components in the current session.
      */
     fun parseBattery(frame: Frame): BatteryState? {
-        if (frame.command != 0x1D || frame.opcode != 0x01) return null
-        if (frame.subcommand != 0x1B && frame.subcommand != 0x81) return null
+        if (frame.command != 0x1D || frame.subcommand != 0x1B || frame.opcode != 0x01) return null
         if (frame.parameters.isEmpty() || frame.parameters.size % 2 != 0) return null
 
-        var left: Int? = null
-        var right: Int? = null
-        var case: Int? = null
+        var left: BatteryReading? = null
+        var right: BatteryReading? = null
+        var case: BatteryReading? = null
         val seen = mutableSetOf<Int>()
         for (index in frame.parameters.indices step 2) {
             val id = frame.parameters[index].unsigned()
             val value = frame.parameters[index + 1].unsigned()
             if (!seen.add(id)) return null
+            if (value !in 0..100 && value != 0xFF) return null
             when (id) {
-                0x01 -> left = value.takeIf { it in 1..100 }
-                0x02 -> right = value.takeIf { it in 1..100 }
-                0x03 -> case = value.takeIf { it in 0..100 }
+                0x01 -> left = BatteryReading(value.takeIf { it in 1..100 })
+                0x02 -> right = BatteryReading(value.takeIf { it in 1..100 })
+                0x03 -> case = BatteryReading(value.takeIf { it in 0..100 })
                 else -> return null
             }
         }
-        if (left == null && right == null && case == null) return null
         return BatteryState(left, right, case)
     }
 

@@ -1,15 +1,13 @@
 package dev.hyperears.integration
 
 /**
- * Bounded battery-report policy for the MOONDROP family's two-component reports.
+ * Bounded first-report policy for ZZZ-ANGELS-OWS. Existing models keep their own policies.
  *
- * The ZZZ-ANGELS-OWS and Pudding report the two earbuds as separate components and may answer
- * a one-side report while the other bud is still connecting. The policy holds such provisional
- * reports until both sides are known or a bounded bootstrap sequence is exhausted, so a
- * single-side connect never publishes a half-empty reading. State is owned by one adapter
- * instance; the Android runtime only schedules the declared follow-up reads.
+ * Hold provisional reports until both sides are known or the bounded bootstrap is exhausted.
+ * After the first accepted report, explicit unknown readings clear stale components immediately.
+ * One adapter instance owns this state; the Android runtime only schedules the declared reads.
  */
-internal class MoondropFamilyBatteryPolicy {
+internal class MoondropZzzAngelsBatteryPolicy {
     private var bootstrapAttempt = 0
     private var committed = false
 
