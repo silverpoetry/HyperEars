@@ -484,7 +484,7 @@ private class AndroidGattChannel(
         runCatching { adapter.bondedDevices.orEmpty() }
             .getOrDefault(emptySet())
             .firstOrNull { candidate ->
-                !candidate.sameAddressAs(sessionDevice) &&
+                (selection.allowSessionAddress || !candidate.sameAddressAs(sessionDevice)) &&
                     selection.matcher.matches(
                         sessionIdentity,
                         candidate.toGattPeerIdentity(),
@@ -521,7 +521,8 @@ private class AndroidGattChannel(
             }
 
             private fun accept(result: ScanResult, callbackType: Int?) {
-                if (completion.isCompleted || result.device.sameAddressAs(sessionDevice)) return
+                if (completion.isCompleted) return
+                if (!selection.allowSessionAddress && result.device.sameAddressAs(sessionDevice)) return
                 val candidate = result.toGattPeerIdentity()
                 val candidateKey = candidate.deviceAddress
                     ?: "anonymous-${System.identityHashCode(result.device)}"
