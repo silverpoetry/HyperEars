@@ -50,10 +50,16 @@ editable only while actual ANC plus a valid current depth is reported.
 Advanced access reuses the existing Apple, Sony, OPPO, Bose, Pudding, QCY, vivo, Huawei,
 Samsung, NiceHCK, ROSE Coral/RFCOMM/RS V2 and Technics policy/editor pairs. Their existing
 feature-specific state validation, expected definitions, readback and cleanup remain
-in force. These editors remain host-themed popup components: B3 native-page foundation
-is implemented; B5 conversion of every advanced row to inline native preferences is
-separate work. Standalone MiLink-only common game/sound toggles are not newly remapped
-by this foundation. No new capability or wire command is inferred from a device name.
+in force. Native inline rows now cover Apple settings, Coral daily fields and confirmed
+codec changes, Huawei finite choices, NiceHCK firmware-qualified values, Pudding,
+OPPO mode/EQ/toggles, QCY, vivo, Bose, Technics, Sony audio, qualified Samsung fields
+and ROSE RFCOMM. Existing Edifier game, wind and FloS2 sound-effect controls also reuse
+their policies. Long Apple ranges and Technics levels use native SeekBarPreference.
+Complex editors remain host-themed popup components; some newer finite fields and
+ROSE RSv2 rows still await inline migration. No capability or wire command is inferred
+from a device name. Re-selecting the current coarse noise mode sends nothing, preserving
+reported fine ANC strength. Audio confirmation has a one-use lease revoked by dismissal,
+state rendering, replacement and page closure; old callbacks cannot confirm another action.
 
 `com.android.settings` is an optional declared scope and state consumer; no installed
 phone scope, module configuration, service, process or APK was changed by this work.

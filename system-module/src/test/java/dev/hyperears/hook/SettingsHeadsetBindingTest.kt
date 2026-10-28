@@ -86,6 +86,111 @@ class SettingsHeadsetBindingTest {
         assertEquals("0%", f.row("hyperears.battery.0")?.summary)
         assertNull(f.row("hyperears.battery.1"))
     }
+    @Test fun inlineAppleUsesReportedValuesAndRevokesStaleFields() {
+        val f = Fixture()
+        f.current = f.current.withFeature(AppleSettingsFeatureState(oneBudAnc = false, microphone = AppleMicrophone.entries[0]))
+        f.binding.render()
+        val toggle = f.row("hyperears.apple.one_bud_anc") as SwitchPreferenceCompat
+        assertFalse(toggle.callChangeListener(true)); assertFalse(toggle.isChecked)
+        assertEquals(AppleControlRequest.SetOneBudAnc(true), f.sent.single())
+        val stale = f.row("hyperears.apple.microphone") as ListPreference
+        f.current = f.current.withFeature(AppleSettingsFeatureState(oneBudAnc = false))
+        stale.callChangeListener("1"); assertEquals(1, f.sent.size)
+        f.binding.close(); assertNull(stale.onPreferenceChangeListener)
+    }
+    @Test fun coralAudioRequiresActualConfirmationAndFreshSession() {
+        val f = Fixture()
+        f.current = f.current.withFeature(RoseCoralAudioFeatureState(RoseCoralAudioMode.AAC_SBC))
+            .withFeature(RoseCoralSettingsFeatureState(gameMode = false, bassLevel = 0))
+        f.binding.render()
+        (f.row("hyperears.coral.game") as SwitchPreferenceCompat).callChangeListener(true)
+        assertEquals(RoseCoralControlRequest.SetGameMode(true), f.sent.single())
+        (f.row("hyperears.coral.audio") as ListPreference).callChangeListener("LDAC")
+        assertEquals(1, f.sent.size)
+        val dialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(RoseCoralControlRequest.SetAudioMode(RoseCoralAudioMode.LDAC), f.sent.last())
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(2, f.sent.size)
+        (f.row("hyperears.coral.audio") as ListPreference).callChangeListener("LHDC")
+        val stale = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+        f.token = "next"
+        stale.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(2, f.sent.size)
+        f.binding.render()
+        (f.row("hyperears.coral.audio") as ListPreference).callChangeListener("LDAC")
+        val ownerDialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+        f.current = f.current.copy(lifecycle = f.current.lifecycle.copy(controlOwnership = ControlOwnership.EXTERNAL_APP,
+            externalControlApp = ControlAppCatalog.roseLink))
+        f.binding.render()
+        assertFalse(ownerDialog.isShowing)
+        ownerDialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(2, f.sent.size)
+        f.binding.close()
+    }
+    @Test fun vendorRowsPreserveNiceHckFirmwareAndOppoDefinitionGates() {
+        val f = Fixture()
+        f.current = f.current.withFeature(NiceHckSettingsFeatureState(mapOf(NiceHckSetting.EQ to 0), 1, 8))
+        f.binding.render()
+        val eq = f.row("hyperears.nicehck.EQ") as ListPreference
+        assertEquals(7, eq.entries.size)
+        f.current = f.current.withFeature(NiceHckSettingsFeatureState(mapOf(NiceHckSetting.EQ to 0), 1, 7))
+        eq.callChangeListener("6"); assertTrue(f.sent.isEmpty())
+        f.binding.render()
+        assertEquals(5, (f.row("hyperears.nicehck.EQ") as ListPreference).entries.size)
+        val definition = OppoNoiseDefinition(0x065414, listOf(OppoNoiseOption(OppoNoiseMode.OFF,0,true), OppoNoiseOption(OppoNoiseMode.DEEP,4,true)))
+        f.current = f.current.withFeature(OppoSettingsFeatureState(noise = OppoNoiseSelection(definition,0)))
+        f.binding.render()
+        val noise = f.row("hyperears.oppo.noise") as ListPreference
+        noise.callChangeListener("4")
+        assertEquals(OppoControlRequest.SelectNoiseOption(definition,4),f.sent.single())
+        val stale = f.row("hyperears.oppo.noise") as ListPreference
+        f.current = f.current.withFeature(OppoSettingsFeatureState(noise = OppoNoiseSelection(definition.copy(productId = 1),0)))
+        stale.callChangeListener("4"); assertEquals(1,f.sent.size)
+        f.binding.close()
+    }
+    @Test fun puddingAndBoseRowsUseReportedFieldsAndSourceValues() {
+        val f = Fixture()
+        f.current = f.current.withFeature(PuddingSettingsFeatureState(mapOf(PuddingSetting.GAIN to 2)))
+            .withFeature(BoseDailySettingsFeatureState(sidetone = 0, autoAnswer = false))
+        f.binding.render()
+        (f.row("hyperears.pudding.GAIN") as ListPreference).callChangeListener("0")
+        assertEquals(PuddingControlRequest.SetValue(PuddingSetting.GAIN,0), f.sent.last())
+        (f.row("hyperears.bose.sidetone") as ListPreference).callChangeListener("2")
+        assertEquals(BoseDailyControlRequest.SetSidetone(2),f.sent.last())
+        val answer = f.row("hyperears.bose.autoAnswer") as SwitchPreferenceCompat
+        answer.callChangeListener(true)
+        assertFalse(answer.isChecked)
+        assertEquals(BoseDailyControlRequest.SetAutoAnswer(true),f.sent.last())
+        f.binding.close()
+    }
+    @Test fun appleNativeRangeKeepsConfirmedValueAndRejectsOutOfRange() {
+        val f = Fixture()
+        f.current = f.current.withFeature(AppleSettingsFeatureState(chimeVolume = 30))
+        f.binding.render()
+        val range = f.row("hyperears.apple.chime_volume") as SeekBarPreference
+        assertEquals(15,range.min); assertEquals(100,range.max)
+        range.callChangeListener(45)
+        assertEquals(30,range.value)
+        assertEquals(AppleControlRequest.SetChimeVolume(45),f.sent.single())
+        (f.row("hyperears.apple.chime_volume") as SeekBarPreference).callChangeListener(101)
+        assertEquals(1,f.sent.size)
+        f.binding.close()
+    }
+    @Test fun reselectingCurrentAncNeverOverwritesBoseReportedIntensity() {
+        val f = Fixture()
+        f.current = f.current.withFeature(BoseDailySettingsFeatureState(anr = 3, cnc = BoseCncLevel(5, true)))
+        f.binding.render()
+        val row = f.row("hyperears.noise") as ListPreference
+        assertFalse(row.callChangeListener("ANC"))
+        assertTrue(f.sent.isEmpty())
+        assertEquals(5, f.current.features.get<BoseDailySettingsFeatureState>()!!.cnc!!.rawLevel)
+        f.binding.close()
+    }
     private inner class Fixture {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)

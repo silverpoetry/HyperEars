@@ -22,6 +22,30 @@ class AppleNativeManagerTest {
     private val identity = EarbudIdentity("AirPods", true, serviceUuids = setOf(AppleAirPodsAdapter.AAP_SERVICE_UUID))
     private fun request(): Contract.Request = shadowOf(RuntimeEnvironment.getApplication()).broadcastIntents
         .last { it.action == Contract.REQUEST }.let { requireNotNull(Contract.read(it)) }
+    @Test fun activeAppleControllersNeverOverrideNativeOwnershipOrUnknownDecision() {
+        val device = context.getSystemService(BluetoothManager::class.java).adapter.getRemoteDevice(address)
+        EarbudConnectionManager(context).use { manager ->
+            manager.updateExternalControlEnabled(true)
+            manager.updateControlAppPresence(setOf(ControlAppCatalog.andPods.packageName, ControlAppCatalog.librePods.packageName))
+            manager.onPhysicalConnected(address)
+            assertFalse(manager.observeDevice(device, identity))
+            val pending = request()
+            assertTrue(manager.snapshots().isEmpty())
+            manager.acceptAppleNativeDecision(pending, false, 1)
+            val delegated = manager.snapshots().single().state
+            assertEquals(ControlOwnership.EXTERNAL_APP, delegated.lifecycle.controlOwnership)
+            assertEquals(ControlAppCatalog.andPods, delegated.lifecycle.externalControlApp)
+            assertFalse(delegated.privateChannelConnected)
+            assertFalse(delegated.privateProtocolRequired)
+            manager.acceptAppleNativeDecision(pending, true, 2)
+            assertFalse(manager.snapshots().single().state.sessionActive)
+            manager.updateControlAppPresence(emptySet())
+            manager.updateExternalControlEnabled(false)
+            assertFalse(manager.registerDevice(device, identity, AppleAirPodsAdapter()))
+            assertFalse(manager.snapshots().single().state.sessionActive)
+        }
+    }
+
     @Test fun allRegistrationPathsRemainPendingUntilCurrentAuthenticatedEpochDeclines() {
         val device = context.getSystemService(BluetoothManager::class.java).adapter.getRemoteDevice(address)
         EarbudConnectionManager(context).use { manager ->

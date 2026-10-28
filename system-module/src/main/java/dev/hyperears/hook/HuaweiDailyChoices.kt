@@ -38,13 +38,16 @@ internal object HuaweiDailyChoices {
         }
     }
     private fun presetLabel(model: String?, value: Int): String {
-        if (model == "huawei-freebuds-pro3") return when (value) {
+        if (model in setOf("huawei-freebuds-pro3", "huawei-freebuds-pro5")) return when (value) {
             5 -> "默认"; 1 -> "低音增强"; 2 -> "高音增强"; 9 -> "人声"; else -> "预设 $value"
         }
         if (model == "huawei-freelace-pro2") return "预设 $value"
         return when (value) { 1 -> "默认"; 2 -> "低音增强"; 3 -> "高音增强"; 9 -> "人声"; 10 -> "运动增强"; else -> "预设 $value" }
     }
     private fun gestureLabel(model: String?, kind: HuaweiGestureKind, side: HuaweiGestureSide, value: Int): String {
+        if (model == "huawei-freebuds-3" && kind == HuaweiGestureKind.DOUBLE) return when (value) {
+            -1 -> "关闭"; 0 -> "语音助手"; 1 -> "播放 / 暂停"; 3 -> "切换降噪"; 4 -> "下一首"; else -> "未知"
+        }
         if (model == "huawei-freeclip-2" && kind == HuaweiGestureKind.DOUBLE && value == 7) return "切换空间音频"
         if (side == HuaweiGestureSide.CALL) return if (value == -1) "关闭" else "接听电话"
         if (kind == HuaweiGestureKind.CYCLE) return when (value) {

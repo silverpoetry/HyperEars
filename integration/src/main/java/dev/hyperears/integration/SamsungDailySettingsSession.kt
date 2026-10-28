@@ -13,6 +13,7 @@ internal class SamsungDailySettingsSession(private val model: SamsungBudsCodec.M
         fun packet(id: Int, vararg payload: Int) = listOf(SamsungBudsCodec.packet(id, payload.map(Int::toByte).toByteArray(), model))
         if (request is SamsungDailyControlRequest.Find && request.start) state = current.copy(findStopped = null)
         return when (request) {
+            is SamsungDailyControlRequest.SetConversationTimeout -> packet(Wire.CONVERSATION_TIMEOUT,request.seconds/5-1)
             is SamsungDailyControlRequest.SetEqualizer -> listOf(Wire.equalizer(model, request.enabled, request.preset))
             is SamsungDailyControlRequest.SetAmbientVolume -> packet(0x84, request.level)
             is SamsungDailyControlRequest.SetAncLevel -> packet(Wire.ANC_LEVEL, request.level)
@@ -34,7 +35,7 @@ internal class SamsungDailySettingsSession(private val model: SamsungBudsCodec.M
                 report.customAmbient?.let { SamsungCustomAmbient(it.enabled, it.left, it.right, it.tone, it.maximum) },
                 report.locked, report.leftHold, report.rightHold, report.voiceFocus,
                 Wire.customEqSupported(model) && report.eqEnabled != null && report.eqPreset != null,
-                old?.findLeftMuted, old?.findRightMuted, old?.findStopped)
+                old?.findLeftMuted, old?.findRightMuted, old?.findStopped, report.conversationTimeoutSeconds)
             return state
         }
         val current = state ?: return null
@@ -44,6 +45,8 @@ internal class SamsungDailySettingsSession(private val model: SamsungBudsCodec.M
         fun single(range: IntRange) = p.singleOrNull()?.toInt()?.and(255)?.takeIf { it in range }
         fun bool() = single(0..1)?.let { it == 1 }
         val next = when (id) {
+            Wire.CONVERSATION_TIMEOUT -> if (ack == null || model != SamsungBudsCodec.Model.BUDS2_PRO || current.conversationTimeoutSeconds == null) null
+                else single(0..2)?.let { current.copy(conversationTimeoutSeconds=(it+1)*5) }
             0x86 -> if (ack == null || current.equalizerEnabled == null) null else {
                 if (model.original) p.takeIf { it.size == 2 && it[0].toInt() in 0..1 && it[1].toInt() in 5..9 }
                     ?.let { current.copy(equalizerEnabled = it[0].toInt() == 1, equalizerPreset = it[1].toInt() - 5) }

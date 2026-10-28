@@ -14,6 +14,7 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
     override val id: String = ID
     override val displayName: String = "Apple AirPods"
     override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
+    override val controlApps: List<ControlAppSpec> = listOf(ControlAppCatalog.andPods, ControlAppCatalog.librePods)
     override val privateProtocolRequired: Boolean = true
     override val capabilities: EarbudCapabilities = EarbudCapabilities(
         battery = true,

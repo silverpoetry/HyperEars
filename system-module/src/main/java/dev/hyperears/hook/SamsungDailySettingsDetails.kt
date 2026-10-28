@@ -144,6 +144,11 @@ internal class SamsungDailySettingsDetails private constructor(
                 SamsungDailyControlRequest.SetEqualizer(it != 0, (it - 1).coerceAtLeast(0))
             }
         }
+        settings.conversationTimeoutSeconds?.takeIf { settings.sourceModel == dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.BUDS2_PRO }?.let {
+            choices("语音检测结束等待时间",it/5-1,listOf("5 秒","10 秒","15 秒")) { index ->
+                SamsungDailyControlRequest.SetConversationTimeout((index+1)*5)
+            }
+        }
         settings.ambientVolume?.let { volume -> choices("通透音量", volume,
             (0..settings.ambientMaximum).map { "级别 $it" }, SamsungDailyControlRequest::SetAmbientVolume) }
         settings.ancLevel?.let { choices("降噪强度", it, listOf("低", "高"), SamsungDailyControlRequest::SetAncLevel) }

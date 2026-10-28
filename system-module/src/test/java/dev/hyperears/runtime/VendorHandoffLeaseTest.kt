@@ -10,6 +10,22 @@ class VendorHandoffLeaseTest {
     private val apps = listOf(primary, secondary)
     private val lease = VendorHandoffLease()
 
+    @Test fun appleAutomaticPresenceAndExplicitSecondaryHandoffUseExistingLease() {
+        val candidates = dev.hyperears.integration.AppleAirPodsAdapter().controlApps
+        val primary = dev.hyperears.integration.ControlAppCatalog.andPods
+        val secondary = dev.hyperears.integration.ControlAppCatalog.librePods
+        val active = setOf(primary.packageName, secondary.packageName)
+        assertNull(lease.owner(candidates, active, false))
+        assertEquals(primary, lease.owner(candidates, active, true))
+        lease.begin(secondary.packageName, "apple-secondary", active)
+        assertEquals(secondary, lease.owner(candidates, active, false))
+        lease.presence(setOf(primary.packageName))
+        assertNull(lease.current)
+        assertEquals(primary, lease.owner(candidates, setOf(primary.packageName), true))
+        lease.presence(emptySet())
+        assertNull(lease.owner(candidates, emptySet(), true))
+    }
+
     @Test fun explicitLaunchYieldsEvenWhenAutomaticYieldIsOffAndExpiresWithoutPresence() {
         lease.begin(primary.packageName, "one", emptySet())
         assertEquals(primary, lease.owner(apps, emptySet(), false))

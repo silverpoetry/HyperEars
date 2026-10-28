@@ -5,6 +5,19 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class HuaweiAdditionalModelsTest {
+    @Test fun buds3HasIndependentDoubleTapCodesWithoutBorrowingAncProtocol() {
+        val device = adapter("3")
+        assertEquals("huawei-freebuds-3", device.id)
+        device.receive(Wire.packet(0x0120, listOf(1 to byteArrayOf(3), 2 to byteArrayOf(4))))
+        val gesture = device.runtimeState().features.get<HuaweiDailySettingsFeatureState>()!!.gestures.single()
+        assertEquals(listOf(-1, 0, 1, 3, 4), gesture.available)
+        val request = HuaweiDailyControlRequest.SetGesture(HuaweiGestureKind.DOUBLE, HuaweiGestureSide.RIGHT, 4)
+        assertTrue(device.executeControl(request).accepted)
+        assertArrayEquals(byteArrayOf(4), Wire.parseFrame(device.protocolSession.encode(request).single())!!.params[2])
+        device.receive(Wire.packet(0x2B2A, listOf(1 to byteArrayOf(0, 1))))
+        assertFalse(device.snapshot().capabilities.noiseControl)
+        assertFalse(device.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).accepted)
+    }
     private fun adapter(name: String) = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity(deviceName = "HUAWEI FreeBuds $name", standardHeadset = true)))
     @Test fun seModelsDoNotAcquireNoiseFromForeignReportsAndUseTheirOwnQueries() {
         for (name in listOf("SE", "SE 2")) {

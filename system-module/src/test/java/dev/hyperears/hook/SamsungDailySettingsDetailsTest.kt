@@ -179,6 +179,22 @@ class SamsungDailySettingsDetailsTest {
         details.dismiss()
     }
 
+    @Test fun conversationTimeoutUsesRealReportAndRechecksRevokedField() {
+        val f=Fixture(SamsungBudsCodec.Model.BUDS2_PRO)
+        f.state=f.state.copy(features=f.adapter.runtimeState().features)
+        val details=f.open();val popup=popup(details)
+        val fifteen=button(popup,"15 秒") as RadioButton
+        assertFalse(fifteen.isChecked)
+        fifteen.performClick()
+        assertEquals(listOf(SamsungDailyControlRequest.SetConversationTimeout(15)),f.sent)
+        assertTrue((button(popup,"5 秒") as RadioButton).isChecked)
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(conversationTimeoutSeconds=null))
+        (button(popup,"10 秒") as RadioButton).performClick()
+        assertEquals(1,f.sent.size)
+        assertFalse(descendants(popup.contentView).filterIsInstance<Button>().any { it.text=="10 秒" })
+        details.dismiss()
+    }
+
     private fun button(popup: PopupWindow,text:String)=descendants(popup.contentView).filterIsInstance<Button>().single { it.text==text }
     private fun popup(details:MiLinkToggleDetails)=details.javaClass.getDeclaredField("popup").apply { isAccessible=true }.get(details) as PopupWindow
     private fun descendants(view:View):Sequence<View> = sequence { yield(view); if(view is ViewGroup) for(i in 0 until view.childCount) yieldAll(descendants(view.getChildAt(i))) }

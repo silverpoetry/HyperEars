@@ -17,6 +17,25 @@ class AppleWearLifecycleTest {
             return true
         }
     }
+    @Test fun eitherAppleControllerStopsPhoneWearActionsAndInvalidatesLateCallbacks() {
+        for (owner in listOf(ControlAppCatalog.andPods, ControlAppCatalog.librePods)) {
+            val host = Host()
+            val runtime = AppleWearRuntime(AppleWearCoordinator(host, { 0 }, {}))
+            val state = EarbudState(address = "address", lifecycle = DeviceLifecycle(
+                systemProfile = SystemProfileState.CONNECTED, privateTransport = PrivateTransportState.CONNECTED,
+                protocolHandshake = ProtocolHandshakeState.CONFIRMED))
+                .withFeature(AppleSettingsFeatureState(wearingDetection = true))
+                .withFeature(AppleWearFeatureState(AppleWearPosition.IN_EAR, AppleWearPosition.IN_EAR))
+            runtime.update(state, "session", NativeAdmission.HYPEREARS, true)
+            val late = host.callback!!
+            runtime.update(state.copy(lifecycle = state.lifecycle.copy(
+                controlOwnership = ControlOwnership.EXTERNAL_APP, externalControlApp = owner)), "session", NativeAdmission.HYPEREARS, true)
+            assertEquals(owner.packageName, 1, host.stops)
+            late()
+            assertEquals(0, host.pauses); assertEquals(0, host.plays)
+        }
+    }
+
     @Test fun removalTearsDownAndLateCallbackCannotResume() {
         val host = Host()
         val deadlines = mutableListOf<Long?>()

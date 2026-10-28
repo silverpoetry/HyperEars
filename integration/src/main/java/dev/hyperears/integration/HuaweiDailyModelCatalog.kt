@@ -34,6 +34,8 @@ internal data class HuaweiDailyProfile(
             HuaweiGestureKind.HOLD to GestureProfile(listOf(-1, 0, 18, 19), right = false),
             HuaweiGestureKind.SWIPE to swipe))
         val SE = HuaweiDailyProfile(gestures = mapOf(HuaweiGestureKind.DOUBLE to tap))
+        val BUDS3 = HuaweiDailyProfile(gestures = mapOf(
+            HuaweiGestureKind.DOUBLE to GestureProfile(listOf(-1, 0, 1, 3, 4))))
         val SE2 = HuaweiDailyProfile(presets = listOf(1, 2, 3, 9), lowLatency = true, gestures = mapOf(
             HuaweiGestureKind.DOUBLE to tap.copy(call = true), HuaweiGestureKind.TRIPLE to tap,
             HuaweiGestureKind.HOLD to hold.copy(left = false, right = false, call = true)))
@@ -58,6 +60,7 @@ internal object HuaweiDailyModelCatalog {
         val aliases get() = setOf(name, name.removePrefix("HUAWEI "))
     }
     val models = listOf(
+        Model("huawei-freebuds-3", "HUAWEI FreeBuds 3", 1, HuaweiDailyProfile.BUDS3, noiseModes = emptySet()),
         Model("huawei-freebuds-se", "HUAWEI FreeBuds SE", 16, HuaweiDailyProfile.SE, noiseModes = emptySet()),
         Model("huawei-freebuds-se2", "HUAWEI FreeBuds SE 2", 1, HuaweiDailyProfile.SE2, noiseModes = emptySet()),
         Model("huawei-freebuds-se4-anc", "HUAWEI FreeBuds SE 4 ANC", 1, HuaweiDailyProfile.SE4,

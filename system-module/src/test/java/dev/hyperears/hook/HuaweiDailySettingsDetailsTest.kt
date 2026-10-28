@@ -22,6 +22,19 @@ import org.robolectric.util.ReflectionHelpers
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE)
 class HuaweiDailySettingsDetailsTest {
+    @Test fun buds3GestureAndPro5EqualizerLabelsFollowTheirOwnWireCodes() {
+        val buds3 = EarbudAdapterRegistry.resolve(EarbudIdentity("HUAWEI FreeBuds 3", true))!!
+        buds3.receive(HuaweiFreebudsSppCodec.packet(0x0120, listOf(1 to byteArrayOf(3), 2 to byteArrayOf(4))))
+        val rows = HuaweiDailyChoices.rows(EarbudState(adapter = buds3.snapshot(), features = buds3.runtimeState().features))
+        assertEquals("切换降噪", rows.first().choices.single { it.value == 3 }.label)
+        assertEquals("下一首", rows.first().choices.single { it.value == 4 }.label)
+        val pro5 = EarbudAdapterRegistry.resolve(EarbudIdentity("HUAWEI FreeBuds Pro 5", true))!!
+        val state = EarbudState(adapter = pro5.snapshot()).withFeature(HuaweiDailySettingsFeatureState(
+            equalizer = HuaweiEqualizerState(5, listOf(5, 1, 2, 9))))
+        val eq = HuaweiDailyChoices.rows(state).single()
+        assertEquals("默认", eq.choices.single { it.value == 5 }.label)
+        assertEquals("低音增强", eq.choices.single { it.value == 1 }.label)
+    }
     private class Fixture(levelOnly: Boolean = false) {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)

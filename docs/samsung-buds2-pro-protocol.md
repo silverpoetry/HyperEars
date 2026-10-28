@@ -177,3 +177,19 @@ confirmed value: the panel returns to the latest report until a device acknowled
 changes it. Tests cover false/true reports, absent and unsupported fields, withdrawn support,
 replaced sessions and external ownership. New native controls remain subject to physical-device
 UI acceptance; the underlying protocol behavior is unchanged.
+
+## Buds2 Pro conversation-detection timeout
+
+GalaxyBudsClient `754b6fdfb1c151b022cece775c8aaad4eb185afa`,
+`Message/Decoder/ExtendedStatusUpdateDecoder.cs:547–550`, reports the Buds2 Pro duration at
+extended-status payload offset27. `NoiseControlPageViewModel.cs:77–83,128–135` maps wire
+0/1/2 to 5/10/15 seconds and sends command `7B`; `AcknowledgementDecoder.cs:44` treats its
+scalar acknowledgement as a setting value. HyperEars rejects values above2 rather than copying
+the upstream fallback to10 seconds. Missing/invalid fields revoke only this control.
+
+The existing native Samsung details panel exposes these three choices only after a qualified
+Buds2 Pro report. Other model branches remain excluded even when an offset27 byte exists.
+Writes use `7B [0|1|2]`; confirmation comes from a strict `42 [7B,value]` acknowledgement or
+subsequent `61` extended status, never from outbound echoes or optimistic state. This source path
+has no dedicated duration GET, so no speculative query is added. The current session and lifecycle
+checks remain in force. Automated fixtures do not constitute new hardware acceptance.

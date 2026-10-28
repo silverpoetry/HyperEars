@@ -7,6 +7,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ControlAppArbitrationTest {
+    @Test fun appleControllersPreserveAndPodsPriorityWithoutBecomingIdentityEvidence() {
+        val controllers = listOf(ControlAppCatalog.andPods, ControlAppCatalog.librePods)
+        for (adapter in listOf(AppleAirPodsAdapter(), AppleAirPodsProAdapter(), AppleAirPodsMaxAdapter())) {
+            assertEquals(controllers, adapter.controlApps)
+            assertEquals(controllers, adapter.snapshot().controlApps)
+            assertEquals(ControlAppCatalog.andPods, ControlAppCatalog.activeOwner(adapter.controlApps, controllers.map { it.packageName }.toSet()))
+            assertEquals(ControlAppCatalog.librePods, ControlAppCatalog.activeOwner(adapter.controlApps, setOf("me.kavishdevar.librepods")))
+            assertNull(ControlAppCatalog.activeOwner(adapter.controlApps, setOf(ControlAppCatalog.heyMelody.packageName)))
+            val projection = adapter.snapshot().standardIntegrationProjection()
+            assertEquals(controllers, projection.controlApps)
+            assertFalse(projection.privateProtocolRequired)
+            assertTrue(projection.transportKinds.isEmpty())
+            assertTrue(projection.supportedNoiseModes.isEmpty())
+            assertNull(projection.presentationId)
+        }
+        assertEquals("cn.xiaolongonly.andpodsop", ControlAppCatalog.andPods.packageName)
+        assertEquals("me.kavishdevar.librepods", ControlAppCatalog.librePods.packageName)
+        controllers.forEach { assertEquals(it, ControlAppCatalog.find(it.packageName)) }
+        assertFalse(AppleAirPodsAdapter().matches(EarbudIdentity("AndPods", true)))
+        assertFalse(AppleAirPodsAdapter().matches(EarbudIdentity("LibrePods", true)))
+        assertFalse(AppleAirPodsAdapter().matches(EarbudIdentity("AirPods", true,
+            nativeSystemEarbud = true, serviceUuids = setOf(AppleAirPodsAdapter.AAP_SERVICE_UUID))))
+        assertTrue(StandardEarbudAdapter().controlApps.isEmpty())
+    }
+
     @Test
     fun originalSamsungManagersParticipateInOrderedOwnershipAndStandardYield() {
         val cases = listOf(

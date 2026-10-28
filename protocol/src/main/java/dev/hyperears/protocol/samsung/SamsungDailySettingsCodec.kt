@@ -5,6 +5,7 @@ object SamsungDailySettingsCodec {
     const val CUSTOM_EQ_READ = 0x69
     const val CUSTOM_EQ_WRITE = 0x89
     const val CUSTOM_AMBIENT = 0x82
+    const val CONVERSATION_TIMEOUT = 0x7B
     const val ANC_LEVEL = 0x83
     const val FIND_START = 0xA0
     const val FIND_STOP = 0xA1
@@ -13,7 +14,7 @@ object SamsungDailySettingsCodec {
     data class Ambient(val enabled: Boolean, val left: Int, val right: Int, val tone: Int, val maximum: Int)
     data class State(val revision: Int, val eqEnabled: Boolean?, val eqPreset: Int?,
         val ambient: Int?, val ambientMaximum: Int, val ancLevel: Int?, val customAmbient: Ambient?,
-        val locked: Boolean?, val leftHold: Int?, val rightHold: Int?, val voiceFocus: Boolean?)
+        val locked: Boolean?, val leftHold: Int?, val rightHold: Int?, val voiceFocus: Boolean?, val conversationTimeoutSeconds: Int? = null)
     data class Curve(val presetCount: Int, val bands: List<Int>)
     fun customEqSupported(model: SamsungBudsCodec.Model) = model in setOf(
         SamsungBudsCodec.Model.BUDS3, SamsungBudsCodec.Model.BUDS3_PRO,
@@ -68,7 +69,8 @@ object SamsungDailySettingsCodec {
         return State(revision, eqEnabled, preset, ambient, maximum, anc, custom,
             if (original || plus) bool(12) else null,
             hold?.ushr(4)?.takeIf { it in holdRange }, hold?.and(15)?.takeIf { it in holdRange },
-            if (original) value(8, 0..1)?.let { it == 1 } else null)
+            if (original) value(8, 0..1)?.let { it == 1 } else null,
+            if (model == SamsungBudsCodec.Model.BUDS2_PRO) value(27,0..2)?.let { (it+1)*5 } else null)
     }
     fun equalizer(model: SamsungBudsCodec.Model, enabled: Boolean, preset: Int): ByteArray {
         require(preset in 0..4)

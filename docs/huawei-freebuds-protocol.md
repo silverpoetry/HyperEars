@@ -320,3 +320,16 @@ All controls still require their own live reports; exact names only select a que
 The shared level extension preserves existing Pro 3 wire bytes. Voice language remains excluded
 because the upstream handler has no selected-language readback. These additions have source and
 unit-test coverage; no new physical-device verification is claimed.
+
+## FreeBuds 3 independent SPP profile
+
+OpenFreebuds 0b4f14c0 `driver/per_model/buds_3.py` explicitly selects Channel 1 and
+battery/double-tap handlers. Double-tap values are -1 off, 0 assistant, 1 play/pause,
+3 ANC cycle and 4 next track. These differ from later model values; native labels and
+writes preserve that difference. Gesture support does not establish a direct ANC command.
+This SPP profile does not query or accept the later family ANC protocol; the separately
+referenced older HFP control path remains unported. Voice-language and in-ear telemetry
+handlers do not imply confirmed language selection or an auto-pause setting.
+Model identification remains exact, and actual fields require valid reports. Hardware
+validation of this new profile remains pending. Pro5 EQ labels also follow its explicit
+5/default, 1/bass, 2/treble, 9/voice source mapping rather than the generic 1/default list.

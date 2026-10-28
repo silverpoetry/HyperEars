@@ -33,6 +33,52 @@ internal class SettingsPreferenceHost(private val loader: ClassLoader, private v
             else proxyObject(method.name)
         })
     }
+    fun toggle(key: String, title: String, checked: Boolean, enabled: Boolean, changed: (Boolean) -> Unit): Any {
+        val type = loader.loadClass("androidx.preference.SwitchPreferenceCompat")
+        return create(type, key, title).also { row ->
+            type.getMethod("setChecked", Boolean::class.javaPrimitiveType).invoke(row, checked)
+            enable(row, enabled)
+            preference.getMethod("setOnPreferenceChangeListener", change).invoke(row, Proxy.newProxyInstance(loader, arrayOf(change)) { _, method, args ->
+                if (method.name == "onPreferenceChange") { (args?.getOrNull(1) as? Boolean)?.let(changed); false }
+                else proxyObject(method.name)
+            })
+        }
+    }
+    fun range(key: String, title: String, values: IntRange, selected: Int, enabled: Boolean, changed: (Int) -> Unit): Any {
+        val type = loader.loadClass("androidx.preference.SeekBarPreference")
+        return create(type, key, title).also { row ->
+            type.getMethod("setMin", Int::class.javaPrimitiveType).invoke(row, values.first)
+            type.getMethod("setMax", Int::class.javaPrimitiveType).invoke(row, values.last)
+            type.getMethod("setValue", Int::class.javaPrimitiveType).invoke(row, selected)
+            type.getMethod("setAdjustable", Boolean::class.javaPrimitiveType).invoke(row, true)
+            type.getMethod("setShowSeekBarValue", Boolean::class.javaPrimitiveType).invoke(row, true)
+            enable(row, enabled)
+            preference.getMethod("setOnPreferenceChangeListener", change).invoke(row, Proxy.newProxyInstance(loader, arrayOf(change)) { _, method, args ->
+                if (method.name == "onPreferenceChange") { (args?.getOrNull(1) as? Int)?.takeIf { it in values }?.let(changed); false }
+                else proxyObject(method.name)
+            })
+        }
+    }
+    fun confirm(message: String, dismissed: () -> Unit, accepted: () -> Unit): android.content.DialogInterface {
+        val listener = android.content.DialogInterface.OnClickListener { _, _ -> accepted() }
+        val type = runCatching { loader.loadClass("miuix.appcompat.app.AlertDialog\$Builder") }.getOrNull()
+        if (type != null) {
+            val dialog = runCatching {
+                val builder = type.getConstructor(Context::class.java).newInstance(context)
+                type.getMethod("setMessage", CharSequence::class.java).invoke(builder, message)
+                type.getMethod("setNegativeButton", CharSequence::class.java, android.content.DialogInterface.OnClickListener::class.java).invoke(builder, "取消", null)
+                type.getMethod("setPositiveButton", CharSequence::class.java, android.content.DialogInterface.OnClickListener::class.java).invoke(builder, "确认", listener)
+                type.getMethod("show").invoke(builder) as android.content.DialogInterface
+            }.getOrNull()
+            if (dialog != null) {
+                dialog.javaClass.getMethod("setOnDismissListener", android.content.DialogInterface.OnDismissListener::class.java)
+                    .invoke(dialog, android.content.DialogInterface.OnDismissListener { dismissed() })
+                return dialog
+            }
+        }
+        return android.app.AlertDialog.Builder(context).setMessage(message).setNegativeButton("取消", null)
+            .setPositiveButton("确认", listener).show().also { it.setOnDismissListener { dismissed() } }
+    }
     fun onClick(row: Any, clicked: () -> Unit) {
         preference.getMethod("setOnPreferenceClickListener", click).invoke(row, Proxy.newProxyInstance(loader, arrayOf(click)) { _, method, _ ->
             if (method.name == "onPreferenceClick") { clicked(); true } else proxyObject(method.name)

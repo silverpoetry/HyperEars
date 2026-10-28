@@ -30,6 +30,17 @@ class HeadsetSettingsNavigatorTest {
         openHyperEars = { calls += "module"; moduleResult },
     )
 
+    @Test fun appleNavigationDefaultsToAndPodsThenLibrePodsAndRetainsActualOwnerFirst() {
+        val primary = dev.hyperears.integration.ControlAppCatalog.andPods
+        val secondary = dev.hyperears.integration.ControlAppCatalog.librePods
+        val apple = state.copy(adapter = dev.hyperears.integration.AppleAirPodsAdapter().snapshot())
+        assertTrue(navigator.open(address, apple, MoreSettingsTarget.VENDOR_APP))
+        assertEquals(listOf(primary, secondary), candidates)
+        assertTrue(navigator.open(address, apple.copy(lifecycle = DeviceLifecycle(
+            controlOwnership = ControlOwnership.EXTERNAL_APP, externalControlApp = secondary)), MoreSettingsTarget.VENDOR_APP))
+        assertEquals(listOf(secondary, primary), candidates)
+    }
+
     @Test
     fun systemSelectionUsesTheActualDeviceAddress() {
         assertTrue(navigator.open(address, state, MoreSettingsTarget.SYSTEM_SETTINGS))

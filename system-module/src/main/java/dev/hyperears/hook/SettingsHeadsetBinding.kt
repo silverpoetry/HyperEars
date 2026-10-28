@@ -15,6 +15,8 @@ internal class SettingsHeadsetBinding(
     private var category: Any? = null
     private val rows = mutableListOf<Any>()
     private var details: MiLinkToggleDetails? = null
+    private var confirmation: android.content.DialogInterface? = null
+    private var confirmationLease: Any? = null
     private var token: String? = null
     private var closed = false
     fun render() {
@@ -24,6 +26,7 @@ internal class SettingsHeadsetBinding(
             if (accepted == null) { remove(); return }
             if (token != accepted.token) { details?.dismiss(); details = null }
             token = accepted.token
+            confirmationLease = null; confirmation?.dismiss(); confirmation = null
             details?.render(accepted.state)
             removeRows()
             val group = host.category("hyperears.headset", "耳机设置")
@@ -55,7 +58,7 @@ internal class SettingsHeadsetBinding(
                 modes.map(::noiseLabel), modes.map { it.name }, state.noiseMode?.name, writable(state)) { value ->
                 val latest = runCatching { currentFor(accepted.token) }.getOrNull() ?: return@choice
                 val mode = NoiseMode.valueOf(value)
-                if (writable(latest.state) && mode in latest.state.adapter?.supportedNoiseModes.orEmpty())
+                if (writable(latest.state) && mode != latest.state.noiseMode && mode in latest.state.adapter?.supportedNoiseModes.orEmpty())
                     send(StandardControlRequest.SetNoiseMode(mode), accepted.token)
             })
             state.features.get<HonorAncDepthFeatureState>()?.takeIf { it.supported.isNotEmpty() }?.let { depth ->
@@ -66,6 +69,25 @@ internal class SettingsHeadsetBinding(
                     val latest = runCatching { currentFor(accepted.token) }.getOrNull() ?: return@choice
                     HonorAncDepthPolicy.request(latest.state, address, HonorAncDepth.valueOf(value))?.let { send(it, accepted.token) }
                 })
+            }
+            val inlineCurrent = {
+                if (closed) null else runCatching { currentFor(accepted.token)?.state?.takeIf {
+                    it.adapter?.presentationId == state.adapter?.presentationId && it.address.equals(address, true) && it.sessionActive && writable(it)
+                } }.getOrNull()
+            }
+            val inlineSend: (ControlRequest) -> Unit = { send(it, accepted.token) }
+            SettingsVendorRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
+            SettingsAppleRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
+            SettingsCoralRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend) { message, confirmed ->
+                guarded {
+                    confirmationLease = null; confirmation?.dismiss()
+                    val lease = Any(); confirmationLease = lease
+                    confirmation = host.confirm(message, { if (confirmationLease === lease) confirmationLease = null }) { guarded {
+                        if (confirmationLease !== lease) return@guarded
+                        confirmationLease = null
+                        confirmed()
+                    } }
+                }
             }
             SettingsAdvancedEditors.forState(state)?.takeIf { it.available(state, address) }?.let { editor ->
                 val row = host.row("hyperears.advanced", "高级设置")
@@ -104,7 +126,7 @@ internal class SettingsHeadsetBinding(
         rows.forEach { runCatching { host.clearListeners(it) } }; rows.clear()
         category?.let { runCatching { host.detach(it) } }; category = null
     }
-    private fun remove() { details?.dismiss(); details = null; token = null; removeRows() }
+    private fun remove() { confirmationLease = null; confirmation?.dismiss(); confirmation = null; details?.dismiss(); details = null; token = null; removeRows() }
     fun close() { if (closed) return; closed = true; remove() }
     private fun noiseLabel(mode: NoiseMode) = when (mode) {
         NoiseMode.ANC -> "降噪"; NoiseMode.OFF -> "关闭"; NoiseMode.TRANSPARENCY -> "通透"; NoiseMode.WIND -> "抗风噪"

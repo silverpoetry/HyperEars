@@ -250,6 +250,9 @@ X5s Pro 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只
 
 ### 2.10 华为
 
+FreeBuds 3 增加 Channel 1 精确 SPP 画像及独立双击动作映射；动作中的“切换降噪”
+不代表直接 ANC 控制已实现。较早 HFP 降噪路径仍未迁入，不向本型号套用后续家族 ANC 帧。
+
 补充 FreeBuds SE、SE 2、SE 4 ANC、Pro 5 的 OpenFreebuds 可执行来源画像：SE 固定
 Channel 16，其余三款 Channel 1。SE／SE 2 不查询或接受 ANC；SE 2 长按仅有通话动作，
 不显示左右耳长按。SE 4 ANC 开放有合法回报的降噪四档，未开放透传档位；Pro 5

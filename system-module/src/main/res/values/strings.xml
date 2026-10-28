@@ -2,6 +2,8 @@
     <string name="app_name">HyperEars</string>
     <string name="xposed_description">Third-party headset integration for Xiaomi HyperOS and MiLink.</string>
     <string-array name="xposed_scope">
+        <item>cn.xiaolongonly.andpodsop</item>
+        <item>me.kavishdevar.librepods</item>
         <item>com.android.bluetooth</item>
         <item>com.android.settings</item>
         <item>com.milink.service</item>

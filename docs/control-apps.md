@@ -15,10 +15,18 @@ HyperEars 将厂商控制 App 用于两个彼此独立的功能：
 “欢律”，`com.bose.bosemusic` 的旧版本可能显示为 Bose Music，Sony 应用的旧名称为
 Sony | Headphones Connect。
 
+Apple 控制器使用同一套可选进程存活仲裁：AndPods 优先，LibrePods 次之；仅安装应用
+不会改变归属。启用“运行时退避”且相应 Hook 进程存活时让出 Apple 私有通道；显式跳转
+仍使用既有有界交接租约。系统原生支持始终优先，未知原生结论也不会因控制 App 存活而
+批准模块接管。这是进程级信号，不声称控制 App 正在操作某一具体地址。
+身份与清理链证据见 [Apple 控制器共存审计](research/source-audits/apple-controller-coexistence.md)。
+
 ## 2. 当前目录
 
 | 耳机适配范围 | 控制 App | Android 包名 | Adapter 声明顺序 |
 |---|---|---|---:|
+| Apple AirPods / Pro / Max | AndPods | `cn.xiaolongonly.andpodsop` | 1 |
+| Apple AirPods / Pro / Max | LibrePods | `me.kavishdevar.librepods` | 2 |
 | vivo / iQOO TWS | vEarphones | `com.vivo.vivotws` | 1 |
 | OPPO Enco | HeyMelody | `com.heytap.headset` | 1 |
 | OPPO Enco | Wireless Earphones | `com.oplus.melody` | 2 |

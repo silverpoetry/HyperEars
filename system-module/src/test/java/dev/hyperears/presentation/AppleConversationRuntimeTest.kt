@@ -15,6 +15,19 @@ class AppleConversationRuntimeTest {
     private fun AppleConversationRuntime.report(status: Int = 1, enabled: Boolean = true, session: String = "one") =
         update(state(status), session, NativeAdmission.HYPEREARS, enabled)
 
+    @Test fun appleControllersReleasePhoneConversationEnvelopeWithoutReplayingStart() {
+        for (owner in listOf(ControlAppCatalog.andPods, ControlAppCatalog.librePods)) {
+            val host = Fake(address); val runtime = AppleConversationRuntime(host)
+            runtime.report()
+            val late = host.callback!!
+            runtime.update(state().let { it.copy(lifecycle = it.lifecycle.copy(
+                controlOwnership = ControlOwnership.EXTERNAL_APP, externalControlApp = owner)) }, "one", NativeAdmission.HYPEREARS, true)
+            assertEquals(owner.packageName, 1, host.releases.size)
+            late(); runtime.report()
+            assertEquals(1, host.ducks.size)
+        }
+    }
+
     @Test fun cachedReplayAndCallbacksNeverExtendOriginalSixtySecondDeadline() {
         val host = Fake(address); val runtime = AppleConversationRuntime(host)
         runtime.report()

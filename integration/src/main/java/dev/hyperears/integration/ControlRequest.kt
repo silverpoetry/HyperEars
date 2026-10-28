@@ -140,6 +140,7 @@ object ControlRequestTransport {
                 subclass(SamsungDailyControlRequest.SetEqualizer::class, SamsungDailyControlRequest.SetEqualizer.serializer())
                 subclass(SamsungDailyControlRequest.SetAmbientVolume::class, SamsungDailyControlRequest.SetAmbientVolume.serializer())
                 subclass(SamsungDailyControlRequest.SetAncLevel::class, SamsungDailyControlRequest.SetAncLevel.serializer())
+                subclass(SamsungDailyControlRequest.SetConversationTimeout::class, SamsungDailyControlRequest.SetConversationTimeout.serializer())
                 subclass(SamsungDailyControlRequest.SetCustomAmbient::class, SamsungDailyControlRequest.SetCustomAmbient.serializer())
                 subclass(SamsungDailyControlRequest.SetCustomEqualizer::class, SamsungDailyControlRequest.SetCustomEqualizer.serializer())
                 subclass(SamsungDailyControlRequest.SetLegacyLock::class, SamsungDailyControlRequest.SetLegacyLock.serializer())

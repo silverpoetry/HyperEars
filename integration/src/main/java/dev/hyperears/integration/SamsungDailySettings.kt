@@ -27,10 +27,13 @@ data class SamsungDailySettingsFeatureState(
     val findLeftMuted: Boolean? = null,
     val findRightMuted: Boolean? = null,
     val findStopped: Boolean? = null,
+    val conversationTimeoutSeconds: Int? = null,
 ) : DeviceFeatureState {
     @Transient override val featureId: String = FEATURE_ID
     val sourceModel: SamsungBudsCodec.Model get() = SamsungBudsCodec.Model.entries.firstOrNull { it.name == model } ?: SamsungBudsCodec.Model.UNKNOWN
     fun supports(request: SamsungDailyControlRequest): Boolean = when (request) {
+        is SamsungDailyControlRequest.SetConversationTimeout -> sourceModel == SamsungBudsCodec.Model.BUDS2_PRO &&
+            conversationTimeoutSeconds != null && request.seconds in setOf(5,10,15)
         is SamsungDailyControlRequest.SetEqualizer -> equalizerEnabled != null && equalizerPreset != null && request.preset in 0..4
         is SamsungDailyControlRequest.SetAmbientVolume -> ambientVolume != null && request.level in 0..ambientMaximum
         is SamsungDailyControlRequest.SetAncLevel -> ancLevel != null && request.level in 0..1
@@ -57,6 +60,7 @@ data class SamsungDailyIntentFeatureState(val submittedCurve: List<Int>? = null,
 
 @Serializable
 sealed interface SamsungDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("samsung.daily_conversation_timeout") data class SetConversationTimeout(val seconds: Int) : SamsungDailyControlRequest
     @Serializable @SerialName("samsung.daily_eq") data class SetEqualizer(val enabled: Boolean, val preset: Int) : SamsungDailyControlRequest
     @Serializable @SerialName("samsung.daily_ambient") data class SetAmbientVolume(val level: Int) : SamsungDailyControlRequest
     @Serializable @SerialName("samsung.daily_anc_level") data class SetAncLevel(val level: Int) : SamsungDailyControlRequest
