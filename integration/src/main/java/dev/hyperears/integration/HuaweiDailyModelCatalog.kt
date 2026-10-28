@@ -10,7 +10,7 @@ internal data class HuaweiDailyProfile(
     val lowLatency: Boolean = false,
     val soundQuality: Boolean = false,
 ) {
-    data class GestureProfile(val values: List<Int>, val right: Boolean = true, val call: Boolean = false)
+    data class GestureProfile(val values: List<Int>, val right: Boolean = true, val call: Boolean = false, val left: Boolean = true)
     companion object {
         private val tap = GestureProfile(listOf(-1, 1, 2, 7, 0))
         private val hold = GestureProfile(listOf(-1, 10))
@@ -33,6 +33,12 @@ internal data class HuaweiDailyProfile(
             HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1)),
             HuaweiGestureKind.HOLD to GestureProfile(listOf(-1, 0, 18, 19), right = false),
             HuaweiGestureKind.SWIPE to swipe))
+        val SE = HuaweiDailyProfile(gestures = mapOf(HuaweiGestureKind.DOUBLE to tap))
+        val SE2 = HuaweiDailyProfile(presets = listOf(1, 2, 3, 9), lowLatency = true, gestures = mapOf(
+            HuaweiGestureKind.DOUBLE to tap.copy(call = true), HuaweiGestureKind.TRIPLE to tap,
+            HuaweiGestureKind.HOLD to hold.copy(left = false, right = false, call = true)))
+        val SE4 = SE2.copy(gestures = SE2.gestures + mapOf(
+            HuaweiGestureKind.HOLD to GestureProfile(listOf(-1, 10, 0, 18, 19)), HuaweiGestureKind.CYCLE to cycle))
         val PRO = HuaweiDailyProfile(multipoint = true, gestures = mapOf(
             HuaweiGestureKind.HOLD to hold, HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
         val PRO2 = PRO.copy(wear = true, presets = listOf(1, 2, 3), soundQuality = true)
@@ -46,10 +52,18 @@ internal data class HuaweiDailyProfile(
 
 internal object HuaweiDailyModelCatalog {
     data class Model(val id: String, val name: String, val channel: Int,
-        val daily: HuaweiDailyProfile, val aggregate: Boolean = false) {
+        val daily: HuaweiDailyProfile, val aggregate: Boolean = false,
+        val noiseModes: Set<NoiseMode> = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+        val levels: Set<HuaweiAncLevel> = emptySet()) {
         val aliases get() = setOf(name, name.removePrefix("HUAWEI "))
     }
     val models = listOf(
+        Model("huawei-freebuds-se", "HUAWEI FreeBuds SE", 16, HuaweiDailyProfile.SE, noiseModes = emptySet()),
+        Model("huawei-freebuds-se2", "HUAWEI FreeBuds SE 2", 1, HuaweiDailyProfile.SE2, noiseModes = emptySet()),
+        Model("huawei-freebuds-se4-anc", "HUAWEI FreeBuds SE 4 ANC", 1, HuaweiDailyProfile.SE4,
+            levels = HuaweiAncLevel.entries.filter { it.domainNoiseMode() == NoiseMode.ANC }.toSet()),
+        Model("huawei-freebuds-pro5", "HUAWEI FreeBuds Pro 5", 1, HuaweiDailyProfile.PRO3,
+            levels = HuaweiAncLevel.entries.toSet()),
         Model("huawei-freebuds-4i", "HUAWEI FreeBuds 4i", 16, HuaweiDailyProfile.BUDS4I),
         Model("honor-earbuds-2", "HONOR Earbuds 2", 16, HuaweiDailyProfile.BUDS4I),
         Model("honor-earbuds-2-se", "HONOR Earbuds 2 SE", 16, HuaweiDailyProfile.BUDS4I),
@@ -64,7 +78,8 @@ internal object HuaweiDailyModelCatalog {
 
 internal class HuaweiDailyModelAdapter(private val model: HuaweiDailyModelCatalog.Model) : HuaweiFreebudsProtocolAdapter(
     endpointPrefix = model.id, channelNumbers = listOf(model.channel),
-    profile = HuaweiProtocolProfile(setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+    profile = HuaweiProtocolProfile(model.noiseModes,
+        extension = model.levels.takeIf { it.isNotEmpty() }?.let(::HuaweiLevelProtocolExtension),
         daily = model.daily, aggregateBattery = model.aggregate),
 ) {
     override val id = model.id

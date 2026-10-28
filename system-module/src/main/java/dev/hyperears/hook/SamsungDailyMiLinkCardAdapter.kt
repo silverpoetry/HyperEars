@@ -90,6 +90,29 @@ internal object SamsungDailySettingsPolicy {
             state.sessionActive && state.privateChannelConnected && state.handshakeAccepted &&
             state.lifecycle.controlOwnership == ControlOwnership.MODULE &&
             state.features.get<SamsungDailySettingsFeatureState>() != null
+    /** Existing wire settings: presence plus the parser's model/revision flags are the evidence. */
+    fun optionalValue(state: EarbudState, request: SamsungControlRequest): Boolean? {
+        val settings = state.features.get<SamsungBudsSettingsFeatureState>() ?: return null
+        return when (request) {
+            is SamsungControlRequest.SetNoiseControlsWithOneEarbud -> settings.noiseControlsWithOneEarbud.takeIf { settings.optionalSettingsSupported }
+            is SamsungControlRequest.SetSeamlessConnection -> settings.seamlessConnectionEnabled.takeIf { settings.optionalSettingsSupported }
+            is SamsungControlRequest.SetSidetone -> settings.sidetoneEnabled.takeIf { settings.optionalSettingsSupported }
+            is SamsungControlRequest.SetExtraHighAmbient -> settings.extraHighAmbientEnabled.takeIf { settings.extraHighAmbientSupported }
+            else -> null
+        }
+    }
+    fun request(state: EarbudState, address: String, request: SamsungControlRequest): SamsungControlRequest? {
+        if (!available(state,address)) return null
+        val reported = optionalValue(state,request) ?: return null
+        val target = when (request) {
+            is SamsungControlRequest.SetNoiseControlsWithOneEarbud -> request.enabled
+            is SamsungControlRequest.SetSeamlessConnection -> request.enabled
+            is SamsungControlRequest.SetSidetone -> request.enabled
+            is SamsungControlRequest.SetExtraHighAmbient -> request.enabled
+            else -> return null
+        }
+        return request.takeIf { target != reported }
+    }
     fun request(state: EarbudState, address: String, request: SamsungDailyControlRequest): SamsungDailyControlRequest? =
         request.takeIf { available(state, address) &&
             state.features.get<SamsungDailySettingsFeatureState>()?.supports(request) == true }

@@ -81,6 +81,21 @@ class HonorX5sProAdapterTest {
     }
 
     @Test
+    fun staleDepthRequestAfterOffCannotImplicitlyEnableAnc() {
+        adapter.receive(hex("5A 00 07 00 2B 2A 01 02 01 01 36 21"))
+        val request = HonorControlRequest.SetAncDepth(HonorAncDepth.DEEP)
+        assertTrue(adapter.supportsControl(request))
+        assertEquals(HonorX5sProAdapter.PRESENTATION_ID, adapter.miLinkCardPresentationId)
+        adapter.receive(hex("5A 00 07 00 2B 2A 01 02 00 02 35 73"))
+        assertFalse(adapter.executeControl(request).accepted)
+        assertTrue(adapter.protocolSession.encode(request).isEmpty())
+        assertTrue(adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).accepted)
+        assertFalse(adapter.supportsControl(request))
+        adapter.receive(hex("5A 00 07 00 2B 2A 01 02 01 01 36 21"))
+        assertTrue(adapter.supportsControl(request))
+    }
+
+    @Test
     fun ancCommandAlwaysUsesSmartDepth() {
         confirmNoiseModes()
         val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
@@ -96,7 +111,7 @@ class HonorX5sProAdapterTest {
 
     @Test
     fun setAncDepthContractAndEncoding() {
-        confirmNoiseModes()
+        adapter.receive(hex("5A 00 07 00 2B 2A 01 02 01 01 36 21"))
         val result = adapter.executeControl(
             HonorControlRequest.SetAncDepth(HonorAncDepth.LIGHT),
         )

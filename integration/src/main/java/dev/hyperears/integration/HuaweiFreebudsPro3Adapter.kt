@@ -22,22 +22,19 @@ internal class HuaweiFreebudsPro3Adapter : HuaweiFreebudsProtocolAdapter(
     }
 }
 
-private val PRO3_PROTOCOL_EXTENSION = object : HuaweiProtocolExtension {
+internal class HuaweiLevelProtocolExtension(private val levels: Set<HuaweiAncLevel>) : HuaweiProtocolExtension {
     override val featureIds: Set<String> = setOf(HuaweiAncLevelFeatureState.FEATURE_ID)
 
     override fun acceptsState(state: DeviceFeatureState): Boolean =
         state is HuaweiAncLevelFeatureState
 
-    override fun supportsRequest(adapter: EarbudAdapter, request: ControlRequest): Boolean =
-        request is HuaweiControlRequest.SetAncLevel &&
-            adapter.effectiveCapabilities().noiseControl &&
-            request.level in (
-                adapter.runtimeState().features
-                    .get<HuaweiAncLevelFeatureState>()
-                    ?.supported
-                    .orEmpty()
-            ) &&
-            adapter.runtimeState().noiseMode == request.level.domainNoiseMode()
+    override fun supportsRequest(adapter: EarbudAdapter, request: ControlRequest): Boolean {
+        val state = adapter.runtimeState()
+        val level = state.features.get<HuaweiAncLevelFeatureState>() ?: return false
+        return request is HuaweiControlRequest.SetAncLevel &&
+            adapter.effectiveCapabilities().noiseControl && level.hasCurrentControls(state.noiseMode) &&
+            request.level in level.supported && state.noiseMode == request.level.domainNoiseMode()
+    }
 
     override fun encode(request: ControlRequest): ByteArray? =
         (request as? HuaweiControlRequest.SetAncLevel)?.let {
@@ -51,8 +48,8 @@ private val PRO3_PROTOCOL_EXTENSION = object : HuaweiProtocolExtension {
         mode: HuaweiFreebudsSppCodec.NoiseMode,
         level: Int?,
     ): DeviceFeatureState = HuaweiAncLevelFeatureState(
-        current = level?.toPro3Level(mode),
-        supported = HuaweiAncLevel.entries.toSet(),
+        current = level?.toPro3Level(mode)?.takeIf { it in levels },
+        supported = levels,
     )
 
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy? =
@@ -89,6 +86,6 @@ private val PRO3_PROTOCOL_EXTENSION = object : HuaweiProtocolExtension {
 
 private val PRO3_PROFILE = HuaweiProtocolProfile(
     noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
-    extension = PRO3_PROTOCOL_EXTENSION,
+    extension = HuaweiLevelProtocolExtension(HuaweiAncLevel.entries.toSet()),
     daily = HuaweiDailyProfile.PRO3,
 )

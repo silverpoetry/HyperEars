@@ -98,6 +98,87 @@ class SamsungDailySettingsDetailsTest {
         row.isChecked=true
         assertEquals(1,f.sent.size); details.dismiss()
     }
+    @Test fun actualOptionalReportsPublishBothFeaturesAndReachNativeControls() {
+        for (model in listOf(SamsungBudsCodec.Model.BUDS2_PRO,SamsungBudsCodec.Model.BUDS2,SamsungBudsCodec.Model.BUDS_FE)) {
+            val f=Fixture(model)
+            assertTrue(model.name,f.adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!.optionalSettingsSupported)
+            assertNotNull(model.name,f.adapter.runtimeState().features.get<SamsungDailySettingsFeatureState>())
+            assertEquals(SamsungDailyPresentationIds.SETTINGS,f.adapter.miLinkCardPresentationId)
+            f.state=f.state.copy(features=f.adapter.runtimeState().features)
+            val details=f.open();val popup=popup(details)
+            descendants(popup.contentView).filterIsInstance<Switch>().single { it.contentDescription == "通话侧音" }.isChecked=true
+            assertEquals(listOf(SamsungControlRequest.SetSidetone(true)),f.sent)
+            details.dismiss()
+        }
+    }
+    @Test fun fourReportedOptionalTogglesStayFalseUntilDeviceReportAndRouteExistingRequests() {
+        val f = Fixture(SamsungBudsCodec.Model.BUDS2_PRO)
+        val reported = f.adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!.copy(
+            noiseControlsWithOneEarbud=false, seamlessConnectionEnabled=false, sidetoneEnabled=false, extraHighAmbientEnabled=false)
+        assertTrue(reported.optionalSettingsSupported); assertTrue(reported.extraHighAmbientSupported)
+        f.state = f.state.withFeature(reported)
+        val details = f.open(); val popup = popup(details)
+        val cases = listOf("单耳噪声控制" to SamsungControlRequest.SetNoiseControlsWithOneEarbud(true),
+            "无缝连接" to SamsungControlRequest.SetSeamlessConnection(true),
+            "通话侧音" to SamsungControlRequest.SetSidetone(true),
+            "增强通透音量" to SamsungControlRequest.SetExtraHighAmbient(true))
+        cases.forEach { (label,request) ->
+            fun toggle() = descendants(popup.contentView).filterIsInstance<Switch>().single { it.contentDescription == label }
+            assertFalse(toggle().isChecked)
+            toggle().isChecked = true
+            assertEquals(request,f.sent.last())
+            assertFalse(toggle().isChecked)
+        }
+        f.state = f.state.withFeature(reported.copy(noiseControlsWithOneEarbud=true,seamlessConnectionEnabled=true,
+            sidetoneEnabled=true,extraHighAmbientEnabled=true))
+        f.observer!!(f.state)
+        cases.forEach { (label,_) -> assertTrue(descendants(popup.contentView).filterIsInstance<Switch>()
+            .single { it.contentDescription == label }.isChecked) }
+        details.dismiss()
+    }
+    @Test fun optionalSettingsWithoutReportsOrUnsupportedByProfileAreAbsent() {
+        val f = Fixture(SamsungBudsCodec.Model.BUDS4_PRO)
+        val details = f.open(); val popup = popup(details)
+        val labels = setOf("单耳噪声控制","无缝连接","通话侧音","增强通透音量")
+        assertFalse(descendants(popup.contentView).any { it.contentDescription?.toString().orEmpty() in labels })
+        val unsupported = f.adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!
+        assertFalse(unsupported.optionalSettingsSupported); assertFalse(unsupported.extraHighAmbientSupported)
+        f.state = f.state.withFeature(unsupported); f.observer!!(f.state)
+        assertFalse(descendants(popup.contentView).any { it.contentDescription?.toString().orEmpty() in labels })
+        assertNull(SamsungDailySettingsPolicy.request(f.state,f.address,SamsungControlRequest.SetSidetone(true)))
+        details.dismiss()
+    }
+    @Test fun missingExtraHighFieldDoesNotHideOtherConfirmedSettingsAndOldSessionCannotWrite() {
+        val f=Fixture(SamsungBudsCodec.Model.BUDS2_PRO)
+        val reported=f.adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!.copy(
+            optionalSettingsSupported=true,extraHighAmbientSupported=false,sidetoneEnabled=false)
+        f.state=f.state.withFeature(reported)
+        val details=f.open();val popup=popup(details)
+        assertFalse(descendants(popup.contentView).any { it.contentDescription == "增强通透音量" })
+        val sidetone=descendants(popup.contentView).filterIsInstance<Switch>().single { it.contentDescription == "通话侧音" }
+        f.token="replacement-session"
+        sidetone.isChecked=true
+        assertTrue(f.sent.isEmpty());assertFalse(popup.isShowing);assertEquals(1,f.released)
+        details.dismiss()
+    }
+    @Test fun optionalToggleRechecksMissingSupportAndSessionOwnershipBeforeSending() {
+        val f=Fixture(SamsungBudsCodec.Model.BUDS2_PRO)
+        val reported=f.adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()!!.copy(sidetoneEnabled=false)
+        f.state=f.state.withFeature(reported)
+        val details=f.open();val popup=popup(details)
+        val stale=descendants(popup.contentView).filterIsInstance<Switch>().single { it.contentDescription == "通话侧音" }
+        f.state=f.state.withFeature(reported.copy(optionalSettingsSupported=false))
+        stale.isChecked=true
+        assertTrue(f.sent.isEmpty())
+        f.state=f.state.withFeature(reported);f.observer!!(f.state)
+        val owned=descendants(popup.contentView).filterIsInstance<Switch>().single { it.contentDescription == "通话侧音" }
+        f.state=f.state.copy(lifecycle=f.state.lifecycle.copy(controlOwnership=ControlOwnership.EXTERNAL_APP,
+            externalControlApp=ControlAppCatalog.galaxyWearable))
+        owned.isChecked=true
+        assertTrue(f.sent.isEmpty());assertFalse(popup.isShowing);assertEquals(1,f.released)
+        details.dismiss()
+    }
+
     private fun button(popup: PopupWindow,text:String)=descendants(popup.contentView).filterIsInstance<Button>().single { it.text==text }
     private fun popup(details:MiLinkToggleDetails)=details.javaClass.getDeclaredField("popup").apply { isAccessible=true }.get(details) as PopupWindow
     private fun descendants(view:View):Sequence<View> = sequence { yield(view); if(view is ViewGroup) for(i in 0 until view.childCount) yieldAll(descendants(view.getChildAt(i))) }

@@ -104,6 +104,7 @@ internal object MiLinkCardAdapterRegistry {
         QcySettingsOnlyMiLinkCardAdapter,
         VivoTws3eMiLinkCardAdapter,
         HuaweiDailyMiLinkCardAdapter,
+        HonorAncDepthMiLinkCardAdapter,
         AppleListeningMiLinkCardAdapter,
         AppleSettingsOnlyMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,

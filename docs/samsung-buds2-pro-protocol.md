@@ -156,3 +156,24 @@ Protocol, adapter/IPC/lifecycle and Robolectric UI tests cover distinct frames, 
 custom curves, stale requests, model gates, readback vs intent, reset, finite ring lease,
 ownership/session/address loss, callback exceptions and night palette. These checks are
 source/host evidence, not physical Samsung revalidation.
+
+## Existing optional settings in native details
+
+The existing Samsung daily details panel exposes four previously implemented settings:
+single-earbud noise controls, seamless connection, sidetone and extra-high ambient volume.
+This slice adds no packet encoders or transport behavior. It reuses
+`SamsungBudsSettingsFeatureState`, the existing `SamsungControlRequest` variants and their
+acknowledgement/readback path in `SamsungBuds2ProAdapter`.
+
+A reported `false` is a valid, visible off state. Missing settings reports do not create rows.
+The first three rows require the parser's `optionalSettingsSupported` flag; extra-high ambient
+requires its separate `extraHighAmbientSupported` evidence, including the existing model/revision
+and trailing-field checks. Legacy or other unsupported profiles retain their current visibility.
+No model name alone enables a row, and an absent extra-high field cannot hide unrelated settings.
+
+Every interaction rechecks the current report flags, session token, device address, channel and
+module ownership before dispatching the existing typed request. Clicking does not publish a new
+confirmed value: the panel returns to the latest report until a device acknowledgement/status
+changes it. Tests cover false/true reports, absent and unsupported fields, withdrawn support,
+replaced sessions and external ownership. New native controls remain subject to physical-device
+UI acceptance; the underlying protocol behavior is unchanged.

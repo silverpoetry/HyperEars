@@ -111,6 +111,31 @@ internal class SamsungDailySettingsDetails private constructor(
     private fun action(label: String, callback: () -> Unit) {
         controls.addView(Button(context).apply { text = label; setOnClickListener { guarded { callback() } } })
     }
+    private fun addOptionalSettings(state: EarbudState) {
+        val rows: List<Pair<String,(Boolean) -> SamsungControlRequest>> = listOf(
+            "单耳噪声控制" to SamsungControlRequest::SetNoiseControlsWithOneEarbud,
+            "无缝连接" to SamsungControlRequest::SetSeamlessConnection,
+            "通话侧音" to SamsungControlRequest::SetSidetone,
+            "增强通透音量" to SamsungControlRequest::SetExtraHighAmbient,
+        )
+        rows.forEach { (label,request) ->
+            val reported = SamsungDailySettingsPolicy.optionalValue(state,request(false)) ?: return@forEach
+            controls.addView(Switch(context).apply {
+                text=label; contentDescription=label; isSaveEnabled=false
+                setTextColor(color(true)); isChecked=reported
+                setOnCheckedChangeListener { _, enabled -> guarded {
+                    if (closed || rendering) return@guarded
+                    val current=environment.stateProvider(address)
+                    if (!valid(current)) { dismiss(); return@guarded }
+                    SamsungDailySettingsPolicy.request(current,address,request(enabled))?.let {
+                        environment.controlSender(address,it)
+                    }
+                    // Re-render only authoritative reports; the click is not a confirmed value.
+                    render(environment.stateProvider(address))
+                } }
+            })
+        }
+    }
     private fun renderRows(state: EarbudState) {
         val settings = state.features.get<SamsungDailySettingsFeatureState>() ?: return
         if (settings.equalizerEnabled != null && settings.equalizerPreset != null) {
@@ -156,6 +181,7 @@ internal class SamsungDailySettingsDetails private constructor(
                 }
             }
         }
+        addOptionalSettings(state)
         val existing = state.features.get<SamsungBudsSettingsFeatureState>()
         if (existing?.voiceDetectSupported == true) {
             controls.addView(Switch(context).apply {

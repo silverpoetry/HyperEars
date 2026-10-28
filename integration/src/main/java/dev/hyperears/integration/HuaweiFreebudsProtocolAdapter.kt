@@ -66,7 +66,8 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
     }
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
         get() = HuaweiDailyPresentationIds.SETTINGS.takeIf {
-            runtimeState().features.get<HuaweiDailySettingsFeatureState>()?.hasSettings == true
+            runtimeState().features.get<HuaweiDailySettingsFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<HuaweiAncLevelFeatureState>()?.hasCurrentControls(runtimeState().noiseMode) == true
         }
     override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
         if (request is HuaweiDailyControlRequest.SetLowLatency && profile.daily?.lowLatency == true)

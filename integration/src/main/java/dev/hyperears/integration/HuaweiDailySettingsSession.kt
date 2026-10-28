@@ -67,12 +67,12 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
                 }
             else -> profile.gestures.entries.firstOrNull { it.key.wire().read == frame.command }?.let { (kind, config) ->
                 val report = Wire.parseGesture(frame, kind.wire()) ?: return null
-                if (report.left != null && report.left !in config.values ||
+                if (config.left && report.left != null && report.left !in config.values ||
                     config.right && report.right != null && report.right !in config.values ||
                     config.call && report.call != null && report.call !in listOf(-1, 0)) return null
                 val advertised = report.advertised
                 val available = config.values.filter { advertised == null || it in advertised }
-                val gesture = HuaweiGestureState(kind, report.left, report.right.takeIf { config.right },
+                val gesture = HuaweiGestureState(kind, report.left.takeIf { config.left }, report.right.takeIf { config.right },
                     report.call.takeIf { config.call }, available)
                 state.copy(gestures = state.gestures.filterNot { it.kind == kind } + gesture)
             }

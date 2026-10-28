@@ -91,6 +91,7 @@ internal class HuaweiDailySettingsDetails private constructor(
     }
     private fun renderAncLevels(state: EarbudState) {
         val level = state.features.get<HuaweiAncLevelFeatureState>() ?: return
+        if (!level.hasCurrentControls(state.noiseMode)) return
         val options = level.supported.filter { it.domainNoiseMode() == state.noiseMode }
         if (options.isEmpty()) return
         controls.addView(text("噪声强度", 17f))
@@ -104,7 +105,8 @@ internal class HuaweiDailySettingsDetails private constructor(
                 val current = environment.stateProvider(address)
                 if (!valid(current)) { dismiss(); return@guarded }
                 val currentLevel = current.features.get<HuaweiAncLevelFeatureState>()
-                if (value in currentLevel?.supported.orEmpty() && value.domainNoiseMode() == current.noiseMode)
+                if (currentLevel?.hasCurrentControls(current.noiseMode) == true &&
+                    value in currentLevel.supported && value.domainNoiseMode() == current.noiseMode)
                     environment.controlSender(address, HuaweiControlRequest.SetAncLevel(value))
                 render(environment.stateProvider(address))
             } }

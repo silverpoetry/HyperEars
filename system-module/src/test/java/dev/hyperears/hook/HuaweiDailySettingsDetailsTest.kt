@@ -22,18 +22,22 @@ import org.robolectric.util.ReflectionHelpers
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE)
 class HuaweiDailySettingsDetailsTest {
-    private class Fixture {
+    private class Fixture(levelOnly: Boolean = false) {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)
         val address = "00:11:22:33:44:55"
-        private val adapter = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity(deviceName = "HUAWEI FreeBuds 6i", standardHeadset = true))).apply {
-            receive(HuaweiFreebudsSppCodec.packet(0x2B11, listOf(1 to byteArrayOf(1))))
+        private val adapter = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity(deviceName = if (levelOnly) "HUAWEI FreeBuds Pro 3" else "HUAWEI FreeBuds 6i", standardHeadset = true))).apply {
+            receive(if (levelOnly) HuaweiFreebudsSppCodec.packet(0x2B2A, listOf(1 to byteArrayOf(0, 1)))
+                else HuaweiFreebudsSppCodec.packet(0x2B11, listOf(1 to byteArrayOf(1))))
         }
         var state = EarbudState(adapter = adapter.snapshot(), address = address, lifecycle = DeviceLifecycle(
             systemProfile = SystemProfileState.CONNECTED, privateTransport = PrivateTransportState.CONNECTED,
             protocolHandshake = ProtocolHandshakeState.CONFIRMED,
         )).withFeature(HuaweiDailySettingsFeatureState(wearDetection = true, multipoint = false,
             equalizer = HuaweiEqualizerState(100, listOf(1, 2, 100), listOf(HuaweiCustomEqualizer(100, "Daily", List(10) { 0 })), true)))
+        init {
+            if (levelOnly) state = state.copy(features = adapter.runtimeState().features)
+        }
         var token = "one"
         var providerFails = false
         var observer: ((EarbudState) -> Unit)? = null
@@ -44,6 +48,19 @@ class HuaweiDailySettingsDetailsTest {
         fun open(): MiLinkToggleDetails = HuaweiDailySettingsDetails.open(anchor, address, environment).also {
             shadowOf(Looper.getMainLooper()).idle()
         }
+    }
+    @Test fun levelOnlyEntryWritesTypedLevelAndLossClosesPanel() {
+        val fixture = Fixture(levelOnly = true)
+        assertNull(fixture.state.features.get<HuaweiDailySettingsFeatureState>())
+        assertTrue(HuaweiDailySettingsPolicy.available(fixture.state, fixture.address))
+        val details = fixture.open(); val popup = popup(details)
+        descendants(popup.contentView).filterIsInstance<RadioButton>().single { it.text == "深度" }.performClick()
+        assertEquals(listOf(HuaweiControlRequest.SetAncLevel(HuaweiAncLevel.ULTRA)), fixture.sent)
+        fixture.state = fixture.state.withFeature(HuaweiAncLevelFeatureState(null, HuaweiAncLevel.entries.toSet()))
+        fixture.observer!!(fixture.state)
+        assertFalse(popup.isShowing)
+        assertEquals(1, fixture.released)
+        assertFalse(HuaweiDailySettingsPolicy.available(fixture.state, fixture.address))
     }
     @Test fun draftNeedsSaveAndDeviceReportThenSessionChangeRevokesControls() {
         val fixture = Fixture()

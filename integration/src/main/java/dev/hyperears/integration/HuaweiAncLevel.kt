@@ -81,3 +81,7 @@ sealed interface HuaweiControlRequest : ControlRequest {
         val level: HuaweiAncLevel,
     ) : HuaweiControlRequest
 }
+
+/** Only a reported, supported level belonging to the current mode opens level controls. */
+fun HuaweiAncLevelFeatureState.hasCurrentControls(mode: NoiseMode?): Boolean =
+    current != null && current in supported && current.domainNoiseMode() == mode

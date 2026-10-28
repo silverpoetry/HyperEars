@@ -171,6 +171,8 @@ does not treat every source command as universally supported. All items below re
   and hardware validation remain outstanding.
   Model-qualified low latency and sound-quality preference now have native choices and exact
   readback contracts; the latency query uses a bounded one-second adapter effect.
+  SE, SE2, SE4 ANC and Pro5 exact profiles are added. SE/SE2 cannot acquire ANC; SE2 hold is
+  call-only. The shared level extension preserves Pro3 bytes and qualifies each model's levels.
 - [ ] C4 Sony: SPP/GATT, V1/V2, Table1/Table2 capability discovery; environment levels/voice,
   EQ/ClearBass, DSEE, LEA/quality, Speak-to-Chat, multipoint/source, gestures/QuickAccess,
   wearing/power-off, legacy VPT/position/optimizer, voice/assistant and bounded safe-listening.
@@ -226,8 +228,11 @@ does not treat every source command as universally supported. All items below re
   AZ80 ANC/ambient levels now use confirmed 000A reports and 000B writes retaining the latest
   other level, with mode/session guards and native detail sliders. Adaptive, A800-specific and
   unimplemented upstream game behavior remain separate evidence gaps.
-- [ ] C13 Existing StarRing/Honor/Edifier and standard adapters: preserve all functions while
+- [x] C13 Existing StarRing/Honor/Edifier and standard adapters: preserve all functions while
   moving to the complete native presentation architecture; retain pending final-device evidence.
+  Existing native ANC hosts remain; Honor depth now has a guarded native detail entry. Huawei
+  level-only reports open their implemented selector, and four existing Samsung settings reach
+  daily details. Independent review and code tests pass; changed surfaces still need device feedback.
 
 ## D. Complete Android-side experience
 

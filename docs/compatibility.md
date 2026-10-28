@@ -245,6 +245,12 @@ X5s Pro 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只
 
 ### 2.10 华为
 
+补充 FreeBuds SE、SE 2、SE 4 ANC、Pro 5 的 OpenFreebuds 可执行来源画像：SE 固定
+Channel 16，其余三款 Channel 1。SE／SE 2 不查询或接受 ANC；SE 2 长按仅有通话动作，
+不显示左右耳长按。SE 4 ANC 开放有合法回报的降噪四档，未开放透传档位；Pro 5
+使用明确声明的 ANC／透传档位及日常设置。型号选择查询策略，电量和各项控制仍需
+独立报告确认；以上新增适配未获实机验证。
+
 新增精确候选包括 FreeBuds 4i、6i、Pro、Pro 2、Studio、FreeLace Pro 2，以及
 HONOR Earbuds 2、2 SE、2 Lite。按各自来源画像探测佩戴、双设备、EQ 和手势，
 并通过实际回报逐项开放原生卡片高级设置；Studio／FreeLace Pro 2 保留整机电量形态。
@@ -256,6 +262,9 @@ Pro 3、5i、FreeClip 2 也接入各自有来源依据的日常设置，原有�
 | HUAWEI FreeBuds 5i | 具体型号 | 实机验证 | 规范化型号精确匹配；固定优先 RFCOMM Channel 16；合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透 |
 | HUAWEI FreeBuds Pro 3（T0018 / T0018C） | 具体型号 | 实机验证 | 规范化型号精确匹配；SPP 合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透 + 降噪四档与透传两档（类型化扩展） |
 | HUAWEI FreeBuds 4 | 具体型号 | 公开实现 | 规范化型号精确匹配；Channel 1 合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件或整机 | 降噪、关闭 |
+| HUAWEI FreeBuds SE / SE 2 | 具体型号 | 公开实现，待实机复核 | 精确名称选择分别为 16 / 1 的 Channel；合法回报逐项确认电量、手势，SE 2 另有 EQ／低延迟 | 系统整机 → 私有组件 | 无 |
+| HUAWEI FreeBuds SE 4 ANC | 具体型号 | 公开实现，待实机复核 | 精确名称及 Channel 1；合法状态确认电量、噪声、档位及日常控制 | 系统整机 → 私有组件 | 降噪四档、关闭、通透 |
+| HUAWEI FreeBuds Pro 5 | 具体型号 | 公开实现，待实机复核 | 精确名称及 Channel 1；合法状态逐项确认 | 系统整机 → 私有组件 | 降噪四档、关闭、通透两档 |
 | HUAWEI FreeClip 2 | 具体型号 | 实机验证 | 规范化型号精确匹配；Channel 1 合法电量帧确认私有电量 | 系统整机 → 私有组件 | 无（开放式夹耳，不开放降噪） |
 | 其他名称符合 HUAWEI FreeBuds / FreeClip / FreeLace 规则的耳机 | 品牌家族 | 家族外推 | 产品线名称选择一个家族候选；按顺序试探 Channel 1、16；合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件或整机 | 协议确认后支持降噪、关闭、通透；不开放档位 |
 | 其他华为耳机 | 标准回退 | 标准回退 | Android 标准耳机身份匹配 | 系统整机 | 无 |

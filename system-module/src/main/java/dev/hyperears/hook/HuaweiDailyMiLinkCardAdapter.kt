@@ -89,7 +89,8 @@ internal object HuaweiDailySettingsPolicy {
         state.address.equals(address, true) && state.adapter?.presentationId == HuaweiDailyPresentationIds.SETTINGS &&
             state.sessionActive && state.privateChannelConnected && state.handshakeAccepted &&
             state.lifecycle.controlOwnership == ControlOwnership.MODULE &&
-            state.features.get<HuaweiDailySettingsFeatureState>()?.hasSettings == true
+            (state.features.get<HuaweiDailySettingsFeatureState>()?.hasSettings == true ||
+                state.features.get<HuaweiAncLevelFeatureState>()?.hasCurrentControls(state.noiseMode) == true)
     fun request(state: EarbudState, address: String, request: HuaweiDailyControlRequest): HuaweiDailyControlRequest? =
         request.takeIf { available(state, address) &&
             state.features.get<HuaweiDailySettingsFeatureState>()?.supports(request) == true }

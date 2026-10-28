@@ -300,3 +300,23 @@ excluded because its handler does not supply actual selected-language readback.
 Native daily settings show low-latency on/off and connection-stability/quality
 preference only with current evidence; callbacks revalidate session/owner and
 support. Source/fixture/UI tests are distinct from physical device acceptance.
+
+Native Huawei settings entry also accepts a confirmed, supported ANC/transparency level belonging to the current noise mode, without requiring or fabricating a daily-settings report. Invalid/missing levels revoke this entry when no other settings remain.
+
+### Additional OpenFreebuds model profiles
+
+Pinned OpenFreebuds `0b4f14c0` executable `driver/huawei/driver/per_model/buds_se.py`,
+`buds_se_2.py`, `buds_se_4.py`, and `buds_pro_5.py` qualify four exact-name profiles.
+SE inherits RFCOMM channel 16 from `driver/generic/spp.py:17`: battery and double-tap only.
+SE 2 uses channel 1, double/triple taps, call-only hold, presets 1/2/3/9 and low latency;
+neither SE model queries or accepts ANC. SE 2 hold suppresses both left/right controls;
+call state/write remains parameter 4, preserving distinct call evidence instead of upstream's
+accidental read of the right-side byte. SE 4 ANC uses channel 1, ANC levels 0–3 including
+dynamic, double/triple taps, extra hold actions and noise-cycle choices, presets 1/2/3/9 and
+low latency. Its driver disables voice-boost support; no transparency-level selector is exposed.
+Pro 5 uses channel 1 and the same explicitly declared level and daily handler membership as Pro 3,
+including custom EQ, wear detection, multipoint, quality preference and low latency.
+All controls still require their own live reports; exact names only select a query profile.
+The shared level extension preserves existing Pro 3 wire bytes. Voice language remains excluded
+because the upstream handler has no selected-language readback. These additions have source and
+unit-test coverage; no new physical-device verification is claimed.

@@ -15,6 +15,8 @@ import dev.hyperears.protocol.honor.HonorX5sSppCodec
 class HonorX5sProAdapter : StandardEarbudAdapter() {
     override val id: String = ID
     override val displayName: String = "荣耀亲选耳机 X5s Pro"
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = PRESENTATION_ID.takeIf { effectiveCapabilities().noiseControl }
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
@@ -33,13 +35,10 @@ class HonorX5sProAdapter : StandardEarbudAdapter() {
     override val controlRequestContract: ControlRequestContract =
         StandardControlRequestContract.extending { adapter, request ->
             request is HonorControlRequest.SetAncDepth &&
-                adapter.effectiveCapabilities().noiseControl &&
-                request.depth in (
-                    adapter.runtimeState().features
-                        .get<HonorAncDepthFeatureState>()
-                        ?.supported
-                        .orEmpty()
-                )
+                adapter.effectiveCapabilities().noiseControl && adapter.runtimeState().noiseMode == NoiseMode.ANC &&
+                adapter.runtimeState().features.get<HonorAncDepthFeatureState>()?.let {
+                    it.current in it.supported && request.depth in it.supported
+                } == true
         }
 
     override fun matches(identity: EarbudIdentity): Boolean =
@@ -56,6 +55,7 @@ class HonorX5sProAdapter : StandardEarbudAdapter() {
 
     companion object {
         const val ID = "honor-x5spro"
+        val PRESENTATION_ID = MiLinkCardPresentationId("honor-x5spro-depth")
         const val SPP_UUID = "00001101-0000-1000-8000-00805F9B34FB"
     }
 }
@@ -72,6 +72,7 @@ private class HonorX5sProProtocolSession : ProtocolSession {
     private var singleEarbud = false
     private var handshakePublished = false
 
+    private var ancDepthConfirmed = false
     private val supportedDepths = HonorAncDepth.entries.toSet()
 
     override fun initialReadCommands(): List<ByteArray> =
@@ -82,12 +83,12 @@ private class HonorX5sProProtocolSession : ProtocolSession {
         is StandardControlRequest.SetNoiseMode -> listOf(
             HonorX5sSppCodec.modeCommand(request.mode.toWireMode(), ANC_DEPTH),
         )
-        is HonorControlRequest.SetAncDepth -> listOf(
+        is HonorControlRequest.SetAncDepth -> if (ancDepthConfirmed) listOf(
             HonorX5sSppCodec.modeCommand(
                 HonorX5sSppCodec.NoiseMode.ANC,
                 request.depth.toWireDepth(),
             ),
-        )
+        ) else emptyList()
         else -> emptyList()
     }
 
@@ -114,6 +115,7 @@ private class HonorX5sProProtocolSession : ProtocolSession {
                 return@forEach
             }
             HonorX5sSppCodec.stateFromFrame(frame, singleEarbud)?.let { state ->
+                ancDepthConfirmed = state.mode == HonorX5sSppCodec.NoiseMode.ANC && state.depth != null
                 add(
                     ProtocolEvent.FeatureStateChanged(
                         NoiseModeFeatureState(state.mode.toDomainMode()),
@@ -140,6 +142,7 @@ private class HonorX5sProProtocolSession : ProtocolSession {
     }
 
     override fun reset() {
+        ancDepthConfirmed = false
         decoder.reset()
         singleEarbud = false
         handshakePublished = false
