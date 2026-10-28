@@ -11,7 +11,7 @@ class HuaweiFreeClipAdapterTest {
     private val adapter = HuaweiFreeClip2Adapter()
 
     @Test
-    fun registryResolvesOnlyTheHardwareVerifiedClipModelExactly() {
+    fun registrySeparatesTheSourceCandidateFromTheHardwareVerifiedClip2() {
         assertTrue(
             EarbudAdapterRegistry.resolve(identity("HUAWEI FreeClip 2")) is
                 HuaweiFreeClip2Adapter,
@@ -19,13 +19,8 @@ class HuaweiFreeClipAdapterTest {
         assertTrue(
             EarbudAdapterRegistry.resolve(identity("FreeClip 2")) is HuaweiFreeClip2Adapter,
         )
-        assertTrue(
-            EarbudAdapterRegistry.resolve(identity("HUAWEI FreeClip")) is
-                HuaweiFreebudsFamilyAdapter,
-        )
-        assertTrue(
-            EarbudAdapterRegistry.resolve(identity("FreeClip")) is HuaweiFreebudsFamilyAdapter,
-        )
+        assertEquals("huawei-freeclip", EarbudAdapterRegistry.resolve(identity("HUAWEI FreeClip"))?.id)
+        assertEquals("huawei-freeclip", EarbudAdapterRegistry.resolve(identity("FreeClip"))?.id)
         assertFalse(
             EarbudAdapterRegistry.resolve(identity("HUAWEI FreeBuds Pro 3")) is
                 HuaweiFreeClip2Adapter,

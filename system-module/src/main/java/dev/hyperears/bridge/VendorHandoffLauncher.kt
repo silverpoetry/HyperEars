@@ -50,6 +50,10 @@ internal object VendorHandoffLauncher {
         ).start()
     }
 
+    fun hasReturnableLease(address: String, sessionToken: String?): Boolean = synchronized(leases) {
+        sessionToken != null && leases[address.uppercase(Locale.ROOT)]?.token == sessionToken
+    }
+
     /** Explicit return respects the user's global automatic-yield policy in the session owner. */
     fun returnControl(
         address: String,

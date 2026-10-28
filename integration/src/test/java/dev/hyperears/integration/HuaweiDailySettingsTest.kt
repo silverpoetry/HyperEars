@@ -21,6 +21,39 @@ class HuaweiDailySettingsTest {
         val lace = adapters.single { it.id == "huawei-freelace-pro2" }
         assertFalse(lace.beginHandshake().commands.any { Wire.parseFrame(it)!!.command == 0x2B11 })
     }
+    @Test fun pro4AndFreeClipCandidatesStayWithinIndependentReportBoundaries() {
+        for (id in listOf("huawei-freebuds-pro4", "huawei-freeclip")) {
+            val adapter = HuaweiDailyModelAdapter(HuaweiDailyModelCatalog.models.single { it.id == id })
+            val commands = adapter.beginHandshake().commands.map { Wire.parseFrame(it)!!.command }
+            assertTrue(0x2B4A in commands)
+            assertFalse(adapter.supportsControl(HuaweiDailyControlRequest.SetWearDetection(true)))
+            adapter.receive(report(0x2B11, 1 to field(0)))
+            assertTrue(adapter.supportsControl(HuaweiDailyControlRequest.SetWearDetection(true)))
+            assertEquals(false, adapter.runtimeState().features.get<HuaweiDailySettingsFeatureState>()!!.wearDetection)
+            adapter.receive(report(0x2B2A, 1 to byteArrayOf(1, 2)))
+            assertFalse(adapter.snapshot().capabilities.noiseControl)
+            assertNull(adapter.runtimeState().features.get<HuaweiAncLevelFeatureState>())
+            adapter.receive(report(0x2B2A, 1 to byteArrayOf(2, 1)))
+            if (id == "huawei-freeclip") {
+                assertFalse(0x2B2A in commands); assertFalse(0x2B19 in commands)
+                assertFalse(adapter.snapshot().capabilities.noiseControl)
+                adapter.receive(report(0x2B17, 1 to field(10), 2 to field(10)))
+                adapter.receive(report(0x2B19, 1 to field(1)))
+                assertFalse(adapter.supportsControl(HuaweiDailyControlRequest.SetGesture(HuaweiGestureKind.HOLD, HuaweiGestureSide.LEFT, 10)))
+                assertFalse(adapter.supportsControl(HuaweiDailyControlRequest.SetGesture(HuaweiGestureKind.CYCLE, HuaweiGestureSide.LEFT, 1)))
+                assertTrue(adapter.queryState(NoiseModeFeatureState.FEATURE_ID).isEmpty())
+            } else {
+                assertTrue(adapter.snapshot().capabilities.noiseControl)
+                assertEquals(setOf(NoiseMode.ANC, NoiseMode.OFF), adapter.snapshot().supportedNoiseModes)
+                adapter.receive(report(0x2B19, 1 to field(1), 2 to field(1)))
+                assertTrue(adapter.supportsControl(HuaweiDailyControlRequest.SetGesture(HuaweiGestureKind.CYCLE, HuaweiGestureSide.LEFT, 1)))
+                assertFalse(adapter.supportsControl(HuaweiDailyControlRequest.SetGesture(HuaweiGestureKind.CYCLE, HuaweiGestureSide.LEFT, 2)))
+            }
+            adapter.resetProtocolSession()
+            assertFalse(adapter.snapshot().capabilities.noiseControl)
+            assertFalse(adapter.supportsControl(HuaweiDailyControlRequest.SetWearDetection(true)))
+        }
+    }
     @Test fun independentReportGatesReadbackAndReset() {
         val adapter = HuaweiFreebuds5iAdapter()
         val request = HuaweiDailyControlRequest.SetWearDetection(false)

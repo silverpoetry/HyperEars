@@ -19,7 +19,9 @@ internal class SettingsHeadsetHook : HookContext() {
     private val main = Handler(Looper.getMainLooper())
     private val states = SettingsHeadsetState()
     private val pages = IdentityHashMap<Any, SettingsHeadsetBinding>()
-    private val observers = linkedMapOf<Any, Pair<String, (EarbudState) -> Unit>>()
+    private data class Observer(val owner: Any, val address: String, val callback: (EarbudState) -> Unit)
+    private val observers = linkedMapOf<Any, Observer>()
+    private val controls = SettingsControlGate()
     private val producers = mutableMapOf<IBinder, IBinder.DeathRecipient>()
     private var context: Context? = null
     private var settingsObserver: java.io.Closeable? = null
@@ -64,22 +66,24 @@ internal class SettingsHeadsetHook : HookContext() {
         val screen = fragment.javaClass.getMethod("getPreferenceScreen").invoke(fragment) ?: return
         val host = SettingsPreferenceHost(fragment.javaClass.classLoader!!, ctx, screen)
         startReceiver(ctx)
-        fun pageRecord(target: String) = settingsPageRecord(address, target, { address(fragment) }, { accepted(target) })
+        fun pageRecord(target: String) = settingsPageRecord(address, target, { address(fragment) }, { trusted(target) })
         val env = MiLinkCardEnvironment(fragment.javaClass.classLoader!!,
             { target -> pageRecord(target)?.state ?: EarbudState() },
             { target, request ->
-                val value = pageRecord(target) ?: error("No active module-owned Settings target")
-                if (!value.state.privateChannelConnected || !value.state.handshakeAccepted) error("Private state unavailable")
-                BroadcastIdentity.send(ctx, ModuleContract.control(request, target, value.token))
+                val value = pageRecord(target) ?: error("No trusted Settings target")
+                check(controls.send(value, request) {
+                    BroadcastIdentity.send(ctx, ModuleContract.control(request, target, value.token))
+                }) { "Settings control ownership or local lease changed" }
             },
             { target, callback ->
                 val key = Any()
-                observers[key] = target to callback
+                observers[key] = Observer(fragment, target) { incoming -> callback(if (!incoming.sessionActive) EarbudState() else pageRecord(target)?.state ?: EarbudState()) }
                 val release: () -> Unit = { observers.remove(key); Unit }
                 release
             },
             { target -> pageRecord(target)?.token })
-        pages[fragment] = SettingsHeadsetBinding(host, view, address, { address(fragment) }, { accepted(address) }, env)
+        pages[fragment] = SettingsHeadsetBinding(host, view, address, { address(fragment) }, { trusted(address) }, env,
+            canReturn = { value -> controls.canReturn(value) && VendorHandoffLauncher.hasReturnableLease(address, value.token) })
         pages[fragment]?.render()
         BroadcastIdentity.send(ctx, ModuleContract.requestState(ModuleContract.SETTINGS_PACKAGE))
     }
@@ -89,7 +93,7 @@ internal class SettingsHeadsetHook : HookContext() {
         val device = cached.javaClass.getMethod("getDevice").invoke(cached) as? android.bluetooth.BluetoothDevice ?: return null
         return address.takeIf { it.equals(device.address, true) }
     }
-    private fun accepted(address: String) = states.record(address).takeUnless { ModuleRuntimeGate.paused }
+    private fun trusted(address: String) = states.trustedRecord(address).takeUnless { ModuleRuntimeGate.paused }
     private fun startReceiver(candidate: Context) {
         if (receiver != null) return
         val app = candidate.applicationContext ?: candidate
@@ -97,6 +101,7 @@ internal class SettingsHeadsetHook : HookContext() {
             override fun onReceive(context: Context, intent: Intent) {
                 if (!BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid, ModuleContract.BLUETOOTH_PACKAGE)) return
                 if (runCatching { states.accept(intent) }.getOrDefault(false)) {
+                    with(ModuleContract) { intent.readState() }?.address?.let { controls.observe(it, trusted(it)) }
                     NativePresentationContract.producer(intent)?.let(::watchProducer)
                     renderAll()
                 }
@@ -112,10 +117,14 @@ internal class SettingsHeadsetHook : HookContext() {
         runCatching { producer.linkToDeath(death, 0) }.onSuccess { producers[producer] = death }
     }
     private fun renderAll() {
-        observers.values.toList().forEach { (address, callback) -> runCatching { callback(accepted(address)?.state ?: EarbudState()) } }
+        observers.values.toList().forEach { observer -> runCatching { observer.callback(trusted(observer.address)?.state ?: EarbudState()) } }
         pages.values.toList().forEach(SettingsHeadsetBinding::render)
     }
     private fun release(fragment: Any) {
+        // Cancel independent handoff observers before removing their live token/sender context.
+        observers.values.filter { it.owner === fragment }.toList().forEach { observer ->
+            runCatching { observer.callback(EarbudState()) }
+        }
         pages.remove(fragment)?.close()
         if (pages.isNotEmpty()) return
         receiver?.let { runCatching { context?.unregisterReceiver(it) } }

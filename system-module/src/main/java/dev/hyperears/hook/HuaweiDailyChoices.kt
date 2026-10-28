@@ -38,7 +38,7 @@ internal object HuaweiDailyChoices {
         }
     }
     private fun presetLabel(model: String?, value: Int): String {
-        if (model in setOf("huawei-freebuds-pro3", "huawei-freebuds-pro5")) return when (value) {
+        if (model in setOf("huawei-freebuds-pro3", "huawei-freebuds-pro4", "huawei-freebuds-pro5", "huawei-freeclip")) return when (value) {
             5 -> "默认"; 1 -> "低音增强"; 2 -> "高音增强"; 9 -> "人声"; else -> "预设 $value"
         }
         if (model == "huawei-freelace-pro2") return "预设 $value"

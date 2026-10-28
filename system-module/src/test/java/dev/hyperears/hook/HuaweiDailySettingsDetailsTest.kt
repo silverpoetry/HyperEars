@@ -35,6 +35,17 @@ class HuaweiDailySettingsDetailsTest {
         assertEquals("默认", eq.choices.single { it.value == 5 }.label)
         assertEquals("低音增强", eq.choices.single { it.value == 1 }.label)
     }
+    @Test fun sourceAliasModelsUseTheirOwnReportedEqualizerLabels() {
+        for (name in listOf("HUAWEI FreeBuds Pro 4", "HUAWEI FreeClip")) {
+            val adapter = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity(name, true)))
+            adapter.receive(HuaweiFreebudsSppCodec.packet(0x2B4A,
+                listOf(1 to byteArrayOf(1), 2 to byteArrayOf(5), 3 to byteArrayOf(5, 1, 2, 9))))
+            val rows = HuaweiDailyChoices.rows(EarbudState(adapter = adapter.snapshot(), features = adapter.runtimeState().features))
+            val eq = rows.single()
+            assertEquals("默认", eq.choices.single { it.value == 5 }.label)
+            assertEquals("低音增强", eq.choices.single { it.value == 1 }.label)
+        }
+    }
     private class Fixture(levelOnly: Boolean = false) {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)

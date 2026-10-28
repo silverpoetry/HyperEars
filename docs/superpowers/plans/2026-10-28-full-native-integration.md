@@ -139,6 +139,10 @@ revalidated changed device behavior. The full model/function scope remains uncha
 - [ ] B5 Route battery, noise, levels, spatial, wearing, gesture, EQ, multipoint, find and device-info
   groups into one consistent native-details hierarchy using existing adapter-selected presentation
   bindings and type-safe requests. Advanced editors use the same host styling.
+  Generic Settings now has native lists, switches and sliders for Apple/Coral and common daily
+  brand controls. Actual AndroidX tests cover old callbacks, source definitions, one-use audio
+  confirmation and host category ownership. The remaining ordinary fields now have native rows;
+  complex curve/gesture/find editors continue through their existing address-bound advanced entry.
 - [x] B6 Update existing registered brand/model presentations in place through their current
   registries; remove unsupported controls (including FreeClip false ANC), retain working model
   specializations and preserve standard/headphone/TWS topology.
@@ -146,6 +150,9 @@ revalidated changed device behavior. The full model/function scope remains uncha
   lifecycle cleanup; verify multi-device, unknown/zero, dark/light, layout and accessibility.
 - [ ] B8 Refine optional external-controller coexistence beyond broad process presence where
   evidence permits; include AndPods/LibrePods, regional apps, multi-process and user ownership.
+  AndPods/LibrePods exact packages, Apple adapter priority, scope declarations, navigation and
+  existing handoff cleanup are implemented with tests. A more precise per-device vendor-session
+  signal is still evidence-dependent; process presence is not misrepresented as such a signal.
 
 ## C. Protocol and model completeness by family
 
@@ -173,7 +180,7 @@ does not treat every source command as universally supported. All items below re
   and LE Audio remain outstanding; identities grant no controls.
   Indexed noise selection now covers 43 source product tables with strict current-state reports,
   pre-identity control gating, native parent choices and model-specific level/transparency options.
-- [ ] C3 Huawei/Honor: union HuaweiPods/OpenFreebuds exact routes and aliases; old HFP plus SPP
+- [ ] C3 Huawei/Honor: union HuaweiPods/OpenFreebuds exact routes and aliases; legacy RFCOMM plus HFP battery and SPP
   FreeBuds3 paths, Studio/FreeLace topology, firmware-specific ANC/transparency, EQ, gestures,
   spatial, wearing, dual-device, latency, quality, prompts/language and smart functions.
   Preserve Pro4 conflicting evidence and 5i level gap until resolved on matching hardware.
@@ -182,6 +189,8 @@ does not treat every source command as universally supported. All items below re
   and hardware validation remain outstanding.
   Model-qualified low latency and sound-quality preference now have native choices and exact
   readback contracts; the latency query uses a bounded one-second adapter effect.
+  FreeBuds3 SPP adds its distinct double-tap mapping with exact native labels, without borrowing
+  later ANC commands. The reference legacy RFCOMM ANC writes lack reliable readback; its HFP battery hook is separate.
   SE, SE2, SE4 ANC and Pro5 exact profiles are added. SE/SE2 cannot acquire ANC; SE2 hold is
   call-only. The shared level extension preserves Pro3 bytes and qualifies each model's levels.
 - [ ] C4 Sony: SPP/GATT, V1/V2, Table1/Table2 capability discovery; environment levels/voice,
@@ -234,6 +243,7 @@ does not treat every source command as universally supported. All items below re
   Original Buds/Plus profiles and daily EQ/ambient/gesture/find controls implemented. Modern
   custom EQ separates transmission intent from confirmed mode; no automatic curve replay.
   Source TODO layouts and enum-only game commands remain unresolved, not silently inferred.
+  Buds2 Pro conversation timeout now has strict 5/10/15-second status/ACK qualification and UI.
 - [ ] C12 Technics: qualified AZ/A800 candidates, ANC/ambient levels and adaptive state/readback;
   do not advertise upstream's unimplemented game method as working support.
   AZ80 ANC/ambient levels now use confirmed 000A reports and 000B writes retaining the latest
@@ -415,3 +425,12 @@ ownership restoration before close; per-address predecessor completion prevents 
 new connection. Full suites pass 849 tests; protocol-test Debug and module Release lint/assembly
 pass. No install/phone modification/physical acceptance. Other brand/model migration remains
 outstanding; this checkpoint does not complete the comprehensive goal.
+
+### Latest verified checkpoint
+
+The native daily rows, exact Pro 4/FreeClip profiles and Settings vendor-app handoff pass
+1,230 tests (317 protocol, 482 integration, 431 system-module), Release lint and assembly,
+and protocol-test Debug assembly. Settings now observes trusted external-owner acknowledgements
+without enabling normal writes; only an exact local lease can return control. This is code-level
+validation, with no new phone installation. Next finite gaps are Apple model identity/name readback,
+RSv2 Mirror/Swift 2/Luminous profiles, Rose gain/hearing protection and Ceramics X F8 daily controls.

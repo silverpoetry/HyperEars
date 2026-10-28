@@ -327,9 +327,31 @@ OpenFreebuds 0b4f14c0 `driver/per_model/buds_3.py` explicitly selects Channel 1 
 battery/double-tap handlers. Double-tap values are -1 off, 0 assistant, 1 play/pause,
 3 ANC cycle and 4 next track. These differ from later model values; native labels and
 writes preserve that difference. Gesture support does not establish a direct ANC command.
-This SPP profile does not query or accept the later family ANC protocol; the separately
-referenced older HFP control path remains unported. Voice-language and in-ear telemetry
+This SPP profile does not query or accept the later family ANC protocol. HuaweiPods'
+legacy ANC path also sends RFCOMM packets despite its HFP-related class names, but its
+FreeBuds3 profile provides no reliable ANC readback. Those write-only controls remain
+unported; the HFP battery hook is a separate path. Voice-language and in-ear telemetry
 handlers do not imply confirmed language selection or an auto-pause setting.
 Model identification remains exact, and actual fields require valid reports. Hardware
 validation of this new profile remains pending. Pro5 EQ labels also follow its explicit
 5/default, 1/bass, 2/treble, 9/voice source mapping rather than the generic 1/default list.
+
+## Pro 4 and first-generation FreeClip query candidates
+
+OpenFreebuds 0b4f14c0 `driver/constants.py` routes both exact names to
+`driver/huawei/driver/per_model/buds_pro_3.py` on Channel 1. This is source alias
+membership, not hardware validation: that driver calls its common handlers "May work"
+and marks several advanced handlers untested. Existing strict EQ, wear, multipoint,
+low-latency and quality reports independently enable the corresponding controls;
+queries and model names alone enable none. EQ labels follow that driver's 5/default,
+1/bass, 2/treble, 9/voice mapping. Custom editing still needs a reported custom slot.
+
+HuaweiPods dc5b9d14 `pods/DeviceCapabilities.kt` qualifies Pro 4 basic ANC but does
+not qualify its discrete levels or transparency. This profile therefore accepts only
+ANC/OFF, has no level extension, and restricts the long-press noise cycle to value 1
+(off/on). FreeClip has no ANC: no noise queries, accepted noise reports, level controls
+or cycle queries. Its alias driver's long-press action set is reduced to -1 (disabled);
+no newer FreeClip 2 assistant/volume actions are inferred. Double-tap and swipe retain
+only their existing source action sets and require their own reports. Exact FreeClip
+matching does not change FreeClip 2's separately validated battery path. Both newly
+added model profiles and daily controls await physical-device verification.

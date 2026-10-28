@@ -72,3 +72,26 @@ preservation and category reparenting. `SettingsHeadsetStateTest` covers explici
 admission, physical scopes, retired tokens, revisions, native/external owners, producer
 death and Settings reply eligibility. Build/test results are reported by the coordinated
 root verification batch. These fixtures do not claim a live ROM/device page acceptance.
+
+## Explicit vendor workflow handoff
+
+Settings keeps authenticated, live, current-connection HYPEREARS state separately from
+MODULE-only control eligibility. Its observer can therefore see the existing Bluetooth
+owner's EXTERNAL_APP release acknowledgement. This fixes Coral's reused firmware/vendor
+handoff entry: the independent VendorHandoffCoordinator receives the acknowledgement
+before owner-loss closes the details panel. Ordinary writes still require MODULE plus
+confirmed private transport. Begin requires a declared application and creates a local
+lease bound to producer, connection and session; End requires that exact local lease.
+
+A native controller-launch row uses VendorHandoffLauncher. After acknowledged launch,
+only a matching local explicit lease offers a return row; unrelated automatic external
+ownership exposes no module group. Return retains the existing automatic-yield policy.
+Page teardown cancels observers before dropping their send/token context, allowing
+matching lease cleanup; stale address/session/native-owner callbacks never launch.
+App exit clears the local handoff state so a later explicit launch is possible.
+
+SettingsHandoffTest drives the real coordinator through SettingsHeadsetState and the
+SettingsControlGate for released-channel launch, exact-lease return, ordinary-write
+rejection, timeout, launch failure, page teardown, stale address/session/native owner,
+and later handoff eligibility. These are local lifecycle tests, not a controller/device
+launch acceptance claim.

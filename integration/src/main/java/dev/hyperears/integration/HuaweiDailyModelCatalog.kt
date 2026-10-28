@@ -19,6 +19,14 @@ internal data class HuaweiDailyProfile(
         val PRO3 = HuaweiDailyProfile(true, true, listOf(5, 1, 2, 9), custom = true, lowLatency = true, soundQuality = true,
             gestures = mapOf(HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.HOLD to hold,
                 HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
+        // OpenFreebuds routes these models to Pro3: query candidates, not hardware validation.
+        // HuaweiPods qualifies Pro4 basic ANC only; exclude transparency from gesture cycles too.
+        val PRO4 = PRO3.copy(gestures = PRO3.gestures +
+            (HuaweiGestureKind.CYCLE to GestureProfile(listOf(1))))
+        // FreeClip has no ANC. The alias driver's HOLD only proves -1/10, so keep -1 only;
+        // do not invent assistant/volume actions from newer FreeClip2 firmware.
+        val FREECLIP = PRO3.copy(gestures = PRO3.gestures - HuaweiGestureKind.CYCLE +
+            (HuaweiGestureKind.HOLD to GestureProfile(listOf(-1))))
         val BUDS5I = HuaweiDailyProfile(true, true, listOf(1, 2, 3, 9), lowLatency = true, soundQuality = true, gestures = mapOf(
             HuaweiGestureKind.DOUBLE to tap.copy(call = true), HuaweiGestureKind.TRIPLE to tap,
             HuaweiGestureKind.HOLD to hold, HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
@@ -60,6 +68,9 @@ internal object HuaweiDailyModelCatalog {
         val aliases get() = setOf(name, name.removePrefix("HUAWEI "))
     }
     val models = listOf(
+        Model("huawei-freebuds-pro4", "HUAWEI FreeBuds Pro 4", 1, HuaweiDailyProfile.PRO4,
+            noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF)),
+        Model("huawei-freeclip", "HUAWEI FreeClip", 1, HuaweiDailyProfile.FREECLIP, noiseModes = emptySet()),
         Model("huawei-freebuds-3", "HUAWEI FreeBuds 3", 1, HuaweiDailyProfile.BUDS3, noiseModes = emptySet()),
         Model("huawei-freebuds-se", "HUAWEI FreeBuds SE", 16, HuaweiDailyProfile.SE, noiseModes = emptySet()),
         Model("huawei-freebuds-se2", "HUAWEI FreeBuds SE 2", 1, HuaweiDailyProfile.SE2, noiseModes = emptySet()),

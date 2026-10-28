@@ -25,6 +25,22 @@ class SettingsHeadsetBindingTest {
             protocolHandshake = ProtocolHandshakeState.CONFIRMED))
         .withFeature(NoiseModeFeatureState(NoiseMode.ANC))
         .withFeature(HonorAncDepthFeatureState(HonorAncDepth.SMART, HonorAncDepth.entries.toSet()))
+    @Test fun controllerRowsRequireModuleForLaunchAndExplicitLocalLeaseForReturn() {
+        val f = Fixture(); f.current = f.current.copy(adapter = f.current.adapter!!.copy(controlApps = listOf(ControlAppCatalog.huaweiSmartAudio)))
+        f.binding.render()
+        assertNotNull(f.row("hyperears.controller.open"))
+        f.current = f.current.copy(lifecycle = DeviceLifecycle(SystemProfileState.CONNECTED,
+            PrivateTransportState.NOT_REQUIRED, ProtocolHandshakeState.NOT_REQUIRED,
+            ControlOwnership.EXTERNAL_APP, ControlAppCatalog.huaweiSmartAudio))
+        f.binding.render()
+        assertNull(f.row("hyperears.headset"))
+        f.returnAllowed = true; f.binding.render()
+        assertNotNull(f.row("hyperears.controller.return"))
+        assertNull(f.row("hyperears.noise")); assertNull(f.row("hyperears.honor.depth"))
+        assertNull(f.row("hyperears.controller.open"))
+        f.binding.close(); assertEquals(1, f.screen.preferenceCount)
+    }
+
     @Test fun nativeNoiseAndDepthWaitForReadbackAndLeaveStockPreferencesUntouched() {
         val f = Fixture(); f.binding.render()
         val noise = f.row("hyperears.noise") as ListPreference
@@ -191,11 +207,46 @@ class SettingsHeadsetBindingTest {
         assertEquals(5, f.current.features.get<BoseDailySettingsFeatureState>()!!.cnc!!.rawLevel)
         f.binding.close()
     }
+    @Test fun addedOppoAndHuaweiRowsRetainCurrentDefinitionAndLevelDomain() {
+        val f = Fixture()
+        f.current = f.current.withFeature(OppoSettingsFeatureState(promptVolume=3,spatialSound=false,spatialProductId=7))
+            .withFeature(HuaweiAncLevelFeatureState(HuaweiAncLevel.NORMAL,HuaweiAncLevel.entries.toSet()))
+        f.binding.render()
+        (f.row("hyperears.oppo.prompt") as SeekBarPreference).callChangeListener(5)
+        assertEquals(OppoControlRequest.SetPromptVolume(5),f.sent.last())
+        val spatial=f.row("hyperears.oppo.spatial") as SwitchPreferenceCompat
+        f.current=f.current.withFeature(OppoSettingsFeatureState(promptVolume=3,spatialSound=false,spatialProductId=8))
+        spatial.callChangeListener(true); assertEquals(1,f.sent.size)
+        val level=f.row("hyperears.huawei.level") as ListPreference
+        f.current=f.current.withFeature(NoiseModeFeatureState(NoiseMode.TRANSPARENCY))
+        level.callChangeListener(HuaweiAncLevel.ULTRA.ordinal.toString()); assertEquals(1,f.sent.size)
+        f.binding.close()
+    }
+    @Test fun roseNativeAudioNeedsConfirmationAndSameProfile() {
+        val f = Fixture()
+        val model=dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.ASTRO_X
+        f.current=f.current.copy(adapter=f.current.adapter!!.copy(presentationId=RoseRsV2PresentationIds.SETTINGS))
+            .withFeature(RoseRsV2SettingsFeatureState(model.name,eq=0,audio=0,game=false))
+        f.binding.render()
+        (f.row("hyperears.rsv2.audio") as ListPreference).callChangeListener("1")
+        assertTrue(f.sent.isEmpty())
+        val dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(RoseRsV2ControlRequest.SetAudio(1),f.sent.single())
+        (f.row("hyperears.rsv2.eq") as ListPreference).callChangeListener("2")
+        assertEquals(RoseRsV2ControlRequest.SetEqualizer(2),f.sent.last())
+        val stale=f.row("hyperears.rsv2.eq") as ListPreference
+        f.current=f.current.withFeature(RoseRsV2SettingsFeatureState("OPENFEEL_L",eq=0))
+        stale.callChangeListener("1"); assertEquals(2,f.sent.size)
+        f.binding.close()
+    }
     private inner class Fixture {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)
         val screen = PreferenceManager(activity).createPreferenceScreen(activity)
         val stock = Preference(activity).apply { key = "stock" }.also(screen::addPreference)
+        var returnAllowed = false
         var current = state(); var token = "token"; var pageAddress = address; var admitted = true; var failProvider = false
         val sent = mutableListOf<ControlRequest>()
         val env = MiLinkCardEnvironment(javaClass.classLoader!!, { current }, { _, request -> sent += request }, { _, _ -> {} }, { token })
@@ -204,7 +255,7 @@ class SettingsHeadsetBindingTest {
             if (failProvider) error("provider")
             if (!admitted) null else SettingsHeadsetState.Record(current, token,
                 NativePresentationMetadata(HeadsetConnection("connection", 1), NativeAdmission.HYPEREARS), Binder())
-        }, env)
+        }, env, canReturn = { returnAllowed })
         fun row(key: String): Preference? = screen.findPreference(key)
     }
 }

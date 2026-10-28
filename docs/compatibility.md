@@ -251,7 +251,7 @@ X5s Pro 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只
 ### 2.10 华为
 
 FreeBuds 3 增加 Channel 1 精确 SPP 画像及独立双击动作映射；动作中的“切换降噪”
-不代表直接 ANC 控制已实现。较早 HFP 降噪路径仍未迁入，不向本型号套用后续家族 ANC 帧。
+不代表直接 ANC 控制已实现。参考实现的旧 RFCOMM 降噪写包缺少可靠读回，暂不开放该控制，不套用后续家族 ANC 帧。
 
 补充 FreeBuds SE、SE 2、SE 4 ANC、Pro 5 的 OpenFreebuds 可执行来源画像：SE 固定
 Channel 16，其余三款 Channel 1。SE／SE 2 不查询或接受 ANC；SE 2 长按仅有通话动作，
@@ -263,7 +263,7 @@ Channel 16，其余三款 Channel 1。SE／SE 2 不查询或接受 ANC；SE 2 �
 HONOR Earbuds 2、2 SE、2 Lite。按各自来源画像探测佩戴、双设备、EQ 和手势，
 并通过实际回报逐项开放原生卡片高级设置；Studio／FreeLace Pro 2 保留整机电量形态。
 Pro 3、5i、FreeClip 2 也接入各自有来源依据的日常设置，原有硬件结果不代表这些新控制
-已经验证。新增控制及型号均待实机复核；Pro 4 分歧与 5i 档位缺口仍未外推处理。
+已经验证。新增控制及型号均待实机复核；Pro 4 只按下述基础模式接入，5i 档位缺口仍未外推处理。
 
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|
@@ -273,6 +273,8 @@ Pro 3、5i、FreeClip 2 也接入各自有来源依据的日常设置，原有�
 | HUAWEI FreeBuds SE / SE 2 | 具体型号 | 公开实现，待实机复核 | 精确名称选择分别为 16 / 1 的 Channel；合法回报逐项确认电量、手势，SE 2 另有 EQ／低延迟 | 系统整机 → 私有组件 | 无 |
 | HUAWEI FreeBuds SE 4 ANC | 具体型号 | 公开实现，待实机复核 | 精确名称及 Channel 1；合法状态确认电量、噪声、档位及日常控制 | 系统整机 → 私有组件 | 降噪四档、关闭、通透 |
 | HUAWEI FreeBuds Pro 5 | 具体型号 | 公开实现，待实机复核 | 精确名称及 Channel 1；合法状态逐项确认 | 系统整机 → 私有组件 | 降噪四档、关闭、通透两档 |
+| HUAWEI FreeBuds Pro 4 | 具体型号 | 来源别名候选，待实机复核 | Channel 1；合法报告分别开放电量与日常设置，不继承 Pro 3 全部能力 | 系统整机 → 私有组件 | 降噪、关闭；无档位或通透 |
+| HUAWEI FreeClip | 具体型号 | 来源别名候选，待实机复核 | Channel 1；独立报告确认 EQ、佩戴、多点等日常设置；无降噪查询或循环配置 | 系统整机 → 私有组件 | 无 |
 | HUAWEI FreeClip 2 | 具体型号 | 实机验证 | 规范化型号精确匹配；Channel 1 合法电量帧确认私有电量 | 系统整机 → 私有组件 | 无（开放式夹耳，不开放降噪） |
 | 其他名称符合 HUAWEI FreeBuds / FreeClip / FreeLace 规则的耳机 | 品牌家族 | 家族外推 | 产品线名称选择一个家族候选；按顺序试探 Channel 1、16；合法电量和状态帧分别确认对应能力 | 系统整机 → 私有组件或整机 | 协议确认后支持降噪、关闭、通透；不开放档位 |
 | 其他华为耳机 | 标准回退 | 标准回退 | Android 标准耳机身份匹配 | 系统整机 | 无 |
@@ -287,7 +289,7 @@ RFCOMM Channel 16；FreeBuds Pro 3、FreeBuds 4 与 FreeClip 2 使用 Channel 1�
 `huawei.freebuds_pro3` 类型化状态与控制接入 v2.0.0 传输架构。三态模式切换与
 降噪档位切换已在 FreeBuds Pro 3 实机验证通过；家族 Adapter 不开放档位。FreeClip 2
 为开放式夹耳，无降噪与通透，不发送 `2B 2A` 状态查询，仅以合法电量帧确认其电量专用画像并
-开放组件电量。原版 FreeClip 仍按家族候选处理，不静态继承 FreeClip 2 的精确型号画像。
+开放组件电量。原版 FreeClip 使用独立来源候选画像，不继承 FreeClip 2 的实机验证或功能。
 FreeBuds 5i 型号专属档位测试失败，待完善。
 智慧音频运行时，HyperEars 按 [1.4 厂商控制 App](#14-厂商控制-app)的运行时控制权退避机制让出
 私有控制，仅保留系统整机电量与音频流转。

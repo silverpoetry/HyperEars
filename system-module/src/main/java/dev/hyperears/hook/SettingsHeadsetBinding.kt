@@ -11,6 +11,7 @@ internal class SettingsHeadsetBinding(
     private val currentAddress: () -> String?,
     private val record: () -> SettingsHeadsetState.Record?,
     private val environment: MiLinkCardEnvironment,
+    private val canReturn: (SettingsHeadsetState.Record) -> Boolean = { false },
 ) {
     private var category: Any? = null
     private val rows = mutableListOf<Any>()
@@ -34,6 +35,12 @@ internal class SettingsHeadsetBinding(
             // PreferenceGroup requires its inherited PreferenceManager before adding children.
             host.add(host.screen, group)
             val state = accepted.state
+            if (state.lifecycle.controlOwnership != ControlOwnership.MODULE) {
+                details?.dismiss(); details = null
+                if (canReturn(accepted)) addControllerRow(group, accepted, returning = true)
+                if (rows.isEmpty()) { host.detach(group); category = null }
+                return
+            }
             val battery = state.battery
             (if (battery.overall.available) listOf("耳机" to battery.overall, "充电盒" to battery.case)
                 else listOf("左耳" to battery.left, "右耳" to battery.right, "充电盒" to battery.case))
@@ -78,7 +85,7 @@ internal class SettingsHeadsetBinding(
             val inlineSend: (ControlRequest) -> Unit = { send(it, accepted.token) }
             SettingsVendorRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAppleRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
-            SettingsCoralRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend) { message, confirmed ->
+            val confirmInline: (String, () -> Unit) -> Unit = { message, confirmed ->
                 guarded {
                     confirmationLease = null; confirmation?.dismiss()
                     val lease = Any(); confirmationLease = lease
@@ -89,6 +96,9 @@ internal class SettingsHeadsetBinding(
                     } }
                 }
             }
+            SettingsCoralRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
+            SettingsRoseRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
+            SettingsAdditionalRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdvancedEditors.forState(state)?.takeIf { it.available(state, address) }?.let { editor ->
                 val row = host.row("hyperears.advanced", "高级设置")
                 host.summary(row, "均衡器、手势及耳机已确认的扩展设置")
@@ -104,12 +114,36 @@ internal class SettingsHeadsetBinding(
                 }
                 add(group, row)
             }
+            if (state.adapter?.controlApps?.isNotEmpty() == true) addControllerRow(group, accepted, returning = false)
             if (rows.isEmpty()) { host.detach(group); category = null }
         } catch (error: Exception) {
             ModuleLog.warn("Settings", "native preference binding failed; removed module group", error)
             close()
         }
     }
+    private fun addControllerRow(group: Any, accepted: SettingsHeadsetState.Record, returning: Boolean) {
+        val row = host.row(if (returning) "hyperears.controller.return" else "hyperears.controller.open",
+            if (returning) "返回 HyperEars 控制" else "打开控制 App 并让出控制")
+        host.summary(row, if (returning) "结束本次交接；仍遵循运行时退避设置" else
+            accepted.state.adapter?.controlApps.orEmpty().joinToString(" / ") { it.displayName })
+        host.enable(row, if (returning) canReturn(accepted) else writable(accepted.state))
+        host.onClick(row) { guarded {
+            val latest = currentFor(accepted.token) ?: return@guarded
+            val result = if (returning) {
+                if (!canReturn(latest)) return@guarded
+                dev.hyperears.bridge.VendorHandoffLauncher.returnControl(address,
+                    environment.sessionTokenProvider, environment.controlSender)
+            } else {
+                if (!writable(latest.state)) return@guarded
+                dev.hyperears.bridge.VendorHandoffLauncher.open(anchor.context, address,
+                    latest.state.adapter?.controlApps.orEmpty(), environment.stateProvider,
+                    environment.sessionTokenProvider, environment.observeState, environment.controlSender)
+            }
+            if (!result) host.summary(row, "未能完成交接，请确认控制 App 已安装且设备仍连接")
+        } }
+        add(group, row)
+    }
+
     /** Host layout reconstruction may reparent our category; reattach only our own object. */
     fun reconcile() = render()
     private fun current() = if (!currentAddress().equals(address, true)) null else record()
