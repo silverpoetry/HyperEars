@@ -24,3 +24,37 @@ native card/details provides the same preset choices, preserving its owner, addr
 session and cleanup policy. V2 extended per-action assignments, wearing behavior,
 and auto-power-off are distinct source APIs and are not inferred from this V1 slice.
 No new transport, connection loop, polling timer, or per-model name heuristic is added.
+
+## V2 Table1 preset and action assignments
+
+SonyPods `SonyTandemV2Table1Protocol.kt:710–759,1790–1905,2001–2099` and
+`SonyCapabilityProbe.kt:1107` provide the separate V2 contract. Support-function
+pairs F3/FE select inquiries03/0E. When both are advertised the limitation-aware0E
+variant is selected, and all reports from the other inquiry are ignored. The0E
+capability includes a limitation byte before key count; that byte is retained in the
+complete expected definition. Runtime per-key availability remains mandatory.
+
+A V2 preset capability contains fixed-action count and selectable-action count.
+Fixed actions contain action/function pairs; selectable actions contain
+operation/default/function-count/function-list. These are not parsed as the V1
+single action-count grammar. V2 volume codes23/24 and optimizer11 keep their V2
+meaning. The parser rejects truncation, duplicates, unknown enum members and trailing
+bytes rather than shifting subsequent key positions.
+
+F7/F9 report presets, F3/F5 report availability, and FB/FD report complete mapping
+vectors. Extended mappings contain preset/action-count/action-function pairs in key
+order, without explicit key IDs. Action editing requires every key, preset and action
+to match the current capability and the current preset vector; partial valid reports
+revoke previous action evidence. Capability defaults never substitute for reports.
+A preset change clears old mapping evidence and queries FA again.
+
+FC action writes preserve all other keys/actions and pin the full capability, current
+preset vector and full mapping snapshot. Their readback includes F2/F6/FA. Preset
+writes remain F8 and now use the selected inquiry. V1 inquiry06 stays preset-only;
+no FC or FA path is enabled for V1. Both versions retain existing Table1 routing,
+ACK busy rejection, session reset and native owner/address/session guards.
+
+Native Settings and native details expose selectable action functions only after the
+complete report above. Fixed actions are preserved in writes but are not presented
+as editable controls. No timer, background refresh loop, transport or name-based
+capability selection is added. Wearing and power behavior remain separate APIs.

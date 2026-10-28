@@ -6,6 +6,7 @@ import org.junit.Test
 class RoseManufacturerIdentityCodecTest {
     @Test fun knownUnbrandedNamesOnlyProvideADiscoveryHint() {
         assertTrue(RoseManufacturerIdentityCodec.candidateName("CERAMICS-X"))
+        assertTrue(RoseManufacturerIdentityCodec.candidateName("Furina Endless Solo of Solitude"))
         assertTrue(RoseManufacturerIdentityCodec.candidateName("SWIFT"))
         assertTrue(RoseManufacturerIdentityCodec.candidateName("Agumon"))
         assertTrue(RoseManufacturerIdentityCodec.candidateName("EarFree-i3"))

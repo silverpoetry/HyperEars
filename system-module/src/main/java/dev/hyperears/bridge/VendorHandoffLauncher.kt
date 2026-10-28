@@ -7,13 +7,10 @@ import android.os.Looper
 import dev.hyperears.integration.ControlAppSpec
 import dev.hyperears.integration.ControlRequest
 import dev.hyperears.integration.EarbudState
-import dev.hyperears.integration.StandardControlRequest
-import java.util.Locale
 
 /** Launches only after the Bluetooth owner has acknowledged releasing its private channel. */
 internal object VendorHandoffLauncher {
-    private data class Lease(val token: String, val id: String)
-    private val leases = linkedMapOf<String, Lease>()
+    private val leases = VendorHandoffReturnLeases()
 
     fun open(
         context: Context,
@@ -42,27 +39,17 @@ internal object VendorHandoffLauncher {
                 true
             },
             onLaunched = { token, leaseId ->
-                synchronized(leases) {
-                    leases[address.uppercase(Locale.ROOT)] = Lease(token, leaseId)
-                    while (leases.size > 32) leases.remove(leases.keys.first())
-                }
+                leases.record(address, token, leaseId)
             },
         ).start()
     }
 
-    fun hasReturnableLease(address: String, sessionToken: String?): Boolean = synchronized(leases) {
-        sessionToken != null && leases[address.uppercase(Locale.ROOT)]?.token == sessionToken
-    }
+    fun hasReturnableLease(address: String, sessionToken: String?): Boolean = leases.contains(address, sessionToken)
 
     /** Explicit return respects the user's global automatic-yield policy in the session owner. */
     fun returnControl(
         address: String,
         sessionTokenProvider: (String) -> String?,
         controlSender: (String, ControlRequest) -> Unit,
-    ): Boolean {
-        val lease = synchronized(leases) { leases.remove(address.uppercase(Locale.ROOT)) } ?: return false
-        if (sessionTokenProvider(address) != lease.token) return false
-        controlSender(address, StandardControlRequest.EndVendorHandoff(lease.id))
-        return true
-    }
+    ): Boolean = leases.returnControl(address, sessionTokenProvider, controlSender)
 }

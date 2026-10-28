@@ -7,7 +7,8 @@ internal object RoseRsV2DailyLabels {
     fun noiseLevel(value: Int) = when(value) { 5 -> "低"; 3 -> "中"; 1 -> "高"; else -> "档位 $value" }
     val gain = listOf("档位 0", "档位 1", "档位 2")
     fun equalizer(profile: dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model, value: Int): String = when (profile) {
-        dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.CERAMICS_U_HSC_2710 -> if (value == 3) "经典调音" else listOf("流行","高保真","摇滚").getOrNull(value)
+        dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.CERAMICS_U_HSC_2710, dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.CERAMICS_U_SOURCE -> if (value == 3) "经典调音" else listOf("流行","高保真","摇滚").getOrNull(value)
+        dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.EARFEEL_I7_SOURCE -> listOf("弱水经典","原声再现","古典乐器","日系甜美").getOrNull(value)
         dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.ASTRO_X -> listOf("低音","均衡","低音增强").getOrNull(value)
         dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.OPENFEEL_L -> listOf("低音","均衡").getOrNull(value)
         else -> listOf("流行","高保真","摇滚","轻音乐").getOrNull(value)

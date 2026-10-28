@@ -289,6 +289,28 @@ class SonySettingsDetailsTest {
         assertEquals(1,fixture.sent.size);assertEquals(1,fixture.unsubscribed)
     }
 
+    @Test fun v2ActionNeedsFullMappingAndOldButtonCannotOverwriteSiblingReport() {
+        val fixture=Fixture()
+        val definition=SonyAssignableDefinition(listOf(2),listOf(
+            SonyAssignableKey(0,0,listOf(32),mapOf(32 to listOf(SonyAssignableAction(0,32,listOf(32,33))))),
+            SonyAssignableKey(1,0,listOf(16),mapOf(16 to listOf(SonyAssignableAction(0,35,listOf(35,36)))))
+        ),2,3)
+        val mappings=listOf(SonyAssignableMapping(32,listOf(SonyAssignablePair(0,32))),SonyAssignableMapping(16,listOf(SonyAssignablePair(0,35))))
+        val feature=SonyAssignableFeatureState(definition,listOf(32,16),listOf(true,true))
+        fixture.current=fixture.current.withFeature(feature)
+        val details=fixture.open()
+        fun buttons()=descendants(popup(details).contentView).filter{it.contentDescription=="sony.assignable.0.action.0.33"}
+        assertTrue(buttons().isEmpty())
+        fixture.current=fixture.current.withFeature(feature.copy(mappings=mappings));fixture.observer!!(fixture.current)
+        val stale=buttons().single()
+        val changed=mappings.toMutableList().apply{this[1]=this[1].copy(actions=listOf(SonyAssignablePair(0,36)))}
+        fixture.current=fixture.current.withFeature(feature.copy(mappings=changed))
+        stale.performClick();assertTrue(fixture.sent.isEmpty())
+        fixture.observer!!(fixture.current);buttons().single().performClick()
+        assertEquals(SonyControlRequest.SetAssignableAction(definition,listOf(32,16),changed,0,0,33),fixture.sent.single())
+        details.dismiss();buttons().single().performClick();assertEquals(1,fixture.sent.size)
+    }
+
     private fun attachListenerCount(view: View): Int {
         val info = org.robolectric.util.ReflectionHelpers.getField<Any?>(view, "mListenerInfo") ?: return 0
         return org.robolectric.util.ReflectionHelpers.getField<List<*>?>(info, "mOnAttachStateChangeListeners")?.size ?: 0

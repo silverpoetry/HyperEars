@@ -99,13 +99,16 @@ open class RoseEarfreeProtocolFamilyAdapter(
  * The product name is retained as a fallback when Android has not populated the cached SDP UUIDs;
  * the read-only BudsFeel handshake remains authoritative for private capabilities.
  */
-class FurinaEndlessAdapter : RoseBudsFeelProtocolFamilyAdapter() {
+class FurinaEndlessAdapter(sourceQualified:Boolean=false) : RoseBudsFeelProtocolFamilyAdapter(
+    sourceProfile=if(sourceQualified) dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.FURINA_SOURCE else null) {
     override val id: String = ID
     override val displayName: String = "Furina Endless Solo of Solitude"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (identity.nativeSystemEarbud) return false
+        if(identity.manufacturerData.isNotEmpty()) return identity.standardHeadset &&
+            dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData) == id
         return normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
     }
 
@@ -289,11 +292,15 @@ class RoseEarfreeI5Adapter : RoseEarfreeProtocolFamilyAdapter() {
 open class RoseBudsFeelProtocolFamilyAdapter(
     transferredSession: ProtocolSession? = null,
     initialRuntimeState: AdapterRuntimeState = AdapterRuntimeState(),
+    val sourceProfile: dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model? = null,
 ) : RoseEarbudAdapter(transferredSession, initialRuntimeState) {
     override val id: String = ID
     override val displayName: String = "ROSE BudsFeel protocol family"
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
         get() = when {
+            sourceProfile != null -> RoseRsV2PresentationIds.SETTINGS.takeIf {
+                runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.hasSettings == true || effectiveCapabilities().noiseControl
+            }
             runtimeState().features.get<RoseRfcommSettingsFeatureState>() != null ->
                 if (effectiveCapabilities().noiseControl) SETTINGS_NOISE_PRESENTATION_ID else SETTINGS_ONLY_PRESENTATION_ID
             effectiveCapabilities().noiseControl -> PRESENTATION_ID
@@ -328,18 +335,21 @@ open class RoseBudsFeelProtocolFamilyAdapter(
 
     open val settingsProfile = RoseRfcommSettingsProfile.NONE
     override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
-        state is RoseRfcommSettingsFeatureState
+        if(sourceProfile != null) state is RoseRsV2SettingsFeatureState && state.model == sourceProfile.name
+        else state is RoseRfcommSettingsFeatureState
     }
     override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
-        request is RoseRfcommControlRequest.SetValue &&
-            (adapter as RoseBudsFeelProtocolFamilyAdapter).settingsProfile.allows(request.setting) &&
+        val profile=(adapter as RoseBudsFeelProtocolFamilyAdapter).sourceProfile
+        if(profile != null) request is RoseRsV2ControlRequest &&
+            adapter.runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.supports(request,adapter.runtimeState().features.get<NoiseModeFeatureState>()?.mode) == true
+        else request is RoseRfcommControlRequest.SetValue && adapter.settingsProfile.allows(request.setting) &&
             adapter.runtimeState().features.get<RoseRfcommSettingsFeatureState>()?.supports(request) == true
     }
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
-        if (request is RoseRfcommControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
-    override fun onProtocolReset() { removeFeatureState(RoseRfcommSettingsFeatureState.FEATURE_ID) }
+        if (request is RoseRfcommControlRequest || request is RoseRsV2ControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() { removeFeatureState(RoseRfcommSettingsFeatureState.FEATURE_ID); removeFeatureState(RoseRsV2SettingsFeatureState.FEATURE_ID) }
     protected open val wireNoiseModes = RoseBudsFeelMk2WireCodec.NoiseMode.entries.toSet()
-    override fun createProtocolSession(): ProtocolSession = RoseBudsFeelProtocolSession(wireNoiseModes, settingsProfile)
+    override fun createProtocolSession(): ProtocolSession = sourceProfile?.let(::RoseRsV2Session) ?: RoseBudsFeelProtocolSession(wireNoiseModes, settingsProfile)
 
     override fun onInitialProtocolUnavailable(): InitialProtocolFailureResolution =
         InitialProtocolFailureResolution.FallbackTo(
@@ -355,7 +365,8 @@ open class RoseBudsFeelProtocolFamilyAdapter(
     }
 }
 
-class RoseBudsFeelMk2Adapter : RoseBudsFeelProtocolFamilyAdapter() {
+class RoseBudsFeelMk2Adapter(sourceQualified:Boolean=false) : RoseBudsFeelProtocolFamilyAdapter(
+    sourceProfile=if(sourceQualified) dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.BUDSFEEL_MK2_SOURCE else null) {
     override val settingsProfile = RoseRfcommSettingsProfile.GAME_ONLY
     override val wireNoiseModes = RoseBudsFeelMk2WireCodec.NoiseMode.entries.filter { it.value in 1..4 }.toSet()
 
@@ -365,6 +376,8 @@ class RoseBudsFeelMk2Adapter : RoseBudsFeelProtocolFamilyAdapter() {
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (identity.nativeSystemEarbud) return false
+        if(identity.manufacturerData.isNotEmpty()) return identity.standardHeadset &&
+            dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData) == id
         return normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
     }
 

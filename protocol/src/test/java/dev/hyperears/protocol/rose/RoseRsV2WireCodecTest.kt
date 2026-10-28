@@ -5,22 +5,30 @@ import org.junit.Test
 
 class RoseRsV2WireCodecTest {
     private val models=RoseRsV2IdentityCodec.Model.entries
+    @Test fun existingAdapterSourceProfilesRetainExactOrdinarySubtypeLimits() {
+        assertEquals(listOf(0,1,3),RoseRsV2IdentityCodec.Model.BUDSFEEL_MK2_SOURCE.audioModes)
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.BUDSFEEL_MK2_SOURCE).offer(frame(0x2B,2)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.EARFEEL_I7_SOURCE).offer(frame(0x2A,6)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.CERAMICS_U_SOURCE).offer(frame(0x46,1)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.CERAMICS_U_SOURCE).offer(frame(8,0)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.FURINA_SOURCE).offer(frame(0x45,1)).isEmpty())
+    }
     @Test fun noiseLevelQueriesRespectActualEnabledWidgetsAndHscTwoLevelTransparency() {
-        val supported=setOf("CERAMICS_MK2","CERAMICS_MK2_5736","CERAMICS_MK2_8912F","CERAMICS_U_HSC_2710","ZIRCON")
+        val supported=setOf("CERAMICS_MK2","CERAMICS_MK2_5736","CERAMICS_MK2_8912F","CERAMICS_U_HSC_2710","ZIRCON","EARFEEL_I7_SOURCE","CERAMICS_U_SOURCE","FURINA_SOURCE")
         for(m in models) {
             val query=RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map{it.toInt() and 255}
             for(type in listOf(0x2C,0x2D)) {
                 assertEquals(m.name in supported,type in query)
                 for(value in 0..6) {
-                    val allowed=m.name in supported && value in (if(type==0x2D && m.name=="CERAMICS_U_HSC_2710") listOf(5,1) else listOf(5,3,1))
+                    val allowed=m.name in supported && value in (if(type==0x2D && m.name in setOf("CERAMICS_U_HSC_2710","CERAMICS_U_SOURCE")) listOf(5,1) else listOf(5,3,1))
                     assertEquals("${m.name}/$type/$value",allowed,RoseRsV2WireCodec.Decoder(m).offer(frame(type,value)).isNotEmpty())
                 }
             }
         }
     }
     @Test fun languageAndWearHaveIndependentWidgetGatesExactBoundsAndFragmentParsing() {
-        val language=setOf("CERAMICS_MK2","CERAMICS_MK2_8912F","HYACINTH","JASMINE","KY01","MAGICIAN","SPEAKFEEL","ZIRCON")
-        val wear=setOf("ASTRO_X","ZIRCON")
+        val language=setOf("CERAMICS_MK2","CERAMICS_MK2_8912F","HYACINTH","JASMINE","KY01","MAGICIAN","SPEAKFEEL","ZIRCON","CERAMICS_U_SOURCE","FURINA_SOURCE")
+        val wear=setOf("ASTRO_X","ZIRCON","EARFEEL_I7_SOURCE","FURINA_SOURCE")
         for(m in models) {
             val query=RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map{it.toInt() and 255}
             assertEquals(m.name, m.name in language, 0x31 in query)

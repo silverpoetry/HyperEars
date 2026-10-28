@@ -428,23 +428,24 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The F8/RSv2 daily/Sony assignment checkpoint passes 1,307 tests (338 protocol, 509 integration,
-460 system-module), Release lint/assembly and protocol-test Debug assembly. Documentation
-checks cover 79 Markdown files and 34 control applications. New source-qualified F8 profiles
-cover AGATE, AGATE X, CERAMICS and Ceramics X 7034; language, wearing detection and noise
-depth extend only their explicitly qualified RSv2 models. Sony V1 Table1 preset assignment
-preserves full capability/current vectors, rejects stale sibling changes and remains separate
-from V2 and Table2. Independent reviews and regressions cover these contracts.
+The qualified-Rose/Sony-V2 checkpoint passes 1,323 tests (341 protocol, 516 integration,
+466 system-module), Release lint/assembly and protocol-test Debug assembly. Four original
+Rose classes and IDs now admit immutable RSv2 profiles only after exact, globally unique
+manufacturer identity; name-only behavior retains the old protocol. The same-ID refinement
+regression verifies a new session token, preventing old controls from crossing dialects.
+Legacy Ceramics U field07 language and source RSv2 field07 touch/31 language remain isolated.
 
-Known unbranded catalog labels now trigger bounded same-device manufacturer observation only.
-The original named Ceramics X candidate can refine to 7034 after exact prefix12 evidence;
-name alone never selects the new protocol. The source EQ raw2 alias on the three small F8
-profiles replaces stale raw0 state while writable choices remain0/1. No new phone installation
-or hardware validation is claimed.
+Sony V2 assignment adds complete preset/action mapping reports and writes, with capability,
+current-vector and sibling-action guards. V1, other inquiries and Table2 remain separate.
+Vendor-app return leases now survive dispatch failure for explicit retry without consuming
+a newer lease. These changes received independent review and code-level regression checks.
+No new phone installation or hardware validation is claimed.
 
-Next work reconciles all RoseLink source configuration entries with actual adapter paths and
-fills remaining daily differences in the four older RSv2-associated adapters, plus further
-Sony source-qualified functions. The 31 Apple identity records remain metadata, and rename
-still awaits authoritative readback. Complex firmware/calibration workflows use explicit
-vendor-app handoff. Other open family, Android-experience and release requirements above
-remain in scope; this checkpoint does not complete the comprehensive goal.
+The RoseLink coverage inventory at comparison commit3029c98 accounts for all48 source
+configurations:45 named headset configurations have adapter paths; two generic configs and
+AURAMIC are explicitly excluded. That inventory is a baseline, not full-feature certification;
+the four qualified-profile additions above are a later delta. Next work uses its per-profile
+daily gaps to prioritize touch mappings, bounded find/ring and remaining small controls,
+while continuing the other brand and Android-experience requirements. Apple rename still
+awaits authoritative readback. Complex firmware/calibration workflows use vendor-app handoff.
+Other open requirements remain in scope; this checkpoint does not complete the comprehensive goal.

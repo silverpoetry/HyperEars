@@ -100,6 +100,26 @@ class RoseManufacturerDiscoveryTest {
         }
     }
 
+    @Test fun sourceDialectRefinementReplacesSessionEvenWhenAdapterIdIsUnchanged() {
+        val device=device(); val named=identity.copy(deviceName="ROSE Ceramics U")
+        EarbudConnectionManager(context).use { manager ->
+            manager.onPhysicalConnected(address); manager.observeDevice(device,named); idle()
+            val before=manager.snapshots().single()
+            assertEquals("rose-ceramics-u",before.state.adapter!!.id)
+            val scanner=shadowOf(adapter.bluetoothLeScanner)
+            val callback=scanner.scanCallbacks.single {it.javaClass.name.startsWith(RoseManufacturerDiscovery::class.java.name)}
+            val record=ReflectionHelpers.callStaticMethod<ScanRecord>(ScanRecord::class.java,"parseFromBytes",
+                ClassParameter.from(ByteArray::class.java,byteArrayOf(5,0xff.toByte(),0x0b,0x0d,0x0a,0x0b,0)))
+            callback.onScanResult(1,ScanResult(device,record,-40,SystemClock.elapsedRealtimeNanos())); idle()
+            val after=manager.snapshots().single()
+            assertEquals(before.state.adapter!!.id,after.state.adapter!!.id)
+            assertNotEquals(before.sessionToken,after.sessionToken)
+            assertFalse(after.state.adapter!!.capabilities.noiseControl)
+            manager.observeDevice(device,named); idle()
+            assertEquals(after.sessionToken,manager.snapshots().single().sessionToken)
+        }; idle()
+    }
+
     @Test fun sharedCeramicsXNameCanRefineOriginalCandidateTo7034OnlyWithItsPrefix() {
         val device=device(); val sharedName=identity.copy(deviceName="ROSE CERAMICS X")
         EarbudConnectionManager(context).use { manager ->

@@ -132,6 +132,11 @@ internal class SonySettingsDetails private constructor(
         val audio = state.features.get<SonyAudioSettingsFeatureState>()
         val ambient = state.features.get<SonyAmbientFeatureState>()
         return when (request) {
+            is SonyControlRequest.SetAssignableAction -> state.features.get<SonyAssignableFeatureState>()?.let {
+                it.definition==request.expected && it.current==request.expectedCurrent && it.mappings==request.expectedMappings.mapIndexed { index,mapping ->
+                    if(index!=request.index)mapping else mapping.copy(actions=mapping.actions.map{pair->if(pair.action==request.action)pair.copy(function=request.function)else pair})
+                }
+            } == true
             is SonyControlRequest.SetAssignablePreset -> state.features.get<SonyAssignableFeatureState>()?.let {
                 it.definition == request.expected && it.current == request.expectedCurrent.toMutableList().apply { this[request.index]=request.preset }
             } == true
@@ -211,6 +216,23 @@ internal class SonySettingsDetails private constructor(
                     } }
                 }) }
                 container.addView(group)
+                if(feature?.completeMappings==true) {
+                    val mappings=feature.mappings!!
+                    key.actions[values[index]].orEmpty().filter{it.functions.size>1}.forEach { action ->
+                        container.addView(text(SettingsSonyAssignableRows.actionLabel(action.id),16f))
+                        val actions=RadioGroup(context)
+                        val selected=mappings[index].actions.single{it.action==action.id}.function
+                        action.functions.forEach { function -> actions.addView(RadioButton(context).apply {
+                            id=View.generateViewId();text=SettingsSonyAssignableRows.functionLabel(function)
+                            contentDescription="sony.assignable.${key.id}.action.${action.id}.$function"
+                            isSaveEnabled=false;isChecked=selected==function;isEnabled=feature.available?.getOrNull(index)==true
+                            setOnClickListener {if(!rendering)withCurrent {
+                                send(SonyControlRequest.SetAssignableAction(definition,values,mappings,index,action.id,function))
+                            }}
+                        }) }
+                        container.addView(actions)
+                    }
+                }
             }
         }
     }

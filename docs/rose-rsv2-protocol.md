@@ -236,3 +236,53 @@ legacy adapter/session paths still require their own proven format extension. Ex
 Ceramics U retains its already ported depth. Special EQ, adaptive/deep ANC, ANC-line,
 recording, ear-fit and calibration contracts remain separate; generic and AURAMIC
 configs do not grant ordinary headphone controls.
+
+## Four existing adapter paths: manufacturer-qualified source dialect
+
+BudsFeel MK2, EarFeel i7, Ceramics U and Furina remain the same existing adapter
+classes and IDs. Name-only candidates retain their previous codec, status query,
+settings semantics and initial-unavailable behavior. Exact immutable manufacturer
+identity now selects the already reconstructed RS v2 session for that same class:
+
+| Existing adapter ID | Source configuration/prefix | Additional ordinary source profile |
+|---|---|---|
+| rose-budsfeel-mk2 | budsfeel_mk2 / 0b150a0b | Game, multipoint, AAC/SBC+LDAC+LC3, prompt, touch/find; four base noise modes; no depth/language/wear |
+| rose-earfeel-i7 | earfeel_i7 / b8e5290f | Game/multipoint, audio0..3, ordinary EQ0..3, gain/protection, wearing, depth5/3/1, prompt/touch/find |
+| rose-ceramics-u | ceramics_u / 0b0d0a0b | Game/multipoint, audio0/1/2, EQ3/0/1/2, gain, language31, ANC5/3/1 + transparency5/1, prompt/touch/find |
+| furina-endless-budsfeel | furina / 0b110a0c | Game/multipoint, audio0..3, EQ0/1/2, language31, wearing, both depth5/3/1, prompt/touch/find |
+
+These prefixes occur in config constructors at0x6d0844/0x6cde88/0x6dc9bc/0x6d3970.
+Each allocates RsCommonV2Sender/Receiver and the existing31 RFCOMM service. The source
+profile is selected only after the global all-family identity parser yields exactly
+that existing ID; renamed devices work, conflicting/invalid manufacturer maps do not
+fall back to a name-qualified source dialect. A bounded per-physical-connection scan
+may refine an unqualified old candidate; refinement retires the old session and token
+before opening the new source session, even though the adapter ID remains unchanged.
+No generic RS v2 registration duplicates these four classes or IDs.
+
+This isolation is necessary, not merely cosmetic: the existing HyperRose Ceramics U
+profile treats07 as prompt language, whereas RoseLink RS v2 explicitly uses07 for touch
+master and31 for language. The source-qualified feature contract accepts only the RS v2
+typed settings; old RFComm setting requests cannot reach the source session. Both paths
+keep report admission and explicit readback. Legacy unqualified captures and behavior
+are covered by existing tests rather than being silently reinterpreted.
+
+Source details: MK2 audio pool0x12718 contains enum0/1/3 (AAC/SBC, LDAC, LC3), not LHDC.
+i7 EQ pool0x86f8 includes ordinary0..3 plus firmware-qualified EAP6. The zh_cn labels
+for0..3 are 弱水经典/原声再现/古典乐器/日系甜美. EAP6 carries EarVersionCheck0x130
+and remains excluded until its full version qualification is implemented; custom EQ
+also remains separate. Ceramics U's EQ pool0x8cc0 and trans pool0x8cb8 match the
+previously audited classic tuning and two-level transparency. Furina constructs all
+four audio enum values at0x6d3b98..0x6d3bbc. All four declare full touch actions0..8.
+
+The MK2 BassPlus widget's extra subtype/firmware contract, i7 EAP6, custom EQ curves,
+adaptive/extreme ANC, ANC-line and personalization workflows remain finite separate
+items. No capability is inferred merely from those declarations. Source-qualified
+MK2 still does not receive depth controls: its actual noise widget disables both
+level flags. Existing name-only Ceramics U six-mode controls are preserved; source
+ordinary four-mode profile does not invent source deep/adaptive control admission.
+
+Regression coverage includes same class/ID qualification, renamed and disabled
+adapters, conflicting identities, no capability from metadata, report/reset gates,
+07/31 collision isolation, MK2 no-depth/audio-range limits, i7 source labels and actual
+native Settings composition using the qualified existing Ceramics U class.

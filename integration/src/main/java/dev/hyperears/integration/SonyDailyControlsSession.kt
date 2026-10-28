@@ -125,7 +125,7 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     }
     /** Return write followed by readbacks, which the owner places on its existing ACK queue. */
     fun encode(request: SonyControlRequest): List<ByteArray> {
-        if (request is SonyControlRequest.SetAssignablePreset) return assignable.encode(request)
+        if (request is SonyControlRequest.SetAssignablePreset || request is SonyControlRequest.SetAssignableAction) return assignable.encode(request)
         if (request is SonyControlRequest.SetMultipoint || request is SonyControlRequest.ReplyMultipointAlert) return multipoint.encode(request)
         if (request is SonyControlRequest.SetDsee || request is SonyControlRequest.SetConnectionQuality || request is SonyControlRequest.SetSpeakToChat)
             return audio.encode(request)

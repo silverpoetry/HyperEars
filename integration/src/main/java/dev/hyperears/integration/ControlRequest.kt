@@ -166,6 +166,7 @@ object ControlRequestTransport {
                 subclass(BoseDailyControlRequest.SetAnr::class, BoseDailyControlRequest.SetAnr.serializer())
                 subclass(NiceHckControlRequest.SetValue::class, NiceHckControlRequest.SetValue.serializer())
                 subclass(RoseRfcommControlRequest.SetValue::class, RoseRfcommControlRequest.SetValue.serializer())
+                subclass(SonyControlRequest.SetAssignableAction::class, SonyControlRequest.SetAssignableAction.serializer())
                 subclass(SonyControlRequest.SetAssignablePreset::class, SonyControlRequest.SetAssignablePreset.serializer())
                 subclass(SonyControlRequest.SetEqPreset::class, SonyControlRequest.SetEqPreset.serializer())
                 subclass(SonyControlRequest.SetEqBands::class, SonyControlRequest.SetEqBands.serializer())

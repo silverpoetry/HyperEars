@@ -1,0 +1,2937 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-29",
+  "comparison_commit": "3029c98ead3676f6b5fcf21012cb4d49609c512f",
+  "source_inventory": "docs/research/inventories/roselink-model-feature-inventory.json",
+  "source_evidence": "Installed ROSELINK 3.8.2 code 5409, matching Dart 3.11.4 AOT analysis; static configuration declarations only. No runtime or hardware validation.",
+  "scope": "48 configuration files, 45 named headset configurations; routing accounted does not mean complete feature support or hardware validation.",
+  "counts": {
+    "source_configs": 48,
+    "named_headset_configs_accounted": 45,
+    "excluded_generic_configs": 2,
+    "excluded_microphone_configs": 1,
+    "distinct_existing_adapter_ids": 45
+  },
+  "in_flight_excluded": "Parallel changes to four old ROSE paths after comparison_commit are intentionally not counted.",
+  "feature_semantics": {
+    "implemented_features": "Implemented read/write or telemetry path, report gated; multipoint may be a coupled audio selector as stated in caveats.",
+    "remaining_source_candidates": "Source widget declarations absent from implemented set; this is a research backlog, not executable command proof.",
+    "complex_workflows": "Vendor application handoff until a separate complete workflow is justified."
+  },
+  "models": [
+    {
+      "source_path": "f8/agate_device_config.dart",
+      "source_class": "AgateDeviceConfig",
+      "source_display": "AGATE",
+      "source_protocol": "f8",
+      "source_widget_candidates": [
+        "eq_presets",
+        "game",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-agate",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "18840505"
+      ],
+      "implemented_features": [
+        "eq_presets",
+        "game"
+      ],
+      "remaining_source_candidates": [
+        "private_battery",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance.",
+        "EQ writes only raw0/1; valid raw2 aliases canonical raw1, not a third distinct preset.",
+        "Battery callback is unimplemented in the source base handler; standard Android battery is retained.",
+        "Touch mapping widget does not qualify a separate master-switch workflow."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRemainingF8Test.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "private_battery": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "f8/agate_x_device_config.dart",
+      "source_class": "AgateXDeviceConfig",
+      "source_display": "AGATE X",
+      "source_protocol": "f8",
+      "source_widget_candidates": [
+        "eq_presets",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-agate_x",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "18840506"
+      ],
+      "implemented_features": [
+        "eq_presets"
+      ],
+      "remaining_source_candidates": [
+        "private_battery",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance.",
+        "EQ writes only raw0/1; valid raw2 aliases canonical raw1, not a third distinct preset.",
+        "Battery callback is unimplemented in the source base handler; standard Android battery is retained.",
+        "Touch mapping widget does not qualify a separate master-switch workflow."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRemainingF8Test.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "eq_presets": "implemented_bounded",
+        "private_battery": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "f8/ceramics_device_config.dart",
+      "source_class": "CeramicsDeviceConfig",
+      "source_display": "CERAMICS",
+      "source_protocol": "f8",
+      "source_widget_candidates": [
+        "eq_presets",
+        "game",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-ceramics",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "18840100",
+        "18840103"
+      ],
+      "implemented_features": [
+        "eq_presets",
+        "game"
+      ],
+      "remaining_source_candidates": [
+        "private_battery",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance.",
+        "EQ writes only raw0/1; valid raw2 aliases canonical raw1, not a third distinct preset.",
+        "Battery callback is unimplemented in the source base handler; standard Android battery is retained.",
+        "Touch mapping widget does not qualify a separate master-switch workflow."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRemainingF8Test.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "private_battery": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "f8/ceramics_x_7034_device_config.dart",
+      "source_class": "CeramicsX7034DeviceConfig",
+      "source_display": "CERAMICS-X",
+      "source_protocol": "f8",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-legacy-ceramics_x_7034",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "18840112"
+      ],
+      "implemented_features": [
+        "anc_depth",
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "prompt_language",
+        "touch_master",
+        "transparency_depth"
+      ],
+      "remaining_source_candidates": [
+        "private_battery",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance.",
+        "Audio/multipoint share one selector; no separate boolean write.",
+        "Private battery shape is not imported.",
+        "Distinct prefix18840112 and RFCOMM route; does not inherit validated18840109 companion GATT evidence."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRemainingF8Test.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "source_declared_not_fully_ported",
+        "prompt_language": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "f8/ceramics_x_device_config.dart",
+      "source_class": "CeramicsXDeviceConfig",
+      "source_display": "CERAMICS-X",
+      "source_protocol": "f8",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-luli-x-gatt",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseEarbudAdapter.kt",
+      "matching_kind": "old_path",
+      "manufacturer_prefixes": [
+        "18840109"
+      ],
+      "implemented_features": [
+        "anc_depth",
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "prompt_language",
+        "touch_master",
+        "transparency_depth"
+      ],
+      "remaining_source_candidates": [
+        "private_battery",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Existing exact-name/model-specific route retained; the AOT configuration is reconciled to this route, not automatically imported as a new manufacturer-qualified adapter.",
+        "Only listed implemented fields are counted; shared sender/config declarations are not capability grants.",
+        "Companion GATT identity/transport and four-mode noise path have existing device validation; newly added daily settings do not inherit it.",
+        "Audio and multipoint are one wire selector."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "partial_existing_path_only",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseCeramicsXSettingsTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-ceramics-x-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "source_declared_not_fully_ported",
+        "prompt_language": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "f8/explorer_device_config.dart",
+      "source_class": "ExplorerDeviceConfig",
+      "source_display": "EXPLORER",
+      "source_protocol": "f8",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-legacy-explorer",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "18840107"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "prompt_language",
+        "prompt_volume",
+        "touch_master",
+        "wear_detection"
+      ],
+      "remaining_source_candidates": [
+        "find",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance.",
+        "Audio/multipoint share one selector; no separate boolean write.",
+        "Private battery shape is not imported."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "source_declared_not_fully_ported",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported",
+        "wear_detection": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common/budsfree_device_config.dart",
+      "source_class": "BudsfreeDeviceConfig",
+      "source_display": "BudsFree i",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "noise_modes",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-budsfree",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "12cc3e4c"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "noise_modes",
+        "private_battery",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common/cambrian_device_config.dart",
+      "source_class": "CambrianDeviceConfig",
+      "source_display": "Cambrian",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-legacy-cambrian",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0c0a0c"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "find",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common/openfree_device_config.dart",
+      "source_class": "OpenfreeDeviceConfig",
+      "source_display": "OpenFeel",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-openfeel",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a0a0b",
+        "0b0a0a0c",
+        "0b0a0a0d"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "private_battery",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common/openfun_device_config.dart",
+      "source_class": "OpenfunDeviceConfig",
+      "source_display": "OpenFun",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-openfun",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a0a0e",
+        "0b0a0a10"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "find",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "find": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common/openlink_device_config.dart",
+      "source_class": "OpenlinkDeviceConfig",
+      "source_display": "OpenLink",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-openlink",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a5b9d"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "find",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "find": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common/rs_common_device_config.dart",
+      "source_class": "RsCommonDeviceConfig",
+      "source_display": "RS-Common",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "eq_presets",
+        "find",
+        "game",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "spatial_toggle",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": null,
+      "entry_file": null,
+      "matching_kind": null,
+      "manufacturer_prefixes": [],
+      "implemented_features": [],
+      "remaining_source_candidates": [],
+      "caveats": [],
+      "validation": {
+        "source_fixture_tests": "not_applicable",
+        "hardware": "not_claimed"
+      },
+      "status": "excluded",
+      "excluded_reason": "Generic protocol configuration, not a retail device identity."
+    },
+    {
+      "source_path": "rs_common/sportfree_device_config.dart",
+      "source_class": "SportfreeDeviceConfig",
+      "source_display": "SportFeel",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "spatial_toggle",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-sportfeel",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a0a0f"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "spatial_toggle",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "find",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "find": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "spatial_toggle": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common/swift_device_config.dart",
+      "source_class": "SwiftDeviceConfig",
+      "source_display": "SWIFT",
+      "source_protocol": "rs_common",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-legacy-swift",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseLegacyAdapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0b0a0b"
+      ],
+      "implemented_features": [
+        "game",
+        "private_battery",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "find",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Exact manufacturer identity and per-field reports required; no alias-wide capability inheritance."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseLegacyAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-legacy-protocol.md",
+      "source_candidate_status": {
+        "find": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/astro_x_device_config.dart",
+      "source_class": "AstroXDeviceConfig",
+      "source_display": "Astro X",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "spatial_audio",
+        "touch_mapping",
+        "touch_master",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "ear_adaptive_calibration",
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-rsv2-astro-x",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0e0a0b"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master",
+        "wear_detection"
+      ],
+      "remaining_source_candidates": [
+        "spatial_audio"
+      ],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "gain": "implemented_bounded",
+        "game": "implemented_bounded",
+        "hearing_protection": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "spatial_audio": "source_declared_not_fully_ported",
+        "touch_mapping": "implemented_bounded",
+        "touch_master": "implemented_bounded",
+        "wear_detection": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/auramic_device_config.dart",
+      "source_class": "AuramicDeviceConfig",
+      "source_display": "AURAMIC1 / AURAMIC1_<address suffix>",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": null,
+      "entry_file": null,
+      "matching_kind": null,
+      "manufacturer_prefixes": [],
+      "implemented_features": [],
+      "remaining_source_candidates": [],
+      "caveats": [],
+      "validation": {
+        "source_fixture_tests": "not_applicable",
+        "hardware": "not_claimed"
+      },
+      "status": "excluded",
+      "excluded_reason": "Wireless microphone/transmitter domain; not a named headset configuration in this scope."
+    },
+    {
+      "source_path": "rs_common_v2/budsfeel_mk2_device_config.dart",
+      "source_class": "BudsfeelMk2DeviceConfig",
+      "source_display": "BudsFeel MK2",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "bass",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-budsfeel-mk2",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseEarbudAdapter.kt",
+      "matching_kind": "old_path",
+      "manufacturer_prefixes": [],
+      "implemented_features": [
+        "game",
+        "noise_modes",
+        "private_battery"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "bass",
+        "find",
+        "multipoint",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Existing exact-name/model-specific route retained; the AOT configuration is reconciled to this route, not automatically imported as a new manufacturer-qualified adapter.",
+        "Only listed implemented fields are counted; shared sender/config declarations are not capability grants."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRfcommSettingsTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rfcomm-profiles.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "source_declared_not_fully_ported",
+        "bass": "source_declared_not_fully_ported",
+        "find": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "multipoint": "source_declared_not_fully_ported",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/ceramics_mk2_5736_device_config.dart",
+      "source_class": "CeramicsMk25736DeviceConfig",
+      "source_display": "CERAMICS-MK2",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-rsv2-ceramics-mk2-5736",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "45d7b286"
+      ],
+      "implemented_features": [
+        "anc_depth",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master",
+        "transparency_depth"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve"
+      ],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/ceramics_mk2_8912f_device_config.dart",
+      "source_class": "CeramicsMk28912fDeviceConfig",
+      "source_display": "CERAMICS-MK2",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-rsv2-ceramics-mk2-8912f",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0e208b"
+      ],
+      "implemented_features": [
+        "anc_depth",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master",
+        "transparency_depth"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve"
+      ],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/ceramics_mk2_device_config.dart",
+      "source_class": "CeramicsMk2DeviceConfig",
+      "source_display": "CERAMICS-MK2",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-rsv2-ceramics-mk2",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0e0a0c"
+      ],
+      "implemented_features": [
+        "anc_depth",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master",
+        "transparency_depth"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve"
+      ],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/ceramics_u_device_config.dart",
+      "source_class": "CeramicsUDeviceConfig",
+      "source_display": "CERAMICS-U",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "extended_anc",
+        "find",
+        "gain",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-ceramics-u",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRfcommModels.kt",
+      "matching_kind": "old_path",
+      "manufacturer_prefixes": [],
+      "implemented_features": [
+        "anc_depth",
+        "eq_presets",
+        "game",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "transparency_depth"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "extended_anc",
+        "find",
+        "gain",
+        "multipoint",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Existing exact-name/model-specific route retained; the AOT configuration is reconciled to this route, not automatically imported as a new manufacturer-qualified adapter.",
+        "Only listed implemented fields are counted; shared sender/config declarations are not capability grants.",
+        "Existing six-mode selector and ANC/transparency levels are already implemented. Remaining extended_anc/anc_curve refer only to additional source workflow evidence, not absence of these controls."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRfcommSettingsTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rfcomm-profiles.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "source_declared_not_fully_ported",
+        "eq_presets": "implemented_bounded",
+        "extended_anc": "source_declared_not_fully_ported",
+        "find": "source_declared_not_fully_ported",
+        "gain": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "multipoint": "source_declared_not_fully_ported",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/ceramics_u_hsc_2710_device_config.dart",
+      "source_class": "CeramicsUHsc2710DeviceConfig",
+      "source_display": "CERAMICS-U",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "extended_anc",
+        "find",
+        "gain",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-rsv2-ceramics-u-hsc-2710",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b137957"
+      ],
+      "implemented_features": [
+        "anc_depth",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master",
+        "transparency_depth"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "extended_anc"
+      ],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows.",
+        "Distinct from the old Ceramics U route; gain is supported independently of hearing protection."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "extended_anc": "source_declared_not_fully_ported",
+        "find": "implemented_bounded",
+        "gain": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/coral_device_config.dart",
+      "source_class": "CoralDeviceConfig",
+      "source_display": "Coral",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "bass",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-coral-rs-common-v2",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseCoralAdapter.kt",
+      "matching_kind": "name",
+      "manufacturer_prefixes": [],
+      "implemented_features": [
+        "audio_mode",
+        "bass",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Existing exact-name/model-specific route retained; the AOT configuration is reconciled to this route, not automatically imported as a new manufacturer-qualified adapter.",
+        "Only listed implemented fields are counted; shared sender/config declarations are not capability grants.",
+        "User testing is not recorded here as acceptance; preserve separate runtime/device evidence."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseCoralAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-coral-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "bass": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/earfeel_i7_device_config.dart",
+      "source_class": "EarfeelI7DeviceConfig",
+      "source_display": "EarFeel i7",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-earfeel-i7",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRfcommModels.kt",
+      "matching_kind": "old_path",
+      "manufacturer_prefixes": [],
+      "implemented_features": [
+        "game",
+        "noise_modes",
+        "private_battery"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "hearing_protection",
+        "multipoint",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "caveats": [
+        "Existing exact-name/model-specific route retained; the AOT configuration is reconciled to this route, not automatically imported as a new manufacturer-qualified adapter.",
+        "Only listed implemented fields are counted; shared sender/config declarations are not capability grants."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRfcommSettingsTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rfcomm-profiles.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "source_declared_not_fully_ported",
+        "eq_presets": "source_declared_not_fully_ported",
+        "find": "source_declared_not_fully_ported",
+        "gain": "source_declared_not_fully_ported",
+        "game": "implemented_bounded",
+        "hearing_protection": "source_declared_not_fully_ported",
+        "multipoint": "source_declared_not_fully_ported",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported",
+        "wear_detection": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/first_angel_device_config.dart",
+      "source_class": "FirstAngelDeviceConfig",
+      "source_display": "FIRST ANGEL",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-first-angel",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0e64be"
+      ],
+      "implemented_features": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows.",
+        "Separate custom/game EQ 0xA0 is not an ordinary selectable preset."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/furina_device_config.dart",
+      "source_class": "FurinaDeviceConfig",
+      "source_display": "FURINA",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "extended_anc",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "furina-endless-budsfeel",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseEarbudAdapter.kt",
+      "matching_kind": "old_path",
+      "manufacturer_prefixes": [],
+      "implemented_features": [
+        "noise_modes",
+        "private_battery"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "extended_anc",
+        "find",
+        "game",
+        "multipoint",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "caveats": [
+        "Existing exact-name/model-specific route retained; the AOT configuration is reconciled to this route, not automatically imported as a new manufacturer-qualified adapter.",
+        "Only listed implemented fields are counted; shared sender/config declarations are not capability grants.",
+        "Existing battery/noise path is device-validated; no additional AOT daily control is counted."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "partial_existing_path_only",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rfcomm-profiles.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "source_declared_not_fully_ported",
+        "eq_presets": "source_declared_not_fully_ported",
+        "extended_anc": "source_declared_not_fully_ported",
+        "find": "source_declared_not_fully_ported",
+        "game": "source_declared_not_fully_ported",
+        "multipoint": "source_declared_not_fully_ported",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "source_declared_not_fully_ported",
+        "prompt_volume": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported",
+        "wear_detection": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/hyacinth_device_config.dart",
+      "source_class": "HyacinthDeviceConfig",
+      "source_display": "Hyacinth",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-rsv2-hyacinth",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b120a0b"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/jasmine_device_config.dart",
+      "source_class": "JasmineDeviceConfig",
+      "source_display": "Jasmine",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-jasmine",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a0a11"
+      ],
+      "implemented_features": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/ky01_device_config.dart",
+      "source_class": "Ky01DeviceConfig",
+      "source_display": "KY01",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-ky01",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0a0b0a0d"
+      ],
+      "implemented_features": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/luminous_agumon_device_config.dart",
+      "source_class": "LuminousAgumonDeviceConfig",
+      "source_display": "Agumon",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-rsv2-luminous-agumon",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a34fd"
+      ],
+      "implemented_features": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/luminous_gabumon_device_config.dart",
+      "source_class": "LuminousGabumonDeviceConfig",
+      "source_display": "Gabumon",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-rsv2-luminous-gabumon",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a2aed"
+      ],
+      "implemented_features": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/luminous_patamon_device_config.dart",
+      "source_class": "LuminousPatamonDeviceConfig",
+      "source_display": "Patamon",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-rsv2-luminous-patamon",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0ae916"
+      ],
+      "implemented_features": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/luminous_tailmon_device_config.dart",
+      "source_class": "LuminousTailmonDeviceConfig",
+      "source_display": "Tailmon",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-rsv2-luminous-tailmon",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a941f"
+      ],
+      "implemented_features": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/magician_device_config.dart",
+      "source_class": "MagicianDeviceConfig",
+      "source_display": "Magician",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-magician",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0e0a0d"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/mirror_device_config.dart",
+      "source_class": "MirrorDeviceConfig",
+      "source_display": "Mirror",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-rsv2-mirror",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a0a13"
+      ],
+      "implemented_features": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/moka_device_config.dart",
+      "source_class": "MokaDeviceConfig",
+      "source_display": "MOKA",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-moka",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "68f5b8eb"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/opal_device_config.dart",
+      "source_class": "OpalDeviceConfig",
+      "source_display": "Opal",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [],
+      "adapter_id": "rose-rsv2-opal",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0a0a12"
+      ],
+      "implemented_features": [
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows.",
+        "ANC/OFF/transparency only; WIND is rejected."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/openfeel_l_device_config.dart",
+      "source_class": "OpenfeelLDeviceConfig",
+      "source_display": "OpenFeel L",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-openfeel-l",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "45d7cbed"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "gain": "implemented_bounded",
+        "game": "implemented_bounded",
+        "hearing_protection": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/openfeel_mk2_device_config.dart",
+      "source_class": "OpenfeelMk2DeviceConfig",
+      "source_display": "OpenFeel MK2",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-rsv2-openfeel-mk2",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0eb657"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "bass",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [
+        "eq_presets"
+      ],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows.",
+        "Source EQ widget currently has a bounded bass-only port; an absent eq_presets entry does not mean no audio tuning control."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "source_declared_not_fully_ported",
+        "find": "implemented_bounded",
+        "gain": "implemented_bounded",
+        "game": "implemented_bounded",
+        "hearing_protection": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/rs_common_v2_device_config.dart",
+      "source_class": "RsCommonV2DeviceConfig",
+      "source_display": "RS-Common-v2",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "bass",
+        "eq_presets",
+        "extended_anc",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "spatial_audio",
+        "spatial_toggle",
+        "touch_mapping",
+        "touch_master",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "ear_adaptive_calibration",
+        "firmware_update",
+        "recording_workflow",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": null,
+      "entry_file": null,
+      "matching_kind": null,
+      "manufacturer_prefixes": [],
+      "implemented_features": [],
+      "remaining_source_candidates": [],
+      "caveats": [],
+      "validation": {
+        "source_fixture_tests": "not_applicable",
+        "hardware": "not_claimed"
+      },
+      "status": "excluded",
+      "excluded_reason": "Generic protocol configuration, not a retail device identity."
+    },
+    {
+      "source_path": "rs_common_v2/speakfeel2_device_config.dart",
+      "source_class": "Speakfeel2DeviceConfig",
+      "source_display": "SPEAKFEEL",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "bass",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-speakfeel2",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0e3ce6"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "bass",
+        "find",
+        "gain",
+        "game",
+        "hearing_protection",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "bass": "implemented_bounded",
+        "find": "implemented_bounded",
+        "gain": "implemented_bounded",
+        "game": "implemented_bounded",
+        "hearing_protection": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/speakfree_device_config.dart",
+      "source_class": "SpeakfreeDeviceConfig",
+      "source_display": "SpeakFeel",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-speakfeel",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b0f0a0b"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/sportfeel_8912f_device_config.dart",
+      "source_class": "Sportfeel8912fDeviceConfig",
+      "source_display": "SportFeel",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-sportfeel-8912f",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "5d2f61f0"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/swift2_device_config.dart",
+      "source_class": "Swift2DeviceConfig",
+      "source_display": "SWIFT 2",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-rsv2-swift2",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "5999064c"
+      ],
+      "implemented_features": [
+        "find",
+        "game",
+        "multipoint",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master"
+      ],
+      "remaining_source_candidates": [],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "rs_common_v2/zircon_device_config.dart",
+      "source_class": "ZirconDeviceConfig",
+      "source_display": "Zircon",
+      "source_protocol": "rs_common_v2",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "extended_anc",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "recording_workflow",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "rose-rsv2-zircon",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseRsV2Adapter.kt",
+      "matching_kind": "manufacturer",
+      "manufacturer_prefixes": [
+        "0b110a0b"
+      ],
+      "implemented_features": [
+        "anc_depth",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_language",
+        "prompt_volume",
+        "touch_mapping",
+        "touch_master",
+        "transparency_depth",
+        "wear_detection"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "extended_anc"
+      ],
+      "caveats": [
+        "Exact manufacturer identity permits bounded queries only; every listed dynamic control requires its own valid report.",
+        "Preset EQ does not imply custom curve editing; ANC depth does not imply adaptive/limit/curve workflows."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseRsV2AdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-rsv2-protocol.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "extended_anc": "source_declared_not_fully_ported",
+        "find": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_language": "implemented_bounded",
+        "prompt_volume": "implemented_bounded",
+        "touch_mapping": "implemented_bounded",
+        "wear_detection": "implemented_bounded"
+      }
+    },
+    {
+      "source_path": "zt/earfree_i3_device_config.dart",
+      "source_class": "EarfreeI3DeviceConfig",
+      "source_display": "EarFree-i3",
+      "source_protocol": "zt",
+      "source_widget_candidates": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "hide_search",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-zt-i3",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseZtAdapter.kt",
+      "matching_kind": "manufacturer_or_exact_name_without_manufacturer_data",
+      "manufacturer_prefixes": [
+        "f10203",
+        "010203"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery"
+      ],
+      "remaining_source_candidates": [
+        "hide_search",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Expected-model checks and independent reports gate controls; game wire0 is on.",
+        "i3 audio/multipoint are coupled; three-bit noise writes deliberately differ from common four-bit responses."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseZtAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-zt-protocol.md",
+      "source_candidate_status": {
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "game": "implemented_bounded",
+        "hide_search": "source_declared_not_fully_ported",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "zt/earfree_i5_device_config.dart",
+      "source_class": "EarfreeI5DeviceConfig",
+      "source_display": "EarFeel-i5",
+      "source_protocol": "zt",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "complex_workflows": [
+        "firmware_update",
+        "vendor_account_business_workflow"
+      ],
+      "adapter_id": "roseselsa-earfree-i5",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseEarbudAdapter.kt",
+      "matching_kind": "old_path",
+      "manufacturer_prefixes": [],
+      "implemented_features": [
+        "noise_modes",
+        "private_battery"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "game",
+        "multipoint",
+        "prompt_volume",
+        "touch_mapping",
+        "wear_detection"
+      ],
+      "caveats": [
+        "Existing exact-name/model-specific route retained; the AOT configuration is reconciled to this route, not automatically imported as a new manufacturer-qualified adapter.",
+        "Only listed implemented fields are counted; shared sender/config declarations are not capability grants."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-zt-protocol.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "source_declared_not_fully_ported",
+        "eq_presets": "source_declared_not_fully_ported",
+        "find": "source_declared_not_fully_ported",
+        "game": "source_declared_not_fully_ported",
+        "multipoint": "source_declared_not_fully_ported",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported",
+        "wear_detection": "source_declared_not_fully_ported"
+      }
+    },
+    {
+      "source_path": "zt/headfree_device_config.dart",
+      "source_class": "HeadfreeDeviceConfig",
+      "source_display": "HeadFeel",
+      "source_protocol": "zt",
+      "source_widget_candidates": [
+        "anc_curve",
+        "audio_mode",
+        "eq_presets",
+        "find",
+        "gain",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "complex_workflows": [
+        "firmware_update"
+      ],
+      "adapter_id": "rose-zt-headfeel",
+      "entry_file": "integration/src/main/java/dev/hyperears/integration/RoseZtAdapter.kt",
+      "matching_kind": "manufacturer_or_exact_name_without_manufacturer_data",
+      "manufacturer_prefixes": [
+        "525300020002"
+      ],
+      "implemented_features": [
+        "audio_mode",
+        "eq_presets",
+        "gain",
+        "game",
+        "multipoint",
+        "noise_modes",
+        "private_battery"
+      ],
+      "remaining_source_candidates": [
+        "anc_curve",
+        "find",
+        "prompt_volume",
+        "touch_mapping"
+      ],
+      "caveats": [
+        "Expected-model checks and independent reports gate controls; game wire0 is on.",
+        "HeadFeel uses aggregate battery and distinct multipoint field."
+      ],
+      "validation": {
+        "source_fixture_tests": "implemented_protocol_and_adapter_paths_have_checkpoint_unit_coverage; inventory_validation_is_static",
+        "hardware": "unverified_new_or_extended_controls",
+        "test_files": [
+          "integration/src/test/java/dev/hyperears/integration/EarbudAdapterHierarchyTest.kt",
+          "integration/src/test/java/dev/hyperears/integration/RoseZtAdapterTest.kt"
+        ]
+      },
+      "status": "accounted_partial",
+      "protocol_doc": "docs/rose-zt-protocol.md",
+      "source_candidate_status": {
+        "anc_curve": "source_declared_not_fully_ported",
+        "audio_mode": "implemented_bounded",
+        "eq_presets": "implemented_bounded",
+        "find": "source_declared_not_fully_ported",
+        "gain": "implemented_bounded",
+        "game": "implemented_bounded",
+        "multipoint": "implemented_bounded",
+        "noise_modes": "implemented_bounded",
+        "private_battery": "implemented_bounded",
+        "prompt_volume": "source_declared_not_fully_ported",
+        "touch_mapping": "source_declared_not_fully_ported"
+      }
+    }
+  ],
+  "validation": {
+    "method": "Static comparison to committed production sources and tracked test-file existence; JSON coverage cardinality/path/uniqueness assertions. No Gradle or device run in this inventory task.",
+    "checkpoint_test_result": "Parent-reported 1307 passing tests at comparison_commit; not a hardware acceptance claim."
+  }
+}

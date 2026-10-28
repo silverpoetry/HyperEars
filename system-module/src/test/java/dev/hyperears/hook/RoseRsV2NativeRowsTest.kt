@@ -21,6 +21,16 @@ class RoseRsV2NativeRowsTest {
         adapter=RoseRsV2Adapter(Model.OPENFEEL_L).snapshot().copy(presentationId=RoseRsV2PresentationIds.SETTINGS),
         lifecycle=DeviceLifecycle(SystemProfileState.CONNECTED,PrivateTransportState.CONNECTED,ProtocolHandshakeState.CONFIRMED))
         .withFeature(feature)
+    @Test fun existingCeramicsUClassOffersSourceLanguageWithItsOwnPresentation() {
+        val a=RoseCeramicsUAdapter(sourceQualified=true)
+        val body=byteArrayOf(0xDD.toByte(),0,2,0x31,0)
+        a.receive(body+byteArrayOf(body.sumOf{it.toInt() and 255}.toByte(),0xAA.toByte()))
+        val f=Fixture();f.current=state(a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!).copy(adapter=a.snapshot())
+        f.render();f.row("language")!!.callChangeListener("1")
+        assertEquals(RoseRsV2ControlRequest.SetLanguage(Model.CERAMICS_U_SOURCE.name,1),f.sent.single())
+        assertEquals(RoseCeramicsUAdapter.ID,f.current.adapter!!.id)
+        assertEquals(listOf("弱水经典","原声再现","古典乐器","日系甜美"),Model.EARFEEL_I7_SOURCE.eqPresets.map { RoseRsV2DailyLabels.equalizer(Model.EARFEEL_I7_SOURCE,it) })
+    }
     @Test fun nativeDepthUsesFiveThreeOneAndBlocksStaleOffOrOtherModel() {
         val f=Fixture();f.current=state(RoseRsV2SettingsFeatureState(Model.CERAMICS_U_HSC_2710.name,ancLevel=1,transparencyLevel=5)).withFeature(NoiseModeFeatureState(NoiseMode.ANC))
         f.render();val anc=f.row("anc_level")!!;val trans=f.row("transparency_level")!!

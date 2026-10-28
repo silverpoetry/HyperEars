@@ -29,20 +29,32 @@ object RoseRsV2IdentityCodec {
         MAGICIAN("0b0e0a0d","ROSE Magician",eqPresets=emptyList(),touch=false),
         MOKA("68f5b8eb","ROSE Moka",touch=false),
         OPAL("0b0a0a12","ROSE Opal",true,audio=false),
-        ZIRCON("0b110a0b","ROSE Zircon",true);
-        val ancLevels: List<Int> get() = if(this in setOf(CERAMICS_MK2,CERAMICS_MK2_5736,CERAMICS_MK2_8912F,CERAMICS_U_HSC_2710,ZIRCON)) listOf(5,3,1) else emptyList()
-        val transparencyLevels: List<Int> get() = if(this == CERAMICS_U_HSC_2710) listOf(5,1) else ancLevels
-        val languageSupported: Boolean get() = this in setOf(CERAMICS_MK2,CERAMICS_MK2_8912F,HYACINTH,JASMINE,KY01,MAGICIAN,SPEAKFEEL,ZIRCON)
-        val wearDetectionSupported: Boolean get() = this in setOf(ASTRO_X,ZIRCON)
-        val gainAndProtection: Boolean get() = this in setOf(OPENFEEL_L, OPENFEEL_MK2, SPEAKFEEL2, ASTRO_X)
-        val gainSupported: Boolean get() = gainAndProtection || this == CERAMICS_U_HSC_2710
+        ZIRCON("0b110a0b","ROSE Zircon",true),
+        BUDSFEEL_MK2_SOURCE("0b150a0b","ROSE BudsFeel MK2",true,eqPresets=emptyList()),
+        EARFEEL_I7_SOURCE("b8e5290f","ROSE EarFeel i7",true,eqPresets=listOf(0,1,2,3)),
+        CERAMICS_U_SOURCE("0b0d0a0b","ROSE Ceramics U",true,eqPresets=listOf(3,0,1,2)),
+        FURINA_SOURCE("0b110a0c","ROSE Furina",true);
+        /** These profiles refine existing adapter classes/IDs, never register duplicate adapters. */
+        val existingAdapterId: String? get() = when(this) {
+            BUDSFEEL_MK2_SOURCE -> "rose-budsfeel-mk2"
+            EARFEEL_I7_SOURCE -> "rose-earfeel-i7"
+            CERAMICS_U_SOURCE -> "rose-ceramics-u"
+            FURINA_SOURCE -> "furina-endless-budsfeel"
+            else -> null
+        }
+        val ancLevels: List<Int> get() = if(this in setOf(CERAMICS_MK2,CERAMICS_MK2_5736,CERAMICS_MK2_8912F,CERAMICS_U_HSC_2710,ZIRCON,EARFEEL_I7_SOURCE,CERAMICS_U_SOURCE,FURINA_SOURCE)) listOf(5,3,1) else emptyList()
+        val transparencyLevels: List<Int> get() = if(this in setOf(CERAMICS_U_HSC_2710,CERAMICS_U_SOURCE)) listOf(5,1) else ancLevels
+        val languageSupported: Boolean get() = this in setOf(CERAMICS_MK2,CERAMICS_MK2_8912F,HYACINTH,JASMINE,KY01,MAGICIAN,SPEAKFEEL,ZIRCON,CERAMICS_U_SOURCE,FURINA_SOURCE)
+        val wearDetectionSupported: Boolean get() = this in setOf(ASTRO_X,ZIRCON,EARFEEL_I7_SOURCE,FURINA_SOURCE)
+        val gainAndProtection: Boolean get() = this in setOf(OPENFEEL_L, OPENFEEL_MK2, SPEAKFEEL2, ASTRO_X, EARFEEL_I7_SOURCE)
+        val gainSupported: Boolean get() = gainAndProtection || this in setOf(CERAMICS_U_HSC_2710,CERAMICS_U_SOURCE)
         val hearingProtectionSupported: Boolean get() = gainAndProtection
         val findSupported: Boolean get() = this != MOKA
         val noiseValues: Set<Int> get() = if (!noise) emptySet() else if (this == OPAL) setOf(1,2,3) else setOf(1,2,3,4)
         val aggregateBattery: Boolean get() = this in setOf(SPEAKFEEL, SPEAKFEEL2, SWIFT2, FIRST_ANGEL, MAGICIAN, MOKA)
         val caseBattery: Boolean get() = !aggregateBattery && this !in setOf(LUMINOUS_AGUMON,LUMINOUS_GABUMON,LUMINOUS_PATAMON,LUMINOUS_TAILMON,JASMINE)
-        val id: String get() = "rose-rsv2-${name.lowercase().replace('_','-')}"
-        val audioModes: List<Int> get() = when(this) { OPENFEEL_L, HYACINTH, MOKA -> listOf(0,1); CERAMICS_U_HSC_2710 -> listOf(0,1,2); MAGICIAN -> listOf(0,1,4,5); SPEAKFEEL2 -> listOf(0,1,2); SPEAKFEEL -> listOf(0,1,4,5,6); CERAMICS_MK2_5736 -> emptyList(); else -> listOf(0,1,2,3) }
+        val id: String get() = existingAdapterId ?: "rose-rsv2-${name.lowercase().replace('_','-')}"
+        val audioModes: List<Int> get() = when(this) { OPENFEEL_L, HYACINTH, MOKA -> listOf(0,1); CERAMICS_U_HSC_2710, CERAMICS_U_SOURCE -> listOf(0,1,2); BUDSFEEL_MK2_SOURCE -> listOf(0,1,3); MAGICIAN -> listOf(0,1,4,5); SPEAKFEEL2 -> listOf(0,1,2); SPEAKFEEL -> listOf(0,1,4,5,6); CERAMICS_MK2_5736 -> emptyList(); else -> listOf(0,1,2,3) }
         val touchMaster: Boolean get() = touch && this != SPEAKFEEL2
         val bassLevels: List<Int> get() = if (this == OPENFEEL_MK2) listOf(3) else if (this == SPEAKFEEL2) listOf(0,1) else emptyList()
         val touchActions: IntRange get() = if (noise || this == SPORTFEEL_8912F) 0..8 else 0..7

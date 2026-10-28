@@ -649,7 +649,7 @@ object EarbudAdapterRegistry {
         add(Registration(edifierGroup, ::EdifierHeadphonesAdapter))
         add(Registration(edifierGroup, ::EdifierEarbudAdapter))
         add(Registration(roseGroup, ::RoseCoralAdapter))
-        dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.entries.forEach { model ->
+        dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.entries.filter { it.existingAdapterId == null }.forEach { model ->
             add(Registration(roseGroup) { RoseRsV2Adapter(model) })
         }
         dev.hyperears.protocol.rose.RoseZtWireCodec.Model.entries.forEach { model ->
@@ -751,6 +751,7 @@ object EarbudAdapterRegistry {
             .filterNot { it.descriptor.id in disabledAdapterIds }
             .map { it.factory() }
             .firstOrNull { it.matches(identity) }
+            ?.let { RoseSourceQualifiedAdapters.qualify(it, identity) }
     }
 
     fun forIntegration(

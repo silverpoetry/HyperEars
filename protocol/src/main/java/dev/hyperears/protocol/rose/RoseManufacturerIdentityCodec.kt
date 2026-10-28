@@ -8,7 +8,7 @@ object RoseManufacturerIdentityCodec {
         val candidate = normalized(name)
         if (candidate.isEmpty()) return false
         // Original and 7034 share this source display name; only advertisement distinguishes them.
-        if (candidate == "ceramicsx") return true
+        if (candidate in setOf("ceramicsx", "furinaendlesssoloofsolitude")) return true
         val labels = RoseRsV2IdentityCodec.Model.entries.map { it.label } +
             RoseLegacyIdentityCodec.Model.entries.map { it.label } + RoseZtWireCodec.Model.entries.map { it.display }
         return labels.any { label -> candidate == normalized(label) ||

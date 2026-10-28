@@ -355,7 +355,8 @@ internal class EarbudConnectionManager(
         // RoseLink assigns CERAMICS-X to both original GATT and 7034 SPP profiles.
         // A name-selected original candidate remains refinable by exact manufacturer evidence.
         if (candidate?.resolution == dev.hyperears.integration.AdapterResolution.EXACT_MATCH &&
-            candidate !is dev.hyperears.integration.RoseLuliXAdapter) return
+            candidate !is dev.hyperears.integration.RoseLuliXAdapter &&
+            !dev.hyperears.integration.RoseSourceQualifiedAdapters.needsDiscovery(candidate)) return
         val key = normalizeAddress(runCatching { device.address }.getOrNull() ?: return)
         val connection = synchronized(lifecycleLock) { physicalConnections[key] } ?: return
         fun eligible() = synchronized(lifecycleLock) {
