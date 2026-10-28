@@ -59,7 +59,7 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
         }
 
         val binding = Binding(host, items, address, environment)
-        if (!host.install(SOUND_EFFECT_LABEL, items)) return skipped(address, "native-container-detached")
+        if (!host.install(SOUND_EFFECT_LABEL, items)) return skipped(address, "native-card-install-failed")
         items.forEachIndexed { index, item ->
             item.setOnClickListener { binding.onEffectClicked(FloS2SoundEffect.entries[index]) }
         }
@@ -163,18 +163,25 @@ internal object FloS2SoundEffectMiLinkCardAdapter : MiLinkCardAdapter {
 
         fun install(titleText: String, items: List<View>): Boolean {
             val container = container.get() ?: return false
-            title?.get()?.text = titleText
-            originals.sortedByDescending(OriginalItem::index).forEach { original ->
-                if (original.view.parent === container) container.removeView(original.view)
+            try {
+                title?.get()?.text = titleText
+                originals.sortedByDescending(OriginalItem::index).forEach { original ->
+                    if (original.view.parent === container) container.removeView(original.view)
+                }
+                val insertion = originals.minOfOrNull(OriginalItem::index)
+                    ?.coerceIn(0, container.childCount)
+                    ?: container.childCount
+                items.forEachIndexed { offset, item ->
+                    // A host callback may throw after addView has already attached the item.
+                    replacements += WeakReference(item)
+                    container.addView(item, insertion + offset)
+                }
+                return true
+            } catch (error: Exception) {
+                runCatching { restore() }.onFailure(error::addSuppressed)
+                ModuleLog.warn(COMPONENT, "FloS2 native card installation failed; restoring host", error)
+                return false
             }
-            val insertion = originals.minOfOrNull(OriginalItem::index)
-                ?.coerceIn(0, container.childCount)
-                ?: container.childCount
-            items.forEachIndexed { offset, item ->
-                container.addView(item, insertion + offset)
-                replacements += WeakReference(item)
-            }
-            return true
         }
 
         fun restore() {

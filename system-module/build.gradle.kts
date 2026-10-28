@@ -101,4 +101,7 @@ dependencies {
     implementation(libs.dexkit)
 
     testImplementation(libs.junit)
+    // Exercise native card rollback with real ViewGroup attachment semantics on the JVM.
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.libxposed.api)
 }
