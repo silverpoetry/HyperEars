@@ -25,7 +25,19 @@ contracts, Gradle/JUnit, actual installed ROM plugin interfaces captured during 
 - Subsequent user constraint: minimize architectural changes, adapt extra functions using current
   patterns, and change a pattern only when necessary. This overrides the report's more ambitious
   redesign suggestions without reducing model/feature coverage or native experience requirements.
+- Apple-specific user policy: Xiaomi-supported Apple headsets always prefer Xiaomi's existing
+  path. HyperEars fills unsupported models, using AndPods as primary identity/protocol reference
+  and original HyperPods as supplementary AAP reference. LibrePods and other sources corroborate
+  gaps; they do not override the user's source priority or displace working native Apple support.
+- Dynamic Apple difference policy: the user confirmed Bluetooth resource updates restart
+  Bluetooth. Reevaluate current native support on each fresh device connection after restart,
+  even if HyperEars itself was not updated. Native-supported devices go to Xiaomi; unsupported
+  devices are eligible for module fallback. Do not persist stale support results, embed a frozen
+  Xiaomi model allowlist or infer support from artwork alone. No live resource-update monitor
+  or active-connection hot handover is required; use the existing connection lifecycle.
 - Research: `docs/research/2026-10-28-hyperears-integration-report.md` and linked inventories/audits.
+- Follow-up native Apple connection design:
+  [current ROM support and session ownership](../../research/source-audits/apple-dynamic-native-ownership.md).
 - Large local source/APK/ROM evidence remains in the original checkout's `.analysis/` directory.
 - This plan permits development/build/isolated integration. No device restart or installation is
   implied; follow the user's separate device-action boundaries and retain runtime evidence gaps.
@@ -52,15 +64,15 @@ At each implementation slice:
 
 ## A. Integration foundation
 
-- [ ] A1 Establish clean baseline tests and build environment in isolated worktree.
-- [ ] A2 Preserve and integrate PR #99 `f36053ed`: latest admissible popup snapshot during launch;
+- [x] A1 Establish clean baseline tests and build environment in isolated worktree.
+- [x] A2 Preserve and integrate PR #99 `f36053ed`: latest admissible popup snapshot during launch;
   validate `NativeWindowRequestTest`, producer/session/connection/revision/native ownership, true
   zero and unknown batteries. Files: `system-module/.../presentation/{NativeWindowRequest,
   NativePresentationRuntime,AirPodsWindowBridge}.kt`, corresponding tests, CHANGELOG.
-- [ ] A3 Preserve PR #95 `b333f1fe` and original #92 ancestry: ZZZ-ANGELS identity, handshake,
+- [x] A3 Preserve PR #95 `b333f1fe` and original #92 ancestry: ZZZ-ANGELS identity, handshake,
   component replacement, unknown-state cleanup and external-controller recovery. Resolve only
   actual conflicts; preserve the original final-package report without applying it to new changes.
-- [ ] A4 Preserve PR #96 `eeca05ba` and original #90 ancestry: FloS2/OpenPro S2 aggregate battery
+- [x] A4 Preserve PR #96 `eeca05ba` and original #90 ancestry: FloS2/OpenPro S2 aggregate battery
   and four sound effects. Repair partial-install rollback in native card host; add regression tests.
   Final maintenance hardware feedback and companion-app identity remain separate evidence items.
 - [ ] A5 Recover #50 W820NB dual-gold BES V1 protocol and exact identity without its text-matched
@@ -84,8 +96,13 @@ At each implementation slice:
   Add Settings scope and manifest/settings/help declarations consistently. No brand spoofing
   outside the bound module-owned context; never call a Xiaomi vendor command for a foreign device.
 - [ ] B4 Implement native/headset ownership policy for system-full, system-partial, module and
-  external controller states. Permit explicit complete-module control. One private writer per
-  device; native admission alone does not prove complete feature support. Preserve normal audio.
+  external controller states. For Apple, preserve Xiaomi-first support and enter the module path
+  only for unsupported models. One private writer per device; do not equate an Apple name/UUID
+  with actual system adaptation. Preserve normal audio and existing confirmed native ownership.
+  Reevaluate current native support for each fresh connection. Keep ownership evidence scoped to
+  that connection and skip module transport/control/presentation when Xiaomi owns the device.
+  Cover an unsupported device becoming native-supported after Bluetooth restart without a module
+  update, stale prior-connection callbacks, and unknown/unavailable support observations in tests.
 - [ ] B5 Route battery, noise, levels, spatial, wearing, gesture, EQ, multipoint, find and device-info
   groups into one consistent native-details hierarchy using existing adapter-selected presentation
   bindings and type-safe requests. Advanced editors use the same host styling.
@@ -107,6 +124,9 @@ does not treat every source command as universally supported. All items below re
   noise-cycle, stem/swipe, conversation/adaptive volume, mic/timing/tone/case/ear settings,
   connected-device events, rename, head tracking and supported hearing/EQ/sensor functions.
   Add AndPods' 31 Apple/Beats model candidates and LibrePods model numbers; preserve HQB separation.
+  Apply AndPods-first, original-HyperPods-second source priority, with other sources as cross-checks.
+  Tests must prove native-supported Apple stays official-owned while unsupported new models are
+  eligible for validated module fallback, instead of blanket Apple exclusion or takeover.
 - [ ] C2 OPPO/OnePlus/realme: merge the 141-entry catalog as candidates; product-ID refinement,
   exact aliases, endpoint variants, long frames/fragments, model-index ANC/transparency,
   EQ/custom EQ, game, multipoint, spatial, wearing, prompts, fit and Golden Sound workflows.
@@ -171,3 +191,16 @@ does not treat every source command as universally supported. All items below re
 
 - 2026-10-28: User activated full-development goal. Report copied into isolated feature worktree;
   PR99/95/96 HEADs refreshed, original commits fetched. Baseline tests started before integrations.
+- 2026-10-28: Baseline passed 522 tests; PR99/95/96 merged with original contributor ancestry
+  retained. Merged code passed 587 tests (183 protocol, 294 integration, 110 system-module).
+  FloS2 installation rollback fix remains in progress; imported tests do not prove device behavior.
+- 2026-10-28: User confirmed architecture preservation, Apple Xiaomi-first / AndPods-first
+  fallback, and fresh-connection reevaluation after Bluetooth resource updates restart Bluetooth.
+- 2026-10-28: A4 rollback passed before/after-attachment fault regressions and independent spec/
+  quality reviews. All 590 tests passed; protocol-test debug APK and unsigned module Release APK
+  built. Release lint initially rejected inline test dependency; moved Robolectric into the version
+  catalog and reran lint plus system tests successfully. Markdown lint and doc validation passed
+  49 files. No device install, signing acceptance or physical headphone validation is claimed.
+- Next priority is B4/C1: Apple native-first connection admission and AirPods5 wireless protocol
+  path, using the follow-up ROM evidence. A5/A6 remain queued alongside the other brand work;
+  no Apple dynamic ownership production change has been made in this foundation milestone.
