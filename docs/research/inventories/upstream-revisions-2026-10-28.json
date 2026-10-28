@@ -124,5 +124,11 @@
     "url": "https://github.com/MartinKayJr/TechincsPods",
     "commit": "a378106659d4a90ed7ac28a4ac94d592bebbec85",
     "commitDate": "2026-06-13"
+  },
+  {
+    "checkout": "HyperPods-X",
+    "url": "https://github.com/NEORUAA/HyperPods-X",
+    "commit": "018765be94f24a49bf28be26fbb5924a3652018f",
+    "commitDate": "2026-10-28"
   }
 ]

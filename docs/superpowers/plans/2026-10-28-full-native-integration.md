@@ -38,6 +38,12 @@ contracts, Gradle/JUnit, actual installed ROM plugin interfaces captured during 
 - Research: `docs/research/2026-10-28-hyperears-integration-report.md` and linked inventories/audits.
 - Follow-up native Apple connection design:
   [current ROM support and session ownership](../../research/source-audits/apple-dynamic-native-ownership.md).
+- Added user reference: NEORUAA/HyperPods-X at `018765be`, based on YeFeng233/HyperPods-X
+  `30cc323b`. See [protocol audit](../../research/source-audits/hyperpods-x-protocol.md) and
+  [native/spatial audit](../../research/source-audits/hyperpods-x-native.md). Use its A3441 hardware
+  evidence, control/readback, authenticated BLE, wearing/conversation and discovered-motion service
+  logic to supplement AndPods-first work. Its app-owned socket and independent advanced Settings
+  do not replace the requested native-first session model or native presentation requirement.
 - Large local source/APK/ROM evidence remains in the original checkout's `.analysis/` directory.
 - This plan permits development/build/isolated integration. No device restart or installation is
   implied; follow the user's separate device-action boundaries and retain runtime evidence gaps.

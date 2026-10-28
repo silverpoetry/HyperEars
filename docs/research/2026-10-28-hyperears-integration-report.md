@@ -446,3 +446,25 @@ AndPods、LibrePods 等第三方控制器也属于共存对象；协议读取与
 许可和来源状态随具体修订记录。源码吸收保留相应归属与许可证；闭源 App 作为行为和
 互操作事实参考，独立实现功能。Gadgetbridge 的 AGPL、协议文档 CC BY-SA/CC0 与
 MIT/GPL 源码分开处理，不将整个参考集合视为同一种可直接复制的代码。
+
+## 14. 开发阶段追加参考：HyperPods-X
+
+用户追加 `NEORUAA/HyperPods-X`，本次固定审查 `018765be94f24a49bf28be26fbb5924a3652018f`。
+它基于 `YeFeng233/HyperPods-X`，已合并上游 `30cc323b` 连续自适应控制；两个仓库的
+`v0.4.6` 都是预览版本。fork 的同名发布指向本次审查提交，发布 APK 本轮未安装。
+本次在原 21 个源码快照之外增加一个，详见修订清单。
+
+- [协议与 A3441 无线版证据](source-audits/hyperpods-x-protocol.md)：实际 AACP 控制链路、
+  主/副耳佩戴状态、对话感知、BLE 身份认证与开盖、动态发现姿态服务。
+- [原生组件与空间音频](source-audits/hyperpods-x-native.md)：真实小米弹窗、MiLink 四态
+  控件和 Spatializer/头部传感器桥接；高级设置仍跳转模块 Activity，未实现完整原生详情页。
+- 上游记录覆盖 A3441 / HyperOS 4 的具体实机行为，不能外推全 AirPods/Beats；自适应
+  中间值的发送、设备确认、持久性及声学效果保持分开记录。
+- 协议与型号仍按用户指定以 AndPods 为首要参考；HyperPods-X 补充较新的实际实现和
+  实机证据，原始 HyperPods 补充基础逻辑。小米已支持的设备仍优先官方路径，蓝牙重启后
+  在新连接时重新判断。该项目的直接自建连接方式不替代这项要求。
+- 代码标注 GPL-3.0-or-later，并保留其引用的 LibrePods 等来源；其 Glasmio 界面、
+  SF 字体、Apple 产品图片与应用连接管理器不作为 HyperEars 的整体替换方案。
+
+此节为开发阶段补充。报告第 12 节记录的是此前报告提交时的待确认状态；后续用户已启动
+完整开发目标，当前实施状态以实施计划及 Git 提交为准。
