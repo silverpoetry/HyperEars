@@ -107,6 +107,16 @@ object ControlAppCatalog {
         displayName = "Galaxy Wearable",
     )
 
+    val galaxyBudsManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.fridaymgr",
+        displayName = "Galaxy Buds Manager",
+    )
+
+    val galaxyBudsPlusManager = ControlAppSpec(
+        packageName = "com.samsung.accessory.popcornmgr",
+        displayName = "Galaxy Buds+ Manager",
+    )
+
     val galaxyBuds2ProManager = ControlAppSpec(
         packageName = "com.samsung.accessory.zenithmgr",
         displayName = "Galaxy Buds2 Pro Manager",
@@ -172,6 +182,8 @@ object ControlAppCatalog {
         huaweiAiLife,
         moondrop,
         galaxyWearable,
+        galaxyBudsManager,
+        galaxyBudsPlusManager,
         galaxyBuds2ProManager,
         galaxyBuds2Manager,
         galaxyBudsFeManager,

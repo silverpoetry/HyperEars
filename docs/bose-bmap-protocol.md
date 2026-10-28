@@ -156,3 +156,47 @@ STATUS 才会形成带对应控制方言的新 Adapter。UI 与 MiLink 只接收
   QC35、QC45 与 QC Earbuds 的公开 Android 控制帧实现。
 
 HyperEars 独立实现互操作所需的协议事实，不分发上述项目的程序、抓包或品牌资源。
+
+## 日常设置：来源限定与会话确认
+
+本切片依据 `aaronsb/bosectl` 固定提交
+`70570b29c1d3c9ba775b08a29eaea72385de27b5` 的 Python 设备实现与解析器，以及
+`danielgjackson/noisecancel` 固定提交 `0391b614fffdf20ca5f3cdd42413dbae194e0740`
+的 NC700／QC35 协议记录。两者为 MIT，来源设备实测声明不等于本版 HyperEars 实测。
+
+型号画像只允许读取对应字段；产品 ID 接受后发送有限 GET，实际合法 STATUS 才逐项
+开放控制。GET、SETGET 回显、ERROR、RESULT 和 PROCESSING 不作为状态证据。
+全部新增写入采用 SETGET，随后一次 GET 回读；不乐观修改确认值，不后台轮询。
+
+- 三段 EQ `[1.7]`：QC45 `4039`、QuietComfort Headphones `4075`、初代 QC Earbuds
+  `402F`、Ultra Headphones 2 `4082`、Ultra Earbuds 2 `4062`、Ultra Open `4068`。
+  STATUS 是四字节重复记录 `[minS8,maxS8,currentS8,bandId]`，仅支持来源三段 ID
+  `0/1/2`，拒绝截断、重复 ID 和越界值；SETGET 为 `[valueS8,bandId]`。
+  成功空列表或减少频段会撤销旧频段控制。请求包含原频段 ID 和上下限，界面及会话
+  分别拒绝定义变化后的旧滑块请求。
+- 语音提示 `[1.3]`：上述六款及 QC35／35 II `400C/4020`。仅控制 bit5 开关，
+  每次写入从最新设备回报保留语言低五位及上两位未知信息。不凭全局语言表宣称
+  当前设备已安装某种语言，不新增语言切换。
+- 双设备 `[1.10]`：QC45、初代 QC Earbuds、Ultra 二代头戴／耳塞及 Ultra Open。
+  读取一个状态字节的 bit1；写入语义为独立 `0/1`，不是把原位图原样写回。
+  QC45 来源只有 GET 的设备实测声明，SETGET 来源实现存在，本版仍待设备验证。
+- 自动播放／暂停 `[1.24]`：只在 `4082/4062` 查询和开放。严格 `0/1` 响应，
+  不把 QC45、QC35 或初代 QC Earbuds 推断为支持。
+- 直接 CNC 等级 `[1.5]`：只在 NC700 `4024` 和初代 QC Earbuds `402F` 开放。
+  STATUS 必须是 `[11,rawLevel0..10,enabled0/1]`，SETGET 为 `[rawLevel,1]`。
+  UI 强度为 `10-rawLevel`；调节会开启降噪。NC700 从关闭恢复到非零 rawLevel 时，
+  根据来源默认等级行为重复一次同一命令，最终仍以回读为准。
+- QC35／35 II 的 ANR `[1.6]`：独立保留关闭 `0`、高 `1`、抗风噪 `2`、低 `3`。
+  原三态投影把低档显示为 ANC 大类，高级详情保持低档可见和可选。
+
+QC45 和 `prince` 的 `[1.5]` 可读不代表可写，本轮不开放直接 CNC 控制。
+QC45／prince 的 ModeConfig 为 47 字节 STATUS／39 字节 SETGET，而 Ultra 二代是
+48／40 字节；初代 QC Earbuds 的 44 字节 ModeConfig 没有可用写入格式。
+现有型号模式切换和原生槽位映射保留，不在本切片新建或编辑模式，不把空字段补零
+后写回整个配置，也不把 `[31.10]` 的空间／风噪字段外推给其他型号。
+
+MiLink 高级详情沿用现有原生扩展：Quiet/Aware、抗风噪替换关闭、抗风噪替换通透
+三个 Bose 既有模型分别包装，保留各自槽位投影；真正三态 CNC 使用原生三态卡片。
+Ultra Open 等仅有设置证据的设备使用设置载体，不凭 EQ 开放噪声能力。
+详情在每次操作前检查地址、当前会话令牌、握手、连接和控制所有权；设备重置、错误
+身份、页面脱离和 App 交接清除或关闭相应状态，超时仅提示未确认，不自动重试。

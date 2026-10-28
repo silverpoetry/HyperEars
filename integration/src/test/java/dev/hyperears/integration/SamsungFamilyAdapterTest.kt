@@ -60,7 +60,7 @@ class SamsungFamilyAdapterTest {
 
     @Test
     fun everyKnownModelUnlocksHoldAfterLegalReportAndSubmitsImmediatelyWithoutUnsupportedCycles() {
-        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN }.forEach { model ->
+        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN && !it.ambientOnly }.forEach { model ->
             val adapter = ready(model)
             assertTrue(model.name, adapter.supportsControl(actions()))
             assertTrue(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
@@ -126,7 +126,7 @@ class SamsungFamilyAdapterTest {
 
     @Test
     fun validActionAckConfirmsEachModelAndResetRemovesPrivateFeatures() {
-        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN }.forEach { model ->
+        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN && !it.ambientOnly }.forEach { model ->
             val adapter = ready(model)
             adapter.executeControl(actions())
             adapter.receive(ack(0x92, 1, 2))
@@ -149,7 +149,7 @@ class SamsungFamilyAdapterTest {
 
     @Test
     fun samsungControllerPriorityAndUnifiedOwnerAreDeclaredPerModel() {
-        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN }.forEach { model ->
+        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN && !it.ambientOnly }.forEach { model ->
             val apps = SamsungBuds2ProAdapter(model).controlApps
             assertEquals(ControlAppCatalog.galaxyWearable, apps.first())
             assertEquals(ControlAppCatalog.galaxyBudsUnified, apps.last())

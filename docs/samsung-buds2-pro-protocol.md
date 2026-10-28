@@ -103,3 +103,56 @@ Galaxy Wearable 及各型号控制插件在统一控制 App 目录声明。“�
 
 HyperEars 设置 → 调试中开启“详细日志”；LSPosed 关闭“禁用详细日志”并开启
 “输出日志到守护进程”。复现后使用 HyperEars 的“导出日志”保存记录。
+
+## Daily controls / original Buds and Buds+ (2026-10-28)
+
+Reference: GalaxyBudsClient GPL-3.0, commit `754b6fdfb1c151b022cece775c8aaad4eb185afa`.
+Implementation is independently structured around Adapter / ProtocolSession / WireCodec;
+no Samsung resources or application binaries are bundled.
+
+Source anchors are `Message/SppMessage.cs`, `Message/SppMessageEnums.cs`,
+`Message/Decoder/ExtendedStatusUpdateDecoder.cs`, `Message/Decoder/AcknowledgementDecoder.cs`,
+`Message/Parameter/CustomizeSoundAckParameter.cs`, `Message/Encoder/SetEqualizerEncoder.cs`,
+`SetCustomEqualizerEncoder.cs`, `CustomizeAmbientEncoder.cs`, `SetTouchOptionsEncoder.cs`,
+`FmgMuteEarbudEncoder.cs`, `Model/Specifications/*DeviceSpec.cs` and `Touch/*TouchMap.cs`.
+Behavioral anchors: `Interface/ViewModels/Pages/EqualizerPageViewModel.cs`,
+`AmbientCustomizePageViewModel.cs`, `NoiseControlPageViewModel.cs`, `FindMyBudsPageViewModel.cs`.
+
+- Original R170 uses FE / EE, request type 0 then one-byte size, XMODEM CRC, and UUID
+  `00001102-0000-1000-8000-00805f9b34fd`. R175 uses FD / DD with the standard Samsung
+  size header and standard SPP UUID. Neither has ANC. Original EQ 86 is two bytes
+  enabled / preset+5; Plus and newer use one byte 0 or preset+1.
+- Original hold codes are assistant0, quick ambient1, volume2, ambient3, Spotify4;
+  Plus is assistant1, ambient2, volume3, Spotify4. Plus signs are preserved before
+  name normalization so R170 cannot capture R175. Original case battery is absent.
+- EQ, ambient volume, custom ambient and ANC strength are independently qualified by
+  their valid report fields and source model/revision. Pro custom ambient starts at
+  revision8; Buds2 at revision5. Pro extra ambient moves from22 before revision3 to30
+  at revision6; Buds2 uses26. Core / 3 FE TODO custom-ambient tails stay disabled.
+  Custom-ambient ACK accepts the four-byte core or six-byte source extension, never
+  applies extension fields as another setting. Invalid individual fields revoke
+  that control without inventing default settings.
+- Buds3 / 3 Pro / 3 FE / 4 / 4 Pro support nine signed EQ gains -10..10:
+  89 `[9,gains...]` followed by86 `[7]`. Wire6 is not the custom preset. The source
+  explicitly says custom readback69 is unreliable (Buds4 Pro returns flat) and uses
+  app-saved curves. HyperEars instead uses a temporary explicit draft and apply;
+  transmitted curve intent is separate from device-confirmed EQ mode. No saved
+  curve is replayed at connect, status, opening the panel or restart. IPC requests
+  carry expected model, revision and mode so an old draft cannot overwrite a newly
+  reported mode. A successful transport callback records written, not device-confirmed.
+- Find sends only explicit A0 start / A1 stop / A2 mute controls; A3 confirms mute and
+  A1 confirms stop. Start is never reported as confirmed. The panel stops after60s
+  or on dismiss only while its captured session and module ownership still match.
+  Ownership/session loss cancels the timer without writing to another owner or device.
+  Disconnect/process loss cannot prove the device stopped. New starts clear old stop
+  evidence. There is no automatic ring at handshake or reset, nor A6 ring-while-wearing.
+- GAME87 has enum/feature declarations but no active sender/decoder in this source;
+  SMEP STATE_GAME_MODE is a separate transport and is not borrowed. Original compact
+  touch decoding also remains unclaimed: the pinned decoder's Size<=13 branch accesses
+  payload12 while Size=payload length+3; its only original fixture is revision3's long
+  layout. Short reports can expose independently valid EQ/ambient, never guessed touch.
+
+Protocol, adapter/IPC/lifecycle and Robolectric UI tests cover distinct frames, signed
+custom curves, stale requests, model gates, readback vs intent, reset, finite ring lease,
+ownership/session/address loss, callback exceptions and night palette. These checks are
+source/host evidence, not physical Samsung revalidation.

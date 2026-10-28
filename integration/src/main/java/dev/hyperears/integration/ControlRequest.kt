@@ -121,6 +121,23 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(SamsungDailyControlRequest.SetEqualizer::class, SamsungDailyControlRequest.SetEqualizer.serializer())
+                subclass(SamsungDailyControlRequest.SetAmbientVolume::class, SamsungDailyControlRequest.SetAmbientVolume.serializer())
+                subclass(SamsungDailyControlRequest.SetAncLevel::class, SamsungDailyControlRequest.SetAncLevel.serializer())
+                subclass(SamsungDailyControlRequest.SetCustomAmbient::class, SamsungDailyControlRequest.SetCustomAmbient.serializer())
+                subclass(SamsungDailyControlRequest.SetCustomEqualizer::class, SamsungDailyControlRequest.SetCustomEqualizer.serializer())
+                subclass(SamsungDailyControlRequest.SetLegacyLock::class, SamsungDailyControlRequest.SetLegacyLock.serializer())
+                subclass(SamsungDailyControlRequest.SetLegacyHold::class, SamsungDailyControlRequest.SetLegacyHold.serializer())
+                subclass(SamsungDailyControlRequest.SetVoiceFocus::class, SamsungDailyControlRequest.SetVoiceFocus.serializer())
+                subclass(SamsungDailyControlRequest.Find::class, SamsungDailyControlRequest.Find.serializer())
+                subclass(SamsungDailyControlRequest.MuteFind::class, SamsungDailyControlRequest.MuteFind.serializer())
+                subclass(BoseDailyControlRequest.SetEqBand::class, BoseDailyControlRequest.SetEqBand.serializer())
+                subclass(BoseDailyControlRequest.SetVoicePrompts::class, BoseDailyControlRequest.SetVoicePrompts.serializer())
+                subclass(BoseDailyControlRequest.SetMultipoint::class, BoseDailyControlRequest.SetMultipoint.serializer())
+                subclass(BoseDailyControlRequest.SetAutoPause::class, BoseDailyControlRequest.SetAutoPause.serializer())
+                subclass(BoseDailyControlRequest.SetCncLevel::class, BoseDailyControlRequest.SetCncLevel.serializer())
+                subclass(BoseDailyControlRequest.SetAnr::class, BoseDailyControlRequest.SetAnr.serializer())
+                subclass(NiceHckControlRequest.SetValue::class, NiceHckControlRequest.SetValue.serializer())
                 subclass(RoseRfcommControlRequest.SetValue::class, RoseRfcommControlRequest.SetValue.serializer())
                 subclass(SonyControlRequest.SetEqPreset::class, SonyControlRequest.SetEqPreset.serializer())
                 subclass(SonyControlRequest.SetEqBands::class, SonyControlRequest.SetEqBands.serializer())

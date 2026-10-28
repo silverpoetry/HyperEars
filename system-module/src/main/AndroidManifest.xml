@@ -27,6 +27,8 @@
         <package android:name="com.huawei.smarthome" />
         <package android:name="com.moondroplab.moondrop.moondrop_app" />
         <package android:name="com.samsung.android.app.watchmanager" />
+        <package android:name="com.samsung.accessory.fridaymgr" />
+        <package android:name="com.samsung.accessory.popcornmgr" />
         <package android:name="com.samsung.accessory.zenithmgr" />
         <package android:name="com.samsung.accessory.berrymgr" />
         <package android:name="com.samsung.accessory.pearlmgr" />

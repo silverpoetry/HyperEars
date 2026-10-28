@@ -159,7 +159,7 @@ class SamsungBudsCodecTest {
 
     @Test
     fun optionalExtraHighAmbientFieldIsModelAndRevisionSpecific() {
-        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN }.forEach { model ->
+        SamsungBudsCodec.Model.entries.filter { it != SamsungBudsCodec.Model.UNKNOWN && !it.ambientOnly }.forEach { model ->
             val settings = SamsungBudsCodec.parseExtendedStatus(
                 SamsungBudsCodec.Frame(0x61, legalSettingsPayload().apply { this[45] = 1 }), model,
             )!!.settings

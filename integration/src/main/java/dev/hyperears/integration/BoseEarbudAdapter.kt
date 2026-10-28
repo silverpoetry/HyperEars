@@ -40,6 +40,21 @@ open class BoseEarbudAdapter(
         RfcommEndpointSpec.Channel(number = 2),
     )
     open val wireConfig: BoseWireConfig? = null
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        state is BoseDailySettingsFeatureState
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is BoseDailyControlRequest &&
+            adapter.runtimeState().features.get<BoseDailySettingsFeatureState>()?.supports(request) == true
+    }
+    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
+        if (request is BoseDailyControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() { removeFeatureState(BoseDailySettingsFeatureState.FEATURE_ID) }
+    protected fun dailyPresentation(base: MiLinkCardPresentationId?): MiLinkCardPresentationId? =
+        if (runtimeState().features.get<BoseDailySettingsFeatureState>()?.hasSettings == true) {
+            BoseDailyPresentationIds.withSettings(base, effectiveCapabilities().noiseControl)
+        } else BoseDailyPresentationIds.base(base)
+
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
@@ -57,6 +72,7 @@ open class BoseEarbudAdapter(
         BoseBmapProtocolSession(
             expectedProductId = wireConfig?.productId,
             fallbackFormFactor = formFactor,
+            isModelEnabled = ::isAdapterEnabled,
         ).also { session -> wireConfig?.let(session::configure) }
 
     override fun onProductIdentified(productId: Int): HandshakeResult? {
@@ -205,8 +221,11 @@ abstract class BoseBmapModelAdapter(
     final override val id: String,
     product: BoseProductCatalog.Product,
     noiseControl: BoseNoiseControlConfig? = null,
-    final override val miLinkCardPresentationId: MiLinkCardPresentationId? = null,
+    miLinkCardPresentationId: MiLinkCardPresentationId? = null,
 ) : BoseEarbudAdapter() {
+    private val basePresentationId = miLinkCardPresentationId
+    final override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = dailyPresentation(basePresentationId)
     final override val displayName: String = product.displayName
     final override val wireConfig: BoseWireConfig = BoseWireConfig(
         productId = product.productId,
@@ -231,8 +250,11 @@ abstract class BoseBmapHeadphonesModelAdapter(
     final override val id: String,
     product: BoseProductCatalog.Product,
     noiseControl: BoseNoiseControlConfig? = null,
-    final override val miLinkCardPresentationId: MiLinkCardPresentationId? = null,
+    miLinkCardPresentationId: MiLinkCardPresentationId? = null,
 ) : BoseHeadphonesAdapter() {
+    private val basePresentationId = miLinkCardPresentationId
+    final override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = dailyPresentation(basePresentationId)
     final override val displayName: String = product.displayName
     final override val wireConfig: BoseWireConfig = BoseWireConfig(
         productId = product.productId,
@@ -255,10 +277,13 @@ abstract class BoseBmapHeadphonesModelAdapter(
 private class BoseConfirmedEarbudAdapter(
     private val configuration: BoseWireConfig,
     override val displayName: String,
-    override val miLinkCardPresentationId: MiLinkCardPresentationId?,
+    miLinkCardPresentationId: MiLinkCardPresentationId?,
     session: BoseBmapProtocolSession,
     runtimeState: AdapterRuntimeState,
 ) : BoseEarbudAdapter(session, runtimeState) {
+    private val basePresentationId = BoseDailyPresentationIds.base(miLinkCardPresentationId)
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = dailyPresentation(basePresentationId)
     override val id: String = configuration.modelId
     override val wireConfig: BoseWireConfig = configuration
     override val resolution: AdapterResolution = AdapterResolution.PROTOCOL_CONFIRMED
@@ -279,10 +304,13 @@ private class BoseConfirmedEarbudAdapter(
 private class BoseConfirmedHeadphonesAdapter(
     private val configuration: BoseWireConfig,
     override val displayName: String,
-    override val miLinkCardPresentationId: MiLinkCardPresentationId?,
+    miLinkCardPresentationId: MiLinkCardPresentationId?,
     session: BoseBmapProtocolSession,
     runtimeState: AdapterRuntimeState,
 ) : BoseHeadphonesAdapter(session, runtimeState) {
+    private val basePresentationId = BoseDailyPresentationIds.base(miLinkCardPresentationId)
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = dailyPresentation(basePresentationId)
     override val id: String = configuration.modelId
     override val wireConfig: BoseWireConfig = configuration
     override val resolution: AdapterResolution = AdapterResolution.PROTOCOL_CONFIRMED

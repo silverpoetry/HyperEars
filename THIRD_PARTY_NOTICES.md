@@ -5,6 +5,12 @@ HyperEars 的原创代码整体按 GNU GPL-3.0-only 发布。以下项目为协�
 
 ## OPPOPods
 
+长帧与分片还核对 [QuickBuds 固定提交](https://github.com/spizganed/QuickBuds/tree/6e069325984bab50c5bd331ced8805923c1db410)
+（GPL v3 LICENSE）的 `docs/PROTOCOL.md`、`protocol/Wire.kt`、协议测试与
+`testdata/protocol_cases.json`。其标为 CAPTURE 的长度头证明直接 LEB128 编码，
+消除旧资料减一规则的歧义。本项目独立实现有界解码，回归样例仅保留长度头并使用合成
+载荷，不分发源抓包中的听感或设备数据。长 EQ 写入还要求本会话的长帧及帧预算证据。
+
 - 1812z/OppoPods: <https://github.com/1812z/OppoPods>
 - Leaf-lsgtky/OppoPods: <https://github.com/Leaf-lsgtky/OppoPods>
 
@@ -89,7 +95,9 @@ GPL-3.0-or-later，Copyright (C) 2025 LibrePods contributors。
 - Upstream license: MIT
 
 用于核对 NiceHCK/YuanDao OriG in 的 RFCOMM UUID、帧长度、操作码、电量字段和噪声
-模式枚举。保留其上游 MIT 声明如下：
+模式枚举，以及游戏、低延迟、双设备、入耳检测、独立风噪抑制、EQ 和固件回报。
+实际 EQ setter 使用无偏移枚举，最后两项受 minor 字段限制；不复刻源控制器游戏分支
+落入低延迟分支的错误。保留其上游 MIT 声明如下：
 
 ```text
 MIT License
@@ -174,6 +182,12 @@ ProtocolSession，不复制上游程序、厂商资源或应用代码。上游�
 - aaronsb/bosectl: <https://github.com/aaronsb/bosectl>
 - danielgjackson/noisecancel: <https://github.com/danielgjackson/noisecancel>
 - Upstream licenses: MIT
+
+本轮日常控制固定核对 bosectl `70570b29c1d3c9ba775b08a29eaea72385de27b5`
+（Copyright 2026 Aaron Bockelie）及 noisecancel
+`0391b614fffdf20ca5f3cdd42413dbae194e0740`（Copyright 2020 Daniel Jackson）：
+三段 EQ、提示音位、双设备、限定型号自动暂停、CNC 强度与 QC35 ANR 低档。
+每项按产品 ID 与合法 STATUS 回报开放，不根据同族名称外推可写功能。
 
 用于交叉核对 Bose BMAP 产品 ID、RFCOMM 通道，以及 QC35/35 II、NC700、QC45、
 QuietComfort Earbuds 和 QuietComfort Ultra 二代的控制帧。HyperEars 只独立实现互操作
@@ -296,6 +310,10 @@ HyperEars 端到端实机验证复核。Channel 16、短模式帧和模式值的
 实现；Fix25 同时核对 Live / Pro 的传统 SPP、布尔 ANC 与触控锁，以及新款共同长按字段。
 Core / Buds3 FE 的参考布局仍有 TODO，不把家族外推记为实测，不分发参考二进制或固件。
 不分发上游应用、界面、图片或三星品牌资源。
+
+日常设置继续核对同一 `754b6fdf` 提交：原版 Buds 的 `FE/EE` 帧、Buds+ 标识、EQ、
+环境声与手势，以及用户主动查找。现代九段自定义 EQ 的发送值与设备确认的 EQ 模式
+分别记录；来源明确部分固件读回平坦曲线，本实现不将已发送草稿伪装成设备确认曲线。
 
 ## Android and LSPosed APIs
 

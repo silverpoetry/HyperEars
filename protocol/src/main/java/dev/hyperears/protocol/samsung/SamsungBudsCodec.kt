@@ -3,10 +3,12 @@ package dev.hyperears.protocol.samsung
 /** Samsung Galaxy Buds message framing used by Buds2 Pro over its RFCOMM service. */
 object SamsungBudsCodec {
     enum class Model {
-        BUDS2_PRO, BUDS2, BUDS_FE, BUDS_LIVE, BUDS_PRO,
+        BUDS, BUDS_PLUS, BUDS2_PRO, BUDS2, BUDS_FE, BUDS_LIVE, BUDS_PRO,
         BUDS3, BUDS3_PRO, BUDS_CORE, BUDS3_FE, BUDS4, BUDS4_PRO, UNKNOWN;
 
-        val legacyTouch: Boolean get() = this == BUDS_LIVE || this == BUDS_PRO
+        val legacyTouch: Boolean get() = this in setOf(BUDS, BUDS_PLUS, BUDS_LIVE, BUDS_PRO)
+        val original: Boolean get() = this == BUDS
+        val ambientOnly: Boolean get() = this == BUDS || this == BUDS_PLUS
         // Newer models expose only the researched common hold/noise controls.
         // Do not replay Buds2 Pro noise-cycle or optional-setting bytes on them.
         val commonHoldOnly: Boolean get() = this in setOf(
@@ -85,20 +87,20 @@ object SamsungBudsCodec {
         val settings: SettingsState,
     )
 
-    fun packet(id: Int, payload: ByteArray = byteArrayOf()): ByteArray {
+    fun packet(id: Int, payload: ByteArray = byteArrayOf(), model: Model = Model.BUDS2_PRO): ByteArray {
         require(id in 0..0xFF)
-        require(payload.size <= MAX_PAYLOAD_SIZE)
+        require(payload.size <= if (model.original) 252 else MAX_PAYLOAD_SIZE)
         val body = byteArrayOf(id.toByte()) + payload
         val size = body.size + 2
         val frame = ByteArray(size + 4)
-        frame[0] = SOM
-        frame[1] = size.toByte()
-        frame[2] = (size shr 8).toByte()
+        frame[0] = if (model.original) 0xFE.toByte() else SOM
+        frame[1] = if (model.original) 0 else size.toByte()
+        frame[2] = if (model.original) size.toByte() else (size shr 8).toByte()
         body.copyInto(frame, 3)
         val crc = crc16Xmodem(body)
         frame[frame.lastIndex - 2] = crc.toByte()
         frame[frame.lastIndex - 1] = (crc shr 8).toByte()
-        frame[frame.lastIndex] = EOM
+        frame[frame.lastIndex] = if (model.original) 0xEE.toByte() else EOM
         return frame
     }
 
@@ -107,7 +109,10 @@ object SamsungBudsCodec {
 
     fun noiseModeCommand(mode: NoiseMode, model: Model = Model.BUDS2_PRO): ByteArray {
         require(model.ambient || mode != NoiseMode.AMBIENT)
-        return if (model == Model.BUDS_LIVE) boolCommand(SET_NOISE_REDUCTION, mode == NoiseMode.ANC)
+        return if (model.ambientOnly) {
+            require(mode != NoiseMode.ANC)
+            packet(0x80, byteArrayOf((mode == NoiseMode.AMBIENT).byte()), model)
+        } else if (model == Model.BUDS_LIVE) boolCommand(SET_NOISE_REDUCTION, mode == NoiseMode.ANC)
         else packet(NOISE_CONTROLS, byteArrayOf(mode.wire.toByte()))
     }
 
@@ -148,9 +153,12 @@ object SamsungBudsCodec {
 
     fun parseNoiseCycle(mask: Int): Int? = mask.takeIf { it in setOf(6, 5, 3) }
 
-    fun parseFrame(bytes: ByteArray): Frame? {
-        if (bytes.size < MIN_FRAME_SIZE || bytes[0] != SOM || bytes.last() != EOM) return null
-        val size = (bytes[1].u() or (bytes[2].u() shl 8)) and 0x3FF
+    fun parseFrame(bytes: ByteArray, model: Model = Model.BUDS2_PRO): Frame? {
+        val start = if (model.original) 0xFE.toByte() else SOM
+        val end = if (model.original) 0xEE.toByte() else EOM
+        if (bytes.size < MIN_FRAME_SIZE || bytes[0] != start || bytes.last() != end) return null
+        if (model.original && bytes[1].u() !in 0..1) return null
+        val size = if (model.original) bytes[2].u() else (bytes[1].u() or (bytes[2].u() shl 8)) and 0x3FF
         if (bytes.size != size + 4 || size < 3) return null
         val body = bytes.copyOfRange(3, bytes.size - 3)
         val expected = bytes[bytes.lastIndex - 2].u() or (bytes[bytes.lastIndex - 1].u() shl 8)
@@ -159,10 +167,10 @@ object SamsungBudsCodec {
     }
 
     fun parseBattery(frame: Frame, model: Model = Model.BUDS2_PRO): BatteryState? = when (frame.id) {
-        STATUS_UPDATED -> frame.payload.takeIf { it.size >= 7 }?.let { p ->
+        STATUS_UPDATED -> frame.payload.takeIf { it.size >= if (model.original) 6 else 7 }?.let { p ->
             val charging = if (model.legacyTouch) 0 else p.getOrNull(7)?.u() ?: 0
             BatteryState(
-                p[1].u().percent(), p[2].u().percent(), p[6].u().percent(),
+                p[1].u().percent(), p[2].u().percent(), if (model.original) null else p[6].u().percent(),
                 charging and 0x10 != 0, charging and 0x04 != 0, charging and 0x01 != 0,
             )
         }
@@ -173,7 +181,7 @@ object SamsungBudsCodec {
                 else -> -1
             }
             val charging = p.getOrNull(chargingIndex)?.u() ?: 0
-            BatteryState(p[2].u().percent(), p[3].u().percent(), p[7].u().percent(),
+            BatteryState(p[2].u().percent(), p[3].u().percent(), if (model.original) null else p[7].u().percent(),
                 charging and 0x10 != 0, charging and 0x04 != 0, charging and 0x01 != 0)
         }
         else -> null
@@ -185,6 +193,14 @@ object SamsungBudsCodec {
     }
 
     fun parseNoiseMode(frame: Frame, model: Model = Model.BUDS2_PRO): NoiseMode? {
+        if (model.ambientOnly) {
+            val raw = when (frame.id) {
+                0x81 -> frame.payload.singleOrNull()?.u()
+                EXTENDED_STATUS_UPDATED -> frame.payload.getOrNull(if (model.original) 7 else 8)?.u()
+                else -> null
+            }
+            return when (raw) { 0 -> NoiseMode.OFF; 1 -> NoiseMode.AMBIENT; else -> null }
+        }
         val mode = if (model == Model.BUDS_LIVE) when (frame.id) {
             NOISE_REDUCTION_MODE_UPDATE -> frame.payload.firstOrNull()?.u()?.takeIf { it in 0..1 }?.toNoiseMode()
             EXTENDED_STATUS_UPDATED -> frame.payload.getOrNull(12)?.u()?.takeIf { it in 0..1 }?.toNoiseMode()
@@ -198,6 +214,7 @@ object SamsungBudsCodec {
     }
 
     fun parseExtendedStatus(frame: Frame, model: Model = Model.BUDS2_PRO): ExtendedStatus? {
+        if (model.ambientOnly) return null
         if (model.legacyTouch) return parseLegacyExtendedStatus(frame, model)
         if (frame.id != EXTENDED_STATUS_UPDATED || frame.payload.size < 35) return null
         val p = frame.payload
@@ -214,7 +231,7 @@ object SamsungBudsCodec {
         val ambientVolume = p[23].u()
         // Unknown settings must not be clamped into values later sent back to
         // the device. Battery/noise parsers remain independent of this check.
-        val maxEq = if (model.commonHoldOnly) 6 else 5
+        val maxEq = if (model.commonHoldOnly) 7 else 5
         val maxAmbient = if (model == Model.BUDS4_PRO) 4 else 3
         if (eq !in 0..maxEq || leftAction !in 1..4 || rightAction !in 1..4 || ambientVolume !in 0..maxAmbient) {
             return null
@@ -293,22 +310,22 @@ object SamsungBudsCodec {
         return crc
     }
 
-    class Decoder {
+    class Decoder(private val model: Model = Model.BUDS2_PRO) {
         private var pending = ByteArray(0)
         fun offer(bytes: ByteArray): List<ByteArray> {
             pending += bytes
             val result = mutableListOf<ByteArray>()
             while (pending.size >= MIN_FRAME_SIZE) {
-                val start = pending.indexOfFirst { it == SOM }
+                val start = pending.indexOfFirst { it == if (model.original) 0xFE.toByte() else SOM }
                 if (start < 0) { pending = ByteArray(0); break }
                 if (start > 0) pending = pending.copyOfRange(start, pending.size)
                 if (pending.size < 3) break
-                val size = (pending[1].u() or (pending[2].u() shl 8)) and 0x3FF
+                val size = if (model.original) pending[2].u() else (pending[1].u() or (pending[2].u() shl 8)) and 0x3FF
                 val total = size + 4
                 if (size < 3 || total > MAX_FRAME_SIZE) { pending = pending.copyOfRange(1, pending.size); continue }
                 if (pending.size < total) break
                 val candidate = pending.copyOfRange(0, total)
-                if (parseFrame(candidate) != null) {
+                if (parseFrame(candidate, model) != null) {
                     result += candidate
                     pending = pending.copyOfRange(total, pending.size)
                 } else {

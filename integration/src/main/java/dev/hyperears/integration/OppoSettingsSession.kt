@@ -8,17 +8,22 @@ internal class OppoSettingsSession {
     private var state = OppoSettingsFeatureState()
     private var reported = false
     val initialQueries: List<ByteArray> get() = listOf(OppoSettingsCodec.querySwitches(),
-        OppoSettingsCodec.queryCurrentEq, OppoSettingsCodec.queryEqualizers)
+        OppoSettingsCodec.queryCurrentEq, OppoSettingsCodec.queryEqualizers, OppoWireCodec.queryFrameBudget)
 
     fun identify(productId: Int?): OppoSettingsFeatureState? {
         val builtIns = OppoBuiltInEqIds.byProduct[productId]
         state = state.copy(editableEqualizers = if (builtIns == null) emptySet() else
             state.equalizers.orEmpty().filter { it.id !in builtIns &&
-                OppoSettingsCodec.canUpdate(it.wire(), it.gains) }.map { it.id }.toSet())
+                OppoSettingsCodec.canUpdate(it.wire(), it.gains, state.maximumEqualizerPayload()) }.map { it.id }.toSet())
         return state.takeIf { reported }
     }
     fun offer(frame: OppoWireCodec.Frame, productId: Int?): OppoSettingsFeatureState? {
         var changed = false
+        OppoWireCodec.parseFrameBudget(frame)?.let {
+            state = state.copy(equalizerWriteBudget = it)
+            // Transport evidence alone is not a user setting and must not create an empty card.
+            changed = reported
+        }
         // Every switch request asks for the same complete four-field set, so a successful
         // empty or reduced snapshot revokes stale controls. Malformed frames leave evidence alone.
         OppoSettingsCodec.parseSwitches(frame)?.let { values ->
@@ -31,7 +36,7 @@ internal class OppoSettingsSession {
             state = state.copy(currentEqualizer = it); changed = true
         }
         OppoSettingsCodec.parseEqualizers(frame)?.let { entries ->
-            state = state.copy(equalizers = entries.map {
+            state = state.copy(canonicalLongFrames = state.canonicalLongFrames || frame.canonicalLongLength, equalizers = entries.map {
                 OppoEqualizer(it.id, it.name, it.minimum, it.maximum, it.frequencies, it.gains)
             }, currentEqualizer = entries.firstOrNull { it.selected }?.id)
             changed = true
@@ -42,6 +47,10 @@ internal class OppoSettingsSession {
     }
     fun encode(request: OppoControlRequest): List<ByteArray> {
         if (!state.supports(request)) return emptyList()
+        if (request is OppoControlRequest.UpdateEqualizer && state.canonicalLongFrames && state.equalizerWriteBudget != null) {
+            return OppoSettingsCodec.updateEqualizerPackets(
+                state.equalizers!!.single { it.id == request.id }.wire(), request.gains, state.equalizerWriteBudget!!)
+        }
         return listOf(when (request) {
             is OppoControlRequest.SetToggle -> OppoSettingsCodec.setSwitch(request.setting.featureId, request.enabled)
             is OppoControlRequest.SelectEqualizer -> OppoSettingsCodec.selectEqualizer(request.id)

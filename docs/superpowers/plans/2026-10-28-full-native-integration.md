@@ -157,7 +157,9 @@ does not treat every source command as universally supported. All items below re
   Identity slice implemented: 141 catalog entries, 118 source-declared SPP headset candidates,
   strict 24-bit product replies, exact aliases and same-session refinement. Daily switches,
   reported EQ selection and existing custom-slot editing now have typed contracts/native details.
-  Long frames, additional workflows and LE Audio remain outstanding; identities grant no controls.
+  Long-frame/fragment parsing now follows capture-backed canonical lengths, preserving legacy
+  frames. Larger EQ writes require live long-frame and budget evidence. Additional workflows
+  and LE Audio remain outstanding; identities grant no controls.
 - [ ] C3 Huawei/Honor: union HuaweiPods/OpenFreebuds exact routes and aliases; old HFP plus SPP
   FreeBuds3 paths, Studio/FreeLace topology, firmware-specific ANC/transparency, EQ, gestures,
   spatial, wearing, dual-device, latency, quality, prompts/language and smart functions.
@@ -179,6 +181,8 @@ does not treat every source command as universally supported. All items below re
   Other RoseLink model families and additional commands remain open.
 - [ ] C6 NiceHCK: OriG six ANC/seven EQ, independent wind toggle, game/latency, dual/wearing,
   codec and firmware-qualified mappings, readback and native UI.
+  Daily controls and native details implemented, including exact firmware gating; codec writes
+  still lack reliable state readback in the reference. No fabricated codec confirmation.
 - [x] C7 QCY: optional low-latency/sleep/EQ/PEQ/LDAC/dual/dynamic-EQ/spatial/adaptive-volume,
   additional state sources and strict value/outer-frame validation; preserve targeted endpoint scan.
   Daily-control slice implemented with typed contracts, report gates, native card/details,
@@ -193,9 +197,14 @@ does not treat every source command as universally supported. All items below re
   family, retaining explicit unimplemented protocol gaps until actually filled.
 - [ ] C10 Bose: additional product IDs/Frames candidates; CNC levels/EQ/spatial/profiles/buttons,
   sidetone/multipoint/auto-pause/answer/prompts/rename with per-product dialect and readback.
+  First daily slice implemented: three-band EQ, prompts, multipoint, model-qualified auto-pause,
+  direct CNC and QC35 ANR low, preserving product-specific native slots. Other workflows remain.
 - [ ] C11 Samsung: original Buds/Buds+ framing and identities; expand existing 11-model controls
   to full confirmed per-model ambient/ANC/EQ/gesture/game/find/fit/spatial/device settings.
   Firmware/recovery/diagnostic operations are explicit separate user workflows, never discovery.
+  Original Buds/Plus profiles and daily EQ/ambient/gesture/find controls implemented. Modern
+  custom EQ separates transmission intent from confirmed mode; no automatic curve replay.
+  Source TODO layouts and enum-only game commands remain unresolved, not silently inferred.
 - [ ] C12 Technics: qualified AZ/A800 candidates, ANC/ambient levels and adaptive state/readback;
   do not advertise upstream's unimplemented game method as working support.
 - [ ] C13 Existing StarRing/Honor/Edifier and standard adapters: preserve all functions while

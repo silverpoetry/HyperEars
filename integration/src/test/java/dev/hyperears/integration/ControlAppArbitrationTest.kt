@@ -8,6 +8,36 @@ import org.junit.Test
 
 class ControlAppArbitrationTest {
     @Test
+    fun originalSamsungManagersParticipateInOrderedOwnershipAndStandardYield() {
+        val cases = listOf(
+            dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.BUDS to ControlAppCatalog.galaxyBudsManager,
+            dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.BUDS_PLUS to ControlAppCatalog.galaxyBudsPlusManager,
+        )
+        cases.forEach { (model, plugin) ->
+            val adapter = SamsungBuds2ProAdapter(model)
+            assertEquals(listOf(ControlAppCatalog.galaxyWearable, plugin, ControlAppCatalog.galaxyBudsUnified),adapter.controlApps)
+            assertEquals(plugin,ControlAppCatalog.find(plugin.packageName))
+            assertEquals(plugin,ControlAppCatalog.activeOwner(adapter.controlApps,setOf(plugin.packageName)))
+            assertEquals(plugin,ControlAppCatalog.activeOwner(adapter.controlApps,setOf(plugin.packageName,ControlAppCatalog.galaxyBudsUnified.packageName)))
+            assertEquals(ControlAppCatalog.galaxyWearable,ControlAppCatalog.activeOwner(adapter.controlApps,adapter.controlApps.map { it.packageName }.toSet()))
+            val other=cases.single { it.first != model }.second
+            assertNull(ControlAppCatalog.activeOwner(adapter.controlApps,setOf(other.packageName)))
+            adapter.receive(dev.hyperears.protocol.samsung.SamsungBudsCodec.packet(0x61,ByteArray(24).apply {
+                this[0]=3; this[2]=80; this[3]=70; this[10]=1; this[11]=if(model.original) 7 else 3; this[13]=0x22
+            },model))
+            assertTrue(adapter.supportsControl(SamsungDailyControlRequest.SetEqualizer(true,2)))
+            val projection=adapter.snapshot().standardIntegrationProjection()
+            assertEquals(adapter.id,projection.id); assertEquals(adapter.controlApps,projection.controlApps)
+            assertNull(projection.presentationId); assertTrue(projection.transportKinds.isEmpty())
+            assertFalse(projection.privateProtocolRequired); assertFalse(projection.capabilities.noiseControl)
+            val owned=EarbudState(adapter=projection,lifecycle=DeviceLifecycle(
+                systemProfile=SystemProfileState.CONNECTED,privateTransport=PrivateTransportState.NOT_REQUIRED,
+                protocolHandshake=ProtocolHandshakeState.NOT_REQUIRED,controlOwnership=ControlOwnership.EXTERNAL_APP,externalControlApp=plugin))
+            assertTrue(owned.connected); assertEquals(plugin,owned.lifecycle.externalControlApp)
+        }
+    }
+
+    @Test
     fun adaptersDeclareOnlyTheirVendorControllerApplications() {
         assertEquals(
             listOf(ControlAppCatalog.vivoEarphones),

@@ -76,9 +76,16 @@ internal object MiLinkCardAdapterRegistry {
         RoseEarfreeI5MiLinkCardAdapter,
         RoseBudsFeelMk2MiLinkCardAdapter,
         NiceHckOrigMiLinkCardAdapter,
+        NiceHckMiLinkCardAdapter,
+        NiceHckSettingsOnlyMiLinkCardAdapter,
         BoseQuietComfortMiLinkCardAdapter,
         BoseAnrMiLinkCardAdapter,
         BoseTwoModeMiLinkCardAdapter,
+        BoseDailyTwoModeMiLinkCardAdapter,
+        BoseDailyWindOffMiLinkCardAdapter,
+        BoseDailyWindTransparencyMiLinkCardAdapter,
+        BoseDailyNoiseMiLinkCardAdapter,
+        BoseDailySettingsOnlyMiLinkCardAdapter,
         EdifierFourModeMiLinkCardAdapter,
         EdifierFitBudsTurboMiLinkCardAdapter,
         FitClipUltraGameModeMiLinkCardAdapter,
@@ -99,6 +106,7 @@ internal object MiLinkCardAdapterRegistry {
         SonyAdvancedMiLinkCardAdapter,
         SonySettingsOnlyMiLinkCardAdapter,
         SamsungBuds2ProMiLinkCardAdapter,
+        SamsungDailyMiLinkCardAdapter,
     )
     private val byId = adapters.associateBy(MiLinkCardAdapter::presentationId)
 

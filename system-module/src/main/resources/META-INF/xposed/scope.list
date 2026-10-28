@@ -21,6 +21,8 @@ com.huawei.smartaudio
 com.huawei.smarthome
 com.moondroplab.moondrop.moondrop_app
 com.samsung.android.app.watchmanager
+com.samsung.accessory.fridaymgr
+com.samsung.accessory.popcornmgr
 com.samsung.accessory.zenithmgr
 com.samsung.accessory.berrymgr
 com.samsung.accessory.pearlmgr

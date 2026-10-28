@@ -99,7 +99,7 @@ class PrivateCapabilityGatingTest {
         assertEquals(HandshakeResult.Ready, result.handshake)
         assertTrue(adapter.snapshot().capabilities.noiseControl)
         assertTrue(adapter.snapshot().capabilities.windNoiseControl)
-        assertEquals(NiceHckYuanDaoOrigAdapter.PRESENTATION_ID, adapter.snapshot().presentationId)
+        assertEquals(NiceHckYuanDaoOrigAdapter.ADVANCED_PRESENTATION_ID, adapter.snapshot().presentationId)
         assertEquals(NoiseMode.WIND, adapter.runtimeState().noiseMode)
     }
 

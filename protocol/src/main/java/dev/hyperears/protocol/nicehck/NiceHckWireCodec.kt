@@ -50,7 +50,7 @@ object NiceHckWireCodec {
     }
 
     fun parseNoiseMode(frame: Frame): NoiseMode? {
-        if (frame.opcode != NOISE_QUERY_OPCODE || frame.parameters.isEmpty()) return null
+        if (frame.opcode != NOISE_QUERY_OPCODE || frame.parameters.size != 1) return null
         return NoiseMode.entries.firstOrNull { it.value == frame.parameters[0].unsigned() }
     }
 

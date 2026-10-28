@@ -6,7 +6,9 @@ import dev.hyperears.protocol.bose.BoseBmapWireCodec
 internal class BoseBmapProtocolSession(
     expectedProductId: Int? = null,
     private val fallbackFormFactor: HeadsetFormFactor = HeadsetFormFactor.TWS,
+    private val isModelEnabled: (String) -> Boolean = { true },
 ) : ProtocolSession {
+    private val daily = BoseDailySettingsSession()
     private val decoder = BoseBmapWireCodec.Decoder()
     private val modeConfigs = mutableMapOf<Int, BoseBmapWireCodec.ModeConfig>()
     private var identityAccepted: Boolean? = null
@@ -21,6 +23,7 @@ internal class BoseBmapProtocolSession(
     /** The owning Adapter is the only object allowed to select writable wire behavior. */
     fun configure(configuration: BoseWireConfig) {
         activeConfig = configuration
+        daily.configure(configuration.productId)
         configuration.productId?.let { requiredProductId = it }
     }
 
@@ -32,7 +35,9 @@ internal class BoseBmapProtocolSession(
     )
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
-        request === StandardControlRequest.Refresh -> initialReadCommands() + activeConfig.noiseReadCommands()
+        request is BoseDailyControlRequest -> if (identityAccepted == true) daily.encode(request) else emptyList()
+        request === StandardControlRequest.Refresh -> initialReadCommands() + activeConfig.noiseReadCommands() +
+            daily.queries().takeIf { identityAccepted == true }.orEmpty()
         request is StandardControlRequest.SetNoiseMode -> activeConfig
             ?.noiseControl
             ?.encode(request.mode)
@@ -44,7 +49,7 @@ internal class BoseBmapProtocolSession(
     override fun followUpCommands(event: ProtocolEvent): List<ByteArray> = when {
         event is ProtocolEvent.ProductIdentified &&
             event.productId == activeConfig?.productId -> {
-            activeConfig.noiseReadCommands().ifEmpty(::capabilityProbeCommands)
+            activeConfig.noiseReadCommands().ifEmpty(::capabilityProbeCommands) + daily.queries()
         }
 
         event === ProtocolEvent.HandshakeAccepted &&
@@ -54,6 +59,7 @@ internal class BoseBmapProtocolSession(
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> = when {
+        request is BoseDailyControlRequest -> daily.readback(request)
         request === StandardControlRequest.Refresh -> emptyList()
         request is StandardControlRequest.SetNoiseMode -> activeConfig.noiseStateReadCommands()
         else -> emptyList()
@@ -67,9 +73,16 @@ internal class BoseBmapProtocolSession(
                 identityAccepted = requiredProductId == null ||
                     identity.productId == requiredProductId
                 if (identityAccepted == true) {
+                    // Decode coalesced status frames with the admitted product profile before
+                    // the Adapter consumes ProductIdentified and transfers this same session.
+                    BoseBmapModelRegistry.find(identity.productId)
+                        ?.takeIf { isModelEnabled(it.modelId) }
+                        ?.let { daily.configure(identity.productId) }
                     add(ProtocolEvent.ProductIdentified(identity.productId))
                     add(ProtocolEvent.HandshakeAccepted)
                 } else {
+                    daily.reset()
+                    add(ProtocolEvent.FeatureStateChanged(BoseDailySettingsFeatureState()))
                     add(ProtocolEvent.HandshakeRejected)
                 }
                 if (identityAccepted == true) pendingBattery?.let { batteryEvent ->
@@ -97,6 +110,12 @@ internal class BoseBmapProtocolSession(
                     identityAccepted == null -> pendingBattery = event
                 }
                 return@forEach
+            }
+
+            var dailyAccepted = false
+            if (identityAccepted == true) daily.offer(frame)?.let {
+                add(ProtocolEvent.FeatureStateChanged(it))
+                dailyAccepted = true
             }
 
             if (identityAccepted == true && activeConfig?.noiseControl == null) {
@@ -163,6 +182,7 @@ internal class BoseBmapProtocolSession(
                 null -> Unit
             }
 
+            if (dailyAccepted) return@forEach
             add(
                 ProtocolEvent.UnknownFrame(
                     version = 0,
@@ -176,6 +196,7 @@ internal class BoseBmapProtocolSession(
 
     override fun reset() {
         decoder.reset()
+        daily.reset()
         modeConfigs.clear()
         identityAccepted = null
         discoveredConfig = null
@@ -295,7 +316,7 @@ internal class BoseBmapProtocolSession(
 
     private fun Int.toNoiseMode(configuration: BoseNoiseControlConfig.Anr): NoiseMode? = when (this) {
         configuration.offValue -> NoiseMode.OFF
-        configuration.highValue -> NoiseMode.ANC
+        configuration.highValue, 3 -> NoiseMode.ANC
         configuration.windValue -> NoiseMode.WIND
         else -> null
     }

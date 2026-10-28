@@ -79,22 +79,29 @@ object OppoSettingsCodec {
         }
         return entries.takeIf { offset == p.size }
     }
-    fun canUpdate(entry: Equalizer, gains: List<Int>): Boolean =
+    fun canUpdate(entry: Equalizer, gains: List<Int>, maximumPayloadSize: Int = 120): Boolean =
         entry.id in 1..255 && entry.name.isNotBlank() && entry.frequencies.size in 1..32 &&
             entry.minimum in -128..127 && entry.maximum in entry.minimum..127 &&
             entry.frequencies.all { it in 1..65535 } &&
             gains.size == entry.frequencies.size && gains.all { it in entry.minimum..entry.maximum } &&
-            6 + entry.name.toByteArray(Charsets.UTF_8).size + gains.size * 3 <= 120
+            entry.name.toByteArray(Charsets.UTF_8).size in 1..255 &&
+            6 + entry.name.toByteArray(Charsets.UTF_8).size + gains.size * 3 <= maximumPayloadSize
 
-    /** Update action only; reuse every non-gain byte, bounded below the conflicting LEB128 boundary. */
+    /** Legacy short update API; callers must explicitly select canonical framing for longer writes. */
     fun updateEqualizer(entry: Equalizer, gains: List<Int>): ByteArray {
         require(canUpdate(entry, gains))
+        return OppoWireCodec.packet(0x0418, payload = updatePayload(entry, gains))
+    }
+    fun updateEqualizerPackets(entry: Equalizer, gains: List<Int>, frameBudget: Int): List<ByteArray> {
+        require(canUpdate(entry, gains, maximumPayloadSize = 357))
+        return OppoWireCodec.canonicalPackets(0x0418, payload = updatePayload(entry, gains), frameBudget = frameBudget)
+    }
+    private fun updatePayload(entry: Equalizer, gains: List<Int>): ByteArray {
         val name = entry.name.toByteArray(Charsets.UTF_8)
-        val p = byteArrayOf(2, entry.minimum.toByte(), entry.maximum.toByte(), entry.id.toByte(), name.size.toByte()) +
+        return byteArrayOf(2, entry.minimum.toByte(), entry.maximum.toByte(), entry.id.toByte(), name.size.toByte()) +
             name + byteArrayOf(gains.size.toByte()) + entry.frequencies.flatMapIndexed { index, frequency ->
                 listOf(frequency.toByte(), (frequency ushr 8).toByte(), gains[index].toByte())
             }
-        return OppoWireCodec.packet(0x0418, payload = p)
     }
     private fun Byte.u() = toInt() and 255
 }

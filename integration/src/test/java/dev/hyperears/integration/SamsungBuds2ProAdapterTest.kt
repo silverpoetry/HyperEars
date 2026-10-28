@@ -34,7 +34,7 @@ class SamsungBuds2ProAdapterTest {
         assertEquals(HandshakeResult.Ready, result.handshake)
         assertTrue(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
         assertTrue(adapter.supportsControl(SamsungControlRequest.SetVoiceDetect(false)))
-        assertEquals(SamsungMiLinkPresentationIds.BUDS2_PRO, adapter.miLinkCardPresentationId)
+        assertEquals(SamsungDailyPresentationIds.SETTINGS, adapter.miLinkCardPresentationId)
         assertNotNull(adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>())
         assertEquals(100, adapter.runtimeState().battery.left.percent)
     }

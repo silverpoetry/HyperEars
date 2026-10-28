@@ -91,6 +91,11 @@ StarRing Ultra 使用 GATT `7777/8888` 特征，厂商 RFCOMM 为回退通道。
 
 ### 2.4 Bose
 
+日常高级设置按产品 ID 和实际 STATUS 分项开放：三段 EQ、提示音、双设备，Ultra 二代
+限定自动暂停，NC700／初代 QC Earbuds 的直接 CNC 强度，以及 QC35 的独立低档 ANR。
+QC45 的可读 CNC 不被当作可写能力；原有 Quiet/Aware 与抗风噪槽位保留。
+这些新增控制尚待实机复核，详见 [Bose 协议](bose-bmap-protocol.md)。
+
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|
 | Bose QuietComfort Headphones | 具体型号 | 实机验证 | BMAP 产品身份 `prince / 0x4075` 匹配 | 私有整机 | 降噪、通透、抗风噪 |
@@ -185,6 +190,10 @@ Android 系统整机电量；首次协议试探经过有界重试仍未确认时
 | 其他 NiceHCK / YuanDao 耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
 OriG in 使用 RFCOMM UUID `a100`。
+
+高级详情按回报开放六种噪声选择、EQ、游戏、低延迟、双设备、入耳检测及独立风噪抑制。
+EQ 最后两个预设受实际固件 minor 字段限制；未知版本不开放对应写入。新增控制未实机
+验证，字段与来源边界见 [NiceHCK 日常设置](nicehck-settings-protocol.md)。
 
 ### 2.8 MOONDROP / 水月雨
 
@@ -329,6 +338,12 @@ Outside Control GET 两次均返回完整模式与等级，组件电量及关闭
 [`technics-race-protocol.md`](technics-race-protocol.md)。
 
 ### 2.14 Samsung Galaxy Buds
+
+新增原版 Galaxy Buds 与 Buds+ 精确画像，两者仅有环境声而没有 ANC；原版使用独立
+`FE/EE` 帧和端点，保留 `+` 名称区别。日常详情按型号、版本与有效字段开放 EQ、环境声、
+手势和主动查找，原有语音检测与触控详情保留。查找由本面板限时持有；现代九段自定义
+EQ 仅显示草稿及发送状态，设备确认的 EQ 模式独立呈现，不把部分固件的平坦读回当成
+实际曲线。新增能力尚未实机复核，细节见 [Samsung 协议](samsung-buds2-pro-protocol.md)。
 
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|

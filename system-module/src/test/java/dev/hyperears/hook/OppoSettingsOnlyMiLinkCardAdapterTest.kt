@@ -20,6 +20,19 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE, application = Application::class)
 class OppoSettingsOnlyMiLinkCardAdapterTest {
+    @Test fun emptyOrTransportOnlyEvidenceDoesNotOfferAdvancedEntry() {
+        val address = "00:11:22:33:44:55"
+        val base = EarbudState(address = address, lifecycle = DeviceLifecycle(
+            systemProfile = SystemProfileState.CONNECTED,
+            privateTransport = PrivateTransportState.CONNECTED,
+            protocolHandshake = ProtocolHandshakeState.CONFIRMED))
+        assertFalse(OppoCardPolicy.available(base.withFeature(OppoSettingsFeatureState()), address))
+        assertFalse(OppoCardPolicy.available(base.withFeature(OppoSettingsFeatureState(
+            equalizers = emptyList(), canonicalLongFrames = true, equalizerWriteBudget = 100)), address))
+        assertTrue(OppoCardPolicy.available(base.withFeature(OppoSettingsFeatureState(currentEqualizer = 9)), address))
+        assertTrue(OppoCardPolicy.available(base.withFeature(OppoSettingsFeatureState(
+            toggles = mapOf(OppoToggle.LOW_LATENCY to false))), address))
+    }
     @Test fun settingsCarrierRestoresBothHostLayoutsWithoutNoiseCommands() {
         NativeAncModeLayout.entries.forEach { layout ->
             val app = RuntimeEnvironment.getApplication()

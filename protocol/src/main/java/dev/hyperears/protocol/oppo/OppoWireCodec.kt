@@ -25,7 +25,11 @@ object OppoWireCodec {
         val command: Int,
         val sequence: Int,
         val payload: ByteArray,
+        /** Original physical frame(s), concatenated for a reassembled message. */
         val bytes: ByteArray,
+        /** A physical frame used an unambiguous, canonical two-byte LEB128 length. */
+        val canonicalLongLength: Boolean = false,
+        val fragmented: Boolean = false,
     )
 
     data class BatteryReading(
@@ -171,76 +175,143 @@ object OppoWireCodec {
         }
     }
 
-    class Decoder(initialCapacity: Int = 256) {
-        private var bytes = ByteArray(initialCapacity.coerceAtLeast(16))
+    // Leaf 929d813f OPOv1 framer bound; QuickBuds 6e069325 confirms canonical LEB128.
+    const val MAX_FRAME_SIZE = 12388
+    private const val MAX_INNER_SIZE = 65535 + 5
+    val queryFrameBudget: ByteArray = packet(0x0107)
+
+    fun parseFrameBudget(frame: Frame): Int? {
+        if (frame.command != 0x8107 || frame.payload.size != 3 || frame.payload[0] != 0.toByte()) return null
+        return frame.payload.readShortLe(1).takeIf { it in 10..MAX_FRAME_SIZE }
+    }
+
+    /** Explicit OPOv1 encoding. No checksum; body length excludes AA and length bytes. */
+    fun canonicalPackets(command: Int, sequence: Int = DEFAULT_SEQUENCE,
+        payload: ByteArray = byteArrayOf(), frameBudget: Int): List<ByteArray> {
+        require(command in 0..0xFFFF && sequence in 0..0xFF && payload.size <= 65535)
+        require(frameBudget in 10..MAX_FRAME_SIZE)
+        val inner = ByteArray(5 + payload.size).apply {
+            writeShortLe(command, 0); this[2] = sequence.toByte()
+            writeShortLe(payload.size, 3); payload.copyInto(this, 5)
+        }
+        fun size(data: Int, sliced: Boolean): Int {
+            val body = data + if (sliced) 3 else 2
+            return 1 + (if (body < 128) 1 else 2) + body
+        }
+        fun frame(control: Int, fsn: Int, data: ByteArray): ByteArray {
+            val body = data.size + if (control == 0) 2 else 3
+            val length = if (body < 128) byteArrayOf(body.toByte()) else
+                byteArrayOf(((body and 0x7F) or 0x80).toByte(), (body ushr 7).toByte())
+            return byteArrayOf(HEADER.toByte()) + length + byteArrayOf(control.toByte(), 0) +
+                (if (control == 0) byteArrayOf() else byteArrayOf(fsn.toByte())) + data
+        }
+        if (size(inner.size, false) <= frameBudget) return listOf(frame(0, 0, inner))
+        val perSlice = (frameBudget downTo 1).first { size(it, true) <= frameBudget }
+        val count = (inner.size + perSlice - 1) / perSlice
+        require(count <= 256) { "Fragment sequence would wrap" }
+        return List(count) { index ->
+            frame(if (index == 0) 1 else if (index == count - 1) 3 else 2, index,
+                inner.copyOfRange(index * perSlice, minOf(inner.size, (index + 1) * perSlice)))
+        }
+    }
+
+    /** Bounded RFCOMM stream parser, including OPOv1 fragments and legacy raw-u8 lengths. */
+    class Decoder(@Suppress("UNUSED_PARAMETER") initialCapacity: Int = 256) {
+        private val bytes = ByteArray(MAX_FRAME_SIZE)
         private var size = 0
+        private val assembly = java.io.ByteArrayOutputStream()
+        private val physical = java.io.ByteArrayOutputStream()
+        private var nextFsn = -1
+        private var longEvidence = false
 
-        fun offer(chunk: ByteArray): List<Frame> {
-            if (chunk.isEmpty()) return emptyList()
-            append(chunk)
-            val frames = mutableListOf<Frame>()
-            while (true) {
-                discardNoise()
-                if (size < 2) return frames
+        fun offer(chunk: ByteArray): List<Frame> = buildList {
+            // Incremental append prevents a hostile input chunk from growing the pending buffer.
+            for (byte in chunk) {
+                if (this@Decoder.size == bytes.size) { discard(1); clearAssembly() }
+                bytes[this@Decoder.size++] = byte
+                drain(this)
+            }
+        }
 
-                val bodyLength = peek(1)
-                if (bodyLength < FIXED_BODY_SIZE) {
-                    discard(1)
+        private fun drain(frames: MutableList<Frame>) {
+            while (size > 0) {
+                if (u(0) != HEADER) { discard(1); clearAssembly(); continue }
+                if (size < 2) return
+                var width = 1
+                var body = u(1)
+                var canonical = false
+                if (body >= 128) {
+                    if (size < 3) return
+                    // Legacy raw-u8 has control=00 here. A canonical second length byte is 01..7F.
+                    if (u(2) != 0) {
+                        if (u(2) >= 128) { discard(1); clearAssembly(); continue }
+                        body = (body and 0x7F) or (u(2) shl 7)
+                        width = 2; canonical = true
+                    }
+                }
+                val start = 1 + width
+                val total = start + body
+                if (body < 3 || total > MAX_FRAME_SIZE) { discard(1); clearAssembly(); continue }
+                if (size < start + 2) return
+                val control = u(start)
+                // Raw-u8 long frames only have the original whole-message grammar.
+                if (u(start + 1) != 0 || control !in 0..3 ||
+                    (width == 1 && body >= 128 && control != 0) || (control == 0 && body < 7)) {
+                    discard(1); clearAssembly(); continue
+                }
+                // Check the redundant inner length early, before waiting for a false outer length.
+                if (control == 0 && size >= start + 7 &&
+                    bytes.readShortLe(start + 5) != body - 7) {
+                    discard(1); clearAssembly(); continue
+                }
+                if (size < total) return
+                val raw = bytes.copyOfRange(0, total)
+                discard(total)
+                if (control == 0) {
+                    clearAssembly()
+                    decodeInner(raw.copyOfRange(start + 2, total), raw, canonical, false)?.let(frames::add)
                     continue
                 }
-                val frameLength = bodyLength + 2
-                if (size < frameLength) return frames
-
-                val candidate = take(frameLength)
-                val payloadLength = candidate.readShortLe(7)
-                if (payloadLength != bodyLength - FIXED_BODY_SIZE) continue
-                frames += Frame(
-                    command = candidate.readShortLe(4),
-                    sequence = candidate[6].unsigned(),
-                    payload = candidate.copyOfRange(
-                        PAYLOAD_OFFSET,
-                        PAYLOAD_OFFSET + payloadLength,
-                    ),
-                    bytes = candidate,
-                )
+                if (body <= 3) { clearAssembly(); continue }
+                val fsn = raw[start + 2].unsigned()
+                if (control == 1) {
+                    clearAssembly()
+                    if (fsn != 0) continue
+                    nextFsn = 0
+                }
+                if (nextFsn < 0 || fsn != nextFsn || (control != 1 && fsn == 0)) {
+                    clearAssembly(); continue
+                }
+                val data = raw.copyOfRange(start + 3, total)
+                if (assembly.size() + data.size > MAX_INNER_SIZE) { clearAssembly(); continue }
+                assembly.write(data); physical.write(raw)
+                longEvidence = longEvidence || canonical
+                nextFsn++
+                val inner = assembly.toByteArray()
+                if (inner.size >= 5) {
+                    val expected = 5 + inner.readShortLe(3)
+                    if (inner.size > expected || (control != 3 && inner.size == expected)) {
+                        clearAssembly(); continue
+                    }
+                }
+                if (control == 3) {
+                    decodeInner(inner, physical.toByteArray(), longEvidence, true)?.let(frames::add)
+                    clearAssembly()
+                } else if (nextFsn > 255) clearAssembly()
             }
         }
 
-        fun reset() {
-            size = 0
+        private fun decodeInner(inner: ByteArray, raw: ByteArray, canonical: Boolean, sliced: Boolean): Frame? {
+            if (inner.size < 5 || inner.readShortLe(3) != inner.size - 5) return null
+            return Frame(inner.readShortLe(0), inner[2].unsigned(), inner.copyOfRange(5, inner.size),
+                raw, canonical, sliced)
         }
-
-        private fun append(chunk: ByteArray) {
-            ensureCapacity(size + chunk.size)
-            chunk.copyInto(bytes, destinationOffset = size)
-            size += chunk.size
-        }
-
-        private fun discardNoise() {
-            var count = 0
-            while (count < size && peek(count) != HEADER) count++
-            if (count > 0) discard(count)
-        }
-
-        private fun peek(index: Int): Int = bytes[index].unsigned()
-
-        private fun take(count: Int): ByteArray =
-            bytes.copyOfRange(0, count).also { discard(count) }
-
+        fun reset() { size = 0; clearAssembly() }
+        private fun clearAssembly() { assembly.reset(); physical.reset(); nextFsn = -1; longEvidence = false }
+        private fun u(index: Int) = bytes[index].unsigned()
         private fun discard(count: Int) {
-            if (count >= size) {
-                size = 0
-                return
-            }
-            bytes.copyInto(bytes, destinationOffset = 0, startIndex = count, endIndex = size)
+            bytes.copyInto(bytes, 0, count, size)
             size -= count
-        }
-
-        private fun ensureCapacity(required: Int) {
-            if (required <= bytes.size) return
-            var capacity = bytes.size
-            while (capacity < required) capacity *= 2
-            bytes = bytes.copyOf(capacity)
         }
     }
 

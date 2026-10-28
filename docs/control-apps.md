@@ -38,6 +38,10 @@ Sony | Headphones Connect。
 | Technics EAH-AZ TWS | Technics Audio Connect | `com.panasonic.technicsaudioconnect` | 1 |
 | 华为 FreeBuds 系列 | 智慧音频 | `com.huawei.smartaudio` | 1 |
 | 华为 FreeBuds 系列 | 智慧生活 / AI Life | `com.huawei.smarthome` | 2 |
+| Samsung Galaxy Buds | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds | Galaxy Buds Manager | `com.samsung.accessory.fridaymgr` | 2 |
+| Samsung Galaxy Buds+ | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+| Samsung Galaxy Buds+ | Galaxy Buds+ Manager | `com.samsung.accessory.popcornmgr` | 2 |
 | Samsung Galaxy Buds2 Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
 | Samsung Galaxy Buds2 Pro | Galaxy Buds2 Pro Manager | `com.samsung.accessory.zenithmgr` | 2 |
 | Samsung Galaxy Buds2 | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
@@ -217,3 +221,10 @@ adb shell pm path com.vivo.vivotws
 
 包名只定义控制权边界，不得加入设备匹配证据。若厂商更换包名，应作为新目录项单独验证，
 不能仅按相似名称或签名未知的兼容客户端放宽匹配。
+
+2026-10-28：原代 Galaxy Buds / Buds+ 的独立 Manager 包名核对来源为
+GalaxyBudsClient `754b6fdfb1c151b022cece775c8aaad4eb185afa` 的
+`GalaxyBudsClient.Android/Impl/OfficialAppDetector.cs` 和
+`GalaxyBudsClient.Android/Properties/AndroidManifest.xml`。
+对应 Adapter 顺序为 Galaxy Wearable → 本型号 Manager → 统一 Galaxy Buds；
+插件单独运行也会触发控制权退避，不作为型号识别依据。新增作用域声明未写入手机 LSPosed 数据库。

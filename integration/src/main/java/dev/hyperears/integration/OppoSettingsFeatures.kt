@@ -28,7 +28,10 @@ data class OppoSettingsFeatureState(
     val currentEqualizer: Int? = null,
     val equalizers: List<OppoEqualizer>? = null,
     val editableEqualizers: Set<Int> = emptySet(),
+    val canonicalLongFrames: Boolean = false,
+    val equalizerWriteBudget: Int? = null,
 ) : DeviceFeatureState {
+    val hasSettings: Boolean get() = toggles.isNotEmpty() || !equalizers.isNullOrEmpty() || currentEqualizer != null
     @Transient override val featureId = FEATURE_ID
     companion object { const val FEATURE_ID = "oppo.settings" }
 }
@@ -48,6 +51,10 @@ fun OppoSettingsFeatureState.supports(request: OppoControlRequest): Boolean = wh
     is OppoControlRequest.SelectEqualizer -> equalizers?.any { it.id == request.id } == true
     is OppoControlRequest.UpdateEqualizer -> request.id in editableEqualizers &&
         equalizers?.firstOrNull { it.id == request.id }?.let {
-            it.definition() == request.expected && OppoSettingsCodec.canUpdate(it.wire(), request.gains)
+            it.definition() == request.expected && OppoSettingsCodec.canUpdate(it.wire(), request.gains, maximumEqualizerPayload())
         } == true
 }
+
+internal fun OppoSettingsFeatureState.maximumEqualizerPayload(): Int =
+    if (canonicalLongFrames && equalizerWriteBudget != null) 357
+    else minOf(120, equalizerWriteBudget?.minus(9) ?: 120)

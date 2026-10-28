@@ -10,6 +10,8 @@ class SamsungBuds2ProAdapter(
     private val model: SamsungBudsCodec.Model = SamsungBudsCodec.Model.BUDS2_PRO,
 ) : StandardEarbudAdapter() {
     override val id: String = when (model) {
+        SamsungBudsCodec.Model.BUDS -> "samsung-galaxy-buds"
+        SamsungBudsCodec.Model.BUDS_PLUS -> "samsung-galaxy-buds-plus"
         SamsungBudsCodec.Model.BUDS2_PRO -> ID
         SamsungBudsCodec.Model.BUDS2 -> "samsung-galaxy-buds2"
         SamsungBudsCodec.Model.BUDS_FE -> "samsung-galaxy-buds-fe"
@@ -24,6 +26,8 @@ class SamsungBuds2ProAdapter(
         SamsungBudsCodec.Model.UNKNOWN -> "samsung-galaxy-buds-family"
     }
     override val displayName: String = when (model) {
+        SamsungBudsCodec.Model.BUDS -> "Samsung Galaxy Buds"
+        SamsungBudsCodec.Model.BUDS_PLUS -> "Samsung Galaxy Buds+"
         SamsungBudsCodec.Model.BUDS2_PRO -> "Samsung Galaxy Buds2 Pro"
         SamsungBudsCodec.Model.BUDS2 -> "Samsung Galaxy Buds2"
         SamsungBudsCodec.Model.BUDS_FE -> "Samsung Galaxy Buds FE"
@@ -42,12 +46,14 @@ class SamsungBuds2ProAdapter(
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
     override val transports: List<EarbudTransportSpec> = listOf(
-        RfcommEndpointSpec.ServiceUuid(if (model.legacyTouch) STANDARD_SPP_UUID else BUDS2_PRO_UUID,
+        RfcommEndpointSpec.ServiceUuid(if (model.original) ORIGINAL_SPP_UUID else if (model.legacyTouch) STANDARD_SPP_UUID else BUDS2_PRO_UUID,
             "samsung-buds-rfcomm"),
     )
     override val controlApps: List<ControlAppSpec> = buildList {
         add(ControlAppCatalog.galaxyWearable)
         when (model) {
+            SamsungBudsCodec.Model.BUDS -> add(ControlAppCatalog.galaxyBudsManager)
+            SamsungBudsCodec.Model.BUDS_PLUS -> add(ControlAppCatalog.galaxyBudsPlusManager)
             SamsungBudsCodec.Model.BUDS2_PRO -> add(ControlAppCatalog.galaxyBuds2ProManager)
             SamsungBudsCodec.Model.BUDS2 -> add(ControlAppCatalog.galaxyBuds2Manager)
             SamsungBudsCodec.Model.BUDS_FE -> add(ControlAppCatalog.galaxyBudsFeManager)
@@ -65,9 +71,10 @@ class SamsungBuds2ProAdapter(
         if (model != SamsungBudsCodec.Model.UNKNOWN) add(ControlAppCatalog.galaxyBudsUnified)
     }
     override val featureStateContract: DeviceFeatureStateContract =
-        StandardDeviceFeatureStateContract.extending { _, state -> state is SamsungBudsSettingsFeatureState }
+        StandardDeviceFeatureStateContract.extending { _, state -> state is SamsungBudsSettingsFeatureState || state is SamsungDailySettingsFeatureState || state is SamsungDailyIntentFeatureState }
     override val controlRequestContract: ControlRequestContract =
         StandardControlRequestContract.extending { adapter, request ->
+            if (request is SamsungDailyControlRequest) return@extending adapter.runtimeState().features.get<SamsungDailySettingsFeatureState>()?.supports(request) == true
             val settings = adapter.runtimeState().features.get<SamsungBudsSettingsFeatureState>()
             settings != null && when (request) {
                 is SamsungControlRequest.SetAmbientVolume -> settings.optionalSettingsSupported && request.level in 0..3
@@ -91,6 +98,15 @@ class SamsungBuds2ProAdapter(
         }
 
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy {
+        val intent = runtimeState().features.get<SamsungDailyIntentFeatureState>() ?: SamsungDailyIntentFeatureState()
+        val requested = when (request) {
+            is SamsungDailyControlRequest.SetCustomEqualizer -> intent.copy(submittedCurve = request.gains.toList(), curveWritten = false)
+            is SamsungDailyControlRequest.Find -> intent.copy(findRequested = request.start, findWritten = false)
+            else -> null
+        }
+        if (requested != null) return ControlExecutionPolicy(
+            confirmation = ControlConfirmationPolicy.PUBLISH_AFTER_WRITE, stateAfterWrite = requested)
+
         val current = runtimeState().features.get<SamsungBudsSettingsFeatureState>()
             ?: return super.controlPolicy(request)
         val actions = when (request) {
@@ -133,15 +149,30 @@ class SamsungBuds2ProAdapter(
             else -> super.controlPolicy(request)
         }
     }
+    override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
+        val runtime = runtimeState()
+        val intent = runtime.features.get<SamsungDailyIntentFeatureState>() ?: return
+        val next = when (request) {
+            is SamsungDailyControlRequest.SetCustomEqualizer -> intent.takeIf { it.submittedCurve == request.gains }?.copy(curveWritten = true)
+            is SamsungDailyControlRequest.Find -> intent.takeIf { it.findRequested == request.start }?.copy(findWritten = true)
+            else -> null
+        } ?: return
+        var features = runtime.features.update(next)
+        if (request is SamsungDailyControlRequest.Find && request.start) {
+            (protocolSession as? SamsungBuds2ProProtocolSession)?.dailyState()?.let { features = features.update(it) }
+        }
+        adoptRuntimeState(runtime.copy(features = features))
+    }
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
-        get() = SamsungMiLinkPresentationIds.BUDS2_PRO.takeIf {
+        get() = if (runtimeState().features.get<SamsungDailySettingsFeatureState>() != null) SamsungDailyPresentationIds.SETTINGS
+        else SamsungMiLinkPresentationIds.BUDS2_PRO.takeIf {
             effectiveCapabilities().noiseControl &&
                 runtimeState().features.get<SamsungBudsSettingsFeatureState>() != null
         }
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
-        val name = normalizeDeviceName(identity.deviceName.orEmpty())
+        val name = normalizeDeviceName(identity.deviceName.orEmpty().replace("+", "plus"))
         val privateService = identity.serviceUuids.any { it.equals(BUDS2_PRO_UUID, ignoreCase = true) }
         if (model == SamsungBudsCodec.Model.UNKNOWN) return privateService
         val aliases = MODEL_ALIASES.getValue(model)
@@ -156,13 +187,18 @@ class SamsungBuds2ProAdapter(
 
     override fun onProtocolReset() {
         removeFeatureState(SamsungBudsSettingsFeatureState.FEATURE_ID)
+        removeFeatureState(SamsungDailySettingsFeatureState.FEATURE_ID)
+        removeFeatureState(SamsungDailyIntentFeatureState.FEATURE_ID)
     }
 
     companion object {
         const val ID = "samsung-galaxy-buds2-pro"
         const val BUDS2_PRO_UUID = "2e73a4ad-332d-41fc-90e2-16bef06523f2"
+        const val ORIGINAL_SPP_UUID = "00001102-0000-1000-8000-00805f9b34fd"
         const val STANDARD_SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb"
         private val MODEL_SUFFIXES = mapOf(
+            SamsungBudsCodec.Model.BUDS to setOf("buds", "smr170"),
+            SamsungBudsCodec.Model.BUDS_PLUS to setOf("budsplus", "smr175"),
             SamsungBudsCodec.Model.BUDS2_PRO to setOf("buds2pro", "smr510"),
             SamsungBudsCodec.Model.BUDS2 to setOf("buds2", "smr177"),
             SamsungBudsCodec.Model.BUDS_FE to setOf("budsfe", "smr400"),
@@ -319,7 +355,9 @@ internal class SamsungBuds2ProProtocolSession(
     private val model: SamsungBudsCodec.Model = SamsungBudsCodec.Model.BUDS2_PRO,
     private val elapsedMs: () -> Long = { System.nanoTime() / 1_000_000L },
 ) : ProtocolSession {
-    private val decoder = SamsungBudsCodec.Decoder()
+    private val decoder = SamsungBudsCodec.Decoder(model)
+    private val daily = SamsungDailySettingsSession(model)
+    fun dailyState(): SamsungDailySettingsFeatureState? = daily.state
     private var handshakePublished = false
     private var managerInfoSent = false
     private var settings: SamsungBudsCodec.SettingsState? = null
@@ -344,7 +382,10 @@ internal class SamsungBuds2ProProtocolSession(
     }
 
     private fun encodeCurrent(request: ControlRequest): List<ByteArray> = when (request) {
-        StandardControlRequest.Refresh -> listOf(SamsungBudsCodec.managerInfoCommand())
+        is SamsungDailyControlRequest -> daily.encode(request)
+        StandardControlRequest.Refresh -> listOf(SamsungBudsCodec.managerInfoCommand()).map { packet ->
+            if (!model.original) packet else SamsungBudsCodec.parseFrame(packet)!!.let { SamsungBudsCodec.packet(it.id, it.payload, model) }
+        }
         is StandardControlRequest.SetNoiseMode -> request.mode.toSamsungMode()
             ?.let { SamsungBudsCodec.noiseModeCommand(it, model) }?.let(::listOf).orEmpty()
         is SamsungControlRequest.SetAmbientVolume ->
@@ -454,11 +495,15 @@ internal class SamsungBuds2ProProtocolSession(
 
     override fun offer(bytes: ByteArray): List<ProtocolEvent> = buildList {
         decoder.offer(bytes).forEach { raw ->
-            val frame = SamsungBudsCodec.parseFrame(raw) ?: return@forEach
+            val frame = SamsungBudsCodec.parseFrame(raw, model) ?: return@forEach
             // Expiry never converts a desired value into a confirmed device report.
             val expired = expirePending()
             var settingsPublished = false
             var accepted = false
+            daily.offer(frame)?.let {
+                accepted = true
+                add(ProtocolEvent.FeatureStateChanged(it))
+            }
             SamsungBudsCodec.parseBattery(frame, model)?.let { battery ->
                 accepted = true
                 add(ProtocolEvent.CapabilitiesIdentified(battery = true))
@@ -512,11 +557,14 @@ internal class SamsungBuds2ProProtocolSession(
     override fun followUpCommands(event: ProtocolEvent): List<ByteArray> {
         if (event !is ProtocolEvent.HandshakeAccepted || managerInfoSent) return emptyList()
         managerInfoSent = true
-        return listOf(SamsungBudsCodec.managerInfoCommand())
+        return listOf(SamsungBudsCodec.managerInfoCommand()).map { packet ->
+            if (!model.original) packet else SamsungBudsCodec.parseFrame(packet)!!.let { SamsungBudsCodec.packet(it.id, it.payload, model) }
+        }
     }
 
     override fun reset() {
         decoder.reset()
+        daily.reset()
         handshakePublished = false
         managerInfoSent = false
         settings = null
@@ -604,7 +652,8 @@ internal class SamsungBuds2ProProtocolSession(
         SamsungBudsCodec.NoiseMode.AMBIENT -> NoiseMode.TRANSPARENCY
     }
     private fun Int.toSamsungNoiseMode(): SamsungBudsCodec.NoiseMode? =
-        SamsungBudsCodec.NoiseMode.entries.firstOrNull { it.wire == this }
+        if (model.ambientOnly) when (this) { 0 -> SamsungBudsCodec.NoiseMode.OFF; 1 -> SamsungBudsCodec.NoiseMode.AMBIENT; else -> null }
+        else SamsungBudsCodec.NoiseMode.entries.firstOrNull { it.wire == this }
 
     private fun SamsungBudsCodec.SettingsState.applyAcknowledgement(
         ack: SamsungBudsCodec.Acknowledgement,
@@ -715,9 +764,10 @@ internal class SamsungBuds2ProProtocolSession(
         optionalSettingsSupported = optionalSettingsSupported,
     )
 
-    private val noiseModes: Set<NoiseMode> get() = if (model.ambient) THREE_STATE_NOISE_MODES
+    private val noiseModes: Set<NoiseMode> get() = if (model.ambientOnly) setOf(NoiseMode.OFF, NoiseMode.TRANSPARENCY)
+        else if (model.ambient) THREE_STATE_NOISE_MODES
         else setOf(NoiseMode.ANC, NoiseMode.OFF)
-    private val noiseCommandId: Int get() = if (model == SamsungBudsCodec.Model.BUDS_LIVE)
+    private val noiseCommandId: Int get() = if (model.ambientOnly) 0x80 else if (model == SamsungBudsCodec.Model.BUDS_LIVE)
         SamsungBudsCodec.SET_NOISE_REDUCTION else SamsungBudsCodec.NOISE_CONTROLS
 
     private companion object {

@@ -43,7 +43,7 @@ open class OppoEarbudAdapter(
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
         get() = when {
             effectiveCapabilities().noiseControl -> PRESENTATION_ID
-            runtimeState().features.get<OppoSettingsFeatureState>() != null -> SETTINGS_PRESENTATION_ID
+            runtimeState().features.get<OppoSettingsFeatureState>()?.hasSettings == true -> SETTINGS_PRESENTATION_ID
             else -> null
         }
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
