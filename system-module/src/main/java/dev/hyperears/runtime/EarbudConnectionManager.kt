@@ -5,6 +5,10 @@ import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.os.Binder
 import android.os.SystemClock
+import dev.hyperears.bridge.AppleNativeAdmissionContract
+import dev.hyperears.bridge.BroadcastIdentity
+import dev.hyperears.integration.PlatformReservedHeadsetPolicy
+import dev.hyperears.integration.AppleAirPodsAdapter
 import dev.hyperears.bridge.StateBroadcaster
 import dev.hyperears.hook.ModuleLog
 import dev.hyperears.hook.maskBluetoothAddress
@@ -81,13 +85,76 @@ internal class EarbudConnectionManager(
     private val systemOwnedAddresses = mutableSetOf<String>()
     private val connectionCoordinator = ConnectionAttemptCoordinator()
     val presentationProducer = Binder()
+    private val producerStartedAt = SystemClock.elapsedRealtime()
     private val physicalConnections = mutableMapOf<String, HeadsetConnection>()
+    private val appleSdpRequested = mutableSetOf<String>()
+    private val appleDecisionRevisions = mutableMapOf<String, Long>()
+    private val appleNativeDecisions = mutableMapOf<String, Boolean>()
+    private val appleRequestedConnections = mutableMapOf<String, AppleNativeAdmissionContract.Request>()
     private val presentationAdmissions = mutableMapOf<String, NativeAdmission>()
 
     fun onPhysicalConnected(address: String) = synchronized(lifecycleLock) {
         if (!closed) physicalConnections.getOrPut(normalizeAddress(address)) {
             HeadsetConnection(UUID.randomUUID().toString(), SystemClock.elapsedRealtime())
         }
+    }
+
+    /** Called only after authenticating the Xiaomi host sender. */
+    fun acceptAppleNativeDecision(request: AppleNativeAdmissionContract.Request, accepted: Boolean?, revision: Long) {
+        val observed: ObservedDevice?
+        val removals: List<Removal>
+        synchronized(lifecycleLock) {
+            val key = normalizeAddress(request.address)
+            if (closed || request.producer != presentationProducer ||
+                physicalConnections[key] != request.connection || appleRequestedConnections[key] != request ||
+                revision <= (appleDecisionRevisions[key] ?: 0)) return
+            observed = observedDevices[key]?.takeIf { PlatformReservedHeadsetPolicy.isAppleCandidate(it.identity) }
+                ?: return
+            appleDecisionRevisions[key] = revision
+            if (appleNativeDecisions.containsKey(key) && appleNativeDecisions[key] == accepted) return
+            if (accepted == null) appleNativeDecisions.remove(key) else appleNativeDecisions[key] = accepted
+            presentationAdmissions[key] = if (accepted == true) NativeAdmission.SYSTEM else NativeAdmission.UNKNOWN
+            removals = if (accepted != false) removeLocked(key) else emptyList()
+        }
+        finishRemovals(removals)
+        if (accepted == false) observeDevice(observed!!.device, observed.identity)
+    }
+
+    fun requestAppleNativeDecisions() {
+        val removals = synchronized(lifecycleLock) {
+            if (closed) return
+            appleRequestedConnections.clear()
+            appleNativeDecisions.clear()
+            appleDecisionRevisions.clear()
+            val removed = observedDevices.filterValues {
+                PlatformReservedHeadsetPolicy.isAppleCandidate(it.identity)
+            }.flatMap { (key, _) ->
+                presentationAdmissions[key] = NativeAdmission.UNKNOWN
+                removeLocked(key)
+            }
+            observedDevices.forEach { (key, observed) -> requestAppleDecisionLocked(key, observed.identity) }
+            removed
+        }
+        finishRemovals(removals)
+    }
+
+    private fun requestAppleDecisionLocked(key: String, identity: EarbudIdentity) {
+        if (!PlatformReservedHeadsetPolicy.isAppleCandidate(identity)) return
+        val connection = physicalConnections[key] ?: return
+        if (appleRequestedConnections[key]?.connection == connection) return
+        val request = AppleNativeAdmissionContract.Request(key, connection, presentationProducer,
+            producerStartedAt, UUID.randomUUID().toString())
+        runCatching {
+            BroadcastIdentity.send(appContext, AppleNativeAdmissionContract.request(request))
+        }.onSuccess { appleRequestedConnections[key] = request }
+            .onFailure { ModuleLog.warn(COMPONENT, "native admission request failed", it) }
+    }
+
+    /** SDP can refine a pending candidate, but cannot invent a physical connection. */
+    fun refreshIdentity(device: BluetoothDevice) {
+        val key = normalizeAddress(device.address)
+        synchronized(lifecycleLock) { if (key !in physicalConnections || key !in observedDevices) return }
+        observeDevice(device, device.toEarbudIdentity())
     }
 
     /** Only an authenticated MiLink receipt for this exact live session can grant presentation. */
@@ -109,7 +176,12 @@ internal class EarbudConnectionManager(
         val key = state.address?.let(::normalizeAddress)
         val connection = physicalConnections[key] ?: knownDevices[key]?.presentation?.connection
         return Snapshot(state, token, connection?.let {
-            NativePresentationMetadata(it, presentationAdmissions[key] ?: NativeAdmission.UNKNOWN)
+            NativePresentationMetadata(it, presentationAdmissions[key] ?: NativeAdmission.UNKNOWN,
+                connectionScopedOwnership = observedDevices[key]?.identity
+                    ?.let(PlatformReservedHeadsetPolicy::isAppleCandidate) == true ||
+                    knownDevices[key]?.presentation?.let { previous ->
+                        previous.connection == it && previous.connectionScopedOwnership
+                    } == true)
         })
     }
 
@@ -137,6 +209,7 @@ internal class EarbudConnectionManager(
 
         val registration = synchronized(lifecycleLock) {
             if (closed || modulePaused) return false
+            retireAddressOnlyAppleClaimLocked(key, identity)
             if (key in systemOwnedAddresses) {
                 ModuleLog.debug(
                     COMPONENT,
@@ -144,7 +217,12 @@ internal class EarbudConnectionManager(
                 )
                 return false
             }
+            if (earbudAdapter is AppleAirPodsAdapter && !earbudAdapter.matches(identity)) return false
             observedDevices[key] = ObservedDevice(device, identity)
+            requestAppleDecisionLocked(key, identity)
+            val apple = PlatformReservedHeadsetPolicy.isAppleCandidate(identity) || earbudAdapter is AppleAirPodsAdapter
+            if (PlatformReservedHeadsetPolicy.reserves(identity, appleNativeDecisions[key] == false) ||
+                (apple && (physicalConnections[key] == null || appleNativeDecisions[key] != false))) return false
             if (earbudAdapter.id in disabledAdapterIds) return false
             earbudAdapter.configureDisabledAdapterIds(disabledAdapterIds)
             sessions[key]?.let(Registration::Existing) ?: run {
@@ -213,15 +291,33 @@ internal class EarbudConnectionManager(
         }
     }
 
+    private fun retireAddressOnlyAppleClaimLocked(key: String, identity: EarbudIdentity) {
+        if (PlatformReservedHeadsetPolicy.isAppleCandidate(identity) && systemOwnedAddresses.remove(key)) {
+            presentationAdmissions[key] = if (appleNativeDecisions[key] == true) NativeAdmission.SYSTEM else NativeAdmission.UNKNOWN
+        }
+    }
+
     /** Records a connected device when its currently eligible adapter set is empty. */
     @SuppressLint("MissingPermission")
     fun observeDevice(device: BluetoothDevice, identity: EarbudIdentity): Boolean {
         val address = runCatching { device.address }.getOrNull() ?: return false
         val key = normalizeAddress(address)
         val adapter = synchronized(lifecycleLock) {
-            if (closed || modulePaused || key in systemOwnedAddresses) return false
+            if (closed) return false
+            retireAddressOnlyAppleClaimLocked(key, identity)
+            if (key in systemOwnedAddresses) return false
+            if (modulePaused && !PlatformReservedHeadsetPolicy.isAppleCandidate(identity)) return false
             observedDevices[key] = ObservedDevice(device, identity)
-            EarbudAdapterRegistry.forIntegration(identity, disabledAdapterIds)
+            requestAppleDecisionLocked(key, identity)
+            if (PlatformReservedHeadsetPolicy.isAppleCandidate(identity) &&
+                identity.serviceUuids.none { uuid -> AppleAirPodsAdapter.AAP_SERVICE_UUIDS.any { it.equals(uuid, true) } } &&
+                key in physicalConnections && key !in appleSdpRequested) {
+                // One event-scoped SDP read per physical connection; its broadcast re-enters this gate.
+                runCatching { device.fetchUuidsWithSdp() }
+                    .onSuccess { if (it) appleSdpRequested.add(key) }
+            }
+            if (modulePaused) return false
+            EarbudAdapterRegistry.forIntegration(identity, disabledAdapterIds, appleNativeDecisions[key] == false)
         } ?: return false
         return registerDevice(device, identity, adapter)
     }
@@ -233,6 +329,18 @@ internal class EarbudConnectionManager(
             runCatching { device.address }.getOrNull() ?: return false
         }
         val removals = synchronized(lifecycleLock) {
+            val keys = if (address == null) physicalConnections.keys.toList() else listOf(normalizeAddress(address))
+            keys.forEach { key ->
+                appleRequestedConnections[key]?.let { request ->
+                    runCatching { BroadcastIdentity.send(appContext,
+                        AppleNativeAdmissionContract.request(request, cancel = true)) }
+                        .onFailure { ModuleLog.warn(COMPONENT, "native admission cancellation failed", it) }
+                }
+                appleNativeDecisions.remove(key)
+                appleDecisionRevisions.remove(key)
+                appleSdpRequested.remove(key)
+                appleRequestedConnections.remove(key)
+            }
             if (address == null) {
                 observedDevices.clear()
             } else {
@@ -262,6 +370,9 @@ internal class EarbudConnectionManager(
         val key = normalizeAddress(address)
         val result = synchronized(lifecycleLock) {
             if (closed) return false
+            // Address-only MiLink claims cannot decide Apple's connection-scoped transport owner.
+            // The actual native connection observer supplies the authenticated epoch-bound decision.
+            if (observedDevices[key]?.identity?.let(PlatformReservedHeadsetPolicy::isAppleCandidate) == true) return false
             val newlyClaimed = systemOwnedAddresses.add(key)
             presentationAdmissions[key] = NativeAdmission.SYSTEM
             observedDevices.remove(key)
@@ -330,6 +441,7 @@ internal class EarbudConnectionManager(
                 val replacement = EarbudAdapterRegistry.forIntegration(
                     identity = observed.identity,
                     disabledAdapterIds = normalized,
+                    appleNativeDeclined = appleNativeDecisions[key] == false,
                 )
                 if (replacement?.id == record?.session?.adapter?.id) {
                     null
@@ -364,6 +476,10 @@ internal class EarbudConnectionManager(
             if (paused) removeLocked(address = null) else emptyList()
         }
         finishRemovals(removals)
+        if (!paused) {
+            val observed = synchronized(lifecycleLock) { observedDevices.values.toList() }
+            observed.forEach { observeDevice(it.device, it.identity) }
+        }
     }
 
     fun execute(

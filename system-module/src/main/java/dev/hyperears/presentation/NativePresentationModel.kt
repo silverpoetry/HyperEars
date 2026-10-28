@@ -19,6 +19,8 @@ data class NativePresentationMetadata(
     val connection: HeadsetConnection,
     val admission: NativeAdmission = NativeAdmission.UNKNOWN,
     val replay: Boolean = false,
+    /** This connection's transport owner was decided by the native Apple connection gate. */
+    val connectionScopedOwnership: Boolean = false,
 )
 
 /** A read-only projection. Aggregate values copied into MiLink slots are not component telemetry. */

@@ -232,3 +232,18 @@ does not treat every source command as universally supported. All items below re
   lint and unsigned Release assembly passed. Both integration and native-card slices passed
   independent spec and quality review. All 56 Markdown files and doc consistency checks passed.
   These checks do not validate live Apple activation, physical controls or actual MiLink rendering.
+- Apple native-admission milestone: actual scoped Xiaomi connection decisions now gate the
+  Apple private transport. Strong headset/AAP evidence, healthy native decline, current producer,
+  physical connection and nonce are required. Native support or unknown evidence preserves the
+  system path. MiLink presentation ownership now follows the same physical scope independently
+  of transport permission, including Standard fallback and stale-result rejection.
+- Milestone verification: 650 tests passed (186 protocol, 305 integration, 159 system-module),
+  with zero failures/errors/skips. Protocol-test debug assembly, system Release lint and unsigned
+  Release assembly passed. Independent spec and quality reviews approved the final fixes.
+  Markdown lint and documentation validation passed 57 files. Installed Xiaomi Bluetooth APK
+  hash and actual DEX discovery prerequisites were checked read-only on nezha; no runtime hook,
+  rendered native card, physical control or device acceptance is claimed.
+- B4/C1 remain open: pre-observer/native-decision timing and media-only unknown admission,
+  strict device identity/capability discovery, advanced Apple controls and physical acceptance
+  remain. Next protocol work follows [AndPods identity evidence](../../research/source-audits/apple-device-identity-followup.md).
+  Other brands, complete native Settings integration and release/PR acceptance remain queued.

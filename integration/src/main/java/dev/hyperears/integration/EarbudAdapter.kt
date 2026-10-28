@@ -614,6 +614,7 @@ object EarbudAdapterRegistry {
     private val flos2Group = GroupMetadata("flos2", "Dreame / TheAstro")
     private val technicsGroup = GroupMetadata("technics", "Technics")
     private val samsungGroup = GroupMetadata("samsung", "Samsung Galaxy Buds")
+    private val appleGroup = GroupMetadata("apple", "Apple AirPods")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
 
     private val initialRegistrations: List<Registration> = buildList {
@@ -664,8 +665,9 @@ object EarbudAdapterRegistry {
         dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.entries.forEach { model ->
             add(Registration(samsungGroup) { SamsungBuds2ProAdapter(model) })
         }
-        // Apple devices are handled by the platform; keep AAP code available for explicit use,
-        // but do not add Apple adapters to HyperEars' default matching chain.
+        add(Registration(appleGroup, ::AppleAirPodsProAdapter))
+        add(Registration(appleGroup, ::AppleAirPodsMaxAdapter))
+        add(Registration(appleGroup, ::AppleAirPodsAdapter))
         addAll(SonyAdapterRegistry.factories.map { Registration(sonyGroup, it) })
         add(Registration(standardGroup, ::StandardEarbudAdapter))
     }
@@ -715,8 +717,9 @@ object EarbudAdapterRegistry {
     fun resolve(
         identity: EarbudIdentity,
         disabledAdapterIds: Set<String> = emptySet(),
+        appleNativeDeclined: Boolean = false,
     ): EarbudAdapter? {
-        if (PlatformReservedHeadsetPolicy.reserves(identity)) return null
+        if (PlatformReservedHeadsetPolicy.reserves(identity, appleNativeDeclined)) return null
         return initialRegistrations.asSequence()
             .filterNot { it.descriptor.id in disabledAdapterIds }
             .map { it.factory() }
@@ -726,7 +729,8 @@ object EarbudAdapterRegistry {
     fun forIntegration(
         identity: EarbudIdentity,
         disabledAdapterIds: Set<String> = emptySet(),
-    ): EarbudAdapter? = resolve(identity, disabledAdapterIds)
+        appleNativeDeclined: Boolean = false,
+    ): EarbudAdapter? = resolve(identity, disabledAdapterIds, appleNativeDeclined)
         ?.takeIf(EarbudAdapter::integrationEnabled)
 
     private fun requireUniqueIds(registrations: List<Registration>) {

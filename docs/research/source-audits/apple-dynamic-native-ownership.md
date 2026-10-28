@@ -108,3 +108,36 @@ permanent polling and persistent support tables remain unnecessary.
 This is static design evidence, not implemented or device-verified behavior. The earlier public
 provider query remains useful positive evidence, but the mandatory product-type negative-query
 bridge is superseded as the primary bootstrap plan by actual connection-scoped native admission.
+
+## Direct DEX verification during implementation
+
+The parent verified the extracted `nezha-BluetoothExtension.apk` directly with androguard in an
+isolated local environment. APK SHA-256:
+`b61f58508256528f7dfbb2166c2e8c352fb343a433a051bc1ab75b039eee3544`.
+Scanning every DEX for nonstatic `void(BluetoothDevice)`, the five native connection strings and
+exactly one call to the stable `AirLocalStorage.isFeatureSupport` signature yielded one candidate.
+The observed obfuscated names are audit evidence only; production discovery must not hardcode them.
+
+In `classes.dex`, the candidate calls the feature gate at byte offset 52; its false branch ends at
+120 after the not-target message, while the true branch calls the transport scheduler at 84.
+The outer exception handler prints and returns at 130. The feature method's own exception handler
+returns false at 298, confirming a return that JADX omitted from its Java output. Consequently,
+normal outer return and arbitrary false alone remain insufficient: scoped gate execution and
+read-health evidence are required by the implementation.
+
+Raw instruction and unique-match records plus reproducible scripts are retained under the ignored
+`.analysis/verification/native-dex/` directory in the original checkout. The DEX inspection did not install a module or restart a phone process; live hook installation
+remains a separate acceptance step.
+
+A subsequent read-only ADB refresh re-enumerated the target and confirmed `nezha`, model
+`25128PNA1C`, build `OS4.0.5.0.XPACNXM`. The currently installed `com.xiaomi.bluetooth` APK hash
+matches the audited DEX hash above exactly. A Bluetooth dump contains the published AAP service
+UUID, but that aggregate dump observation is not a per-model or active-headset validation. Raw
+names, addresses, logs and identity keys were not added to the report. No installation, settings
+change, connection command or restart was performed.
+
+The direct DEX check also confirms one outer BluetoothHeadset field, one inner Handler with one
+outer-owner field and one handleMessage(Message) method, retained MemberClasses/InnerClass/
+EnclosingClass annotations, and the exact cloud-state field plus built-in feature method consumed
+by the health observer. This validates discovery prerequisites in the installed binary; it still
+does not execute Android reflection or LSPosed interception on the phone.

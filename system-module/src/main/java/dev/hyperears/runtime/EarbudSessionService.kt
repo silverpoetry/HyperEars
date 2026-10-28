@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import dev.hyperears.bridge.AppleNativeAdmissionContract
 import dev.hyperears.bridge.ModuleContract
 import dev.hyperears.bridge.StateBroadcaster
 import dev.hyperears.bridge.BroadcastIdentity
@@ -86,6 +87,19 @@ internal object EarbudSessionService {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (context == null || intent == null) return
                 when (intent.action) {
+                    AppleNativeAdmissionContract.READY, AppleNativeAdmissionContract.DECISION -> {
+                        if (!BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
+                                ModuleContract.NATIVE_HEADSET_PACKAGE)) return
+                        if (intent.action == AppleNativeAdmissionContract.READY) connectionManager.requestAppleNativeDecisions()
+                        else {
+                            val decision = AppleNativeAdmissionContract.readDecision(intent) ?: return
+                            connectionManager.acceptAppleNativeDecision(decision.request, decision.accepted, decision.revision)
+                        }
+                    }
+                    BluetoothDevice.ACTION_UUID -> {
+                        val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+                        connectionManager.refreshIdentity(device)
+                    }
                     BluetoothSystemBattery.ACTION_LEVEL_CHANGED -> {
                         val device = BluetoothSystemBattery.device(intent) ?: return
                         connectionManager.updateSystemBattery(
@@ -210,6 +224,9 @@ internal object EarbudSessionService {
 
         init {
             val filter = IntentFilter().apply {
+                addAction(AppleNativeAdmissionContract.READY)
+                addAction(AppleNativeAdmissionContract.DECISION)
+                addAction(BluetoothDevice.ACTION_UUID)
                 addAction(ModuleContract.ACTION_REQUEST_STATE)
                 addAction(ModuleContract.ACTION_CONTROL)
                 addAction(ModuleContract.ACTION_CONTROL_APP_REGISTER)

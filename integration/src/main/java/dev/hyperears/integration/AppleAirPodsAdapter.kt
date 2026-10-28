@@ -21,7 +21,9 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
     )
 
     override fun matches(identity: EarbudIdentity): Boolean =
-        !identity.nativeSystemEarbud && identity.serviceUuids.any(AAP_SERVICE_UUIDS::contains)
+        identity.standardHeadset && !identity.nativeSystemEarbud && identity.serviceUuids.any { uuid ->
+            AAP_SERVICE_UUIDS.any { it.equals(uuid, ignoreCase = true) }
+        }
 
     override fun createProtocolSession(): ProtocolSession = AppleAapProtocolSession()
 
