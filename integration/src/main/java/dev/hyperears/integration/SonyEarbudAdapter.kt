@@ -79,13 +79,14 @@ open class SonyProtocolFamilyAdapter internal constructor(
                 runtimeState().features.get<SonyAmbientFeatureState>()?.level in 1..20 ||
                 runtimeState().features.get<SonyAssignableFeatureState>()?.hasSettings == true ||
                 runtimeState().features.get<SonyVoiceGuidanceFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<SonyVirtualSoundFeatureState>()?.hasSettings == true ||
                 runtimeState().features.get<SonyAudioSettingsFeatureState>()?.hasSettings == true ||
                 runtimeState().features.get<SonyMultipointFeatureState>()?.hasSettings == true ->
                 if (effectiveCapabilities().noiseControl) SonyMiLinkPresentationIds.ADVANCED else SonyMiLinkPresentationIds.SETTINGS
             else -> configuration.miLinkPresentationId.takeIf { effectiveCapabilities().noiseControl }
         }
     override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
-        state is SonyVoiceGuidanceFeatureState || state is SonyAssignableFeatureState || state is SonyEqFeatureState || state is SonyAmbientFeatureState || state is SonyAudioSettingsFeatureState || state is SonyMultipointFeatureState
+        state is SonyVirtualSoundFeatureState || state is SonyVoiceGuidanceFeatureState || state is SonyAssignableFeatureState || state is SonyEqFeatureState || state is SonyAmbientFeatureState || state is SonyAudioSettingsFeatureState || state is SonyMultipointFeatureState
     }
     override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
         when (request) {
@@ -93,18 +94,27 @@ open class SonyProtocolFamilyAdapter internal constructor(
             is SonyControlRequest -> adapter.runtimeState().features.get<SonyEqFeatureState>()?.supports(request) == true ||
                 adapter.runtimeState().features.get<SonyAssignableFeatureState>()?.supports(request) == true ||
                 adapter.runtimeState().features.get<SonyVoiceGuidanceFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyVirtualSoundFeatureState>()?.supports(request) == true ||
                 adapter.runtimeState().features.get<SonyAudioSettingsFeatureState>()?.supports(request) == true ||
                 adapter.runtimeState().features.get<SonyMultipointFeatureState>()?.supports(request) == true
             else -> false
         }
     }
     override fun onProtocolReset() {
+        removeFeatureState(SonyVirtualSoundFeatureState.FEATURE_ID)
         removeFeatureState(SonyVoiceGuidanceFeatureState.FEATURE_ID)
         removeFeatureState(SonyEqFeatureState.FEATURE_ID)
         removeFeatureState(SonyAmbientFeatureState.FEATURE_ID)
         removeFeatureState(SonyAssignableFeatureState.FEATURE_ID)
         removeFeatureState(SonyAudioSettingsFeatureState.FEATURE_ID)
         removeFeatureState(SonyMultipointFeatureState.FEATURE_ID)
+    }
+    override fun onControlWritten(request:ControlRequest,scope:AdapterEventScope) {
+        if(request is SonyControlRequest.SetVirtualSound) {
+            val session=protocolSession as? SonyHeadphonesProtocolSession?:return
+            session.virtualWritten(request)
+            session.virtualState()?.let{adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(it)))}
+        }
     }
     final override val privateProtocolRequired: Boolean = true
     final override val transportReadiness: TransportReadiness =
@@ -309,6 +319,9 @@ private class SonyHeadphonesProtocolSession(
     private var battery = EarbudBattery()
     private var daily: SonyDailyControlsSession? = null
     private var voice: SonyVoiceGuidanceSession? = null
+    private var virtual: SonyVirtualSoundSession? = null
+    fun virtualState()=virtual?.state
+    fun virtualWritten(request:SonyControlRequest.SetVirtualSound) {virtual?.written(request)}
 
     @Synchronized
     override fun initialReadCommands(): List<ByteArray> {
@@ -324,8 +337,13 @@ private class SonyHeadphonesProtocolSession(
         // behind the current ACK transaction to execute later without caller acceptance.
         if (request !== StandardControlRequest.Refresh && (awaitingAck || pendingRequests.isNotEmpty())) return emptyList()
         when {
-            request === StandardControlRequest.Refresh -> { enqueueStateReads(); daily?.reads()?.forEach(::enqueueDaily); voice?.reads()?.forEach(::enqueueVoice) }
+            request === StandardControlRequest.Refresh -> { enqueueStateReads(); daily?.reads()?.forEach(::enqueueDaily); voice?.reads()?.forEach(::enqueueVoice); virtual?.reads()?.forEach(::enqueueDaily) }
             request is StandardControlRequest.SetNoiseMode -> enqueueNoiseWrite(request.mode)
+            request is SonyControlRequest.SetVirtualSound -> {
+                val commands=virtual?.encode(request).orEmpty()
+                if(commands.isEmpty())return emptyList()
+                commands.forEach(::enqueueDaily)
+            }
             request is SonyControlRequest.SetVoiceGuidance -> {
                 val commands=voice?.encode(request).orEmpty()
                 if(commands.isEmpty())return emptyList()
@@ -385,6 +403,7 @@ private class SonyHeadphonesProtocolSession(
             }
             daily = SonyDailyControlsSession(version == Version.V2)
             voice = SonyVoiceGuidanceSession(version == Version.V2)
+            virtual = SonyVirtualSoundSession(version == Version.V2)
             enqueueStateReads()
             enqueueDaily(byteArrayOf(0x06, 0x00))
             scheduleNextRequest()
@@ -405,13 +424,16 @@ private class SonyHeadphonesProtocolSession(
         }
 
         val activeVersion = version ?: return emptyList()
+        val virtualUpdate=virtual?.accept(payload)
+        virtualUpdate?.queries?.forEach(::enqueueDaily)
+        if(virtualUpdate?.queries?.isNotEmpty()==true)scheduleNextRequest()
         val voiceChanged=voice?.functions(payload)==true
         if(voiceChanged) { voice?.reads()?.forEach(::enqueueVoice); scheduleNextRequest() }
         val voiceEvents=if(voiceChanged)listOfNotNull(voice?.state?.let{ProtocolEvent.FeatureStateChanged(it)})else emptyList()
         val dailyUpdate = daily?.accept(payload)
         dailyUpdate?.queries?.forEach(::enqueueDaily)
         if (dailyUpdate?.queries?.isNotEmpty() == true) scheduleNextRequest()
-        val dailyEvents = dailyUpdate?.states.orEmpty().map { ProtocolEvent.FeatureStateChanged(it) } + voiceEvents
+        val dailyEvents = dailyUpdate?.states.orEmpty().map { ProtocolEvent.FeatureStateChanged(it) } + voiceEvents + virtualUpdate?.states.orEmpty().map{ProtocolEvent.FeatureStateChanged(it)}
         parseBattery(activeVersion, payload)?.let { updated ->
             battery = updated
             return listOf(
@@ -428,7 +450,7 @@ private class SonyHeadphonesProtocolSession(
                 ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode)),
             ) + dailyEvents
         }
-        if (dailyUpdate != null || voiceChanged) return dailyEvents
+        if (dailyUpdate != null || voiceChanged || virtualUpdate!=null) return dailyEvents
         return listOf(
             ProtocolEvent.UnknownFrame(
                 version = if (activeVersion == Version.V1) 1 else 2,
@@ -711,6 +733,7 @@ private class SonyHeadphonesProtocolSession(
         battery = EarbudBattery()
         daily = null
         voice = null
+        virtual = null
     }
 
     private companion object {

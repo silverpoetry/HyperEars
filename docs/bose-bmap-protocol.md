@@ -204,14 +204,17 @@ Ultra Open 等仅有设置证据的设备使用设置载体，不凭 EQ 开放�
 ### Sidetone and automatic call answering
 
 Pinned bosectl `70570b29` `python/pybmap/devices/parsers.py:177–182,232–235`
-and `constants.py:49–50` define sidetone at block/function `1/11`: a two-byte
+and `constants.py:49–50` define sidetone at block/function `1/11`: a two- or three-byte
 STATUS reports the level in byte 1, and SET_GET sends `[1, level]`. Levels are
 0 off, 1 high, 2 medium, 3 low. Executable profiles `qc35.py`, `qc45.py`,
 `qc_earbuds.py`, and `qc_ultra2.py` qualify IDs `4020`, `4039`, `402F`, `4082`.
-This does not extend to QC35 I `400C`, Ultra 2 earbuds `4062`, or similarly named models.
+The executable `qc_ultra2_earbuds.py` profile explicitly imports that same FEATURES
+map and assigns product `4062`, so those earbuds also qualify for the two call controls.
+This does not extend to QC35 I `400C`, Ultra Open `4068`, prince `4075`, or similarly named models.
 
-Automatic call answering uses `1/27` with one boolean byte, only for `4082`
-(QC Ultra 2 headphones); QC45 explicitly documents no support. Both controls
+Automatic call answering uses `1/27` with one boolean byte for `4082`
+(QC Ultra 2 headphones) and the explicitly inherited `4062` profile; QC45 explicitly
+documents no support. Both controls
 require a valid STATUS from the qualified product, issue one SET_GET followed
 by the corresponding GET, and retain reported selection until readback.
 Wrong operators, wrong payload sizes and out-of-domain values grant no controls.
@@ -224,8 +227,9 @@ No phone or physical-device verification was performed for this addition.
 The next daily slice uses bosectl `70570b2` (MIT), `devices/parsers.py:92–160`,
 `constants.py:62–85`, and `connection.py:321,535–552`. Explicit device modules
 qc35/qc45/qc_earbuds/qc_ultra2 declare both GET and SET_GET builders at1/9.
-Only product IDs4020/4039/402F/4082 qualify; original QC35I400C, prince4075,
-Ultra earbuds and other Bose identities do not inherit these controls.
+Product IDs4020/4039/402F/4082 qualify directly;4062 qualifies through the explicit
+`qc_ultra2_earbuds.py` FEATURES copy. Original QC35I400C, prince4075, Ultra Open4068
+and other Bose identities do not inherit these controls.
 
 A STATUS payload contains button ID, event, current action, then zero to four mask
 bytes. Mask bit N advertises action N; bit0 is not a writable advertised action.
@@ -251,7 +255,7 @@ firmware behavior. Source-based tests are not physical-device validation.
 
 ## QC Ultra 2 live spatial/wind settings
 
-Only product4082's `qc_ultra2.py:126–130` declares executable audio_settings
+Product4082's `qc_ultra2.py:126–130` declares executable audio_settings
 read/write support. Bosectl `70570b2` (MIT), `parsers.py:398–420` defines the five-byte
 AudioModes31/10 structure: CNC level0..10, automatic CNC boolean, spatial0/1/2,
 wind boolean, and ANC-toggle boolean. `connection.py:442–464` implements the live
@@ -259,7 +263,7 @@ spatial operation with GET then SET_GET. Spatial0 means off,1 fixed room stage,
 2 head tracking. This is separate from editing or creating a ModeConfig slot.
 
 The independent implementation requires exactly five valid STATUS bytes after
-accepted4082 identity. Typed spatial/wind requests pin product and the complete raw
+accepted4082 or4062 identity. Typed spatial/wind requests pin product and the complete raw
 snapshot. Writes replace only byte2 or3; CNC, automatic-CNC and ANC-toggle bytes are
 preserved. In particular, the upstream convenience helper omits automatic-CNC when
 rebuilding the payload; this port preserves its reported value instead. Both writes
@@ -267,8 +271,8 @@ query31/10 again and do not publish intent as state. A session guard rejects ano
 whole-body edit before a valid31/10 STATUS or reset, avoiding replay of stale sibling
 fields after a local write. Native Settings and details include an explicit refresh action after a missing reply;
 it uses Standard Refresh and queries31/10 to restore writable evidence; no retry loop or timer is added.
-Other products, including similarly
-named Ultra earbuds, do not acquire this control. Snapshot changes and reset reject
+Other products, including other similarly named Ultra earbud generations, do not
+acquire this control;4062 is admitted by the explicit source profile, not its name. Snapshot changes and reset reject
 old requests; the feature does not itself advertise a noise-mode capability.
 
 ## Device-reported name and rename
@@ -297,3 +301,58 @@ Protocol, adapter and native UI fixtures cover independent golden bytes, preserv
 unmodified fields, stale full snapshots, exact product exclusion, UTF-8 boundaries,
 readback-only display and lifecycle cleanup. Physical-device revalidation remains
 separate from source and unit verification.
+
+## Captured daily STATUS shapes and completion ledger
+
+This compatibility correction uses the same pinned MIT bosectl commit
+`70570b29c1d3c9ba775b08a29eaea72385de27b5`, not new family-name inference.
+`captures/20260404-173135_noise-control-off-and-on.json` identifies product `408201`
+and records register payloads `1.11=01020f` and `1.3=41000081020000`.
+`python/tests/test_device_parsers.py:214–217` calls the former a capture; its following
+voice-prompts fixture uses the latter. Full BMAP headers in HyperEars tests are
+reconstructed from the existing grammar; only these register payloads are captured.
+
+- Sidetone, automatic answering and their native editors were already implemented in
+  `BoseDailySettings`, `BoseDailySettingsSession`, `BoseDailySettingsDetails` and the
+  Bose branch of `SettingsVendorRows`. This slice fixes actual report acceptance and
+  the explicitly inherited earbuds profile, rather than introducing duplicate controls.
+- `parseSidetone` now accepts exactly2/3-byte STATUS. Byte1 remains level0/1/2/3
+  (off/high/medium/low). The optional third byte is opaque; no capability-mask meaning
+  is invented and it is not echoed by the established SET_GET `[1,level]` writer.
+- `parsePrompts` now accepts exactly1/7-byte STATUS. Only byte0 has established
+  semantics. The trailing six bytes are opaque. Source `connection.py:set_prompts`
+  uses `parsers.py:build_voice_prompts`, which deliberately writes one byte only;
+  HyperEars preserves the latest first-byte language and high opaque bits while
+  changing bit5. It does not send the six report-only bytes back as settings.
+- `qc_ultra2_earbuds.py:7–32` imports `qc_ultra2.FEATURES` and assigns4062, providing
+  explicit source query/parser/builder evidence for sidetone and automatic answering.
+  Query eligibility is not write permission: each field still needs its own valid
+  STATUS; writes keep reported selection until the existing GET/readback confirms.
+- `400C`, `4068` and `4075` remain excluded from these call controls. The prince
+  executable profile omits them and its source notes describe conflicting sidetone
+  observations. No similarly named product is inferred from this explicit4062 profile.
+
+Literal payload, split/coalesced stream, operator/length/value rejection, qualified
+GET/SET_GET/readback, no-optimism, reset and real4062 native-details tests accompany
+these changes. No phone or physical-device verification was performed.
+
+### Remaining4062 inherited daily controls resolved
+
+The same `qc_ultra2_earbuds.py` FEATURES copy includes buttons1/9 and live audio31/10,
+not just the two call controls. `qc_ultra2.py:69–73,126–130` supplies the corresponding
+query/parser/builder; `connection.py:448–464,535–552` supplies complete writes.
+No source override removes those entries.4062 therefore now queries both registers.
+Existing mask-qualified button requests and full-snapshot spatial/wind requests are
+reused, with product membership explicitly4082/4062 for live audio.
+
+Five-byte live audio STATUS remains `[CNC,autoCnc,spatial,wind,ancToggle]`, with known
+ranges0–10/0–1/0–2/0–1/0–1. Spatial/wind writes preserve all sibling bytes and reject
+concurrent whole-block edits until a new STATUS. Button edits require actual advertised
+known action bits and pin product/button/event/current/mask. Neither product identity nor
+source inheritance alone publishes controls. Native Settings and existing details show
+these options through their already registered typed feature rows.
+
+Additional4062 test payloads are literal synthetic contract fixtures based on this
+executable source layout, not newly claimed device captures. Tests cover queries before
+reports, coalesced identity/status, mask changes, wrong product/raw snapshots, byte
+preservation, GET readback, no optimism, reset and real native preference/detail editors.

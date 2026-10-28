@@ -25,6 +25,41 @@ class BoseDailySettingsDetailsTest {
         systemProfile = SystemProfileState.CONNECTED, privateTransport = PrivateTransportState.CONNECTED,
         protocolHandshake = ProtocolHandshakeState.CONFIRMED,
     )).withFeature(BoseDailySettingsFeatureState(multipoint = false))
+    @Test fun actual4062ReportsExposeExistingNativeCallControlsAndWaitForReadback() {
+        val family=BoseEarbudAdapter()
+        val result=family.receive(byteArrayOf(0,3,3,3,0x40,0x62,0))
+        val adapter=(result.handshake as HandshakeResult.Replace).adapter
+        adapter.receive(byteArrayOf(1,11,3,3,1,2,15,1,27,3,1,0))
+        val f=Fixture()
+        f.current=state().copy(adapter=adapter.snapshot(),features=adapter.runtimeState().features)
+        val details=f.open()
+        val high=views(details).single{it.contentDescription=="通话侧音 高"}
+        high.performClick();assertEquals(BoseDailyControlRequest.SetSidetone(1),f.sent.single())
+        assertEquals(2,f.current.features.get<BoseDailySettingsFeatureState>()!!.sidetone)
+        val answer=views(details).filterIsInstance<CompoundButton>().single{it.isEnabled}
+        answer.isChecked=true;assertEquals(BoseDailyControlRequest.SetAutoAnswer(true),f.sent.last())
+        assertFalse(answer.isChecked)
+        adapter.receive(byteArrayOf(1,27,3,1,1))
+        f.current=f.current.copy(features=adapter.runtimeState().features);f.observer!!(f.current)
+        assertTrue(answer.isChecked)
+        f.token="replacement";high.performClick();assertEquals(2,f.sent.size);assertEquals(1,f.released)
+        details.dismiss()
+    }
+    @Test fun actual4062ButtonReportUsesExistingNativeMaskEditorWithoutOptimism() {
+        val adapter=(BoseEarbudAdapter().receive(byteArrayOf(0,3,3,3,0x40,0x62,0)).handshake as HandshakeResult.Replace).adapter
+        adapter.receive(byteArrayOf(1,9,3,7,16,4,1,6,0,0,0))
+        val f=Fixture();f.current=state().copy(adapter=adapter.snapshot(),features=adapter.runtimeState().features)
+        val button=f.current.features.get<BoseDailySettingsFeatureState>()!!.buttons.single()
+        val details=f.open()
+        val choice=views(details).single{it.contentDescription=="bose.button.16.4.2"}
+        choice.performClick();assertEquals(BoseDailyControlRequest.SetButton(button,2),f.sent.single())
+        assertEquals(1,f.current.features.get<BoseDailySettingsFeatureState>()!!.buttons.single().current)
+        adapter.receive(byteArrayOf(1,9,3,7,16,4,1,2,0,0,0))
+        f.current=f.current.copy(features=adapter.runtimeState().features)
+        choice.performClick();assertEquals(1,f.sent.size)
+        f.token="replacement";choice.performClick();assertEquals(1,f.sent.size);assertEquals(1,f.released)
+        details.dismiss()
+    }
     @Test fun callSettingsWriteOnceWaitForReportAndRejectRemovedField() {
         val f = Fixture()
         f.current = f.current.withFeature(BoseDailySettingsFeatureState(sidetone = 3, autoAnswer = false))

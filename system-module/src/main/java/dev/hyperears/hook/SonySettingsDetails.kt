@@ -143,6 +143,7 @@ internal class SonySettingsDetails private constructor(
             is SonyControlRequest.SetMultipoint -> multipoint?.let { it.definition == request.expected && it.enabled == request.enabled && it.alert == null && it.pendingTransaction == null } == true
             is SonyControlRequest.ReplyMultipointAlert -> multipoint?.let { it.definition == request.expected && it.alert == null &&
                 it.enabled == (if (request.confirm) request.expectedAlert.target else !request.expectedAlert.target) } == true
+            is SonyControlRequest.SetVirtualSound -> state.features.get<SonyVirtualSoundFeatureState>()?.let{it.definition==request.expected && !it.awaitingReadback && it.values[request.type]==request.value}==true
             is SonyControlRequest.SetVoiceGuidance -> state.features.get<SonyVoiceGuidanceFeatureState>()?.let {it.definition==request.expected && it.enabled==request.enabled} == true
             is SonyControlRequest.SetWearingPlayback -> audio?.let {it.wearingDefinition==request.expected && it.wearingPlayback==request.enabled} == true
             is SonyControlRequest.SetDsee -> audio?.let { it.dseeDefinition == request.expected && it.dsee == request.enabled } == true
@@ -238,6 +239,30 @@ internal class SonySettingsDetails private constructor(
             }
         }
     }
+    private fun addVirtualSound(parent:LinearLayout) {
+        val row=column();parent.addView(row)
+        renders += { current ->
+            row.removeAllViews()
+            val feature=current.features.get<SonyVirtualSoundFeatureState>()
+            val definition=feature?.definition
+            row.visibility=if(feature?.hasSettings==true)View.VISIBLE else View.GONE
+            if(feature?.hasSettings==true && definition!=null) {
+                definition.types.forEach {type ->
+                    row.addView(text(SonyVirtualSoundLabels.title(type),17f))
+                    SonyVirtualSoundLabels.choices(type).forEach {(value,label) ->
+                        row.addView(RadioButton(context).apply {
+                            text=label;setTextColor(color(true));contentDescription="sony.virtual.$type.$value"
+                            isChecked=feature.values[type]==value;isEnabled=!feature.awaitingReadback;isSaveEnabled=false
+                            setOnClickListener {withCurrent {send(SonyControlRequest.SetVirtualSound(definition,feature.values,type,value))}}
+                        })
+                    }
+                }
+                if(feature.awaitingReadback)row.addView(text("等待耳机回报 · 重新读取声场设置",16f).apply {
+                    setOnClickListener {withCurrent {environment.controlSender(address,StandardControlRequest.Refresh)}}
+                })
+            }
+        }
+    }
     private fun addVoiceGuidance(parent:LinearLayout) {
         val row=column();row.addView(text("耳机语音提示",17f))
         var displayed:SonyVoiceGuidanceFeatureState?=null
@@ -318,6 +343,7 @@ internal class SonySettingsDetails private constructor(
         body.addView(status)
         val controls = column()
         addAssignable(controls)
+        addVirtualSound(controls)
         addVoiceGuidance(controls)
         addAudioSettings(controls)
         addMultipoint(controls)

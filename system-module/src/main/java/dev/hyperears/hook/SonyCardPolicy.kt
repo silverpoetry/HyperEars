@@ -10,6 +10,7 @@ internal object SonyCardPolicy {
             state.features.get<SonyAmbientFeatureState>()?.level in 1..20 ||
             state.features.get<SonyAssignableFeatureState>()?.hasSettings == true ||
             state.features.get<SonyVoiceGuidanceFeatureState>()?.hasSettings == true ||
+            state.features.get<SonyVirtualSoundFeatureState>()?.hasSettings == true ||
             state.features.get<SonyAudioSettingsFeatureState>()?.hasSettings == true ||
             state.features.get<SonyMultipointFeatureState>()?.hasSettings == true)
     fun request(state: EarbudState, address: String, request: SonyControlRequest): SonyControlRequest? {
@@ -19,6 +20,7 @@ internal object SonyCardPolicy {
             else -> state.features.get<SonyEqFeatureState>()?.supports(request) == true ||
                 state.features.get<SonyAssignableFeatureState>()?.supports(request) == true ||
                 state.features.get<SonyVoiceGuidanceFeatureState>()?.supports(request) == true ||
+                state.features.get<SonyVirtualSoundFeatureState>()?.supports(request) == true ||
                 state.features.get<SonyAudioSettingsFeatureState>()?.supports(request) == true ||
                 state.features.get<SonyMultipointFeatureState>()?.supports(request) == true
         }

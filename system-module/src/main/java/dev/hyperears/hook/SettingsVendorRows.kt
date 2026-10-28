@@ -21,12 +21,22 @@ internal object SettingsVendorRows {
                 request(latest, value)?.let(send)
             } })
         }
-        HuaweiDailyChoices.rows(state).filter { it.choices.isNotEmpty() }.forEach { row ->
-            choice("huawei.${row.key}", row.label, row.choices.associate { it.value to it.label }, row.selected) { latest, value ->
+        HuaweiDailyChoices.rows(state).forEach { row ->
+            if (row.choices.isEmpty() && row.currentLabel == null) return@forEach
+            val preference = host.choice("hyperears.huawei.${row.key}", row.label,
+                row.choices.map { it.label }, row.choices.map { it.value.toString() }, row.selected.toString(),
+                row.choices.isNotEmpty() && state.sessionActive && state.privateChannelConnected &&
+                    state.handshakeAccepted && state.lifecycle.controlOwnership == ControlOwnership.MODULE) { value -> runCatching {
+                val latest = current() ?: return@runCatching
+                val number = value.toIntOrNull() ?: return@runCatching
                 val fresh = HuaweiDailyChoices.rows(latest).singleOrNull { it.key == row.key }
-                val request = fresh?.takeIf { it.choices == row.choices }?.choices?.singleOrNull { it.value == value }?.request
-                request?.let { HuaweiDailySettingsPolicy.request(latest, address, it) }
+                val request = fresh?.takeIf { it.choices == row.choices }?.choices?.singleOrNull { it.value == number }?.request
+                request?.let { HuaweiDailySettingsPolicy.request(latest, address, it) }?.let(send)
+            } }
+            if (row.currentLabel != null && (row.choices.isEmpty() || row.choices.none { it.value == row.selected })) {
+                host.summary(preference, "当前：${row.currentLabel}（耳机回报）")
             }
+            add(preference)
         }
         state.features.get<NiceHckSettingsFeatureState>()?.let { feature ->
             val labels = mapOf(NiceHckSetting.NOISE to "噪声模式", NiceHckSetting.EQ to "均衡器", NiceHckSetting.GAME to "游戏模式",

@@ -76,3 +76,13 @@ adds missing inline Settings rows, expected model/raw snapshot validation and
 read-only unknown current actions. KY01's source full action list is now explicit.
 RS Common seven-model and F8 Explorer/7034 mapping ports were completed separately;
 Agate/Agate X/Ceramics six-value-to-hold association remains an exact documented gap.
+
+### Current find coverage correction
+
+The baseline's twelve missing find rows are historical. Four of them (RSv2 BudsFeel MK2,
+i7, Ceramics U and Furina) now use their source-qualified RSv2 find implementation, with
+Bluetooth-owned bounded cleanup shared with the other 23 supported RSv2 profiles. Moka is
+excluded. The independent eight F8 / RS Common / ZT rows still require their own query,
+report and stop evidence; sharing a UI widget is insufficient to borrow RSv2 commands.
+This correction does not rewrite the dated JSON as if its old feature counts were current.
+See `RoseRsV2FindCleanupTest` and the RSv2 protocol document for the current ownership boundary.

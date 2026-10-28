@@ -37,9 +37,9 @@ data class BoseDailySettingsFeatureState(
     val hasSettings get() = !eq.isNullOrEmpty() || promptsRaw != null || multipoint != null ||
         autoPause != null || cnc != null || anr != null || sidetone != null || autoAnswer != null || buttons.isNotEmpty() || liveAudio!=null || deviceName!=null
     fun supports(request: BoseDailyControlRequest): Boolean = when (request) {
-        is BoseDailyControlRequest.SetSpatial -> liveAudio==request.expected && liveAudio?.productId==0x4082 &&
+        is BoseDailyControlRequest.SetSpatial -> liveAudio==request.expected && liveAudio?.productId in setOf(0x4082,0x4062) &&
             dev.hyperears.protocol.bose.BoseDailySettingsCodec.validAudioSettings(request.expected.raw) && request.mode in 0..2 && request.mode!=request.expected.raw[2]
-        is BoseDailyControlRequest.SetWind -> liveAudio==request.expected && liveAudio?.productId==0x4082 &&
+        is BoseDailyControlRequest.SetWind -> liveAudio==request.expected && liveAudio?.productId in setOf(0x4082,0x4062) &&
             dev.hyperears.protocol.bose.BoseDailySettingsCodec.validAudioSettings(request.expected.raw) && request.enabled!=(request.expected.raw[3]==1)
         is BoseDailyControlRequest.Rename -> deviceName==request.expected && request.expected.productId in setOf(0x4020,0x4039) &&
             request.name!=request.expected.name && dev.hyperears.protocol.bose.BoseDailySettingsCodec.encodeDeviceName(request.name)!=null
@@ -95,7 +95,8 @@ internal data class BoseDailyProfile(val eq: Boolean = false, val prompts: Boole
             0x4075 -> BoseDailyProfile(eq = true, prompts = true)
             0x402F -> BoseDailyProfile(buttons=true, eq = true, prompts = true, multipoint = true, cnc = true, sidetone = true)
             0x4082 -> BoseDailyProfile(liveAudio=true, buttons=true, eq = true, prompts = true, multipoint = true, autoPause = true, sidetone = true, autoAnswer = true)
-            0x4062 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true, autoPause = true)
+            // Pinned qc_ultra2_earbuds.py explicitly imports the headphone FEATURES map for4062.
+            0x4062 -> BoseDailyProfile(buttons = true, liveAudio = true, eq = true, prompts = true, multipoint = true, autoPause = true, sidetone = true, autoAnswer = true)
             0x4068 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true)
             else -> BoseDailyProfile()
         }

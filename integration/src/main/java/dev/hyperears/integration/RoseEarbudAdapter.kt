@@ -309,6 +309,20 @@ open class RoseBudsFeelProtocolFamilyAdapter(
     initialRuntimeState: AdapterRuntimeState = AdapterRuntimeState(),
     val sourceProfile: dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model? = null,
 ) : RoseEarbudAdapter(transferredSession, initialRuntimeState) {
+    private val findCleanup = OwnedProtocolCleanup("rose.rsv2.find") {
+        protocolSession.encode(RoseRsV2ControlRequest.Find(4))
+    }
+    override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
+        if (sourceProfile != null && request is RoseRsV2ControlRequest.Find) findCleanup.written(request.target != 4, scope)
+    }
+    override fun onFeatureReported(state: DeviceFeatureState, scope: AdapterEventScope): FeatureReportDecision {
+        if (state is RoseRsV2SettingsFeatureState && state.stopsReportedFind(runtimeState().features.get()))
+            findCleanup.reportedStopped(scope)
+        return super.onFeatureReported(state, scope)
+    }
+    override fun prepareProtocolRelease() = findCleanup.release()
+    override fun expireProtocolWorkflow(key: String, lease: Long) = findCleanup.expire(key, lease)
+
     override val id: String = ID
     override val displayName: String = "ROSE BudsFeel protocol family"
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
@@ -362,7 +376,7 @@ open class RoseBudsFeelProtocolFamilyAdapter(
     }
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
         if (request is RoseRfcommControlRequest || request is RoseRsV2ControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
-    override fun onProtocolReset() { removeFeatureState(RoseRfcommSettingsFeatureState.FEATURE_ID); removeFeatureState(RoseRsV2SettingsFeatureState.FEATURE_ID) }
+    override fun onProtocolReset() { findCleanup.reset(); removeFeatureState(RoseRfcommSettingsFeatureState.FEATURE_ID); removeFeatureState(RoseRsV2SettingsFeatureState.FEATURE_ID) }
     protected open val wireNoiseModes = RoseBudsFeelMk2WireCodec.NoiseMode.entries.toSet()
     override fun createProtocolSession(): ProtocolSession = sourceProfile?.let(::RoseRsV2Session) ?: RoseBudsFeelProtocolSession(wireNoiseModes, settingsProfile)
 

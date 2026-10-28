@@ -319,3 +319,20 @@ Both native surfaces capture the same snapshot and recheck current owner/session
 Independent literal frames include reordered pairs and unknown action200 so tests
 exercise raw-to-canonical ordering without using production slot constants.
 No additional hardware validation is claimed.
+
+## Bluetooth-owned find deadlines
+
+The 27 source profiles with `findSupported` now reuse Coral's bounded cleanup pattern;
+Moka remains excluded. This includes the four existing adapter IDs qualified by exact
+manufacturer data (BudsFeel MK2, i7, Ceramics U and Furina), not their name-only legacy paths.
+Only an actually written local Find start owns a thirty-second deadline. Expiry or graceful
+old-channel release encodes the existing `2F 04` stop once; explicit written stop cancels it.
+Reset clears ownership without writing, and stale deadline generations cannot stop a later lease.
+
+RSv2 combines find state with other settings. A cached stopped value accompanying an EQ/game
+report must not cancel a newly written start. Automatic cancellation therefore requires an
+observed transition from a ringing ear to both ears stopped. An unchanged stopped snapshot
+keeps the bounded deadline; no confirmed ringing state is rewritten optimistically.
+Tests iterate all qualified source profiles through their actual adapter routes, including the
+old IDs, and cover remote-only ringing, pre-write encoding, partial/cached state, replacement,
+stop, reset, expiry and release. No new find capability or packet dialect is inferred.

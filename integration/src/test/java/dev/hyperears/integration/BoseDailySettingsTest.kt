@@ -13,7 +13,7 @@ class BoseDailySettingsTest {
     private fun adapter(id: Int): EarbudAdapter = (BoseEarbudAdapter().receive(identity(id)).handshake as HandshakeResult.Replace).adapter
 
     @Test fun sidetoneAndAnswerAreModelAndReportQualified() {
-        for (id in listOf(0x4020, 0x4039, 0x402F, 0x4082)) {
+        for (id in listOf(0x4020, 0x4039, 0x402F, 0x4082, 0x4062)) {
             val device = adapter(id)
             val request = BoseDailyControlRequest.SetSidetone(2)
             assertFalse(device.executeControl(request).accepted)
@@ -24,17 +24,52 @@ class BoseDailySettingsTest {
             assertArrayEquals(byteArrayOf(1, 2), command.payload)
             assertEquals(request, ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
             device.receive(report(27, 0))
-            assertEquals(id == 0x4082, device.executeControl(BoseDailyControlRequest.SetAutoAnswer(true)).accepted)
+            assertEquals(id in setOf(0x4082,0x4062), device.executeControl(BoseDailyControlRequest.SetAutoAnswer(true)).accepted)
             val answer = BoseDailyControlRequest.SetAutoAnswer(true)
             assertEquals(answer, ControlRequestTransport.decode(ControlRequestTransport.encode(answer)))
             device.protocolSession.reset()
             assertTrue(device.protocolSession.encode(request).isEmpty())
         }
-        for (id in listOf(0x400C, 0x4062, 0x4075)) {
+        for (id in listOf(0x400C, 0x4068, 0x4075)) {
             val device = adapter(id); device.receive(report(11, 1, 2) + report(27, 1))
             assertFalse(device.executeControl(BoseDailyControlRequest.SetSidetone(1)).accepted)
             assertFalse(device.executeControl(BoseDailyControlRequest.SetAutoAnswer(false)).accepted)
         }
+    }
+    @Test fun explicitlyInheritedEarbudCallProfileQueriesThenRequiresEachActualReportAndReadback() {
+        val family=BoseEarbudAdapter()
+        val identified=family.receive(identity(0x4062))
+        val device=(identified.handshake as HandshakeResult.Replace).adapter
+        assertTrue(identified.commands.any{it.contentEquals(byteArrayOf(1,11,1,0))})
+        assertTrue(identified.commands.any{it.contentEquals(byteArrayOf(1,27,1,0))})
+        val side=BoseDailyControlRequest.SetSidetone(1)
+        val answer=BoseDailyControlRequest.SetAutoAnswer(true)
+        assertFalse(device.executeControl(side).accepted);assertFalse(device.executeControl(answer).accepted)
+        device.receive(byteArrayOf(1,11,3,3,1,2,15))
+        assertTrue(device.executeControl(side).accepted);assertFalse(device.executeControl(answer).accepted)
+        assertEquals(2,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.sidetone)
+        assertArrayEquals(byteArrayOf(1,11,1,0),device.executeControl(side).readback.single())
+        device.receive(byteArrayOf(1,27,3,1,0))
+        val accepted=device.executeControl(answer)
+        assertArrayEquals(byteArrayOf(1,27,2,1,1),accepted.commands.single())
+        assertArrayEquals(byteArrayOf(1,27,1,0),accepted.readback.single())
+        assertEquals(false,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.autoAnswer)
+        device.receive(byteArrayOf(1,27,2,1,1));assertEquals(false,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.autoAnswer)
+        device.receive(byteArrayOf(1,27,3,1,1));assertEquals(true,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.autoAnswer)
+        device.resetProtocolSession();assertFalse(device.executeControl(side).accepted);assertFalse(device.executeControl(answer).accepted)
+    }
+    @Test fun capturedLongPromptStateGrantsOnlyQualifiedProductAndWritesSingleByteWithoutOptimism() {
+        val payload=byteArrayOf(1,3,3,7,0x41,0,0,0x81.toByte(),2,0,0)
+        val device=adapter(0x4082);device.receive(payload)
+        val request=BoseDailyControlRequest.SetVoicePrompts(true)
+        val result=device.executeControl(request)
+        assertArrayEquals(byteArrayOf(1,3,2,1,0x61),result.commands.single())
+        assertArrayEquals(byteArrayOf(1,3,1,0),result.readback.single())
+        assertEquals(0x41,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.promptsRaw)
+        device.receive(payload.copyOf().apply{this[4]=0x61})
+        assertEquals(0x61,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.promptsRaw)
+        val unknown=BoseEarbudAdapter();unknown.receive(payload)
+        assertFalse(unknown.executeControl(request).accepted)
     }
     @Test fun coalescedIdentityAndEqRetainTheSameReportAsSeparateReceives() {
         val eq = report(7, -10, 10, 3, 0)
@@ -154,7 +189,7 @@ class BoseDailySettingsTest {
             device.receive(byteArrayOf(1,9,3,7,16,4,1,2,0,0,0));assertFalse(device.supportsControl(request))
             device.resetProtocolSession();assertFalse(device.supportsControl(request))
         }
-        for(id in listOf(0x400C,0x4075,0x4062,0x4068,0x4024)) {
+        for(id in listOf(0x400C,0x4075,0x4068,0x4024)) {
             val device=adapter(id);device.receive(raw)
             assertTrue(device.runtimeState().features.get<BoseDailySettingsFeatureState>()?.buttons.isNullOrEmpty())
         }
@@ -171,7 +206,47 @@ class BoseDailySettingsTest {
         assertTrue(session.encode(BoseDailyControlRequest.SetButton(expected,2)).isEmpty())
     }
 
-    @Test fun liveAudioIs4082OnlyAndWholeSnapshotPinnedWithoutOptimism() {
+    @Test fun inherited4062ButtonAndLiveAudioContractsRequireReportsAndPreserveWholeDefinitions() {
+        // Literal contract fixtures, not an alleged4062 hardware packet capture.
+        val buttons=byteArrayOf(1,9,3,7,16,4,1,6,0,0,0)
+        val audio=byteArrayOf(31,10,3,5,7,1,0,1,0)
+        val identified=BoseEarbudAdapter().receive(identity(0x4062))
+        val device=(identified.handshake as HandshakeResult.Replace).adapter
+        assertTrue(identified.commands.any{it.contentEquals(byteArrayOf(1,9,1,0))})
+        assertTrue(identified.commands.any{it.contentEquals(byteArrayOf(31,10,1,0))})
+        val expected=BoseLiveAudioSettings(0x4062,listOf(7,1,0,1,0))
+        assertFalse(device.executeControl(BoseDailyControlRequest.SetSpatial(expected,2)).accepted)
+        device.receive(buttons)
+        val button=device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.buttons.single()
+        assertEquals(0x4062,button.productId)
+        assertEquals(listOf(1,2),button.actions)
+        assertFalse(device.executeControl(BoseDailyControlRequest.SetButton(button,14)).accepted)
+        val buttonWrite=device.executeControl(BoseDailyControlRequest.SetButton(button,2))
+        assertArrayEquals(byteArrayOf(1,9,2,3,16,4,2),buttonWrite.commands.single())
+        assertArrayEquals(byteArrayOf(1,9,1,0),buttonWrite.readback.single())
+        assertEquals(1,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.buttons.single().current)
+        device.receive(byteArrayOf(1,9,3,7,16,4,1,2,0,0,0))
+        assertFalse(device.executeControl(BoseDailyControlRequest.SetButton(button,2)).accepted)
+        device.receive(audio)
+        val spatial=BoseDailyControlRequest.SetSpatial(expected,2)
+        assertFalse(device.executeControl(spatial.copy(expected=expected.copy(productId=0x4082))).accepted)
+        val write=device.executeControl(spatial)
+        assertArrayEquals(byteArrayOf(31,10,2,5,7,1,2,1,0),write.commands.single())
+        assertArrayEquals(byteArrayOf(31,10,1,0),write.readback.single())
+        assertEquals(expected,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.liveAudio)
+        assertFalse(device.executeControl(BoseDailyControlRequest.SetWind(expected,false)).accepted)
+        device.receive(byteArrayOf(31,10,3,5,7,1,2,1,0))
+        val fresh=expected.copy(raw=listOf(7,1,2,1,0))
+        assertArrayEquals(byteArrayOf(31,10,2,5,7,1,2,0,0),device.executeControl(BoseDailyControlRequest.SetWind(fresh,false)).commands.single())
+        device.receive(audio.copyOf().apply{this[4]=6})
+        assertFalse(device.executeControl(spatial).accepted)
+        val combined=(BoseEarbudAdapter().receive(identity(0x4062)+buttons+audio).handshake as HandshakeResult.Replace).adapter
+        assertEquals(expected,combined.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.liveAudio)
+        assertEquals(button,combined.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.buttons.single())
+        combined.resetProtocolSession()
+        assertFalse(combined.executeControl(spatial).accepted)
+    }
+    @Test fun liveAudioWholeSnapshotIsPinnedWithoutOptimism() {
         val raw=byteArrayOf(31,10,3,5,7,1,0,1,0)
         val device=adapter(0x4082);device.receive(raw)
         val expected=device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.liveAudio!!
@@ -190,7 +265,7 @@ class BoseDailySettingsTest {
         device.receive(byteArrayOf(31,10,3,5,6,1,0,1,0))
         assertFalse(device.supportsControl(request));assertFalse(device.supportsControl(wind))
         device.resetProtocolSession();assertNull(device.runtimeState().features.get<BoseDailySettingsFeatureState>())
-        for(id in listOf(0x4020,0x4039,0x4075,0x402F,0x4062)) {
+        for(id in listOf(0x4020,0x4039,0x4075,0x402F)) {
             val other=adapter(id);other.receive(raw)
             assertNull(other.runtimeState().features.get<BoseDailySettingsFeatureState>()?.liveAudio)
         }

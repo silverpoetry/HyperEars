@@ -15,6 +15,29 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[35],manifest=Config.NONE)
 class SettingsBoseAudioRowsTest {
+    @Test fun actual4062LiveReportComposesExistingNativeRowsAndRejectsStaleDefinition() {
+        val activity=Robolectric.buildActivity(Activity::class.java).setup().get()
+        val screen=PreferenceManager(activity).createPreferenceScreen(activity)
+        val host=SettingsPreferenceHost(javaClass.classLoader!!,activity,screen)
+        val adapter=(BoseEarbudAdapter().receive(byteArrayOf(0,3,3,3,0x40,0x62,0)).handshake as HandshakeResult.Replace).adapter
+        adapter.receive(byteArrayOf(31,10,3,5,7,1,0,1,0))
+        val address="00:11:22:33:44:55"
+        var state=EarbudState(address=address,adapter=adapter.snapshot(),features=adapter.runtimeState().features,
+            lifecycle=DeviceLifecycle(systemProfile=SystemProfileState.CONNECTED,privateTransport=PrivateTransportState.CONNECTED,
+                protocolHandshake=ProtocolHandshakeState.CONFIRMED))
+        val sent=mutableListOf<ControlRequest>()
+        SettingsBoseAudioRows.add(host,state,address,{screen.addPreference(it as Preference)},{state},{sent+=it})
+        val snapshot=state.features.get<BoseDailySettingsFeatureState>()!!.liveAudio!!
+        val spatial=screen.findPreference<ListPreference>("hyperears.bose.spatial")!!
+        val wind=screen.findPreference<SwitchPreferenceCompat>("hyperears.bose.wind")!!
+        assertFalse(spatial.callChangeListener("2"));assertEquals("0",spatial.value)
+        assertEquals(BoseDailyControlRequest.SetSpatial(snapshot,2),sent.single())
+        assertFalse(wind.callChangeListener(false));assertTrue(wind.isChecked)
+        assertEquals(BoseDailyControlRequest.SetWind(snapshot,false),sent.last())
+        adapter.receive(byteArrayOf(31,10,3,5,6,1,0,1,0))
+        state=state.copy(features=adapter.runtimeState().features)
+        spatial.callChangeListener("2");wind.callChangeListener(false);assertEquals(2,sent.size)
+    }
     @Test fun nativeSpatialWindAndRenamePinReportsWithoutOptimism() {
         val activity=Robolectric.buildActivity(Activity::class.java).setup().get()
         val screen=PreferenceManager(activity).createPreferenceScreen(activity)

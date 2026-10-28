@@ -269,6 +269,12 @@ FreeClip 2 的 EQ 与手势取其明确捕获映射。按现有架构独立实�
 
 ## SonyPods daily controls
 
+V1 VPT／声场位置还核对 SonyHeadphonesClient
+`5620e8ed5deccb957338b54e371b215146080819` 的 `CommandSerializer.cpp`188–196、
+`Constants.h`92–128，以及 Gadgetbridge `86703c8` 的
+`SonyProtocolImplV1.java`526–571／1248–1327；仅独立实现协议字节与选项事实，
+未复制 AGPL 程序代码。详见 [VPT 与声场位置](docs/sony-virtual-sound-protocol.md)。
+
 V1 耳机语音提示开关还独立核对 Gadgetbridge
 `86703c8006fc701a81505a28c48e399d1428e0c1` 的 `SonyProtocolImplV1.java`
 596–618／1404–1427 与 `PayloadTypeV1.java`96–99：Table2 查询、写入、报告字节事实。

@@ -60,6 +60,7 @@ data class SonyAmbientFeatureState(val level: Int, val voice: Boolean, val voice
 
 @Serializable
 sealed interface SonyControlRequest : ControlRequest {
+    @Serializable @SerialName("sony.set_virtual_sound") data class SetVirtualSound(val expected:SonyVirtualSoundDefinition,val expectedValues:Map<Int,Int>,val type:Int,val value:Int):SonyControlRequest
     @Serializable @SerialName("sony.set_voice_guidance") data class SetVoiceGuidance(val expected:SonyVoiceGuidanceDefinition,val expectedCurrent:Boolean,val enabled:Boolean):SonyControlRequest
     @Serializable @SerialName("sony.set_wearing_playback") data class SetWearingPlayback(val expected:SonyAudioDefinition,val expectedCurrent:Boolean,val enabled:Boolean):SonyControlRequest
     @Serializable @SerialName("sony.set_assignable_action") data class SetAssignableAction(val expected:SonyAssignableDefinition,val expectedCurrent:List<Int>,val expectedMappings:List<SonyAssignableMapping>,val index:Int,val action:Int,val function:Int):SonyControlRequest

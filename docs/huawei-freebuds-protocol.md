@@ -450,8 +450,8 @@ Eyewear's `hasChargingCase=false` suppresses case projection and permits a two-b
 component report. It does not turn the first ear into an aggregate headset battery.
 Other profiles retain the existing strict three-component parser behavior.
 
-Remaining bounded differences are explicit: independent left/right swipe on FreeArc
-and Eyewear 2 is not routed through the existing mirrored swipe writer; custom EQ
+Remaining bounded differences are explicit: Eyewear 2 swipe is not routed through
+the existing mirrored swipe writer (see the qualification gap below); custom EQ
 creation/deletion and 7i's distinct custom operation byte are not borrowed from a
 neighboring profile. Special classical EQ packets on 6/7, modern spatial/head-motion
 and route-specific quality/multipoint payloads remain vendor-app controls pending
@@ -462,3 +462,46 @@ The existing FreeBuds 5i level candidate has a documented failed device test abo
 Its standard modes remain unchanged; opening new level controls requires a firmware-qualified
 identity and captured readback that resolves that evidence conflict, not merely another source
 project's four-value table.
+
+### Independent swipe: FreeArc / FreeBuds 6i / FreeClip 2
+
+HuaweiPods `dc5b9d14` `HuaweiGestureController.kt:114–129,305–321` provides all
+three executable paths: query `2B1F` fields 1/2 (empty), report `2B1F` field 1 left
+and field 2 right (one byte each), write `2B1E` **only the selected side's TLV**.
+`HuaweiRfcommResponseParser.parseSwipeState` requires both components. FreeArc
+choices are 00 volume / 01 tracks; 6i additionally permits FF disabled; FreeClip 2
+only permits 00 / FF. Advertised choices, when present in field 3, further restrict
+these source domains. No model name alone enables a row.
+
+The existing daily typed gesture request now optionally pins the complete reported
+gesture, including exact profile ID and every ordered raw TLV. Independent profiles
+require this snapshot; old requests without it are rejected by both adapter and
+session. Any changed sibling, available choices, opaque field, model or reset rejects
+the old request. Valid partial reports revoke the complete-pair write gate; malformed
+field widths/duplicate TLVs do not replace a previously valid report. A single-side
+write cannot rewrite the sibling and is followed by the exact complete-pair query;
+there is no optimistic update. Existing source-qualified mirrored profiles retain
+their prior writer and request shape.
+
+Unknown one-byte current values are retained as explicitly unknown read-only values
+and shown on both native surfaces, without adding them to the action choices. A
+known replacement action can still be sent under the complete raw-pair guard; only
+that selected side is written, including when the sibling has an unknown value.
+Incomplete pairs remain visible but offer no actions. Native rows distinguish left
+and right; delayed callbacks pin the original full snapshot and still pass the
+existing session/owner gates.
+
+Eyewear 2 remains a precise separate gap: the source write builder uses the special
+raw repeated triplet `[side, side, action]` twice, e.g. right tracks
+`5A0009002B1E020201020201DB3C`. This is **not ordinary TLV** and is not borrowed for
+other models. The pinned `buildGestureStateQuery(EYEWEAR2)` returns null and no
+Eyewear 2 swipe readback capture/query path is provided. Its enum and setter alone
+do not justify an independent native workflow. A qualified query plus actual state
+capture is required before enabling it.
+
+Tests use upstream literal `5A000E002B1F01010002010003030001FF24DF`, source query
+`5A0007002B1F01000200328A`, and independent modified frames with Python
+`binascii.crc_hqx(..., 0)` checksums. They cover exact single-side output, model and
+raw-sibling staleness, opaque fields, valid partial revocation, malformed preservation,
+old mirrored behavior, reset, native unknown-value labels and delayed callbacks.
+This is source-level validation; none of these additions claim device revalidation.

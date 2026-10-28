@@ -5,6 +5,7 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CompoundButton
+import android.widget.RadioButton
 import android.widget.PopupWindow
 import android.widget.SeekBar
 import dev.hyperears.integration.*
@@ -347,6 +348,25 @@ class SonySettingsDetailsTest {
         fixture.observer!!(fixture.current);assertFalse(toggle.isEnabled)
         fixture.current=fixture.current.withFeature(feature);fixture.observer!!(fixture.current)
         fixture.token="new";toggle.isChecked=true;assertEquals(1,fixture.sent.size);assertEquals(1,fixture.unsubscribed)
+    }
+
+
+    @Test fun virtualSoundDetailsRejectStaleSiblingAndSessionWithoutOptimisticSelection() {
+        val f=Fixture()
+        val feature=SonyVirtualSoundFeatureState(SonyVirtualSoundDefinition(types=listOf(1,2)),mapOf(1 to 0,2 to 0))
+        f.current=f.current.withFeature(feature);val details=f.open()
+        fun option(value:Int)=descendants(popup(details).contentView).filterIsInstance<RadioButton>().single{it.contentDescription=="sony.virtual.1.$value"}
+        val old=option(4);old.performClick()
+        assertEquals(SonyControlRequest.SetVirtualSound(feature.definition!!,feature.values,1,4),f.sent.single())
+        assertFalse(option(4).isChecked)
+        f.current=f.current.withFeature(feature.copy(values=mapOf(1 to 0,2 to 17)))
+        old.performClick();assertEquals(1,f.sent.size)
+        f.current=f.current.withFeature(feature.copy(awaitingReadback=true));f.observer!!(f.current)
+        assertFalse(option(4).isEnabled)
+        f.current=f.current.withFeature(feature.copy(values=mapOf(1 to 4,2 to 0)));f.observer!!(f.current)
+        assertTrue(option(4).isChecked)
+        f.token="new";option(0).performClick();assertEquals(1,f.sent.size);assertEquals(1,f.unsubscribed)
+        details.dismiss()
     }
 
     private fun attachListenerCount(view: View): Int {

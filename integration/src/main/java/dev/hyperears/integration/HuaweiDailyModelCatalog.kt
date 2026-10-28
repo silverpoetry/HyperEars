@@ -11,7 +11,7 @@ internal data class HuaweiDailyProfile(
     val soundQuality: Boolean = false,
     val autoConnect:Boolean=true,
 ) {
-    data class GestureProfile(val values: List<Int>, val right: Boolean = true, val call: Boolean = false, val left: Boolean = true, val mirrored: Boolean = false)
+    data class GestureProfile(val values: List<Int>, val right: Boolean = true, val call: Boolean = false, val left: Boolean = true, val mirrored: Boolean = false, val independentModel: String? = null)
     companion object {
         private val tap = GestureProfile(listOf(-1, 1, 2, 7, 0))
         private val hold = GestureProfile(listOf(-1, 10))
@@ -29,7 +29,8 @@ internal data class HuaweiDailyProfile(
             HuaweiGestureKind.HOLD to GestureProfile(listOf(0, 10, -1))))
         val FREEARC = HuaweiDailyProfile(presets = listOf(1, 10, 2, 3, 9), gestures = mapOf(
             HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1)),
-            HuaweiGestureKind.HOLD to GestureProfile(listOf(0, -1))))
+            HuaweiGestureKind.HOLD to GestureProfile(listOf(0, -1)),
+            HuaweiGestureKind.SWIPE to GestureProfile(listOf(0, 1), independentModel = "huawei-freearc")))
         val EYEWEAR2 = HuaweiDailyProfile(lowLatency = true, gestures = mapOf(
             HuaweiGestureKind.DOUBLE to GestureProfile(listOf(1, 0, -1))))
         val PRO3 = HuaweiDailyProfile(true, true, listOf(5, 1, 2, 9), custom = true, lowLatency = true, soundQuality = true,
@@ -47,6 +48,7 @@ internal data class HuaweiDailyProfile(
             HuaweiGestureKind.DOUBLE to tap.copy(call = true), HuaweiGestureKind.TRIPLE to tap,
             HuaweiGestureKind.HOLD to hold, HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
         val BUDS6I = BUDS5I.copy(autoConnect=false,custom = true, gestures = BUDS5I.gestures + mapOf(
+            HuaweiGestureKind.SWIPE to GestureProfile(listOf(0, 1, -1), independentModel = "huawei-freebuds-6i"),
             HuaweiGestureKind.DOUBLE to GestureProfile(listOf(1, 2), call = true),
             HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1))))
         val BUDS4I = HuaweiDailyProfile(wear = true, gestures = mapOf(
@@ -56,7 +58,7 @@ internal data class HuaweiDailyProfile(
         val FREECLIP2 = HuaweiDailyProfile(true, true, listOf(1, 10, 3, 9), lowLatency = true, soundQuality = true, gestures = mapOf(
             HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1)),
             HuaweiGestureKind.HOLD to GestureProfile(listOf(-1, 0, 18, 19), right = false),
-            HuaweiGestureKind.SWIPE to swipe))
+            HuaweiGestureKind.SWIPE to GestureProfile(listOf(0, -1), independentModel = "huawei-freeclip-2")))
         val LACE_PRO = HuaweiDailyProfile(gestures = mapOf(
             HuaweiGestureKind.DOUBLE to GestureProfile(listOf(-1, 12), right = false, mirrored = true),
             HuaweiGestureKind.HOLD to GestureProfile(listOf(-1, 3, 5, 6, 9), right = false, mirrored = true)))

@@ -65,11 +65,13 @@ object BoseDailySettingsCodec {
         return bands
     }
     fun parsePrompts(frame: BoseBmapWireCodec.Frame): Int? =
-        if (isState(frame, PROMPTS)) frame.payload.singleOrNull()?.toInt()?.and(255) else null
+        // Captured 4082 reports append six opaque bytes; SET_GET still writes only byte0.
+        if (isState(frame, PROMPTS) && frame.payload.size in setOf(1, 7)) frame.payload[0].toInt() and 255 else null
     fun parseMultipoint(frame: BoseBmapWireCodec.Frame): Boolean? =
         if (isState(frame, MULTIPOINT)) frame.payload.singleOrNull()?.let { it.toInt() and 2 != 0 } else null
     fun parseSidetone(frame: BoseBmapWireCodec.Frame): Int? =
-        if (isState(frame, SIDETONE) && frame.payload.size == 2)
+        // 4082 capture01 02 0F has one opaque trailing byte, not a proven level mask.
+        if (isState(frame, SIDETONE) && frame.payload.size in 2..3)
             frame.payload[1].toInt().takeIf { it in 0..3 } else null
     fun parseAutoAnswer(frame: BoseBmapWireCodec.Frame): Boolean? =
         if (isState(frame, AUTO_ANSWER)) frame.payload.singleOrNull()?.toInt()?.takeIf { it in 0..1 }?.let { it == 1 } else null

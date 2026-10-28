@@ -103,6 +103,7 @@ internal class SettingsHeadsetBinding(
             SettingsCeramicsXRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsSonyAssignableRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsSonyVoiceRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
+            SettingsSonyVirtualRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdditionalRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsBoseButtonRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsBoseAudioRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)

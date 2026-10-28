@@ -5,7 +5,7 @@ import dev.hyperears.integration.*
 /** Labels are model-aware where the same EQ byte has different meanings. */
 internal object HuaweiDailyChoices {
     data class Choice(val value: Int, val label: String, val request: HuaweiDailyControlRequest)
-    data class Row(val key: String, val label: String, val selected: Int, val choices: List<Choice>)
+    data class Row(val key: String, val label: String, val selected: Int, val choices: List<Choice>, val currentLabel: String? = null)
     fun rows(state: EarbudState): List<Row> {
         val feature = state.features.get<HuaweiDailySettingsFeatureState>() ?: return emptyList()
         return buildList {
@@ -25,7 +25,8 @@ internal object HuaweiDailyChoices {
             feature.gestures.forEach { gesture ->
                 HuaweiGestureSide.entries.forEach sideLoop@ { side ->
                     val current = gesture.value(side) ?: return@sideLoop
-                    val values = if (side == HuaweiGestureSide.CALL) listOf(-1, 0) else gesture.available
+                    val complete = gesture.modelId == null || gesture.raw != null && gesture.left != null && gesture.right != null
+                    val values = if (!complete) emptyList() else if (side == HuaweiGestureSide.CALL) listOf(-1, 0) else gesture.available
                     val prefix = if (state.modelId == "huawei-freelace-pro") {
                         if (gesture.kind == HuaweiGestureKind.DOUBLE) "电源键" else "双耳"
                     } else when (side) { HuaweiGestureSide.LEFT -> "左耳"; HuaweiGestureSide.RIGHT -> "右耳"; HuaweiGestureSide.CALL -> "通话" }
@@ -33,8 +34,13 @@ internal object HuaweiDailyChoices {
                         HuaweiGestureKind.DOUBLE -> "双击"; HuaweiGestureKind.TRIPLE -> "三击"
                         HuaweiGestureKind.HOLD -> "长按"; HuaweiGestureKind.CYCLE -> "长按噪声循环"; HuaweiGestureKind.SWIPE -> "滑动"
                     }
-                    add(Row("${gesture.kind}.${side}", (if (gesture.kind == HuaweiGestureKind.SWIPE) "双耳" else prefix) + kind,
-                        current, values.map { Choice(it, gestureLabel(state.modelId, gesture.kind, side, it), HuaweiDailyControlRequest.SetGesture(gesture.kind, side, it)) }))
+                    add(Row("${gesture.kind}.${side}", (if (gesture.kind == HuaweiGestureKind.SWIPE && gesture.modelId == null) "双耳" else prefix) + kind,
+                        current, values.map { Choice(it, gestureLabel(state.modelId, gesture.kind, side, it), HuaweiDailyControlRequest.SetGesture(gesture.kind, side, it,
+                            gesture.takeIf { it.modelId != null })) },
+                        currentLabel = if (gesture.modelId != null) {
+                            if (current in gesture.available) gestureLabel(state.modelId, gesture.kind, side, current)
+                            else "未知值 " + (current and 255)
+                        } else null))
                 }
             }
         }
@@ -70,7 +76,9 @@ internal object HuaweiDailyChoices {
         if (kind == HuaweiGestureKind.CYCLE) return when (value) {
             1 -> "关闭 / 降噪"; 2 -> "关闭 / 降噪 / 通透"; 3 -> "降噪 / 通透"; 4 -> "关闭 / 通透"; else -> "未知"
         }
-        if (kind == HuaweiGestureKind.SWIPE) return if (value == -1) "关闭" else "调节音量"
+        if (kind == HuaweiGestureKind.SWIPE) return when (value) {
+            -1 -> "关闭"; 0 -> "调节音量"; 1 -> "切换曲目"; else -> "未知值 " + (value and 255)
+        }
         return when (value) {
             -1 -> "关闭"; 0 -> "语音助手"; 1 -> "播放 / 暂停"; 2 -> "下一首"; 7 -> "上一首"
             10 -> "切换噪声模式"; 18 -> "增大音量"; 19 -> "减小音量"; else -> "未知"

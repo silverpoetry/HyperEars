@@ -28,9 +28,9 @@ object HuaweiDailySettingsCodec {
         require(command in setOf(WEAR_WRITE, MULTIPOINT_WRITE, LOW_LATENCY, SOUND_QUALITY_WRITE))
         return HuaweiFreebudsSppCodec.packet(command, listOf(1 to byteArrayOf(if (enabled) 1 else 0)))
     }
-    fun setGesture(kind: Gesture, field: Int, value: Int, mirrored: Boolean = false): ByteArray {
+    fun setGesture(kind: Gesture, field: Int, value: Int, mirrored: Boolean = false, independentSwipe: Boolean = false): ByteArray {
         require(field in setOf(1, 2, 4) && value in -128..127)
-        val fields = if (kind == Gesture.SWIPE || mirrored) listOf(1, 2) else listOf(field)
+        val fields = if (kind == Gesture.SWIPE && !independentSwipe || mirrored) listOf(1, 2) else listOf(field)
         return HuaweiFreebudsSppCodec.packet(kind.write, fields.map { it to byteArrayOf(value.toByte()) })
     }
     fun setPreset(id: Int): ByteArray {

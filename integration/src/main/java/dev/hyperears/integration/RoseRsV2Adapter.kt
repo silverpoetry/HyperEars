@@ -59,7 +59,26 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
 }
 object RoseRsV2PresentationIds { val SETTINGS=MiLinkCardPresentationId("rose-rsv2-settings") }
 
+/** Combined settings reports may carry cached find values; only a true-to-stopped transition cancels. */
+internal fun RoseRsV2SettingsFeatureState.stopsReportedFind(previous: RoseRsV2SettingsFeatureState?) =
+    previous?.model == model && (previous.findLeft == true || previous.findRight == true) &&
+        findLeft == false && findRight == false
+
 class RoseRsV2Adapter(private val model:Identity.Model):StandardEarbudAdapter() {
+    private val findCleanup = OwnedProtocolCleanup("rose.rsv2.find") {
+        protocolSession.encode(RoseRsV2ControlRequest.Find(4))
+    }
+    override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
+        if (request is RoseRsV2ControlRequest.Find) findCleanup.written(request.target != 4, scope)
+    }
+    override fun onFeatureReported(state: DeviceFeatureState, scope: AdapterEventScope): FeatureReportDecision {
+        if (state is RoseRsV2SettingsFeatureState && state.stopsReportedFind(runtimeState().features.get()))
+            findCleanup.reportedStopped(scope)
+        return super.onFeatureReported(state, scope)
+    }
+    override fun prepareProtocolRelease() = findCleanup.release()
+    override fun expireProtocolWorkflow(key: String, lease: Long) = findCleanup.expire(key, lease)
+
     override val id=model.id
     override val displayName=model.label
     override val resolution=AdapterResolution.EXACT_MATCH
@@ -75,7 +94,7 @@ class RoseRsV2Adapter(private val model:Identity.Model):StandardEarbudAdapter() 
     override fun matches(identity:EarbudIdentity)=identity.standardHeadset && !identity.nativeSystemEarbud && dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData)==model.id
     override val miLinkCardPresentationId:MiLinkCardPresentationId? get()=RoseRsV2PresentationIds.SETTINGS.takeIf { runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.hasSettings == true || (effectiveCapabilities().noiseControl && runtimeState().noiseMode != null) }
     override fun createProtocolSession():ProtocolSession=RoseRsV2Session(model)
-    override fun onProtocolReset() { removeFeatureState(RoseRsV2SettingsFeatureState.FEATURE_ID) }
+    override fun onProtocolReset() { findCleanup.reset(); removeFeatureState(RoseRsV2SettingsFeatureState.FEATURE_ID) }
 }
 internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession {
     private val decoder=Wire.Decoder(model)

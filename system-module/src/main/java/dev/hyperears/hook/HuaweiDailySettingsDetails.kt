@@ -77,7 +77,9 @@ internal class HuaweiDailySettingsDetails private constructor(
         try {
             controls.removeAllViews()
             HuaweiDailyChoices.rows(state).forEach { row ->
-                controls.addView(text(if (row.choices.isEmpty()) "${row.label}（耳机当前值：${row.selected}）" else row.label, 17f))
+                controls.addView(text(if (row.currentLabel != null && row.choices.none { it.value == row.selected })
+                    "${row.label}（耳机当前值：${row.currentLabel}）"
+                    else if (row.choices.isEmpty()) "${row.label}（耳机当前值：${row.selected}）" else row.label, 17f))
                 val group = RadioGroup(context)
                 row.choices.forEach { choice -> group.addView(RadioButton(context).apply {
                     id = View.generateViewId(); text = choice.label; setTextColor(color(true)); isSaveEnabled = false
