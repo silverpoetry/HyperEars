@@ -7,6 +7,41 @@ import org.junit.Test
 
 class OppoSettingsAdapterTest {
     private fun report(command: Int, vararg p: Int) = OppoWireCodec.packet(command, payload = p.map(Int::toByte).toByteArray())
+    @Test fun promptVolumeGatesByReportAndPreservesOtherSettings() {
+        val adapter=OppoEarbudAdapter();val request=OppoControlRequest.SetPromptVolume(8)
+        assertFalse(adapter.executeControl(request).accepted)
+        adapter.receive(report(0x8130,0,5))
+        assertEquals(5,adapter.runtimeState().features.get<OppoSettingsFeatureState>()!!.promptVolume)
+        val result=adapter.executeControl(request)
+        assertTrue(result.accepted);assertArrayEquals(OppoSettingsCodec.queryPromptVolume,result.readback.single())
+        assertEquals(5,adapter.runtimeState().features.get<OppoSettingsFeatureState>()!!.promptVolume)
+        adapter.receive(report(0x810D,0,0))
+        assertEquals(5,adapter.runtimeState().features.get<OppoSettingsFeatureState>()!!.promptVolume)
+        assertEquals(request,ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+        adapter.resetProtocolSession();assertFalse(adapter.executeControl(request).accepted)
+    }
+    @Test fun legacySpatialRequiresQualifiedIdentityAndIndependentReport() {
+        fun identity(id:Int)=report(0x8103,0,id and 255,(id ushr 8) and 255,id ushr 16)
+        var adapter: EarbudAdapter=OppoEarbudAdapter()
+        adapter.receive(report(0x810D,0,1,27,0))
+        val request=OppoControlRequest.SetSpatialSound(true,0x06F010)
+        assertFalse(adapter.executeControl(request).accepted)
+        assertEquals(44,OppoLegacySpatialCatalog.products.size)
+        val identified=adapter.receive(identity(0x06F010))
+        assertTrue(identified.commands.any { it.contentEquals(OppoSettingsCodec.querySwitches(OppoSettingsCodec.switchIds+0x1B)) })
+        adapter=(identified.handshake as HandshakeResult.Replace).adapter
+        assertFalse(adapter.executeControl(request).accepted)
+        adapter.receive(report(0x810D,0,1,27,0))
+        assertTrue(adapter.executeControl(request).accepted)
+        assertEquals(false,adapter.runtimeState().features.get<OppoSettingsFeatureState>()!!.spatialSound)
+        adapter.receive(report(0x810D,0,0));assertFalse(adapter.executeControl(request).accepted)
+        adapter.receive(report(0x810D,0,1,27,1))
+        adapter=(adapter.receive(identity(0x067410)).handshake as HandshakeResult.Replace).adapter
+        adapter.receive(report(0x810D,0,1,27,1))
+        assertFalse(adapter.executeControl(request).accepted)
+        assertNull(adapter.runtimeState().features.get<OppoSettingsFeatureState>()!!.spatialSound)
+        assertEquals(request,ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+    }
     @Test fun switchesAreIndependentlyGatedWithoutOptimismAndReset() {
         for (toggle in OppoToggle.entries) {
             val adapter = OppoEarbudAdapter()

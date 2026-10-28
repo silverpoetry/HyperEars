@@ -8,12 +8,20 @@ import java.nio.charset.CodingErrorAction
  */
 object OppoSettingsCodec {
     val switchIds = setOf(0x04, 0x06, 0x11, 0x28)
+    val queryPromptVolume: ByteArray get() = OppoWireCodec.packet(0x0130)
+    fun setPromptVolume(level: Int): ByteArray {
+        require(level in 1..10)
+        return OppoWireCodec.packet(0x0427,payload=byteArrayOf(level.toByte()))
+    }
+    fun parsePromptVolume(frame: OppoWireCodec.Frame): Int? = frame.payload.takeIf {
+        frame.command == 0x8130 && it.size == 2 && it[0].u() == 0 && it[1].u() in 1..10
+    }?.get(1)?.u()
     fun querySwitches(ids: Collection<Int> = switchIds): ByteArray {
-        require(ids.isNotEmpty() && ids.all { it in switchIds })
+        require(ids.isNotEmpty() && ids.all { it in switchIds || it == 0x1B })
         return OppoWireCodec.packet(0x010D, payload = byteArrayOf(ids.size.toByte()) + ids.map(Int::toByte))
     }
     fun setSwitch(id: Int, enabled: Boolean): ByteArray {
-        require(id in switchIds)
+        require(id in switchIds || id == 0x1B)
         return OppoWireCodec.packet(0x0403, payload = byteArrayOf(id.toByte(), if (enabled) 1 else 0))
     }
     fun parseSwitches(frame: OppoWireCodec.Frame): Map<Int, Boolean>? {
@@ -24,7 +32,7 @@ object OppoSettingsCodec {
         for (i in 2 until p.size step 2) {
             val id = p[i].u()
             if (!seen.add(id)) return null
-            if (id !in switchIds) continue
+            if (id !in switchIds && id != 0x1B) continue
             if (p[i + 1].u() !in 0..1) return null
             result[id] = p[i + 1].u() == 1
         }

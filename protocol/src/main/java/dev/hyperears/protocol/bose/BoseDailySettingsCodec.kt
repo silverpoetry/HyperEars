@@ -7,6 +7,8 @@ object BoseDailySettingsCodec {
     const val ANR = 6
     const val EQ = 7
     const val MULTIPOINT = 10
+    const val SIDETONE = 11
+    const val AUTO_ANSWER = 27
     const val AUTO_PAUSE = 24
     data class EqBand(val id: Int, val minimum: Int, val maximum: Int, val current: Int)
     data class Cnc(val rawLevel: Int, val enabled: Boolean)
@@ -26,6 +28,15 @@ object BoseDailySettingsCodec {
         if (isState(frame, PROMPTS)) frame.payload.singleOrNull()?.toInt()?.and(255) else null
     fun parseMultipoint(frame: BoseBmapWireCodec.Frame): Boolean? =
         if (isState(frame, MULTIPOINT)) frame.payload.singleOrNull()?.let { it.toInt() and 2 != 0 } else null
+    fun parseSidetone(frame: BoseBmapWireCodec.Frame): Int? =
+        if (isState(frame, SIDETONE) && frame.payload.size == 2)
+            frame.payload[1].toInt().takeIf { it in 0..3 } else null
+    fun parseAutoAnswer(frame: BoseBmapWireCodec.Frame): Boolean? =
+        if (isState(frame, AUTO_ANSWER)) frame.payload.singleOrNull()?.toInt()?.takeIf { it in 0..1 }?.let { it == 1 } else null
+    fun setSidetone(level: Int): ByteArray {
+        require(level in 0..3)
+        return write(SIDETONE, byteArrayOf(1, level.toByte()))
+    }
     fun parseAutoPause(frame: BoseBmapWireCodec.Frame): Boolean? =
         if (isState(frame, AUTO_PAUSE)) frame.payload.singleOrNull()?.toInt()?.takeIf { it in 0..1 }?.let { it == 1 } else null
     fun parseCnc(frame: BoseBmapWireCodec.Frame): Cnc? {
@@ -45,7 +56,7 @@ object BoseDailySettingsCodec {
         return write(PROMPTS, byteArrayOf(((raw and 0xDF) or if (enabled) 0x20 else 0).toByte()))
     }
     fun setToggle(function: Int, enabled: Boolean): ByteArray {
-        require(function in setOf(MULTIPOINT, AUTO_PAUSE))
+        require(function in setOf(MULTIPOINT, AUTO_PAUSE, AUTO_ANSWER))
         return write(function, byteArrayOf(if (enabled) 1 else 0))
     }
     private fun write(function: Int, payload: ByteArray) =

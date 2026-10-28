@@ -42,6 +42,7 @@ object ModuleContract {
         "dev.hyperears.action.SYSTEM_OWNERSHIP_CLAIMED"
 
     const val MODULE_PACKAGE = "dev.hyperears"
+    const val SETTINGS_PACKAGE = "com.android.settings"
     const val BLUETOOTH_PACKAGE = "com.android.bluetooth"
     const val MILINK_PACKAGE = "com.milink.service"
     const val NATIVE_HEADSET_PACKAGE = "com.xiaomi.bluetooth"
@@ -92,6 +93,7 @@ object ModuleContract {
         MODULE_PACKAGE,
         MILINK_PACKAGE,
         NATIVE_HEADSET_PACKAGE,
+        SETTINGS_PACKAGE,
     )
 
     fun requestState(replyPackage: String): Intent =

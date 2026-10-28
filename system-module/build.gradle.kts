@@ -100,6 +100,11 @@ dependencies {
     implementation(libs.libxposed.service)
     implementation(libs.dexkit)
 
+    // Debug-only host fixture: AGP generates real Preference/AppCompat resources for JVM tests.
+    // Release remains reflection-only; these host UI libraries are not shipped in Release.
+    debugImplementation(libs.androidx.preference.test.host)
+    debugImplementation(libs.androidx.appcompat.test.host)
+    debugImplementation(libs.androidx.fragment.test.host)
     testImplementation(libs.junit)
     // Exercise native card rollback with real ViewGroup attachment semantics on the JVM.
     testImplementation(libs.robolectric)

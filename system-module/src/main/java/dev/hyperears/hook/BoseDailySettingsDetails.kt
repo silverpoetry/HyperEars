@@ -119,6 +119,22 @@ internal class BoseDailySettingsDetails private constructor(
         toggle(controls, "语音提示", { it.promptsRaw?.let { raw -> raw and 32 != 0 } }, BoseDailyControlRequest::SetVoicePrompts)
         toggle(controls, "双设备连接", { it.multipoint }, BoseDailyControlRequest::SetMultipoint)
         toggle(controls, "自动播放／暂停", { it.autoPause }, BoseDailyControlRequest::SetAutoPause)
+        toggle(controls, "自动接听来电", { it.autoAnswer }, BoseDailyControlRequest::SetAutoAnswer)
+        val sidetone = column(); sidetone.addView(text("通话侧音", 17f)); controls.addView(sidetone)
+        val sideOptions = listOf("关闭", "高", "中", "低").mapIndexed { level, label ->
+            text(label, 16f).apply {
+                contentDescription = "通话侧音 $label"
+                setOnClickListener { send(BoseDailyControlRequest.SetSidetone(level)) }; sidetone.addView(this)
+            } to label
+        }
+        renders += { state ->
+            sidetone.visibility = if (state.sidetone == null) View.GONE else View.VISIBLE
+            sideOptions.forEachIndexed { level, (view, label) ->
+                view.isEnabled = state.sidetone != null
+                view.isSelected = state.sidetone == level
+                view.text = String.format(Locale.getDefault(), "%s%s", if (view.isSelected) "✓ " else "", label)
+            }
+        }
         addEq(controls)
         val cnc = column(); val caption = text("降噪强度", 17f); cnc.addView(caption)
         val strength = SeekBar(context).apply {

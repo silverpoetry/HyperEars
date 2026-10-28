@@ -12,6 +12,30 @@ class BoseDailySettingsTest {
         byteArrayOf((id ushr 8).toByte(), id.toByte(), 0))
     private fun adapter(id: Int): EarbudAdapter = (BoseEarbudAdapter().receive(identity(id)).handshake as HandshakeResult.Replace).adapter
 
+    @Test fun sidetoneAndAnswerAreModelAndReportQualified() {
+        for (id in listOf(0x4020, 0x4039, 0x402F, 0x4082)) {
+            val device = adapter(id)
+            val request = BoseDailyControlRequest.SetSidetone(2)
+            assertFalse(device.executeControl(request).accepted)
+            device.receive(report(11, 1, 3))
+            assertTrue(device.executeControl(request).accepted)
+            assertEquals(3, device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.sidetone)
+            val command = Bmap.Decoder().offer(device.protocolSession.encode(request).single()).single()
+            assertArrayEquals(byteArrayOf(1, 2), command.payload)
+            assertEquals(request, ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+            device.receive(report(27, 0))
+            assertEquals(id == 0x4082, device.executeControl(BoseDailyControlRequest.SetAutoAnswer(true)).accepted)
+            val answer = BoseDailyControlRequest.SetAutoAnswer(true)
+            assertEquals(answer, ControlRequestTransport.decode(ControlRequestTransport.encode(answer)))
+            device.protocolSession.reset()
+            assertTrue(device.protocolSession.encode(request).isEmpty())
+        }
+        for (id in listOf(0x400C, 0x4062, 0x4075)) {
+            val device = adapter(id); device.receive(report(11, 1, 2) + report(27, 1))
+            assertFalse(device.executeControl(BoseDailyControlRequest.SetSidetone(1)).accepted)
+            assertFalse(device.executeControl(BoseDailyControlRequest.SetAutoAnswer(false)).accepted)
+        }
+    }
     @Test fun coalescedIdentityAndEqRetainTheSameReportAsSeparateReceives() {
         val eq = report(7, -10, 10, 3, 0)
         val separate = adapter(0x4039).also { it.receive(eq) }

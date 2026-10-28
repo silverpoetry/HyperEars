@@ -186,7 +186,8 @@ com.milink.service
 3. 修改作用域后重启对应控制 App 进程；首次安装或模块升级后建议重启设备；
 4. 在 HyperEars 中按需把“更多设置”设为“厂商 App”，并配置“运行时退避”。
 
-不要勾选 Settings、System UI 或所有应用。扩大作用域不会增加耳机协议兼容性，只会扩大注入面。
+`com.android.settings` 是原生蓝牙详情控制组的可选界面宿主作用域，不是厂商控制 App，也不参与控制 App 退避。
+不要勾选 System UI 或所有应用；增加作用域不会增加耳机协议兼容性。
 LSPosed 的“禁用详细日志”和“输出日志到守护进程”只影响诊断日志，不影响控制 App 的跳转或
 退避；日志设置见[问题排查](troubleshooting.md#日志采集)。“Xposed API 调用保护”可以保持开启。
 

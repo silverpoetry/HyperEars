@@ -1046,3 +1046,5 @@ MOONDROP Pudding 实机适配；同时更新 Android、Kotlin 与 Gradle 构建�
 [0.10.2]: https://github.com/silverpoetry/HyperEars/releases/tag/v0.10.2
 
 - ROSELINK：新增九个 RS Common v2 精确配置，通过同地址厂商广播证据自动细化；按型号及回报开放日常设置，新增有界身份扫描、音频切换确认与查找超时。
+
+- 原生系统蓝牙设备详情：新增按真实地址和连接归属隔离的耳机控制组，原生电量/降噪、Apple 四种聆听模式和 Honor ANC 强度；高级入口复用既有各品牌宿主主题编辑器。可选 Settings 作用域，不在 Settings 建立私有通道；完整高级控件内联迁移与真机页面验收仍分开记录。

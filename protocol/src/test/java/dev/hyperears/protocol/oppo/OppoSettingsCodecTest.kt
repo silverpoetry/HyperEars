@@ -6,6 +6,14 @@ import org.junit.Test
 class OppoSettingsCodecTest {
     private fun frame(command: Int, vararg p: Int) = OppoWireCodec.Decoder().offer(
         OppoWireCodec.packet(command, payload = p.map(Int::toByte).toByteArray())).single()
+    @Test fun promptVolumeRequiresExactSuccessAndRangeAndDoesNotAcceptWriteAck() {
+        assertEquals(1,OppoSettingsCodec.parsePromptVolume(frame(0x8130,0,1)))
+        assertEquals(10,OppoSettingsCodec.parsePromptVolume(frame(0x8130,0,10)))
+        listOf(frame(0x8130,1,5),frame(0x8130,0,0),frame(0x8130,0,11),frame(0x8130,0,5,0),frame(0x8427,0,5)).forEach {
+            assertNull(OppoSettingsCodec.parsePromptVolume(it))
+        }
+        assertArrayEquals(byteArrayOf(10),OppoWireCodec.Decoder().offer(OppoSettingsCodec.setPromptVolume(10)).single().payload)
+    }
     @Test fun switchesRequireSuccessfulCompleteUniqueBooleanPairs() {
         assertEquals(mapOf(4 to true, 6 to false, 17 to true, 40 to false),
             OppoSettingsCodec.parseSwitches(frame(0x810D, 0, 4, 4, 1, 6, 0, 17, 1, 40, 0)))

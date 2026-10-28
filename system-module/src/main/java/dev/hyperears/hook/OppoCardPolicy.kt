@@ -14,6 +14,8 @@ internal object OppoCardPolicy {
         return request.takeIf { settings.supports(it) && !matches(settings, it) }
     }
     fun matches(state: OppoSettingsFeatureState, request: OppoControlRequest): Boolean = when (request) {
+        is OppoControlRequest.SetPromptVolume -> state.promptVolume == request.level
+        is OppoControlRequest.SetSpatialSound -> state.spatialProductId == request.expectedProductId && state.spatialSound == request.enabled
         is OppoControlRequest.SelectNoiseOption -> state.noise?.let {
             it.definition == request.expected && (it.reportedIndex == request.index ||
                 it.selected?.mode == request.expected.option(request.index)?.mode)

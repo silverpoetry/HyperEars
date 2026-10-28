@@ -200,3 +200,21 @@ MiLink 高级详情沿用现有原生扩展：Quiet/Aware、抗风噪替换关�
 Ultra Open 等仅有设置证据的设备使用设置载体，不凭 EQ 开放噪声能力。
 详情在每次操作前检查地址、当前会话令牌、握手、连接和控制所有权；设备重置、错误
 身份、页面脱离和 App 交接清除或关闭相应状态，超时仅提示未确认，不自动重试。
+
+### Sidetone and automatic call answering
+
+Pinned bosectl `70570b29` `python/pybmap/devices/parsers.py:177–182,232–235`
+and `constants.py:49–50` define sidetone at block/function `1/11`: a two-byte
+STATUS reports the level in byte 1, and SET_GET sends `[1, level]`. Levels are
+0 off, 1 high, 2 medium, 3 low. Executable profiles `qc35.py`, `qc45.py`,
+`qc_earbuds.py`, and `qc_ultra2.py` qualify IDs `4020`, `4039`, `402F`, `4082`.
+This does not extend to QC35 I `400C`, Ultra 2 earbuds `4062`, or similarly named models.
+
+Automatic call answering uses `1/27` with one boolean byte, only for `4082`
+(QC Ultra 2 headphones); QC45 explicitly documents no support. Both controls
+require a valid STATUS from the qualified product, issue one SET_GET followed
+by the corresponding GET, and retain reported selection until readback.
+Wrong operators, wrong payload sizes and out-of-domain values grant no controls.
+Existing product-change/session reset removes the evidence. Native details expose
+four sidetone choices and the automatic-answer toggle only after their own reports.
+No phone or physical-device verification was performed for this addition.

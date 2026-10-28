@@ -97,14 +97,16 @@ revalidated changed device behavior. The full model/function scope remains uncha
 - [x] A4 Preserve PR #96 `eeca05ba` and original #90 ancestry: FloS2/OpenPro S2 aggregate battery
   and four sound effects. Repair partial-install rollback in native card host; add regression tests.
   Final maintenance hardware feedback and companion-app identity remain separate evidence items.
-- [ ] A5 Recover #50 W820NB dual-gold BES V1 protocol and exact identity without its text-matched
+- [x] A5 Recover #50 W820NB dual-gold BES V1 protocol and exact identity without its text-matched
   selected-state UI workaround. Add codec/adapter tests, origin attribution, native projection.
+  Merge 91868b3 preserves original d38eea5 ancestry, adds strict V1 parsing/readback/reset and the
+  current native host. Original PR remains author-closed; changed hardware validation is pending.
 - [ ] A6 Correct explicit-offline versus absent-component state semantics, beginning with Pudding;
   retain measured ZZZ firmware behavior instead of guessing offline from battery age.
 
 ## B. Native presentation through existing extension patterns
 
-- [ ] B1 Inventory how existing CardAdapters and typed feature/request contracts can express each
+- [x] B1 Inventory how existing CardAdapters and typed feature/request contracts can express each
   required control, including choices/ranges/toggles, availability and confirmed/pending/error state.
   Use existing vendor feature namespaces and control contracts. Do not replace the presentation
   system with a generic descriptor framework by default. Record a specific gap before introducing
@@ -112,11 +114,17 @@ revalidated changed device behavior. The full model/function scope remains uncha
 - [ ] B2 Implement native MiLink selectable cards using validated host component contracts,
   variable supported choice counts, native visual state and transactional bind/restore. Replace
   title-row add-ons and brand-specific popups with the shared host where equivalent.
+  Shared native selectable hosts, transactional restoration and variable choices are implemented.
+  Advanced popup-to-native inline migration remains, as separately tracked under B5.
 - [ ] B3 Implement Settings plugin discovery/lifecycle and a per-address native details bridge.
   Native symbols from current ROM include `JavaActivity`, `MiuiAirpodsFragment`,
   `MiuiHeadsetFragment`, `AncController`, `MiuiHeadsetAncAdjustView` and native preferences.
   Add Settings scope and manifest/settings/help declarations consistently. No brand spoofing
   outside the bound module-owned context; never call a Xiaomi vendor command for a foreign device.
+  Generic native Settings page bridge now implements address-bound battery/noise/Apple listening/
+  Honor depth and existing-editor access with authenticated state and cleanup. Specialized plugin
+  routes remain unhooked to avoid initiating their official vendor connections. Source contract:
+  ../../research/source-audits/settings-native-page-bridge.md. Host device validation is pending.
 - [ ] B4 Implement native/headset ownership policy for system-full, system-partial, module and
   external controller states. For Apple, preserve Xiaomi-first support and enter the module path
   only for unsupported models. One private writer per device; do not equate an Apple name/UUID
@@ -125,10 +133,13 @@ revalidated changed device behavior. The full model/function scope remains uncha
   that connection and skip module transport/control/presentation when Xiaomi owns the device.
   Cover an unsupported device becoming native-supported after Bluetooth restart without a module
   update, stale prior-connection callbacks, and unknown/unavailable support observations in tests.
+  Connection-scoped Xiaomi-first Apple admission, retired callbacks and mutually exclusive module/
+  external ownership are implemented and tested. Generic partial-system sharing is not implemented;
+  do not introduce multiple private writers just to satisfy that earlier wording.
 - [ ] B5 Route battery, noise, levels, spatial, wearing, gesture, EQ, multipoint, find and device-info
   groups into one consistent native-details hierarchy using existing adapter-selected presentation
   bindings and type-safe requests. Advanced editors use the same host styling.
-- [ ] B6 Update existing registered brand/model presentations in place through their current
+- [x] B6 Update existing registered brand/model presentations in place through their current
   registries; remove unsupported controls (including FreeClip false ANC), retain working model
   specializations and preserve standard/headphone/TWS topology.
 - [ ] B7 Integrate connection popup/super-island/notifications with authoritative snapshots and

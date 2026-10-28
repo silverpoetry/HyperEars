@@ -129,7 +129,7 @@ class OppoSettingsDetailsTest {
             equalizers = listOf(eq), editableEqualizers = setOf(9)))
         val details = fixture.open()
         val views = descendants(popup(details).contentView)
-        val sliders = views.filterIsInstance<SeekBar>()
+        val sliders = views.filterIsInstance<SeekBar>().filter { it.contentDescription != "提示音音量" }
         assertEquals(2, sliders.size)
         assertEquals(12, sliders[0].max)
         assertEquals(5, sliders[0].progress)
@@ -147,7 +147,7 @@ class OppoSettingsDetailsTest {
         val fixture = Fixture()
         val details = fixture.open()
         val views = descendants(popup(details).contentView)
-        val toggles = views.filterIsInstance<CompoundButton>()
+        val toggles = views.filterIsInstance<CompoundButton>().filter { it.contentDescription != "空间音效" }
         assertEquals(1, toggles.count { (it.parent as View).visibility == View.VISIBLE })
         toggles.single { it.isEnabled }.isChecked = true
         shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(6))
@@ -163,7 +163,7 @@ class OppoSettingsDetailsTest {
             equalizers = listOf(eq), editableEqualizers = setOf(9)))
         val details = fixture.open()
         val views = descendants(popup(details).contentView)
-        val slider = views.filterIsInstance<SeekBar>().single()
+        val slider = views.filterIsInstance<SeekBar>().filter { it.contentDescription != "提示音音量" }.single()
         val listener = org.robolectric.util.ReflectionHelpers.getField<SeekBar.OnSeekBarChangeListener>(slider, "mOnSeekBarChangeListener")
         listener.onProgressChanged(slider, 12, true)
         fixture.current = fixture.current.withFeature(OppoSettingsFeatureState(currentEqualizer = 9,
@@ -182,7 +182,7 @@ class OppoSettingsDetailsTest {
                 OppoEqualizer(9, "Custom", -6, 6, emptyList(), emptyList()))))
         val details = fixture.open()
         val views = descendants(popup(details).contentView)
-        views.filterIsInstance<CompoundButton>().forEachIndexed { index, toggle ->
+        views.filterIsInstance<CompoundButton>().filter { it.contentDescription != "空间音效" }.forEachIndexed { index, toggle ->
             toggle.isChecked = true
             assertEquals(OppoControlRequest.SetToggle(OppoToggle.entries[index], true), fixture.sent.last())
             assertFalse(toggle.isChecked)
@@ -231,6 +231,27 @@ class OppoSettingsDetailsTest {
         fixture.current = fixture.current.withFeature(OppoSettingsFeatureState(noise=OppoNoiseSelection(definition.copy(productId=0x063810),1)))
         deep.performClick() // Provider changed before observer; old callback must not target new product.
         assertEquals(1,fixture.sent.size)
+        details.dismiss()
+    }
+
+    @Test fun promptAndSpatialUseReportsAndRejectRemovedEvidenceOrChangedProduct() {
+        val fixture=Fixture()
+        fixture.current=fixture.current.withFeature(OppoSettingsFeatureState(promptVolume=5,spatialSound=false,spatialProductId=0x06F010))
+        val details=fixture.open()
+        val slider=descendants(popup(details).contentView).filterIsInstance<SeekBar>().single { it.contentDescription=="提示音音量" }
+        val listener=org.robolectric.util.ReflectionHelpers.getField<SeekBar.OnSeekBarChangeListener>(slider,"mOnSeekBarChangeListener")
+        slider.progress=7;listener.onStopTrackingTouch(slider)
+        assertEquals(OppoControlRequest.SetPromptVolume(8),fixture.sent.last())
+        assertEquals(4,slider.progress)
+        val spatial=descendants(popup(details).contentView).filterIsInstance<CompoundButton>().single { it.contentDescription=="空间音效" }
+        spatial.isChecked=true
+        assertEquals(OppoControlRequest.SetSpatialSound(true,0x06F010),fixture.sent.last())
+        assertFalse(spatial.isChecked)
+        fixture.current=fixture.current.withFeature(OppoSettingsFeatureState(spatialSound=false,spatialProductId=0x065414))
+        spatial.isChecked=true
+        assertEquals(2,fixture.sent.size)
+        slider.progress=9;listener.onStopTrackingTouch(slider)
+        assertEquals(2,fixture.sent.size)
         details.dismiss()
     }
 

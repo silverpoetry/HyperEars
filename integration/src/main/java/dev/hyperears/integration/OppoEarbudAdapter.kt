@@ -234,6 +234,7 @@ internal class OppoProtocolSession(
     }
 
     override fun followUpCommands(event: ProtocolEvent): List<ByteArray> {
+        if (event is ProtocolEvent.ProductIdentified) return settings.spatialQueries()
         if (event !== ProtocolEvent.HandshakeAccepted) return emptyList()
         return pendingNotificationRegistration
             ?.also { pendingNotificationRegistration = null }

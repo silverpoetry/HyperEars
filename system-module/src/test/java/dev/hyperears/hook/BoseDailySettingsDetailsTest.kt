@@ -25,6 +25,21 @@ class BoseDailySettingsDetailsTest {
         systemProfile = SystemProfileState.CONNECTED, privateTransport = PrivateTransportState.CONNECTED,
         protocolHandshake = ProtocolHandshakeState.CONFIRMED,
     )).withFeature(BoseDailySettingsFeatureState(multipoint = false))
+    @Test fun callSettingsWriteOnceWaitForReportAndRejectRemovedField() {
+        val f = Fixture()
+        f.current = f.current.withFeature(BoseDailySettingsFeatureState(sidetone = 3, autoAnswer = false))
+        val details = f.open()
+        val medium = views(details).single { it.contentDescription == "通话侧音 中" }
+        medium.performClick()
+        assertEquals(listOf(BoseDailyControlRequest.SetSidetone(2)), f.sent)
+        assertFalse(medium.isSelected)
+        views(details).filterIsInstance<CompoundButton>().single { it.isEnabled }.isChecked = true
+        assertEquals(BoseDailyControlRequest.SetAutoAnswer(true), f.sent.last())
+        f.current = f.current.withFeature(BoseDailySettingsFeatureState(autoAnswer = false))
+        medium.performClick()
+        assertEquals(2, f.sent.size)
+        details.dismiss()
+    }
     @Test fun togglesWaitForReadbackAndStaleSessionDismisses() {
         val f = Fixture(); val details = f.open()
         val toggle = views(details).filterIsInstance<CompoundButton>().single { it.isEnabled }

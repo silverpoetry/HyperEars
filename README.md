@@ -120,7 +120,7 @@ FitBuds Turbo 的实测证据来自贡献者原版实现；维护后的共享卡
    `com.milink.service` 已选中。使用连接展示或电量通知时勾选 `com.xiaomi.bluetooth`。
    若使用厂商控制 App 退避，再按
    [控制 App 目录](docs/control-apps.md#2-当前目录)选择对应且已安装的包名；不要选择
-   Settings、System UI 或所有应用。
+   System UI 或所有应用。原生蓝牙详情控制组另需可选 `com.android.settings` 作用域。
 4. 重启设备。仅强停 MiLink 不一定会让两个目标进程同时重新加载模块。
 5. 连接耳机后打开 HyperEars，确认对应会话显示正确的 Adapter、形态、传输和能力，
    并观察 MiLink 的状态接收、身份查询、能力查询与通知阶段。

@@ -264,3 +264,26 @@ unknown current indices revoke the selector and prevent stale indexed writes.
 
 These are source-backed candidate controls with automated fixtures. No additional physical-device
 acceptance is claimed, and LE Audio/GoldenSound workflows are outside this slice.
+
+## Prompt volume and legacy spatial sound
+
+QuickBuds `6e069325984bab50c5bd331ced8805923c1db410`, protocol `Commands.kt:202–207`
+and `Decode.kt:53`, provides prompt-volume query `0130`, response `8130 [00,level]`,
+and write `0427 [level]`. HyperEars requires the exact successful two-byte response and
+level 1..10 before enabling the native slider. Write acknowledgements do not confirm a level;
+the existing session requests `0130` after writing. Invalid reports preserve prior evidence.
+This query is independent of model names and requires a real response even on known products.
+
+Leaf `929d813f`, `DeviceCapabilities.kt:121–125` and
+`CapabilityProfileFactory.kt:137–142`, qualifies the legacy spatial-sound boolean only when
+`spatialTypes` is nonempty and excludes type2. `OppoLegacySpatialCatalog` retains those 44
+product IDs as query eligibility, never as capability evidence. After actual product identity,
+the normal switch query includes `1B`; only a successful independently reported boolean enables
+its native row. Writes use `0403 [1B,boolean]` and read the complete qualified switch set again.
+A missing field revokes that row; switching product clears its evidence. Requests include the
+expected product ID to reject old UI/IPC actions. EQ, prompt volume and other toggles are preserved.
+
+The label is “空间音效”. This is not the separate `0422` fixed/head-tracking selector and does
+not assert motion tracking or host rendering. The five products advertising type2 remain outside
+this boolean path. Existing four-switch queries remain unchanged for other/unknown products.
+All new controls remain source-backed candidates pending physical-device validation.

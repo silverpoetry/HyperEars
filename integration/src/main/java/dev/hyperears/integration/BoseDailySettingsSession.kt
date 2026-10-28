@@ -14,6 +14,8 @@ internal class BoseDailySettingsSession {
     }
     fun reset() { state = BoseDailySettingsFeatureState() }
     fun queries(): List<ByteArray> = buildList {
+        if (profile.sidetone) add(Wire.query(Wire.SIDETONE))
+        if (profile.autoAnswer) add(Wire.query(Wire.AUTO_ANSWER))
         if (profile.eq) add(Wire.query(Wire.EQ))
         if (profile.prompts) add(Wire.query(Wire.PROMPTS))
         if (profile.multipoint) add(Wire.query(Wire.MULTIPOINT))
@@ -23,6 +25,8 @@ internal class BoseDailySettingsSession {
     }
     fun offer(frame: BoseBmapWireCodec.Frame): BoseDailySettingsFeatureState? {
         val next = when {
+            profile.sidetone && frame.function == Wire.SIDETONE -> Wire.parseSidetone(frame)?.let { state.copy(sidetone = it) }
+            profile.autoAnswer && frame.function == Wire.AUTO_ANSWER -> Wire.parseAutoAnswer(frame)?.let { state.copy(autoAnswer = it) }
             profile.eq && frame.function == Wire.EQ -> Wire.parseEq(frame)?.let { bands -> state.copy(eq = bands.map {
                 BoseEqBand(BoseEqBandDefinition(it.id, it.minimum, it.maximum), it.current)
             }) }
@@ -39,6 +43,8 @@ internal class BoseDailySettingsSession {
     fun encode(request: BoseDailyControlRequest): List<ByteArray> {
         if (!state.supports(request)) return emptyList()
         return when (request) {
+            is BoseDailyControlRequest.SetSidetone -> listOf(Wire.setSidetone(request.level))
+            is BoseDailyControlRequest.SetAutoAnswer -> listOf(Wire.setToggle(Wire.AUTO_ANSWER, request.enabled))
             is BoseDailyControlRequest.SetEqBand -> listOf(Wire.setEq(request.expected.id, request.value))
             is BoseDailyControlRequest.SetVoicePrompts -> listOf(Wire.setPrompts(state.promptsRaw!!, request.enabled))
             is BoseDailyControlRequest.SetMultipoint -> listOf(Wire.setToggle(Wire.MULTIPOINT, request.enabled))
@@ -52,6 +58,8 @@ internal class BoseDailySettingsSession {
         }
     }
     fun readback(request: BoseDailyControlRequest): List<ByteArray> = listOf(Wire.query(when (request) {
+        is BoseDailyControlRequest.SetSidetone -> Wire.SIDETONE
+        is BoseDailyControlRequest.SetAutoAnswer -> Wire.AUTO_ANSWER
         is BoseDailyControlRequest.SetEqBand -> Wire.EQ
         is BoseDailyControlRequest.SetVoicePrompts -> Wire.PROMPTS
         is BoseDailyControlRequest.SetMultipoint -> Wire.MULTIPOINT

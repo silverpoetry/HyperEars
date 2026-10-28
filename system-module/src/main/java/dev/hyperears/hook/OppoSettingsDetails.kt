@@ -136,11 +136,40 @@ internal class OppoSettingsDetails private constructor(
                 if (value != null) toggle.isChecked = value
             }
         }
+        addPromptAndSpatial(controls)
         addNoiseOptions(controls)
         addEqualizers(controls)
         body.addView(ScrollView(context).apply { addView(controls) },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         return body
+    }
+    private fun addPromptAndSpatial(parent: LinearLayout) {
+        val volumeRow=column();val caption=text("提示音音量",17f)
+        val slider=SeekBar(context).apply { max=9;contentDescription="提示音音量";isSaveEnabled=false }
+        slider.setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {
+                if(fromUser) caption.text=String.format(Locale.getDefault(),"提示音音量：%d（待确认）",value+1)
+            }
+            override fun onStartTrackingTouch(bar:SeekBar)=Unit
+            override fun onStopTrackingTouch(bar:SeekBar) { send(OppoControlRequest.SetPromptVolume(bar.progress+1)) }
+        })
+        volumeRow.addView(caption);volumeRow.addView(slider);parent.addView(volumeRow)
+        val spatialRow=column();spatialRow.addView(text("空间音效",17f))
+        var shownProduct:Int?=null
+        val spatial=createToggle().apply {
+            contentDescription="空间音效";isSaveEnabled=false
+            setOnCheckedChangeListener { _,enabled -> shownProduct?.let { send(OppoControlRequest.SetSpatialSound(enabled,it)) } }
+        }
+        spatialRow.addView(spatial);parent.addView(spatialRow)
+        renders += { state ->
+            volumeRow.visibility=if(state.promptVolume==null) View.GONE else View.VISIBLE
+            slider.isEnabled=state.promptVolume!=null
+            state.promptVolume?.let { slider.progress=it-1;caption.text=String.format(Locale.getDefault(),"提示音音量：%d",it) }
+            spatialRow.visibility=if(state.spatialSound==null) View.GONE else View.VISIBLE
+            shownProduct=state.spatialProductId
+            spatial.isEnabled=state.spatialSound!=null
+            spatial.isChecked=state.spatialSound==true
+        }
     }
     private fun addNoiseOptions(parent: LinearLayout) {
         val row = column(); val title = text("降噪与通透",17f); val entries = column()

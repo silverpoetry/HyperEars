@@ -24,6 +24,9 @@ data class OppoEqualizer(val id: Int, val name: String, val minimum: Int, val ma
 @Serializable
 @SerialName("oppo.settings")
 data class OppoSettingsFeatureState(
+    val promptVolume: Int? = null,
+    val spatialSound: Boolean? = null,
+    val spatialProductId: Int? = null,
     val noise: OppoNoiseSelection? = null,
     val toggles: Map<OppoToggle, Boolean> = emptyMap(),
     val currentEqualizer: Int? = null,
@@ -32,13 +35,17 @@ data class OppoSettingsFeatureState(
     val canonicalLongFrames: Boolean = false,
     val equalizerWriteBudget: Int? = null,
 ) : DeviceFeatureState {
-    val hasSettings: Boolean get() = noise != null || toggles.isNotEmpty() || !equalizers.isNullOrEmpty() || currentEqualizer != null
+    val hasSettings: Boolean get() = promptVolume != null || spatialSound != null || noise != null || toggles.isNotEmpty() || !equalizers.isNullOrEmpty() || currentEqualizer != null
     @Transient override val featureId = FEATURE_ID
     companion object { const val FEATURE_ID = "oppo.settings" }
 }
 
 @Serializable
 sealed interface OppoControlRequest : ControlRequest {
+    @Serializable @SerialName("oppo.set_prompt_volume")
+    data class SetPromptVolume(val level: Int) : OppoControlRequest
+    @Serializable @SerialName("oppo.set_spatial_sound")
+    data class SetSpatialSound(val enabled: Boolean, val expectedProductId: Int) : OppoControlRequest
     @Serializable @SerialName("oppo.select_noise_option")
     data class SelectNoiseOption(val expected: OppoNoiseDefinition, val index: Int) : OppoControlRequest
     @Serializable @SerialName("oppo.set_toggle")
@@ -50,6 +57,8 @@ sealed interface OppoControlRequest : ControlRequest {
 }
 
 fun OppoSettingsFeatureState.supports(request: OppoControlRequest): Boolean = when (request) {
+    is OppoControlRequest.SetPromptVolume -> promptVolume != null && request.level in 1..10
+    is OppoControlRequest.SetSpatialSound -> spatialSound != null && spatialProductId == request.expectedProductId
     is OppoControlRequest.SelectNoiseOption -> noise?.definition == request.expected &&
         noise?.definition?.option(request.index)?.writable == true
     is OppoControlRequest.SetToggle -> toggles.containsKey(request.setting)
