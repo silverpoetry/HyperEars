@@ -5,6 +5,49 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AppleSettingsCardPolicyTest {
+    @Test fun behaviorRequestsRequireFreshReportedFieldsAndSupportedValues() {
+        val current = state().withFeature(AppleGestureSettingsFeatureState(
+            leftLongPress = AppleLongPressAction.NOISE_CONTROL, rightLongPress = AppleLongPressAction.DIGITAL_ASSISTANT,
+            listeningCycleMask = 6)).withFeature(AppleEqualizerFeatureState(2, 40, 50, 60))
+        val requests = listOf(
+            AppleControlRequest.SetLongPress(AppleBud.RIGHT, AppleLongPressAction.NOISE_CONTROL),
+            AppleControlRequest.SetListeningCycle(4), AppleControlRequest.SetEqualizer(1, 40, 50, 60),
+        )
+        requests.forEach { request ->
+            assertEquals(request, AppleSettingsCardPolicy.behaviorRequest(current, address, request))
+            assertNull(AppleSettingsCardPolicy.behaviorRequest(current, "00:11:22:33:44:66", request))
+            assertNull(AppleSettingsCardPolicy.behaviorRequest(current.copy(features = DeviceFeatureSnapshot()), address, request))
+            assertNull(AppleSettingsCardPolicy.behaviorRequest(current.copy(lifecycle = current.lifecycle.copy(
+                controlOwnership = ControlOwnership.EXTERNAL_APP,
+                externalControlApp = ControlAppSpec("test.controller", "Test"))), address, request))
+        }
+        listOf(
+            AppleControlRequest.SetLongPress(AppleBud.LEFT, AppleLongPressAction.NOISE_CONTROL),
+            AppleControlRequest.SetListeningCycle(6), AppleControlRequest.SetListeningCycle(0),
+            AppleControlRequest.SetListeningCycle(16), AppleControlRequest.SetEqualizer(2, 40, 50, 60),
+            AppleControlRequest.SetEqualizer(0, 40, 50, 60), AppleControlRequest.SetEqualizer(3, 40, 50, 60),
+            AppleControlRequest.SetEqualizer(2, -1, 50, 60), AppleControlRequest.SetEqualizer(2, 40, 101, 60),
+            AppleControlRequest.SetEqualizer(2, 40, 50, 101),
+        ).forEach { assertNull(AppleSettingsCardPolicy.behaviorRequest(current, address, it)) }
+        val restricted = current.withFeature(AppleListeningModeFeatureState(AppleListeningMode.ANC,
+            setOf(AppleListeningMode.ANC, AppleListeningMode.TRANSPARENCY)))
+        assertNull(AppleSettingsCardPolicy.behaviorRequest(restricted, address, AppleControlRequest.SetListeningCycle(9)))
+        val partial = current.withFeature(AppleGestureSettingsFeatureState(leftLongPress = AppleLongPressAction.NOISE_CONTROL))
+        assertNull(AppleSettingsCardPolicy.behaviorRequest(partial, address,
+            AppleControlRequest.SetLongPress(AppleBud.LEFT, AppleLongPressAction.DIGITAL_ASSISTANT)))
+    }
+
+    @Test fun readOnlyBehaviorEvidenceIsVisibleButStemAndInterceptionAloneDoNotOfferControls() {
+        val base = state().copy(features = DeviceFeatureSnapshot())
+        assertTrue(AppleSettingsCardPolicy.available(base.withFeature(
+            AppleWearFeatureState(AppleWearPosition.IN_EAR, AppleWearPosition.OUT_OF_EAR)), address))
+        assertTrue(AppleSettingsCardPolicy.available(base.withFeature(AppleConversationFeatureState(1, 1)), address))
+        assertFalse(AppleSettingsCardPolicy.available(base.withFeature(
+            AppleStemFeatureState(AppleStemPress.SINGLE, AppleBud.LEFT, 1)), address))
+        assertFalse(AppleSettingsCardPolicy.available(base.withFeature(AppleGestureSettingsFeatureState(interceptionMask = 1)), address))
+        assertFalse(AppleSettingsCardPolicy.available(base.withFeature(AppleEqualizerFeatureState(2, -1, 50, 50)), address))
+    }
+
     private val address = "00:11:22:33:44:55"
     private fun state() = EarbudState(address = address, lifecycle = DeviceLifecycle(
         systemProfile = SystemProfileState.CONNECTED,

@@ -9,8 +9,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
-import dev.hyperears.integration.AppleSettingsFeatureState
-import dev.hyperears.integration.EarbudState
+import dev.hyperears.integration.*
 import java.lang.ref.WeakReference
 
 /** Second-level panel hosted entirely by MiLink, with accepted reports as the only UI truth. */
@@ -23,6 +22,7 @@ internal class AppleSettingsDetails private constructor(
     private val token = environment.sessionTokenProvider(address)
     private val context = anchor.context
     private val rows = mutableListOf<Row>()
+    private val behaviorRows = mutableListOf<(EarbudState) -> Unit>()
     private var closed = false
     private var rendering = false
     private var unsubscribe: (() -> Unit)? = null
@@ -66,14 +66,15 @@ internal class AppleSettingsDetails private constructor(
     override fun render(state: EarbudState) {
         if (closed) return
         if (!valid(state)) { dismiss(); return }
-        val feature = state.features.get<AppleSettingsFeatureState>() ?: return
+        val feature = state.features.get<AppleSettingsFeatureState>()
         rendering = true
         try {
             rows.forEach { row ->
-                val value = row.setting.value(feature)
+                val value = feature?.let(row.setting::value)
                 row.container.visibility = if (value == null) View.GONE else View.VISIBLE
                 if (value != null) row.render(value, AppleSettingsCardPolicy.enabled(state, row.setting))
             }
+            behaviorRows.forEach { it(state) }
         } finally { rendering = false }
     }
 
@@ -90,6 +91,18 @@ internal class AppleSettingsDetails private constructor(
             // Widgets locally change on touch; restore accepted state until the headset replies.
             render(environment.stateProvider(address))
         }
+    }
+
+    private fun sendBehavior(build: (EarbudState) -> AppleControlRequest?) {
+        if (rendering || closed) return
+        val state = environment.stateProvider(address)
+        if (!valid(state)) { dismiss(); return }
+        try {
+            build(state)?.let { AppleSettingsCardPolicy.behaviorRequest(state, address, it) }?.let {
+                runCatching { environment.controlSender(address, it) }
+                    .onFailure { ModuleLog.warn("MiLinkUi", "Apple setting send failed", it) }
+            }
+        } finally { render(environment.stateProvider(address)) }
     }
 
     override fun dismiss() {
@@ -120,6 +133,11 @@ internal class AppleSettingsDetails private constructor(
             }
             val caption = text(setting.label, 17f)
             row.addView(caption)
+            when (setting) {
+                AppleSetting.WEARING_DETECTION -> row.addView(text("开启后，摘下暂停当前媒体，戴回恢复由本功能暂停的播放。", 13f))
+                AppleSetting.CONVERSATION_AWARENESS -> row.addView(text("开启后，说话时自动降低这副耳机的媒体声音，结束后恢复。", 13f))
+                else -> Unit
+            }
             val render: (Int, Boolean) -> Unit
             if (setting.isToggle) {
                 val toggle = createToggle().apply {
@@ -171,9 +189,144 @@ internal class AppleSettingsDetails private constructor(
             rows += Row(setting, row, render)
             controls.addView(row)
         }
+        addBehaviorControls(controls)
         body.addView(ScrollView(context).apply { addView(controls) },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         return body
+    }
+
+    private fun addBehaviorControls(controls: LinearLayout) {
+        fun row(label: String): LinearLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(10), 0, dp(10))
+            addView(text(label, 17f))
+            controls.addView(this)
+        }
+        val wear = text("", 16f).also { controls.addView(it) }
+        val conversation = text("", 16f).also { controls.addView(it) }
+        behaviorRows += { state ->
+            val report = state.features.get<AppleWearFeatureState>()
+            wear.visibility = if (report == null) View.GONE else View.VISIBLE
+            report?.let { wear.text = String.format(Locale.getDefault(), "主耳：%s · 副耳：%s", wearLabel(it.primary), wearLabel(it.secondary)) }
+            val activity = state.features.get<AppleConversationFeatureState>()
+            conversation.visibility = if (activity == null) View.GONE else View.VISIBLE
+            activity?.let {
+                conversation.text = String.format(Locale.getDefault(), "耳机对话活动：%s", when (it.supplementaryActivity) {
+                    AppleConversationActivity.START -> "进行中"
+                    AppleConversationActivity.RELEASE -> "已结束"
+                    AppleConversationActivity.UNKNOWN -> "状态未知"
+                })
+            }
+        }
+        AppleBud.entries.forEach { bud ->
+            val label = if (bud == AppleBud.LEFT) "左耳长按" else "右耳长按"
+            val group = row(label)
+            val options = AppleLongPressAction.entries.map { action ->
+                val title = if (action == AppleLongPressAction.NOISE_CONTROL) "噪声控制" else "语音助手"
+                text(title, 16f).apply {
+                    contentDescription = "$label：$title"
+                    setPadding(0, dp(12), 0, dp(12))
+                    setOnClickListener { sendBehavior { AppleControlRequest.SetLongPress(bud, action) } }
+                    group.addView(this)
+                } to title
+            }
+            behaviorRows += { state ->
+                val report = state.features.get<AppleGestureSettingsFeatureState>()
+                val selected = if (bud == AppleBud.LEFT) report?.leftLongPress else report?.rightLongPress
+                group.visibility = if (selected == null) View.GONE else View.VISIBLE
+                options.forEachIndexed { index, (option, title) ->
+                    option.isSelected = selected == AppleLongPressAction.entries[index]
+                    option.text = if (option.isSelected) "✓ $title" else title
+                    option.isEnabled = report?.leftLongPress != null && report.rightLongPress != null
+                }
+            }
+        }
+        val cycle = row("长按循环模式")
+        val modes = AppleListeningMode.entries.map { mode ->
+            val title = when (mode) {
+                AppleListeningMode.OFF -> "关闭"
+                AppleListeningMode.ANC -> "降噪"
+                AppleListeningMode.TRANSPARENCY -> "通透"
+                AppleListeningMode.ADAPTIVE -> "自适应"
+            }
+            createToggle().apply {
+                text = title
+                contentDescription = "长按循环：$title"
+                isSaveEnabled = false
+                setOnCheckedChangeListener { _, checked -> sendBehavior { state ->
+                    state.features.get<AppleGestureSettingsFeatureState>()?.listeningCycleMask?.let { mask ->
+                        val bit = AppleSettingsCardPolicy.cycleBit(mode)
+                        AppleControlRequest.SetListeningCycle(if (checked) mask or bit else mask and bit.inv())
+                    }
+                } }
+                cycle.addView(this)
+            }
+        }
+        behaviorRows += { state ->
+            val mask = state.features.get<AppleGestureSettingsFeatureState>()?.listeningCycleMask
+            val supported = state.features.get<AppleListeningModeFeatureState>()?.supportedModes.orEmpty()
+            cycle.visibility = if (mask in 1..15 && supported.isNotEmpty()) View.VISIBLE else View.GONE
+            modes.forEachIndexed { index, toggle ->
+                val mode = AppleListeningMode.entries[index]
+                toggle.visibility = if (mode in supported) View.VISIBLE else View.GONE
+                toggle.isEnabled = mask in 1..15 && mode in supported
+                toggle.isChecked = mask != null && mask and AppleSettingsCardPolicy.cycleBit(mode) != 0
+            }
+        }
+        val eq = row("耳机均衡器")
+        val eqMode = createToggle().apply {
+            text = "自定义均衡器"
+            contentDescription = "自定义均衡器"
+            isSaveEnabled = false
+            setOnCheckedChangeListener { _, checked -> sendBehavior { state ->
+                AppleSettingsCardPolicy.equalizer(state)?.let {
+                    AppleControlRequest.SetEqualizer(if (checked) 2 else 1, it.low, it.mid, it.high)
+                }
+            } }
+            eq.addView(this)
+        }
+        val bands = listOf("低频", "中频", "高频").mapIndexed { index, title ->
+            val caption = text(title, 16f).also { eq.addView(it) }
+            var tracking = false
+            val slider = SeekBar(context).apply {
+                min = 0; max = 100; contentDescription = title; isSaveEnabled = false
+                fun change(value: Int) = sendBehavior { state ->
+                    AppleSettingsCardPolicy.equalizer(state)?.takeIf { it.state == 2 }?.let {
+                        AppleControlRequest.SetEqualizer(it.state, if (index == 0) value else it.low,
+                            if (index == 1) value else it.mid, if (index == 2) value else it.high)
+                    }
+                }
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                        if (fromUser && !tracking) change(progress)
+                    }
+                    override fun onStartTrackingTouch(bar: SeekBar) { tracking = true }
+                    override fun onStopTrackingTouch(bar: SeekBar) { tracking = false; change(bar.progress) }
+                })
+                eq.addView(this)
+            }
+            caption to slider
+        }
+        behaviorRows += { state ->
+            val report = AppleSettingsCardPolicy.equalizer(state)
+            eq.visibility = if (report == null) View.GONE else View.VISIBLE
+            eqMode.isChecked = report?.state == 2
+            report?.let {
+                val values = listOf(it.low, it.mid, it.high)
+                bands.forEachIndexed { index, (caption, slider) ->
+                    caption.text = String.format(Locale.getDefault(), "%s：%d", slider.contentDescription, values[index])
+                    slider.progress = values[index]
+                    slider.isEnabled = it.state == 2
+                }
+            }
+        }
+    }
+
+    private fun wearLabel(position: AppleWearPosition): String = when (position) {
+        AppleWearPosition.IN_EAR -> "佩戴中"
+        AppleWearPosition.OUT_OF_EAR -> "未佩戴"
+        AppleWearPosition.IN_CASE -> "盒内"
+        AppleWearPosition.DISCONNECTED -> "未连接"
     }
 
     private fun createToggle(): CompoundButton = runCatching {

@@ -18,6 +18,8 @@ internal class AppleSettingsCardEntry private constructor(
     entry: TextView,
     private val address: String,
     private val environment: MiLinkCardEnvironment,
+    private val isAvailable: (EarbudState, String) -> Boolean,
+    private val openDetails: (View, String, MiLinkCardEnvironment) -> MiLinkToggleDetails,
 ) : MiLinkCardBinding {
     private val originalRef = WeakReference(original)
     private val parentRef = WeakReference(parent)
@@ -33,14 +35,16 @@ internal class AppleSettingsCardEntry private constructor(
     init {
         wrapper.addOnAttachStateChangeListener(detachListener)
         entry.setOnClickListener {
-            if (bound && available(environment.stateProvider(address))) {
-                details?.dismiss()
-                details = AppleSettingsDetails.open(entry, address, environment)
-            } else { details?.dismiss(); details = null }
+            try {
+                if (bound && available(environment.stateProvider(address))) {
+                    details?.dismiss()
+                    details = openDetails(entry, address, environment)
+                } else { details?.dismiss(); details = null }
+            } catch (_: Exception) { details?.dismiss(); details = null }
         }
     }
     private fun available(state: EarbudState) = token != null && token == environment.sessionTokenProvider(address) &&
-        AppleSettingsCardPolicy.available(state, address)
+        isAvailable(state, address)
     override fun render(state: EarbudState) {
         if (!bound) return
         val currentToken = environment.sessionTokenProvider(address)
@@ -69,7 +73,10 @@ internal class AppleSettingsCardEntry private constructor(
         }
     }
     companion object {
-        fun bind(title: TextView?, card: View, address: String, environment: MiLinkCardEnvironment): AppleSettingsCardEntry? {
+        fun bind(title: TextView?, card: View, address: String, environment: MiLinkCardEnvironment,
+            isAvailable: (EarbudState, String) -> Boolean = AppleSettingsCardPolicy::available,
+            openDetails: (View, String, MiLinkCardEnvironment) -> MiLinkToggleDetails = AppleSettingsDetails::open,
+        ): AppleSettingsCardEntry? {
             val original = title ?: card
             val parent = original.parent as? ViewGroup ?: return null
             val index = parent.indexOfChild(original)
@@ -94,7 +101,7 @@ internal class AppleSettingsCardEntry private constructor(
                     else LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
                 if (title != null) wrapper.addView(entry)
                 parent.addView(wrapper, index, params)
-                return AppleSettingsCardEntry(original, parent, index, params, wrapper, entry, address, environment)
+                return AppleSettingsCardEntry(original, parent, index, params, wrapper, entry, address, environment, isAvailable, openDetails)
             } catch (error: Exception) {
                 (original.parent as? ViewGroup)?.removeView(original)
                 if (wrapper.parent === parent) parent.removeView(wrapper)

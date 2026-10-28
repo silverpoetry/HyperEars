@@ -110,6 +110,9 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(AppleControlRequest.SetLongPress::class, AppleControlRequest.SetLongPress.serializer())
+                subclass(AppleControlRequest.SetListeningCycle::class, AppleControlRequest.SetListeningCycle.serializer())
+                subclass(AppleControlRequest.SetEqualizer::class, AppleControlRequest.SetEqualizer.serializer())
                 subclass(SamsungControlRequest.SetTouchGesture::class, SamsungControlRequest.SetTouchGesture.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldActions::class, SamsungControlRequest.SetTouchHoldActions.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldNoiseCycles::class, SamsungControlRequest.SetTouchHoldNoiseCycles.serializer())

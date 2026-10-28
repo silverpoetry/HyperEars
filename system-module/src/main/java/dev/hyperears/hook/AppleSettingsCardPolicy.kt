@@ -62,9 +62,48 @@ internal object AppleSettingsCardPolicy {
         state.address.equals(address, ignoreCase = true) && state.sessionActive &&
             state.privateChannelConnected && state.handshakeAccepted &&
             state.lifecycle.controlOwnership == ControlOwnership.MODULE &&
-            state.features.get<AppleSettingsFeatureState>()?.let { feature ->
+            (state.features.get<AppleSettingsFeatureState>()?.let { feature ->
                 AppleSetting.entries.any { it.value(feature) != null }
+            } == true || state.features.get<AppleWearFeatureState>() != null ||
+                state.features.get<AppleConversationFeatureState>() != null ||
+                state.features.get<AppleGestureSettingsFeatureState>()?.let {
+                    it.leftLongPress != null || it.rightLongPress != null || it.listeningCycleMask in 1..15
+                } == true || equalizer(state) != null)
+
+    fun equalizer(state: EarbudState): AppleEqualizerFeatureState? =
+        state.features.get<AppleEqualizerFeatureState>()?.takeIf {
+            it.state in 1..2 && listOf(it.low, it.mid, it.high).all { band -> band in 0..100 }
+        }
+
+    fun behaviorRequest(state: EarbudState, address: String, request: AppleControlRequest): AppleControlRequest? {
+        if (!available(state, address)) return null
+        val gesture = state.features.get<AppleGestureSettingsFeatureState>()
+        val changed = when (request) {
+            is AppleControlRequest.SetLongPress -> {
+                val previous = if (request.bud == AppleBud.LEFT) gesture?.leftLongPress else gesture?.rightLongPress
+                gesture?.leftLongPress != null && gesture.rightLongPress != null && previous != request.action
+            }
+            is AppleControlRequest.SetListeningCycle -> {
+                val supported = state.features.get<AppleListeningModeFeatureState>()?.supportedModes.orEmpty()
+                    .fold(0) { mask, mode -> mask or cycleBit(mode) }
+                gesture?.listeningCycleMask in 1..15 && request.mask in 1..15 &&
+                    request.mask and supported == request.mask && gesture?.listeningCycleMask != request.mask
+            }
+            is AppleControlRequest.SetEqualizer -> equalizer(state)?.let {
+                request.state in 1..2 && listOf(request.low, request.mid, request.high).all { band -> band in 0..100 } &&
+                    it != AppleEqualizerFeatureState(request.state, request.low, request.mid, request.high)
             } == true
+            else -> false
+        }
+        return request.takeIf { changed }
+    }
+
+    fun cycleBit(mode: AppleListeningMode): Int = when (mode) {
+        AppleListeningMode.OFF -> 1
+        AppleListeningMode.ANC -> 2
+        AppleListeningMode.TRANSPARENCY -> 4
+        AppleListeningMode.ADAPTIVE -> 8
+    }
 
     fun enabled(state: EarbudState, setting: AppleSetting): Boolean =
         setting != AppleSetting.ADAPTIVE_STRENGTH ||

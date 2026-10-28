@@ -40,6 +40,8 @@ internal class NativePresentationRuntime(
     private data class Record(val state: EarbudState, val session: String,
         val metadata: NativePresentationMetadata, val producer: IBinder)
     private val handler = Handler(Looper.getMainLooper())
+    private val wearRuntime = if (uiProcess) null else runCatching { AppleWearRuntime(context, handler) }.getOrNull()
+    private val conversationRuntime = if (uiProcess) null else runCatching { AppleConversationRuntime(context, handler) }.getOrNull()
     private val registry = DeviceStateRegistry()
     private val records = linkedMapOf<String, Record>()
     private val gate = ConnectionPresentationGate()
@@ -82,6 +84,7 @@ internal class NativePresentationRuntime(
                         Intent.ACTION_SCREEN_OFF -> windowBridge?.closeAll("screen off")
                         BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                             val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                            device?.address?.let { wearRuntime?.remove(it); conversationRuntime?.remove(it) }
                             if (device?.address in records) windowBridge?.closeAll("Bluetooth disconnected")
                         }
                     }
@@ -97,6 +100,7 @@ internal class NativePresentationRuntime(
         ModuleSettingsRuntime.observe { updated -> handler.post {
             val old = settings
             settings = updated
+            if (old.modulePaused != updated.modulePaused) { wearRuntime?.clear(); conversationRuntime?.clear() }
             if (old != updated) {
                 ModuleLog.debug(TAG) {
                     "settings applied mode=${updated.headsetConnectionPresentation} " +
@@ -109,6 +113,7 @@ internal class NativePresentationRuntime(
             if (updated.modulePaused || !updated.headsetDetailNotification) details?.clear()
             prepareDetails()
             records.values.toList().forEach { render(it, allowTransient = false) }
+            records.values.toList().forEach { updateAutomation(it) }
         } }
         BroadcastIdentity.send(context, ModuleContract.requestState(ModuleContract.NATIVE_HEADSET_PACKAGE))
         ModuleLog.debug(TAG, "receiver ready ui=$uiProcess")
@@ -186,6 +191,7 @@ internal class NativePresentationRuntime(
 
     private fun accept(intent: Intent) {
         val nextProducer = NativePresentationContract.producer(intent) ?: return
+        if (!nextProducer.isBinderAlive || nextProducer in retiredProducers) return
         val metadata = NativePresentationContract.metadata(intent) ?: return
         val state = with(ModuleContract) { intent.readState() } ?: return
         val token = with(ModuleContract) { intent.readSessionToken() } ?: return
@@ -204,6 +210,8 @@ internal class NativePresentationRuntime(
         }
         val accepted = registry.accept(state, token) ?: return
         val address = accepted.address ?: return
+        wearRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
+        conversationRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
         windowBridge?.update(accepted, token, metadata, nextProducer)
         if (!accepted.sessionActive || metadata.admission == NativeAdmission.SYSTEM) {
             records.remove(address)
@@ -217,12 +225,19 @@ internal class NativePresentationRuntime(
     }
 
     private fun clear(reason: String) {
+        wearRuntime?.clear()
+        conversationRuntime?.clear()
         windowBridge?.closeAll(reason)
         details?.clear()
         records.clear()
         registry.clear()
         gate.clear()
         releaseWindow()
+    }
+
+    private fun updateAutomation(record: Record) {
+        wearRuntime?.update(record.state, record.session, record.metadata.admission, !settings.modulePaused)
+        conversationRuntime?.update(record.state, record.session, record.metadata.admission, !settings.modulePaused)
     }
 
     private fun prepareDetails() {

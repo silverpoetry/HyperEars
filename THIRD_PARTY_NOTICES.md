@@ -50,7 +50,8 @@ Apple 四态聆听、设备信息与高级设置扩展还核对了以下互操�
   <https://github.com/NEORUAA/HyperPods-X/tree/018765be94f24a49bf28be26fbb5924a3652018f>。
   上游代码声明 GPL-3.0-or-later，基于 YeFeng233/HyperPods-X，并注明 LibrePods 等来源。
   本轮用于交叉核对四态值、控制回报、十四项设置的值域与多字节保留规则，以及 A3441
-  实测边界，没有移入其应用连接管理器、
+  实测边界。后续还核对佩戴／对话活动值、长按与 EQ 字段，以及有界媒体行为与
+  VolumeShaper 框架接口；相应生命周期和媒体控制独立实现。没有移入其应用连接管理器、
   Glasmio 界面、SF 字体或 Apple 图片。
 
 设备信息的长度与字段顺序以 AndPods 4.3.8 的实际 DEX 行为交叉确认；自适应型号候选
@@ -299,6 +300,19 @@ fingerprint when stable symbols and the exact-version table are unavailable.
 [PR #23](https://github.com/silverpoetry/HyperEars/pull/23) 提供。HyperEars 在项目现有的
 Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不随项目分发厂商应用、
 抓包文件、固件或品牌资源。该贡献合入后的源代码遵循本项目的 GNU GPL-3.0-only 许可。
+
+## ROSELINK application research
+
+- ROSELINK 3.8.2/code 5409，包名 `cn.ikaile.ruoshui.client`。
+- 研究依据为用户设备中的本地 APK；SHA-256：
+  `815fa535c2a518479fbd4dd52e8b95fd288692ec8a3299250ba77838630c6075`。
+
+Coral 的独立实现使用静态分析确认的接口事实：RS Common V2 收发封装、状态字段、
+控制参数、音频选项和 AB OTA 消息结构。型号与功能清单见
+[ROSELINK 调研](docs/research/source-audits/roselink-model-feature-inventory.md)，
+升级细节与尚未确认的边界见 [AB OTA 规格](docs/research/source-audits/rose-coral-ota-static-spec.md)。
+不分发厂商应用、反编译产物、厂商代码、固件或商标图片；应用及相关资源的权利属于
+其权利人。静态协议依据与真实设备验证分别记录。
 
 ## MOONDROP Link application research
 

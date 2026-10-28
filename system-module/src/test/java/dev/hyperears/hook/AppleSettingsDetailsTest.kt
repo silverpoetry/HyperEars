@@ -142,6 +142,47 @@ class AppleSettingsDetailsTest {
         assertEquals(2, fixture.unsubscribed)
     }
 
+    @Test fun behaviorOnlyReportsOpenTheDetailsPanel() {
+        val fixture = Fixture()
+        fixture.current = fixture.current.copy(features = DeviceFeatureSnapshot())
+            .withFeature(AppleWearFeatureState(AppleWearPosition.IN_EAR, AppleWearPosition.IN_CASE))
+        val details = fixture.open()
+        assertTrue(popup(details).isShowing)
+        assertTrue(descendants(popup(details).contentView).filterIsInstance<android.widget.TextView>()
+            .any { it.text.contains("主耳：佩戴中") })
+        details.dismiss()
+    }
+
+    @Test fun behaviorControlsSendTypedRequestsAndRestoreAcceptedReadback() {
+        val fixture = Fixture()
+        fixture.current = fixture.current
+            .withFeature(AppleGestureSettingsFeatureState(leftLongPress = AppleLongPressAction.NOISE_CONTROL,
+                rightLongPress = AppleLongPressAction.DIGITAL_ASSISTANT, listeningCycleMask = 6))
+            .withFeature(AppleListeningModeFeatureState(AppleListeningMode.ANC,
+                setOf(AppleListeningMode.ANC, AppleListeningMode.TRANSPARENCY)))
+            .withFeature(AppleEqualizerFeatureState(2, 40, 50, 60))
+        val details = fixture.open()
+        val views = descendants(popup(details).contentView)
+        views.first { it.contentDescription == "左耳长按：语音助手" }.performClick()
+        assertEquals(AppleControlRequest.SetLongPress(AppleBud.LEFT, AppleLongPressAction.DIGITAL_ASSISTANT), fixture.sent.last())
+        val cycle = views.filterIsInstance<CompoundButton>().first { it.contentDescription == "长按循环：降噪" }
+        cycle.isChecked = false
+        assertEquals(AppleControlRequest.SetListeningCycle(4), fixture.sent.last())
+        assertTrue(cycle.isChecked)
+        val low = views.filterIsInstance<SeekBar>().first { it.contentDescription == "低频" }
+        val listener = org.robolectric.util.ReflectionHelpers.getField<SeekBar.OnSeekBarChangeListener>(low, "mOnSeekBarChangeListener")
+        listener.onProgressChanged(low, 80, true)
+        assertEquals(AppleControlRequest.SetEqualizer(2, 80, 50, 60), fixture.sent.last())
+        assertEquals(40, low.progress)
+        fixture.current = fixture.current.withFeature(AppleEqualizerFeatureState(2, 80, 50, 60))
+        fixture.observer!!(fixture.current)
+        assertEquals(80, low.progress)
+        fixture.token = "changed"
+        listener.onProgressChanged(low, 90, true)
+        assertEquals(3, fixture.sent.size)
+        assertEquals(1, fixture.unsubscribed)
+    }
+
     private fun attachListenerCount(view: View): Int {
         val info = org.robolectric.util.ReflectionHelpers.getField<Any?>(view, "mListenerInfo") ?: return 0
         return org.robolectric.util.ReflectionHelpers.getField<List<*>?>(info, "mOnAttachStateChangeListeners")?.size ?: 0

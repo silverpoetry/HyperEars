@@ -68,6 +68,22 @@ At each implementation slice:
 5. Review scope compliance and code quality; fix substantive findings before marking the slice.
 6. Record evidence and commit. Do not mark the overall goal complete based on a subset of slices.
 
+## User-defined verification and delivery standard
+
+The user clarified that physical possession is limited and must not block adaptation of other
+models. AndPods -> AirPods 5 wireless and RoseLink -> ROSE Coral are the two representative
+proprietary-application interoperability paths to complete first and validate with owned hardware.
+Reuse their proven integration patterns for the other models in those applications, retaining
+model-specific protocol/configuration differences. Other source-based ports require code review
+and meaningful unit tests for initial delivery. Record hardware-unverified status accurately;
+release issue reports and later available headphones drive additional fixes. Lack of every
+physical model is not an incomplete-work gate for the full integration deliverable.
+
+Final changed-build hardware checks focus on the owned representative devices. Existing upstream
+contributor-PR workflow requirements still govern PR status and original-PR preservation; source
+and unit verification may deliver a Draft PR without falsely claiming those contributors have
+revalidated changed device behavior. The full model/function scope remains unchanged.
+
 ## A. Integration foundation
 
 - [x] A1 Establish clean baseline tests and build environment in isolated worktree.
@@ -185,9 +201,10 @@ does not treat every source command as universally supported. All items below re
 - [ ] E2 Run `testDebugUnitTest :protocol-test:assembleDebug :system-module:lintRelease
   :system-module:assembleRelease`, document validation, focused frame/control/session/native-host
   regressions. Review privacy, permissions, signing and upgrade compatibility of the final artifact.
-- [ ] E3 Arrange user-authorized device acceptance: AirPods5 wireless first, representative other
-  protocols/native controls, multiple devices, reconnect, contention, controls/readback and actual
-  behavior. Preserve rollback. All reboots remain manual unless explicitly instructed otherwise.
+- [ ] E3 Arrange user-authorized final device checks for owned AirPods5 wireless and ROSE Coral:
+  native controls, reconnect, contention, controls/readback and actual behavior. Other models use
+  code review/unit tests for delivery, with explicit hardware-unverified labels and post-release
+  issue/later-device follow-up. Preserve rollback; all reboots remain manual unless instructed.
 - [ ] E4 Prepare a reviewable PR with original contributor history, scope and validation limits;
   keep Draft while required final device validation is pending; no closing keywords for open
   device contributions pending their final changed-version revalidation.
@@ -285,3 +302,19 @@ does not treat every source command as universally supported. All items below re
   A2DP playback remains connected, with vendor-app yield disabled. Endpoint reuse and a candidate
   match in installed HyperEars do not yet establish compatible grammar or prove contention cause.
   Source/AOT analysis continues; no device control, settings change, install or restart performed.
+- User explicitly confirmed delivery tiers: complete AndPods/AirPods5 and RoseLink/Coral paths,
+  validate owned hardware, then reuse those patterns for their other models; source ports require
+  code review and unit tests initially. Do not demand unavailable hardware or leave implemented
+  models indefinitely incomplete for that reason. Publish evidence labels and iterate from issues.
+- Combined Coral/Apple implementation checkpoint: Coral normal controls, audio selection and
+  firmware display are wired to existing native cards/details. Apple reported wear/activity,
+  long-press, cycle and EQ are wired; wear playback and bounded conversation shaping now run in
+  the existing authenticated Xiaomi host. Review found and fixed cached-START rearming and dead
+  producer admission; direct runtime tests cover callback/resource cleanup and ownership changes.
+  Combined unit suites passed (219 protocol, 340 integration, 219 system-module); Release lint
+  and unsigned assembly passed after local text-formatting fixes. Documentation lint and validator
+  passed for 69 files. This is code-level evidence, not actual earbud acceptance.
+- Coral AB OTA image/transfer engine is implemented with 12 protocol tests; exclusive transport
+  execution, metadata retrieval, upgrade UI and device reconnect verification remain to connect.
+  Apple BLE/bootstrap/case, host gesture interception and spatial audio remain outstanding;
+  the broader source-port and model-expansion inventory remains in scope.

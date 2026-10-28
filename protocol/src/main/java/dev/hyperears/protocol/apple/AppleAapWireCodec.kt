@@ -22,6 +22,14 @@ object AppleAapWireCodec {
 
         data class Noise(val mode: NoiseMode) : State
 
+        /** AndPods offsets 6/7; primary/secondary identities are not fixed left/right. */
+        data class Wear(val primary: Int, val secondary: Int) : State
+        /** Preserve subtype and raw status; unknown values never imply a host action. */
+        data class Conversation(val subtype: Int, val status: Int) : State
+        data class Stem(val press: Int, val bud: Int) : State
+        /** Supplementary HyperPods-X 0x63 schema, not AndPods' unrelated 0x53 label. */
+        data class Equalizer(val state: Int, val low: Int, val mid: Int, val high: Int) : State
+
         /** Opcode 0x09: unsigned identifier and exactly four unsigned payload bytes. */
         data class Control(val identifier: Int, val values: List<Int>) : State
 
@@ -47,6 +55,12 @@ object AppleAapWireCodec {
         require(identifier in 0..255)
         require(values.size == 4 && values.all { it in 0..255 })
         return CONTROL_PREFIX + byteArrayOf(identifier.toByte()) + values.map(Int::toByte).toByteArray()
+    }
+
+    fun setEqualizer(state: Int, low: Int, mid: Int, high: Int): ByteArray {
+        require(state in 1..2 && listOf(low, mid, high).all { it in 0..100 })
+        return hex("04 00 04 00 63 00 05 00 01") +
+            byteArrayOf(state.toByte(), low.toByte(), mid.toByte(), high.toByte())
     }
 
     class Decoder {
@@ -234,6 +248,35 @@ object AppleAapWireCodec {
             parse = ::parseBattery,
         ),
         PacketSpec(CONTROL_PREFIX, { 11 }, ::parseControl),
+        PacketSpec(hex("04 00 04 00 06 00"), { 8 }) { frame ->
+            val primary = frame[6].unsigned()
+            val secondary = frame[7].unsigned()
+            if (primary in 0..3 && secondary in 0..3) State.Wear(primary, secondary) else null
+        },
+        PacketSpec(hex("04 00 04 00 19 00"), { 8 }) { frame ->
+            val press = frame[6].unsigned()
+            val bud = frame[7].unsigned()
+            if (press in 5..8 && bud in 1..2) State.Stem(press, bud) else null
+        },
+        PacketSpec(hex("04 00 04 00 4B 00"), { bytes ->
+            if (bytes.size < 8) FRAME_INCOMPLETE else {
+                val size = bytes[6].unsigned() + (bytes[7].unsigned() shl 8)
+                if (size in 1..64) 8 + size else FRAME_INVALID
+            }
+        }) { frame ->
+            if (frame.size == 10) State.Conversation(frame[8].unsigned(), frame[9].unsigned()) else null
+        },
+        PacketSpec(hex("04 00 04 00 63 00"), { bytes ->
+            if (bytes.size < 8) FRAME_INCOMPLETE else {
+                val size = bytes[6].unsigned() + (bytes[7].unsigned() shl 8)
+                if (size in 1..64) 8 + size else FRAME_INVALID
+            }
+        }) { frame ->
+            if (frame.size == 13 && frame[8].unsigned() == 1 &&
+                frame[9].unsigned() in 1..2 && (10..12).all { frame[it].unsigned() in 0..100 }
+            ) State.Equalizer(frame[9].unsigned(), frame[10].unsigned(), frame[11].unsigned(), frame[12].unsigned())
+            else null
+        },
         PacketSpec(
             prefix = hex("04 00 04 00 1D 00"),
             frameSize = { bytes ->

@@ -95,4 +95,16 @@ sealed interface AppleControlRequest : ControlRequest {
     @Serializable
     @SerialName("apple.set_sleep_pause")
     data class SetSleepPause(val value: Boolean) : AppleControlRequest
+
+    @Serializable
+    @SerialName("apple.set_long_press")
+    data class SetLongPress(val bud: AppleBud, val action: AppleLongPressAction) : AppleControlRequest
+
+    @Serializable
+    @SerialName("apple.set_listening_cycle")
+    data class SetListeningCycle(val mask: Int) : AppleControlRequest
+
+    @Serializable
+    @SerialName("apple.set_equalizer")
+    data class SetEqualizer(val state: Int, val low: Int, val mid: Int, val high: Int) : AppleControlRequest
 }

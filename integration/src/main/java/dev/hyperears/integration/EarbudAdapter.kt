@@ -636,6 +636,7 @@ object EarbudAdapterRegistry {
         add(Registration(edifierGroup, ::EdifierFitBudsTurboAdapter))
         add(Registration(edifierGroup, ::EdifierHeadphonesAdapter))
         add(Registration(edifierGroup, ::EdifierEarbudAdapter))
+        add(Registration(roseGroup, ::RoseCoralAdapter))
         add(Registration(roseGroup, ::FurinaEndlessAdapter))
         add(Registration(roseGroup, ::RoseLuliXAdapter))
         add(Registration(roseGroup, ::RoseLuliUltraAdapter))

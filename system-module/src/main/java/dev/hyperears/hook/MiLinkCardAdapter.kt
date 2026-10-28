@@ -83,6 +83,8 @@ internal object MiLinkCardAdapterRegistry {
         EdifierFitBudsTurboMiLinkCardAdapter,
         FitClipUltraGameModeMiLinkCardAdapter,
         FloS2SoundEffectMiLinkCardAdapter,
+        RoseCoralMiLinkCardAdapter,
+        RoseCoralSettingsOnlyMiLinkCardAdapter,
         AppleListeningMiLinkCardAdapter,
         AppleSettingsOnlyMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
