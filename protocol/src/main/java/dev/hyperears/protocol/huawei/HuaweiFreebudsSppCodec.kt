@@ -157,6 +157,7 @@ object HuaweiFreebudsSppCodec {
         val params = LinkedHashMap<Int, ByteArray>()
         var position = 6
         while (position < bytes.size - 2) {
+            if (position + 2 > bytes.size - 2) return null
             val type = bytes[position].unsigned()
             val valueLength = bytes[position + 1].unsigned()
             if (position + 2 + valueLength > bytes.size - 2) return null

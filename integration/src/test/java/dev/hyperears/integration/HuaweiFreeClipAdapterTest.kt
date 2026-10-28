@@ -45,16 +45,16 @@ class HuaweiFreeClipAdapterTest {
     }
 
     @Test
-    fun handshakeAndRefreshSendOnlyTheBatteryQuery() {
+    fun handshakeAndRefreshQueryBatteryAndSourceBackedDailySettingsWithoutAnc() {
         assertEquals(
-            listOf(HuaweiFreebudsSppCodec.queryBattery.toList()),
+            (listOf(HuaweiFreebudsSppCodec.queryBattery) + HuaweiDailySettingsSession(HuaweiDailyProfile.FREECLIP2).queries()).map(ByteArray::toList),
             adapter.beginHandshake().commands.map(ByteArray::toList),
         )
 
         val refresh = adapter.executeControl(StandardControlRequest.Refresh)
         assertTrue(refresh.accepted)
         assertEquals(
-            listOf(HuaweiFreebudsSppCodec.queryBattery.toList()),
+            (listOf(HuaweiFreebudsSppCodec.queryBattery) + HuaweiDailySettingsSession(HuaweiDailyProfile.FREECLIP2).queries()).map(ByteArray::toList),
             refresh.commands.map(ByteArray::toList),
         )
         assertEquals(

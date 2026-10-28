@@ -33,6 +33,23 @@ open class OppoEarbudAdapter(
         ),
     )
     open val wireConfig: OppoWireConfig = OppoWireConfig.STANDARD
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        state is OppoSettingsFeatureState
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is OppoControlRequest &&
+            adapter.runtimeState().features.get<OppoSettingsFeatureState>()?.supports(request) == true
+    }
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = when {
+            effectiveCapabilities().noiseControl -> PRESENTATION_ID
+            runtimeState().features.get<OppoSettingsFeatureState>() != null -> SETTINGS_PRESENTATION_ID
+            else -> null
+        }
+    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
+        if (request is OppoControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() { removeFeatureState(OppoSettingsFeatureState.FEATURE_ID) }
+
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
@@ -67,6 +84,8 @@ open class OppoEarbudAdapter(
 
     companion object {
         const val ID = "oppo-enco-family"
+        val PRESENTATION_ID = MiLinkCardPresentationId("oppo-settings-noise")
+        val SETTINGS_PRESENTATION_ID = MiLinkCardPresentationId("oppo-settings-only")
         const val OPPO_RFCOMM_UUID = "0000079a-d102-11e1-9b23-00025b00a5a5"
     }
 }
@@ -177,6 +196,7 @@ internal class OppoProtocolSession(
         private set
     var confirmedNoiseMode: NoiseMode? = null
         private set
+    private val settings = OppoSettingsSession()
     private val decoder = OppoWireCodec.Decoder()
     private var handshakePublished = false
     private var battery = EarbudBattery()
@@ -187,15 +207,17 @@ internal class OppoProtocolSession(
         OppoWireCodec.queryNotificationSupport,
         OppoWireCodec.queryBattery,
         OppoWireCodec.queryAnc,
-    )
+    ) + settings.initialQueries
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
+        request is OppoControlRequest -> settings.encode(request)
         request === StandardControlRequest.Refresh -> initialReadCommands()
         request is StandardControlRequest.SetNoiseMode -> request.mode.toWireCommand()?.let(::listOf).orEmpty()
         else -> emptyList()
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> = when {
+        request is OppoControlRequest -> settings.readback(request)
         request === StandardControlRequest.Refresh -> emptyList()
         request is StandardControlRequest.SetNoiseMode -> listOf(OppoWireCodec.queryAnc)
         else -> emptyList()
@@ -223,8 +245,14 @@ internal class OppoProtocolSession(
                     publishHandshakeIfNeeded()
                     if (productId != identified) {
                         productId = identified
+                        settings.identify(productId)?.let { add(ProtocolEvent.FeatureStateChanged(it)) }
                         add(ProtocolEvent.ProductIdentified(identified))
                     }
+                    return@buildList
+                }
+                settings.offer(frame, productId)?.let {
+                    publishHandshakeIfNeeded()
+                    add(ProtocolEvent.FeatureStateChanged(it))
                     return@buildList
                 }
                 OppoWireCodec.parseNotificationSupport(frame)?.let { advertisedIds ->
@@ -275,6 +303,7 @@ internal class OppoProtocolSession(
 
     override fun reset() {
         decoder.reset()
+        settings.reset()
         productId = null
         confirmedNoiseMode = null
         handshakePublished = false

@@ -25,6 +25,7 @@ object RoseBudsFeelMk2WireCodec {
         ) : State
 
         data class Noise(val mode: NoiseMode) : State
+        data class Settings(val values: Map<Int, Int>) : State
     }
 
     fun queryStatus(sequence: Int): ByteArray =
@@ -38,7 +39,7 @@ object RoseBudsFeelMk2WireCodec {
         return body + byteArrayOf(body.checksum(), TERMINATOR)
     }
 
-    class Decoder {
+    class Decoder(private val includeSettings: Boolean = false) {
         private var pending = ByteArray(0)
 
         fun offer(bytes: ByteArray): List<State> {
@@ -63,7 +64,7 @@ object RoseBudsFeelMk2WireCodec {
 
                 val frame = pending.copyOfRange(0, end + 1)
                 pending = pending.copyOfRange(end + 1, pending.size)
-                states += parseFrame(frame)
+                states += parseFrame(frame, includeSettings)
             }
             return states
         }
@@ -115,8 +116,9 @@ object RoseBudsFeelMk2WireCodec {
         return null
     }
 
-    private fun parseFrame(frame: ByteArray): List<State> {
+    private fun parseFrame(frame: ByteArray, includeSettings: Boolean): List<State> {
         if (frame.size < MIN_FRAME_SIZE) return emptyList()
+        if (includeSettings) return parseProfileFrame(frame)
         val payloadLength = frame[PAYLOAD_LENGTH_INDEX].unsigned()
         val payloadEnd = FRAME_HEADER_SIZE + payloadLength
         if (payloadEnd + FRAME_TRAILER_SIZE > frame.size) return emptyList()
@@ -127,6 +129,37 @@ object RoseBudsFeelMk2WireCodec {
         if (payloadEnd < extensionEnd) {
             states += parseTlvBlock(frame, payloadEnd, extensionEnd)
         }
+        if (includeSettings) {
+            RoseRfcommSettingsCodec.parse(frame)?.takeIf { it.isNotEmpty() }?.let { states += State.Settings(it) }
+        }
+        return states
+    }
+
+    /** Opt-in profiles use flat fields; opaque touch/vendor data cannot establish capabilities. */
+    private fun parseProfileFrame(frame: ByteArray): List<State> {
+        val payload = frame.copyOfRange(FRAME_HEADER_SIZE, frame.size - FRAME_TRAILER_SIZE)
+        val declared = frame[PAYLOAD_LENGTH_INDEX].unsigned()
+        if (declared == 4 && payload.size == 4 && payload[0].unsigned() == BATTERY_TYPE) {
+            return listOf(decodeBattery(payload, 1))
+        }
+        val fields = RoseRfcommSettingsCodec.parse(frame) ?: return emptyList()
+        val states = mutableListOf<State>()
+        fields[NOISE_TYPE]?.let { value ->
+            value.toByte().toNoiseMode()?.let { states += State.Noise(it) }
+        }
+        if (!(declared == 2 && payload.size == 2)) {
+            var index = if (declared == 21 && payload.firstOrNull()?.unsigned() == 1) 21 else 0
+            while (index < payload.size) {
+                val length = payload[index].unsigned()
+                if (length == 0 && (index until payload.size).all { payload[it] == 0.toByte() }) break
+                if (payload[index + 1].unsigned() == BATTERY_TYPE) {
+                    if (length != 4) return emptyList()
+                    states += decodeBattery(payload, index + 2)
+                }
+                index += length + 1
+            }
+        }
+        if (fields.isNotEmpty()) states += State.Settings(fields)
         return states
     }
 

@@ -61,6 +61,24 @@ class VivoTws3eSettingsDetailsTest {
         assertEquals(2, released)
         assertFalse(retryPopup.isShowing)
     }
+    @Test @Config(qualifiers = "night")
+    fun nightPanelUsesContrastingHostPalette() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val anchor = View(activity); activity.setContentView(anchor)
+        val address = "00:11:22:33:44:55"
+        val state = EarbudState(adapter = VivoTws3eAdapter().snapshot(), address = address, lifecycle = DeviceLifecycle(
+            systemProfile = SystemProfileState.CONNECTED, privateTransport = PrivateTransportState.CONNECTED,
+            protocolHandshake = ProtocolHandshakeState.CONFIRMED,
+        )).withFeature(VivoTws3eFeatureState(wearDetection = true))
+        val details = VivoTws3eSettingsDetails.open(anchor, address, MiLinkCardEnvironment(
+            javaClass.classLoader!!, { state }, { _, _ -> }, { _, _ -> {} }, { "one" }))
+        shadowOf(Looper.getMainLooper()).idle()
+        val popup = details.javaClass.getDeclaredField("popup").apply { isAccessible = true }.get(details) as PopupWindow
+        val body = (popup.contentView as android.widget.ScrollView).getChildAt(0) as android.widget.LinearLayout
+        assertEquals(0xff242424.toInt(), (body.background as android.graphics.drawable.GradientDrawable).color!!.defaultColor)
+        assertEquals(android.graphics.Color.WHITE, (body.getChildAt(0) as android.widget.TextView).currentTextColor)
+        details.dismiss()
+    }
     private fun descendants(view: View): Sequence<View> = sequence {
         yield(view)
         if (view is ViewGroup) for (i in 0 until view.childCount) yieldAll(descendants(view.getChildAt(i)))

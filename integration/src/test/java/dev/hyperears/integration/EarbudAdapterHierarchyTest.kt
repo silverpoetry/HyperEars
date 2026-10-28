@@ -795,7 +795,7 @@ class EarbudAdapterHierarchyTest {
     }
 
     @Test
-    fun roseCeramicsNameSelectsLuliUltraBudsFeelAdapterWithoutCachedUuid() {
+    fun roseCeramicsUHasItsOwnBudsFeelProfileWithoutCachedUuid() {
         val adapter = requireNotNull(
             EarbudAdapterRegistry.resolve(
                 EarbudIdentity(
@@ -806,7 +806,7 @@ class EarbudAdapterHierarchyTest {
             ),
         )
 
-        assertTrue(adapter is RoseLuliUltraAdapter)
+        assertTrue(adapter is RoseCeramicsUAdapter)
         assertEquals(AdapterResolution.EXACT_MATCH, adapter.resolution)
         assertTrue(adapter.privateProtocolRequired)
         assertFalse(adapter.snapshot().capabilities.noiseControl)
@@ -1084,7 +1084,7 @@ class EarbudAdapterHierarchyTest {
             listOf(
                 HuaweiFreebudsSppCodec.queryBattery.toList(),
                 HuaweiFreebudsSppCodec.queryNoiseState.toList(),
-            ),
+            ) + HuaweiDailySettingsSession(HuaweiDailyProfile.PRO3).queries().map(ByteArray::toList),
             adapter.beginHandshake().commands.map(ByteArray::toList),
         )
     }
@@ -1323,7 +1323,7 @@ class EarbudAdapterHierarchyTest {
 
     @Test
     fun huaweiFamilyMatchesAudioProductLinesWithoutCapturingHonorOrGenericHuaweiDevices() {
-        assertTrue(resolve("HUAWEI FreeBuds Pro", standard = true) is HuaweiFreebudsFamilyAdapter)
+        assertTrue(resolve("HUAWEI FreeBuds Pro", standard = true) is HuaweiDailyModelAdapter)
         assertTrue(resolve("FreeBuds Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertTrue(resolve("FreeClip Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertTrue(resolve("FreeLace Pro", standard = true) is HuaweiFreebudsFamilyAdapter)

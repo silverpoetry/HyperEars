@@ -74,9 +74,26 @@ open class SonyProtocolFamilyAdapter internal constructor(
     final override val displayName: String = configuration.displayName
     final override val formFactor: HeadsetFormFactor = configuration.formFactor
     final override val miLinkCardPresentationId: MiLinkCardPresentationId?
-        get() = configuration.miLinkPresentationId.takeIf {
-            effectiveCapabilities().noiseControl
+        get() = when {
+            runtimeState().features.get<SonyEqFeatureState>()?.let { it.writablePreset || it.writableBands || it.writableBass } == true ||
+                runtimeState().features.get<SonyAmbientFeatureState>()?.level in 1..20 ->
+                if (effectiveCapabilities().noiseControl) SonyMiLinkPresentationIds.ADVANCED else SonyMiLinkPresentationIds.SETTINGS
+            else -> configuration.miLinkPresentationId.takeIf { effectiveCapabilities().noiseControl }
         }
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        state is SonyEqFeatureState || state is SonyAmbientFeatureState
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        when (request) {
+            is SonyControlRequest.SetAmbient -> adapter.runtimeState().features.get<SonyAmbientFeatureState>()?.supports(request) == true
+            is SonyControlRequest -> adapter.runtimeState().features.get<SonyEqFeatureState>()?.supports(request) == true
+            else -> false
+        }
+    }
+    override fun onProtocolReset() {
+        removeFeatureState(SonyEqFeatureState.FEATURE_ID)
+        removeFeatureState(SonyAmbientFeatureState.FEATURE_ID)
+    }
     final override val privateProtocolRequired: Boolean = true
     final override val transportReadiness: TransportReadiness =
         TransportReadiness.PROTOCOL_HANDSHAKE
@@ -255,6 +272,8 @@ object SonyAdapterRegistry {
 }
 
 object SonyMiLinkPresentationIds {
+    val ADVANCED = MiLinkCardPresentationId("sony-advanced")
+    val SETTINGS = MiLinkCardPresentationId("sony-settings")
     val AMBIENT_ONLY = MiLinkCardPresentationId("sony-ambient-only")
 }
 
@@ -276,6 +295,7 @@ private class SonyHeadphonesProtocolSession(
     private var awaitingAck = false
     private var preHandshakeInitRetryCount = 0
     private var battery = EarbudBattery()
+    private var daily: SonyDailyControlsSession? = null
 
     @Synchronized
     override fun initialReadCommands(): List<ByteArray> {
@@ -287,9 +307,17 @@ private class SonyHeadphonesProtocolSession(
     @Synchronized
     override fun encode(request: ControlRequest): List<ByteArray> {
         if (version == null) return emptyList()
+        // The shared adapter rejects empty encoded results. Do not leave a rejected control
+        // behind the current ACK transaction to execute later without caller acceptance.
+        if (request !== StandardControlRequest.Refresh && (awaitingAck || pendingRequests.isNotEmpty())) return emptyList()
         when {
-            request === StandardControlRequest.Refresh -> enqueueStateReads()
+            request === StandardControlRequest.Refresh -> { enqueueStateReads(); daily?.reads()?.forEach(::enqueueDaily) }
             request is StandardControlRequest.SetNoiseMode -> enqueueNoiseWrite(request.mode)
+            request is SonyControlRequest -> {
+                val commands = daily?.encode(request).orEmpty()
+                if (commands.isEmpty()) return emptyList()
+                commands.forEach(::enqueueDaily)
+            }
             else -> return emptyList()
         }
         return nextRequestIfIdle()?.let(::listOf).orEmpty()
@@ -310,7 +338,9 @@ private class SonyHeadphonesProtocolSession(
                         type = SonyHeadphonesWireCodec.MessageType.ACK,
                         sequence = 1 - frame.sequence,
                     )
-                    addAll(handleCommand(frame.payload))
+                    // SPP outer 0x0E is Table 2. Its colliding opcodes are not Table 1 EQ/ANC.
+                    if (frame.type == SonyHeadphonesWireCodec.MessageType.COMMAND_1)
+                        addAll(handleCommand(frame.payload))
                 }
             }
         }
@@ -334,7 +364,9 @@ private class SonyHeadphonesProtocolSession(
                 8 -> Version.V2
                 else -> return listOf(ProtocolEvent.HandshakeRejected)
             }
+            daily = SonyDailyControlsSession(version == Version.V2)
             enqueueStateReads()
+            enqueueDaily(byteArrayOf(0x06, 0x00))
             scheduleNextRequest()
             // The init reply identifies Sony's transport dialect only. Capabilities are
             // published later from the corresponding valid state response.
@@ -353,6 +385,10 @@ private class SonyHeadphonesProtocolSession(
         }
 
         val activeVersion = version ?: return emptyList()
+        val dailyUpdate = daily?.accept(payload)
+        dailyUpdate?.queries?.forEach(::enqueueDaily)
+        if (dailyUpdate?.queries?.isNotEmpty() == true) scheduleNextRequest()
+        val dailyEvents = dailyUpdate?.states.orEmpty().map { ProtocolEvent.FeatureStateChanged(it) }
         parseBattery(activeVersion, payload)?.let { updated ->
             battery = updated
             return listOf(
@@ -367,8 +403,9 @@ private class SonyHeadphonesProtocolSession(
                     noiseModes = supportedModes(configuration.ambientDialect),
                 ),
                 ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode)),
-            )
+            ) + dailyEvents
         }
+        if (dailyUpdate != null) return dailyEvents
         return listOf(
             ProtocolEvent.UnknownFrame(
                 version = if (activeVersion == Version.V1) 1 else 2,
@@ -377,6 +414,10 @@ private class SonyHeadphonesProtocolSession(
                 payloadSize = payload.size,
             ),
         )
+    }
+
+    private fun enqueueDaily(payload: ByteArray) {
+        pendingRequests += Request(SonyHeadphonesWireCodec.MessageType.COMMAND_1, payload)
     }
 
     private fun enqueueStateReads() {
@@ -404,6 +445,7 @@ private class SonyHeadphonesProtocolSession(
     private fun enqueueNoiseWrite(mode: NoiseMode) {
         val activeVersion = version ?: return
         if (mode !in supportedModes(configuration.ambientDialect)) return
+        daily?.noiseWrite(mode)?.let { commands -> commands.forEach(::enqueueDaily); return }
         pendingRequests += Request(
             type = SonyHeadphonesWireCodec.MessageType.COMMAND_1,
             payload = if (activeVersion == Version.V1) {
@@ -640,6 +682,7 @@ private class SonyHeadphonesProtocolSession(
         awaitingAck = false
         preHandshakeInitRetryCount = 0
         battery = EarbudBattery()
+        daily = null
     }
 
     private companion object {

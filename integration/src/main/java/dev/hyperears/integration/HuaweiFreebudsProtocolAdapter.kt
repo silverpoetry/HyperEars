@@ -5,6 +5,8 @@ import dev.hyperears.protocol.huawei.HuaweiFreebudsSppCodec
 internal data class HuaweiProtocolProfile(
     val noiseModes: Set<NoiseMode>,
     val extension: HuaweiProtocolExtension? = null,
+    val daily: HuaweiDailyProfile? = null,
+    val aggregateBattery: Boolean = false,
 ) {
     val noiseTelemetryEnabled: Boolean get() = noiseModes.isNotEmpty()
 
@@ -53,23 +55,24 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
         ControlAppCatalog.huaweiAiLife,
     )
 
-    override val featureStateContract: DeviceFeatureStateContract =
-        if (profile.extension != null) {
-            StandardDeviceFeatureStateContract.extending { _, state ->
-                profile.extension.acceptsState(state)
-            }
-        } else {
-            StandardDeviceFeatureStateContract
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        profile.extension?.acceptsState(state) == true ||
+            profile.daily != null && state is HuaweiDailySettingsFeatureState
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        profile.extension?.supportsRequest(adapter, request) == true ||
+            profile.daily != null && request is HuaweiDailyControlRequest &&
+            adapter.runtimeState().features.get<HuaweiDailySettingsFeatureState>()?.supports(request) == true
+    }
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = HuaweiDailyPresentationIds.SETTINGS.takeIf {
+            runtimeState().features.get<HuaweiDailySettingsFeatureState>()?.hasSettings == true
         }
-
-    override val controlRequestContract: ControlRequestContract =
-        if (profile.extension != null) {
-            StandardControlRequestContract.extending { adapter, request ->
-                profile.extension.supportsRequest(adapter, request)
-            }
-        } else {
-            StandardControlRequestContract
-        }
+    override fun onProtocolReset() {
+        super.onProtocolReset()
+        removeFeatureState(HuaweiDailySettingsFeatureState.FEATURE_ID)
+        profile.extension?.featureIds?.forEach(::removeFeatureState)
+    }
 
     override fun createProtocolSession(): ProtocolSession = HuaweiFreebudsProtocolSession(profile)
 
@@ -154,6 +157,7 @@ private class HuaweiFreebudsProtocolSession(
     private val decoder = HuaweiFreebudsSppCodec.Decoder()
     private var handshakePublished = false
     private var pendingNoiseRefresh = false
+    private val daily = profile.daily?.let(::HuaweiDailySettingsSession)
 
     override fun initialReadCommands(): List<ByteArray> = telemetryQueries()
 
@@ -165,12 +169,14 @@ private class HuaweiFreebudsProtocolSession(
                 ?.let { listOf(HuaweiFreebudsSppCodec.noiseModeCommand(it.toHuaweiWireMode())) }
                 .orEmpty()
 
+        is HuaweiDailyControlRequest -> daily?.encode(request)?.let(::listOf).orEmpty()
         else -> profile.extension?.encode(request)?.let(::listOf).orEmpty()
     }
 
     override fun query(request: TelemetryQuery): List<ByteArray> = when (request) {
         TelemetryQuery.RefreshAll -> telemetryQueries()
         is TelemetryQuery.RefreshFeature -> when {
+            request.featureId == HuaweiDailySettingsFeatureState.FEATURE_ID -> daily?.queries().orEmpty()
             request.featureId == BatteryFeatureState.FEATURE_ID ->
                 listOf(HuaweiFreebudsSppCodec.queryBattery)
 
@@ -190,6 +196,7 @@ private class HuaweiFreebudsProtocolSession(
                 .takeIf { profile.noiseTelemetryEnabled }
                 .orEmpty()
 
+        is HuaweiDailyControlRequest -> daily?.readback(request).orEmpty()
         else -> profile.extension?.readback(request).orEmpty()
     }
 
@@ -202,19 +209,25 @@ private class HuaweiFreebudsProtocolSession(
     override fun offer(bytes: ByteArray): List<ProtocolEvent> = buildList {
         decoder.offer(bytes).forEach { frameBytes ->
             val frame = HuaweiFreebudsSppCodec.parseFrame(frameBytes) ?: return@forEach
+            daily?.offer(frame)?.let {
+                add(ProtocolEvent.FeatureStateChanged(it))
+                publishHandshakeIfNeeded()
+                return@forEach
+            }
             if (frame.command == HuaweiFreebudsSppCodec.CMD_NOISE_CHANGE_NOTIFY) {
                 if (profile.noiseTelemetryEnabled) pendingNoiseRefresh = true
                 return@forEach
             }
 
             HuaweiFreebudsSppCodec.parseBatteryFrame(frameBytes)?.let { battery ->
+                if (profile.aggregateBattery && battery.globalPercent == null) return@forEach
                 add(
                     ProtocolEvent.FeatureStateChanged(
                         BatteryFeatureState(
                             EarbudBattery(
-                                left = BatteryReading(battery.leftPercent, charging = false),
-                                right = BatteryReading(battery.rightPercent, charging = false),
-                                case = BatteryReading(battery.casePercent, charging = false),
+                                left = BatteryReading(battery.leftPercent.takeUnless { profile.aggregateBattery }, charging = false),
+                                right = BatteryReading(battery.rightPercent.takeUnless { profile.aggregateBattery }, charging = false),
+                                case = BatteryReading(battery.casePercent.takeUnless { profile.aggregateBattery }, charging = false),
                                 overall = BatteryReading(
                                     battery.globalPercent,
                                     charging = battery.isCharging,
@@ -251,6 +264,7 @@ private class HuaweiFreebudsProtocolSession(
 
     override fun reset() {
         decoder.reset()
+        daily?.reset()
         handshakePublished = false
         pendingNoiseRefresh = false
     }
@@ -258,6 +272,7 @@ private class HuaweiFreebudsProtocolSession(
     private fun telemetryQueries(): List<ByteArray> = buildList {
         add(HuaweiFreebudsSppCodec.queryBattery)
         if (profile.noiseTelemetryEnabled) add(HuaweiFreebudsSppCodec.queryNoiseState)
+        addAll(daily?.queries().orEmpty())
     }
 
     private fun MutableList<ProtocolEvent>.publishHandshakeIfNeeded() {
@@ -290,4 +305,5 @@ private val HUAWEI_FAMILY_PROFILE = HuaweiProtocolProfile(
 
 private val FREECLIP_PROFILE = HuaweiProtocolProfile(
     noiseModes = emptySet(),
+    daily = HuaweiDailyProfile.FREECLIP2,
 )

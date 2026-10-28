@@ -333,18 +333,20 @@ class SonyEarbudAdapterTest {
         protocol.offer(ack(1))
         protocol.drainImmediateCommands()
         protocol.offer(ack(0))
+        assertArrayEquals(bytes("06 00"), decode(protocol.drainImmediateCommands().single()).payload)
+        protocol.offer(ack(1))
 
         val ancWrite = decode(
             protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).single(),
         )
         assertArrayEquals(bytes("68 19 01 01 00 00 14 00 00"), ancWrite.payload)
-        protocol.offer(ack(1))
+        protocol.offer(ack(0))
 
         val transparencyWrite = decode(
             protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY)).single(),
         )
         assertArrayEquals(bytes("68 19 01 01 01 00 14 00 00"), transparencyWrite.payload)
-        protocol.offer(ack(0))
+        protocol.offer(ack(1))
 
         val offWrite = decode(
             protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.OFF)).single(),

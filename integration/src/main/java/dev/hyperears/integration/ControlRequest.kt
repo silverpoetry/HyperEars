@@ -121,6 +121,19 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(RoseRfcommControlRequest.SetValue::class, RoseRfcommControlRequest.SetValue.serializer())
+                subclass(SonyControlRequest.SetEqPreset::class, SonyControlRequest.SetEqPreset.serializer())
+                subclass(SonyControlRequest.SetEqBands::class, SonyControlRequest.SetEqBands.serializer())
+                subclass(SonyControlRequest.SetClearBass::class, SonyControlRequest.SetClearBass.serializer())
+                subclass(SonyControlRequest.SetAmbient::class, SonyControlRequest.SetAmbient.serializer())
+                subclass(HuaweiDailyControlRequest.SetWearDetection::class, HuaweiDailyControlRequest.SetWearDetection.serializer())
+                subclass(HuaweiDailyControlRequest.SetMultipoint::class, HuaweiDailyControlRequest.SetMultipoint.serializer())
+                subclass(HuaweiDailyControlRequest.SetEqualizer::class, HuaweiDailyControlRequest.SetEqualizer.serializer())
+                subclass(HuaweiDailyControlRequest.SetCustomEqualizer::class, HuaweiDailyControlRequest.SetCustomEqualizer.serializer())
+                subclass(HuaweiDailyControlRequest.SetGesture::class, HuaweiDailyControlRequest.SetGesture.serializer())
+                subclass(OppoControlRequest.SetToggle::class, OppoControlRequest.SetToggle.serializer())
+                subclass(OppoControlRequest.SelectEqualizer::class, OppoControlRequest.SelectEqualizer.serializer())
+                subclass(OppoControlRequest.UpdateEqualizer::class, OppoControlRequest.UpdateEqualizer.serializer())
                 subclass(QcyControlRequest.SetToggle::class, QcyControlRequest.SetToggle.serializer())
                 subclass(QcyControlRequest.SetSpatialMode::class, QcyControlRequest.SetSpatialMode.serializer())
                 subclass(QcyControlRequest.SetEqPreset::class, QcyControlRequest.SetEqPreset.serializer())

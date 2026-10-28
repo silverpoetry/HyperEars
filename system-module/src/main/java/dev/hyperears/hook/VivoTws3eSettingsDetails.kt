@@ -30,9 +30,9 @@ internal class VivoTws3eSettingsDetails private constructor(
             val body = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(20), dp(16), dp(20), dp(16))
-                background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(20).toFloat() }
+                background = GradientDrawable().apply { setColor(color(false)); cornerRadius = dp(20).toFloat() }
             }
-            body.addView(TextView(context).apply { text = "TWS 3e 高级设置"; textSize = 22f; setTextColor(Color.BLACK) })
+            body.addView(TextView(context).apply { text = "TWS 3e 高级设置"; textSize = 22f; setTextColor(color(true)) })
             choice(body, "左耳双击", VivoDoubleTap.entries, { it.leftTap }, ::tapLabel) {
                 VivoTws3eControlRequest.SetDoubleTap(false, it)
             }
@@ -81,10 +81,10 @@ internal class VivoTws3eSettingsDetails private constructor(
         selected: (VivoTws3eFeatureState) -> T?, label: (T) -> String,
         request: (T) -> VivoTws3eControlRequest?) {
         val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        group.addView(TextView(context).apply { text = title; textSize = 17f; setTextColor(Color.BLACK) })
+        group.addView(TextView(context).apply { text = title; textSize = 17f; setTextColor(color(true)) })
         val buttons = RadioGroup(context)
         val options = values.map { value -> RadioButton(context).apply {
-            id = View.generateViewId(); text = label(value); setTextColor(Color.BLACK); isSaveEnabled = false
+            id = View.generateViewId(); text = label(value); setTextColor(color(true)); isSaveEnabled = false
             setOnClickListener { guarded { if (!rendering) request(value)?.let(::send) } }
         }.also(buttons::addView) }
         group.addView(buttons); body.addView(group)
@@ -128,6 +128,11 @@ internal class VivoTws3eSettingsDetails private constructor(
         val release = unsubscribe; unsubscribe = null
         runCatching { release?.invoke() }
         runCatching { if (popup.isShowing) popup.dismiss() }
+    }
+    private fun color(text: Boolean): Int {
+        val dark = context.resources.configuration.uiMode and 0x30 == 0x20
+        return if (text) { if (dark) Color.WHITE else Color.BLACK }
+        else if (dark) 0xff242424.toInt() else 0xfff5f5f5.toInt()
     }
     private fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
     private fun tapLabel(action: VivoDoubleTap) = when (action) {

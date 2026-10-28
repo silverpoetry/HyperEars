@@ -6,6 +6,7 @@ internal class HuaweiFreebuds5iAdapter : HuaweiFreebudsProtocolAdapter(
     channelNumbers = listOf(16),
     profile = HuaweiProtocolProfile(
         noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+        daily = HuaweiDailyProfile.BUDS5I,
     ),
 ) {
     override val id: String = ID

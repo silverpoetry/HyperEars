@@ -1,0 +1,66 @@
+package dev.hyperears.integration
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+
+@Serializable
+enum class HuaweiGestureKind { DOUBLE, TRIPLE, HOLD, CYCLE, SWIPE }
+@Serializable
+enum class HuaweiGestureSide(val field: Int) { LEFT(1), RIGHT(2), CALL(4) }
+@Serializable
+data class HuaweiGestureState(
+    val kind: HuaweiGestureKind, val left: Int? = null, val right: Int? = null,
+    val call: Int? = null, val available: List<Int> = emptyList(),
+) {
+    fun value(side: HuaweiGestureSide): Int? = when (side) {
+        HuaweiGestureSide.LEFT -> left; HuaweiGestureSide.RIGHT -> right; HuaweiGestureSide.CALL -> call
+    }
+}
+@Serializable
+data class HuaweiCustomEqualizer(val id: Int, val name: String, val gains: List<Int>)
+@Serializable
+data class HuaweiEqualizerState(
+    val selected: Int, val presets: List<Int>, val custom: List<HuaweiCustomEqualizer> = emptyList(),
+    val customWritable: Boolean = false,
+)
+@Serializable
+@SerialName("huawei.daily_settings")
+data class HuaweiDailySettingsFeatureState(
+    val wearDetection: Boolean? = null, val multipoint: Boolean? = null,
+    val equalizer: HuaweiEqualizerState? = null, val gestures: List<HuaweiGestureState> = emptyList(),
+) : DeviceFeatureState {
+    @Transient override val featureId = FEATURE_ID
+    val hasSettings get() = wearDetection != null || multipoint != null || equalizer != null ||
+        gestures.any { it.left != null || it.right != null || it.call != null }
+    fun supports(request: HuaweiDailyControlRequest): Boolean = when (request) {
+        is HuaweiDailyControlRequest.SetWearDetection -> wearDetection != null
+        is HuaweiDailyControlRequest.SetMultipoint -> multipoint != null
+        is HuaweiDailyControlRequest.SetEqualizer -> request.preset in equalizer?.presets.orEmpty()
+        is HuaweiDailyControlRequest.SetCustomEqualizer -> equalizer?.let { eq ->
+            eq.customWritable && eq.custom.any { it.id == request.id && it == request.expectedSlot } &&
+                request.gains.size == 10 && request.gains.all { it in -60..60 }
+        } == true
+        is HuaweiDailyControlRequest.SetGesture -> gestures.singleOrNull { it.kind == request.kind }?.let {
+            it.value(request.side) != null && request.value in
+                (if (request.side == HuaweiGestureSide.CALL) listOf(-1, 0) else it.available)
+        } == true
+    }
+    companion object { const val FEATURE_ID = "huawei.daily_settings" }
+}
+@Serializable
+sealed interface HuaweiDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("huawei.set_wear_detection")
+    data class SetWearDetection(val enabled: Boolean) : HuaweiDailyControlRequest
+    @Serializable @SerialName("huawei.set_multipoint")
+    data class SetMultipoint(val enabled: Boolean) : HuaweiDailyControlRequest
+    @Serializable @SerialName("huawei.set_equalizer_preset")
+    data class SetEqualizer(val preset: Int) : HuaweiDailyControlRequest
+    @Serializable @SerialName("huawei.set_custom_equalizer")
+    data class SetCustomEqualizer(val id: Int, val gains: List<Int>, val expectedSlot: HuaweiCustomEqualizer) : HuaweiDailyControlRequest
+    @Serializable @SerialName("huawei.set_gesture")
+    data class SetGesture(val kind: HuaweiGestureKind, val side: HuaweiGestureSide, val value: Int) : HuaweiDailyControlRequest
+}
+object HuaweiDailyPresentationIds {
+    val SETTINGS = MiLinkCardPresentationId("huawei-daily-settings")
+}

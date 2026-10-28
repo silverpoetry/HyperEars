@@ -843,6 +843,8 @@ internal class ProtocolTestViewModel(application: Application) : AndroidViewMode
     private fun handleRoseBudsFeelIncoming(bytes: ByteArray) {
         roseBudsFeelDecoder.offer(bytes).forEach { state ->
             when (state) {
+                is RoseBudsFeelMk2WireCodec.State.Settings ->
+                    addLog("SETTINGS", "BudsFeel 设置回报: ${state.values}")
                 is RoseBudsFeelMk2WireCodec.State.Battery -> {
                     mutableState.value = mutableState.value.copy(
                         battery = BatteryObservation(

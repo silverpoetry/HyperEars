@@ -18,7 +18,15 @@ README 声明 GPL-3.0。本项目许可证及其与外部资料的关系以各�
 不导入功能标志、厂商图片或原始云配置。协议实现独立接入 HyperEars 会话与能力确认模型。
 目录不是逐型号实机验证清单；118 条明确 SPP 耳机可探测，其他 23 条仅作目录记录。
 
+同一 Leaf 提交的 `Packets.kt`、`CapabilityProfileFactory.kt`、`DeviceCapabilities.kt`
+和 `EqualizerPage.kt` 用于核对日常开关、EQ 列表与自定义条目更新。74 份内置 EQ ID 集
+仅用于排除禁止编辑的内置槽位，不据此开放功能。控制仍需实际状态、条目与产品 ID 证据。
+
 ## HyperRose / ROSESELSA protocol profiles
+
+新增 EarFeel i7 与 Ceramics U 身份核对提交 `4e212f79bb1929892e4ac8ae22ed5c2d351e6944`
+的 `EarFeelI7Profile.kt`、`CeramicsUProfile.kt`：分别保留 RFCOMM 端点和型号边界，
+i7 仅接受其公开画像的四态噪声回报。Ceramics U 独立于 Ultra；新增型号尚未实机复核。
 
 - DOHEX/HyperRose: <https://github.com/DOHEX/HyperRose>
 - Reviewed revision: `635c0dd89ee07aab95c4138ca1275e44fd666165`
@@ -234,6 +242,22 @@ MiLink 所需子集，不分发 TechincsPods 的应用、界面、图片、APK�
 上游许可证状态按固定提交如实记录，具体条款以其仓库声明为准。
 
 ## OpenFreebuds (Huawei protocol research)
+
+本轮日常控制另核对 OpenFreebuds 固定提交 `0b4f14c0b500d491f0fb4ea38f2984ec334e3649`
+及 [HuaweiPods](https://github.com/Nshpiter/HuaweiPods/tree/dc5b9d14e9030be95b178699d674d1a3217e1e6d)
+（GPL-3.0 LICENSE）。来源包括各型号处理器的佩戴、双设备、EQ 和手势读写合同；
+FreeClip 2 的 EQ 与手势取其明确捕获映射。按现有架构独立实现，未复制应用界面或资源。
+
+## SonyPods daily controls
+
+- [Mercury000/SonyPods](https://github.com/Mercury000/SonyPods/tree/3f701ff8f9b30c6909b9dbe8d99248f20d55560e)
+- License: GNU GPL v3（固定提交包含 LICENSE）。
+
+用于核对 Table1 功能发现、V1/V2 EQ、ClearBass、环境声，以及外层 Table2 通道隔离。
+实现重新组织在 HyperEars 的 codec、会话与类型化控制边界内，不复制上游界面、品牌图片
+或 Gadgetbridge 的 AGPL 代码。实际功能按设备发现和状态回报开放，未逐型号实机验证。
+
+## OpenFreebuds baseline references
 
 - melianmiko/OpenFreebuds: <https://github.com/melianmiko/OpenFreebuds>
 - Reviewed revision: `035bf2a87cdda9e9c8e8e90c662b7fa61270c6ee`

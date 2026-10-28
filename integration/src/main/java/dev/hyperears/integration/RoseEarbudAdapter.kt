@@ -241,7 +241,6 @@ class RoseLuliUltraAdapter : RoseBudsFeelProtocolFamilyAdapter() {
     companion object {
         const val ID = "rose-luli-ultra-budsfeel"
         private val MODEL_NAMES = setOf(
-            "roseceramicsu",
             "roseceramicsultra",
             "roseluliultra",
         )
@@ -281,7 +280,12 @@ open class RoseBudsFeelProtocolFamilyAdapter(
     override val id: String = ID
     override val displayName: String = "ROSE BudsFeel protocol family"
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
-        get() = PRESENTATION_ID.takeIf { effectiveCapabilities().noiseControl }
+        get() = when {
+            runtimeState().features.get<RoseRfcommSettingsFeatureState>() != null ->
+                if (effectiveCapabilities().noiseControl) SETTINGS_NOISE_PRESENTATION_ID else SETTINGS_ONLY_PRESENTATION_ID
+            effectiveCapabilities().noiseControl -> PRESENTATION_ID
+            else -> null
+        }
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness =
         TransportReadiness.PROTOCOL_HANDSHAKE
@@ -309,7 +313,20 @@ open class RoseBudsFeelProtocolFamilyAdapter(
         return namedProductLine || advertisedService
     }
 
-    override fun createProtocolSession(): ProtocolSession = RoseBudsFeelProtocolSession()
+    open val settingsProfile = RoseRfcommSettingsProfile.NONE
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        state is RoseRfcommSettingsFeatureState
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is RoseRfcommControlRequest.SetValue &&
+            (adapter as RoseBudsFeelProtocolFamilyAdapter).settingsProfile.allows(request.setting) &&
+            adapter.runtimeState().features.get<RoseRfcommSettingsFeatureState>()?.supports(request) == true
+    }
+    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
+        if (request is RoseRfcommControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() { removeFeatureState(RoseRfcommSettingsFeatureState.FEATURE_ID) }
+    protected open val wireNoiseModes = RoseBudsFeelMk2WireCodec.NoiseMode.entries.toSet()
+    override fun createProtocolSession(): ProtocolSession = RoseBudsFeelProtocolSession(wireNoiseModes, settingsProfile)
 
     override fun onInitialProtocolUnavailable(): InitialProtocolFailureResolution =
         InitialProtocolFailureResolution.FallbackTo(
@@ -319,11 +336,15 @@ open class RoseBudsFeelProtocolFamilyAdapter(
     companion object {
         const val ID = "rose-budsfeel-protocol-family"
         val PRESENTATION_ID = MiLinkCardPresentationId("rose-budsfeel-protocol")
+        val SETTINGS_NOISE_PRESENTATION_ID = MiLinkCardPresentationId("rose-rfcomm-settings-noise")
+        val SETTINGS_ONLY_PRESENTATION_ID = MiLinkCardPresentationId("rose-rfcomm-settings-only")
         const val DATA_CHANNEL_UUID = "0cf12d31-fac3-4553-bd80-d6832e7b3931"
     }
 }
 
 class RoseBudsFeelMk2Adapter : RoseBudsFeelProtocolFamilyAdapter() {
+    override val settingsProfile = RoseRfcommSettingsProfile.GAME_ONLY
+    override val wireNoiseModes = RoseBudsFeelMk2WireCodec.NoiseMode.entries.filter { it.value in 1..4 }.toSet()
 
     override val id: String = ID
     override val displayName: String = "ROSE BudsFeel MK2"
@@ -472,14 +493,21 @@ private class RoseEarfreeProtocolSession : ProtocolSession {
     }
 }
 
-private class RoseBudsFeelProtocolSession : ProtocolSession {
-    private val decoder = RoseBudsFeelMk2WireCodec.Decoder()
+private class RoseBudsFeelProtocolSession(
+    private val acceptedNoiseModes: Set<RoseBudsFeelMk2WireCodec.NoiseMode>,
+    private val settingsProfile: RoseRfcommSettingsProfile,
+) : ProtocolSession {
+    private val decoder = RoseBudsFeelMk2WireCodec.Decoder(includeSettings = settingsProfile != RoseRfcommSettingsProfile.NONE)
+    private var settings = RoseRfcommSettingsFeatureState()
     private var sequence = 0
     private var handshakePublished = false
 
     override fun initialReadCommands(): List<ByteArray> = listOf(queryStatus())
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
+        request is RoseRfcommControlRequest.SetValue -> if (settingsProfile.allows(request.setting) && settings.supports(request)) {
+            listOf(dev.hyperears.protocol.rose.RoseRfcommSettingsCodec.set(nextSequence(), request.setting.type, request.value))
+        } else emptyList()
         request === StandardControlRequest.Refresh -> listOf(queryStatus())
         request is StandardControlRequest.SetNoiseMode -> listOf(
             RoseBudsFeelMk2WireCodec.setNoiseMode(nextSequence(), request.mode.toWireMode()),
@@ -489,13 +517,22 @@ private class RoseBudsFeelProtocolSession : ProtocolSession {
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> = when {
+        request is RoseRfcommControlRequest -> listOf(queryStatus())
         request === StandardControlRequest.Refresh -> emptyList()
         request is StandardControlRequest.SetNoiseMode -> listOf(queryStatus())
         else -> emptyList()
     }
 
     override fun offer(bytes: ByteArray): List<ProtocolEvent> {
-        val states = decoder.offer(bytes)
+        val states = decoder.offer(bytes).mapNotNull { state ->
+            when (state) {
+                is RoseBudsFeelMk2WireCodec.State.Noise -> state.takeIf { it.mode in acceptedNoiseModes }
+                is RoseBudsFeelMk2WireCodec.State.Settings -> state.copy(values = state.values.filterKeys { type ->
+                    RoseRfcommSetting.entries.firstOrNull { it.type == type }?.let(settingsProfile::allows) == true
+                }).takeIf { it.values.isNotEmpty() }
+                else -> state
+            }
+        }
         if (states.isEmpty()) return emptyList()
         return buildList {
             if (!handshakePublished) {
@@ -505,6 +542,12 @@ private class RoseBudsFeelProtocolSession : ProtocolSession {
             states.forEach { state ->
                 add(
                     when (state) {
+                        is RoseBudsFeelMk2WireCodec.State.Settings -> {
+                            settings = settings.copy(values = settings.values + state.values.mapKeys { entry ->
+                                RoseRfcommSetting.entries.single { it.type == entry.key }
+                            })
+                            ProtocolEvent.FeatureStateChanged(settings)
+                        }
                         is RoseBudsFeelMk2WireCodec.State.Battery ->
                             ProtocolEvent.FeatureStateChanged(
                                 BatteryFeatureState(EarbudBattery(
@@ -535,6 +578,7 @@ private class RoseBudsFeelProtocolSession : ProtocolSession {
 
     override fun reset() {
         decoder.reset()
+        settings = RoseRfcommSettingsFeatureState()
         sequence = 0
         handshakePublished = false
     }

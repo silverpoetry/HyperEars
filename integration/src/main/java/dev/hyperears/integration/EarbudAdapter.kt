@@ -645,6 +645,8 @@ object EarbudAdapterRegistry {
         add(Registration(roseGroup, ::FurinaEndlessAdapter))
         add(Registration(roseGroup, ::RoseLuliXAdapter))
         add(Registration(roseGroup, ::RoseLuliUltraAdapter))
+        add(Registration(roseGroup, ::RoseCeramicsUAdapter))
+        add(Registration(roseGroup, ::RoseEarfeelI7Adapter))
         add(Registration(roseGroup, ::RoseEarfreeI5Adapter))
         add(Registration(roseGroup, ::RoseEarfreeProtocolFamilyAdapter))
         add(Registration(roseGroup, ::RoseBudsFeelMk2Adapter))
@@ -662,6 +664,9 @@ object EarbudAdapterRegistry {
         add(Registration(huaweiGroup, ::HuaweiFreebudsPro3Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreeBuds4Adapter))
         add(Registration(huaweiGroup, ::HuaweiFreeClip2Adapter))
+        HuaweiDailyModelCatalog.models.forEach { model ->
+            add(Registration(huaweiGroup) { HuaweiDailyModelAdapter(model) })
+        }
         add(Registration(huaweiGroup, ::HuaweiFreebudsFamilyAdapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))

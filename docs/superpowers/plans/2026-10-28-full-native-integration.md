@@ -155,26 +155,35 @@ does not treat every source command as universally supported. All items below re
   Resolve source length conflicts with fixtures. LE Audio has a separate lifecycle/peer/group
   implementation and actual stereo-playback acceptance, including manual disconnect behavior.
   Identity slice implemented: 141 catalog entries, 118 source-declared SPP headset candidates,
-  strict 24-bit product replies, exact aliases and same-session refinement. Advanced controls
-  and LE Audio remain outstanding; identity entries do not grant static capabilities.
+  strict 24-bit product replies, exact aliases and same-session refinement. Daily switches,
+  reported EQ selection and existing custom-slot editing now have typed contracts/native details.
+  Long frames, additional workflows and LE Audio remain outstanding; identities grant no controls.
 - [ ] C3 Huawei/Honor: union HuaweiPods/OpenFreebuds exact routes and aliases; old HFP plus SPP
   FreeBuds3 paths, Studio/FreeLace topology, firmware-specific ANC/transparency, EQ, gestures,
   spatial, wearing, dual-device, latency, quality, prompts/language and smart functions.
   Preserve Pro4 conflicting evidence and 5i level gap until resolved on matching hardware.
+  Daily slice implemented: nine additional exact candidates, per-model wear/multipoint/EQ/gesture
+  profiles, native details, stale-slot guards and aggregate-battery qualification. Other workflows
+  and hardware validation remain outstanding.
 - [ ] C4 Sony: SPP/GATT, V1/V2, Table1/Table2 capability discovery; environment levels/voice,
   EQ/ClearBass, DSEE, LEA/quality, Speak-to-Chat, multipoint/source, gestures/QuickAccess,
   wearing/power-off, legacy VPT/position/optimizer, voice/assistant and bounded safe-listening.
+  Daily Table1 EQ/ClearBass/ambient slice implemented with capability discovery, native details,
+  Table2 separation and ACK-queue rejection semantics. GATT and remaining Sony functions are open.
 - [ ] C5 ROSE: include RoseLink model/feature differences, prioritizing the user's ROSE Coral ANC
   earclip and its independently verified configuration/transport/control semantics; shared UUID
   does not establish compatibility with BudsFeel. Also cover i7/Ceramics U identities distinct from existing Ultra; model-qualified six-mode,
   ANC/transparency depth, EQ, game, find, gain, prompts and touch; preserve i7/MK2 restrictions.
+  i7/U exact RFCOMM identity and model-qualified daily settings now implemented; i7/MK2 game,
+  U six noise values/EQ/depth/tone settings, strict opaque-field parsing and native details.
+  Other RoseLink model families and additional commands remain open.
 - [ ] C6 NiceHCK: OriG six ANC/seven EQ, independent wind toggle, game/latency, dual/wearing,
   codec and firmware-qualified mappings, readback and native UI.
-- [ ] C7 QCY: optional low-latency/sleep/EQ/PEQ/LDAC/dual/dynamic-EQ/spatial/adaptive-volume,
+- [x] C7 QCY: optional low-latency/sleep/EQ/PEQ/LDAC/dual/dynamic-EQ/spatial/adaptive-volume,
   additional state sources and strict value/outer-frame validation; preserve targeted endpoint scan.
   Daily-control slice implemented with typed contracts, report gates, native card/details,
   independent review and regression tests; hardware validation remains pending.
-- [ ] C8 vivo/iQOO: TWS3e double/hold/noise-cycle/DeepX/wear; preserve per-model GAIA differences
+- [x] C8 vivo/iQOO: TWS3e double/hold/noise-cycle/DeepX/wear; preserve per-model GAIA differences
   and require separate evidence before family expansion of advanced commands.
   Exact TWS 3e slice implemented from raw RFCOMM JSON reports, including native card/details,
   independent review and regression tests. Call-gesture settings remain unavailable because the

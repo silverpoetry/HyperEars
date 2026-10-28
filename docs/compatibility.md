@@ -75,6 +75,11 @@ Air、Neo、X1，以及 iQOO TWS Air Pro、Air、1。
 
 私有传输使用 RFCOMM UUID `079a`。
 
+高级设置按本次连接的有效回报分别开放游戏、低延迟、佩戴自动播放／暂停、双设备，
+以及设备列表中的 EQ 选择。编辑已有自定义 EQ 还要求确认产品 ID、排除内置槽位、
+获得合法频段和范围；未知型号不据名称开放编辑。长帧列表和创建／删除尚未实现，
+新增控制未逐型号实测，详见 [OPPO 协议](oppo-enco-protocol.md)。
+
 ### 2.3 StarRing / 籁特易耳
 
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
@@ -137,6 +142,8 @@ ROSE Coral 耳夹降噪款使用独立 RS Common V2 适配，依据 ROSELINK 3.8
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|
 | ROSESELSA EARFREE i5 | 具体型号 | 公开实现 | 规范化名称精确匹配；合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
+| ROSE EarFeel i7 / EarFeel i7 | 具体型号 | 公开实现；未实机复核 | 精确名称选择独立 RFCOMM 画像，不使用 i5 的 GATT 路径；有效状态分别确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
+| ROSE Ceramics U | 具体型号 | 公开实现；未实机复核 | 独立型号身份，不再作为 Ultra 别名；BudsFeel 有效状态分别确认能力 | 系统整机 → 私有组件 | 四态入口；详情可独立选择六态 |
 | ROSESELSA EARFREE / EARFEEL 产品线 | 产品线 | 家族外推 | 产品线名称或 GATT 服务选择候选；合法状态响应确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | Furina Endless Solo of Solitude | 具体型号 | 实机验证 | 规范化名称选择候选；BudsFeel 合法电量与模式响应分别确认对应能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | ROSE Ceramics X（琉璃 X） | 具体型号 | 实机验证；端点维护版已复核 | 规范化名称精确匹配音频端点；有界扫描按精确伴生名称或合法 `0x8418` 载荷与音频地址后缀关联控制端点，允许同地址；合法 `0x27/0x28` 模式响应确认能力 | 系统整机 | 降噪、关闭、通透、抗风噪 |
@@ -145,7 +152,8 @@ ROSE Coral 耳夹降噪款使用独立 RS Common V2 适配，依据 ROSELINK 3.8
 | ROSE BudsFeel 产品线 | 产品线 | 家族外推 | 产品线名称或 RFCOMM 服务选择候选；合法状态响应确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | 其他 ROSESELSA / ROSE 耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
-EARFREE / EARFEEL 使用 GATT 服务 `011bf5da`、`7777/8888` 特征；BudsFeel 使用 RFCOMM
+EARFREE / EARFEEL 家族候选使用 GATT 服务 `011bf5da`、`7777/8888` 特征；i7 是独立
+RFCOMM 例外，见 [ROSE RFCOMM 型号画像](rose-rfcomm-profiles.md)。BudsFeel 使用 RFCOMM
 UUID `0cf12d31-…`。琉璃 X 使用独立 `CERAMICS X BLE` 或共享音频地址的控制端点；
 实机 HCI Snoop 确认 ATT value handle `0x0015` 以 Write Command 写入、`0x0017` 接收通知。
 厂商 value 使用 `0x27` 查询、`0x2C` 设置和 `0x28` 状态回报，模式值分别为抗风噪
@@ -221,6 +229,12 @@ X5s Pro 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只
 [`honor-x5s-protocol.md`](honor-x5s-protocol.md)。
 
 ### 2.10 华为
+
+新增精确候选包括 FreeBuds 4i、6i、Pro、Pro 2、Studio、FreeLace Pro 2，以及
+HONOR Earbuds 2、2 SE、2 Lite。按各自来源画像探测佩戴、双设备、EQ 和手势，
+并通过实际回报逐项开放原生卡片高级设置；Studio／FreeLace Pro 2 保留整机电量形态。
+Pro 3、5i、FreeClip 2 也接入各自有来源依据的日常设置，原有硬件结果不代表这些新控制
+已经验证。新增控制及型号均待实机复核；Pro 4 分歧与 5i 档位缺口仍未外推处理。
 
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|

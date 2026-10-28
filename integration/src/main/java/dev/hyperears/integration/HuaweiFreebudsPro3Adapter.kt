@@ -90,4 +90,5 @@ private val PRO3_PROTOCOL_EXTENSION = object : HuaweiProtocolExtension {
 private val PRO3_PROFILE = HuaweiProtocolProfile(
     noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
     extension = PRO3_PROTOCOL_EXTENSION,
+    daily = HuaweiDailyProfile.PRO3,
 )
