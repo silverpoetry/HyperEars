@@ -428,9 +428,17 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The native daily rows, exact Pro 4/FreeClip profiles and Settings vendor-app handoff pass
-1,230 tests (317 protocol, 482 integration, 431 system-module), Release lint and assembly,
-and protocol-test Debug assembly. Settings now observes trusted external-owner acknowledgements
-without enabling normal writes; only an exact local lease can return control. This is code-level
-validation, with no new phone installation. Next finite gaps are Apple model identity/name readback,
-RSv2 Mirror/Swift 2/Luminous profiles, Rose gain/hearing protection and Ceramics X F8 daily controls.
+Native daily rows and Settings vendor-app handoff are followed by Apple reported identity,
+six additional RSv2 profiles, four-profile gain/hearing-protection controls, Ceramics X F8
+seven-field daily controls and first-generation FreeLace Pro. Validation passes 1,257 tests
+(323 protocol, 490 integration, 444 system-module), Release lint/assembly and protocol-test
+Debug assembly. Independent reviews checked F8 frame layout, RSv2 identities/fields and
+FreeLace lifecycle; the latter corrected aggregate-only battery handling to retain valid
+component reports. No new phone installation or physical validation is claimed.
+
+Apple's 31 original catalog records remain identity metadata, not 31 new protocol promises;
+HQB indices use a separate namespace. Rename awaits authoritative readback. RSv2 still has
+source configurations outside the current 15-model catalog, and Ceramics X touch remapping,
+ZT i3/HeadFeel and F8 Explorer remain separate source-qualified work. Complex firmware and
+calibration workflows continue through explicit vendor-app handoff. This checkpoint does not
+complete the comprehensive goal.

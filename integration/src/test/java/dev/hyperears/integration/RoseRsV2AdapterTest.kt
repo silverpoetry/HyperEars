@@ -5,6 +5,44 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RoseRsV2AdapterTest {
+    @Test fun qualifiedGainAndProtectionUseReadbackAndResetRatherThanOptimism() {
+        for (model in Identity.Model.entries) {
+            val a=RoseRsV2Adapter(model)
+            val gain=RoseRsV2ControlRequest.SetGain(model.name,2)
+            val protection=RoseRsV2ControlRequest.SetHearingProtection(model.name,6)
+            assertFalse(a.executeControl(gain).accepted)
+            a.receive(frame(0x45,0)+frame(0x46,1))
+            assertEquals(model.gainAndProtection,a.executeControl(gain).accepted)
+            assertEquals(model.gainAndProtection,a.executeControl(protection).accepted)
+            if(model.gainAndProtection) {
+                assertArrayEquals(byteArrayOf(0x45,2),payload(a.executeControl(gain).commands.single()))
+                assertArrayEquals(byteArrayOf(0xFA.toByte(),0x46),payload(a.executeControl(protection).readback.single()))
+                assertEquals(0,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.gain)
+                assertEquals(1,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.hearingProtection)
+                assertFalse(a.executeControl(gain.copy(expectedModel="other")).accepted)
+                assertEquals(protection,ControlRequestTransport.decode(ControlRequestTransport.encode(protection)))
+                a.receive(frame(0x45,2)+frame(0x46,6))
+                assertEquals(2,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.gain)
+                assertEquals(6,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.hearingProtection)
+            }
+            a.resetProtocolSession();assertFalse(a.executeControl(gain).accepted)
+            assertFalse(a.executeControl(protection).accepted)
+        }
+    }
+    @Test fun newBatteryTopologiesNeverInventCaseOrTwoBudsForSwift() {
+        val swift=RoseRsV2Adapter(Identity.Model.SWIFT2)
+        swift.receive(frame(12,70,60,50))
+        assertEquals(70,swift.runtimeState().battery.overall.percent)
+        assertNull(swift.runtimeState().battery.left.percent)
+        assertNull(swift.runtimeState().battery.case.percent)
+        assertEquals(HeadsetFormFactor.HEADPHONES,swift.formFactor)
+        for(m in Identity.Model.entries.filter { it.name.startsWith("LUMINOUS_") }) {
+            val a=RoseRsV2Adapter(m);a.receive(frame(12,70,60,50))
+            assertEquals(70,a.runtimeState().battery.left.percent)
+            assertEquals(60,a.runtimeState().battery.right.percent)
+            assertNull(a.runtimeState().battery.case.percent)
+        }
+    }
     @Test fun automaticManufacturerSelectionKeepsVariantsDistinctAndNoStaticFeatures() {
         Identity.Model.entries.forEach { model ->
             val identity=identity(model)

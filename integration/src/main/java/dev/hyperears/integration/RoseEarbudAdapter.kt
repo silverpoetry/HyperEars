@@ -123,7 +123,8 @@ class RoseLuliXAdapter : RoseEarbudAdapter() {
     override val displayName: String = "ROSE Ceramics X (Luli X)"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
-        get() = PRESENTATION_ID.takeIf { effectiveCapabilities().noiseControl }
+        get() = if (effectiveCapabilities().noiseControl) PRESENTATION_ID else
+            SETTINGS_ONLY_PRESENTATION_ID.takeIf { runtimeState().features.get<RoseCeramicsXSettingsFeatureState>()?.values?.isNotEmpty() == true }
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
     override val batterySource: BatterySource = BatterySource.SYSTEM_AGGREGATE
@@ -159,6 +160,17 @@ class RoseLuliXAdapter : RoseEarbudAdapter() {
         return normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
     }
 
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        state is RoseCeramicsXSettingsFeatureState
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is RoseCeramicsXControlRequest.SetValue && adapter.runtimeState().features
+            .get<RoseCeramicsXSettingsFeatureState>()?.supports(request,
+                adapter.runtimeState().features.get<NoiseModeFeatureState>()?.mode) == true
+    }
+    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
+        if (request is RoseCeramicsXControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() { removeFeatureState(RoseCeramicsXSettingsFeatureState.FEATURE_ID) }
     override fun createProtocolSession(): ProtocolSession = RoseLuliXProtocolSession()
 
     override fun onInitialProtocolUnavailable(): InitialProtocolFailureResolution =
@@ -167,6 +179,7 @@ class RoseLuliXAdapter : RoseEarbudAdapter() {
     companion object {
         const val ID = "rose-luli-x-gatt"
         val PRESENTATION_ID = MiLinkCardPresentationId("rose-luli-x-gatt")
+        val SETTINGS_ONLY_PRESENTATION_ID = MiLinkCardPresentationId("rose-ceramics-x-settings")
         const val COMPANION_DEVICE_NAME = "CERAMICS X BLE"
         const val COMPANION_MANUFACTURER_ID = RoseCeramicsXAdvertisementCodec.MANUFACTURER_ID
         const val SERVICE_UUID =
@@ -367,23 +380,41 @@ class RoseBudsFeelMk2Adapter : RoseBudsFeelProtocolFamilyAdapter() {
 
 private class RoseLuliXProtocolSession : ProtocolSession {
     private var handshakePublished = false
+    private var settings = RoseCeramicsXSettingsFeatureState()
+    private var noise: NoiseMode? = null
 
     override fun initialReadCommands(): List<ByteArray> =
-        listOf(RoseCeramicsXWireCodec.queryNoiseMode)
+        listOf(RoseCeramicsXWireCodec.queryNoiseMode) + RoseCeramicsXSetting.entries.map {
+            dev.hyperears.protocol.rose.RoseCeramicsXSettingsCodec.query(it.field) }
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
         request === StandardControlRequest.Refresh -> initialReadCommands()
-        request is StandardControlRequest.SetNoiseMode -> listOf(
+        request is RoseCeramicsXControlRequest.SetValue -> if (settings.supports(request, noise))
+            listOfNotNull(dev.hyperears.protocol.rose.RoseCeramicsXSettingsCodec.write(request.setting.field, request.value)) else emptyList()
+        request is StandardControlRequest.SetNoiseMode && noise != null -> listOf(
             RoseCeramicsXWireCodec.setNoiseMode(request.mode.toLuliXMode()),
         )
         else -> emptyList()
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> =
-        if (request is StandardControlRequest.SetNoiseMode) initialReadCommands() else emptyList()
+        when (request) {
+            is StandardControlRequest.SetNoiseMode -> listOf(RoseCeramicsXWireCodec.queryNoiseMode)
+            is RoseCeramicsXControlRequest.SetValue -> listOf(dev.hyperears.protocol.rose.RoseCeramicsXSettingsCodec.query(request.setting.field))
+            else -> emptyList()
+        }
 
     override fun offer(bytes: ByteArray): List<ProtocolEvent> {
+        dev.hyperears.protocol.rose.RoseCeramicsXSettingsCodec.parse(bytes)?.let { report ->
+            val setting = RoseCeramicsXSetting.entries.single { it.field == report.field }
+            settings = settings.copy(values = settings.values + (setting to report.value))
+            return buildList {
+                if (!handshakePublished) { add(ProtocolEvent.HandshakeAccepted); handshakePublished = true }
+                add(ProtocolEvent.FeatureStateChanged(settings))
+            }
+        }
         val mode = RoseCeramicsXWireCodec.parseNoiseMode(bytes) ?: return emptyList()
+        noise = mode.toDomainMode()
         return buildList {
             if (!handshakePublished) {
                 add(ProtocolEvent.HandshakeAccepted)
@@ -401,6 +432,7 @@ private class RoseLuliXProtocolSession : ProtocolSession {
 
     override fun reset() {
         handshakePublished = false
+        settings = RoseCeramicsXSettingsFeatureState(); noise = null
     }
 
     private fun NoiseMode.toLuliXMode(): RoseCeramicsXWireCodec.NoiseMode = when (this) {

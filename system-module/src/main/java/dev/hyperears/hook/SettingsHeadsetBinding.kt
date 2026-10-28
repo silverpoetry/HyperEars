@@ -98,7 +98,9 @@ internal class SettingsHeadsetBinding(
             }
             SettingsCoralRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsRoseRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
+            SettingsCeramicsXRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsAdditionalRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
+            SettingsRoseRsV2Rows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdvancedEditors.forState(state)?.takeIf { it.available(state, address) }?.let { editor ->
                 val row = host.row("hyperears.advanced", "高级设置")
                 host.summary(row, "均衡器、手势及耳机已确认的扩展设置")

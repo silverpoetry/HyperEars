@@ -170,4 +170,32 @@ class HuaweiDailySettingsTest {
         }
     }
 
+    @Test fun freeLaceUsesCooldownAndMirroredPhysicalButtonsOnlyAfterReports() {
+        val adapter = HuaweiDailyModelAdapter(HuaweiDailyModelCatalog.models.single { it.id == "huawei-freelace-pro" })
+        val endpoint = adapter.transports.single() as RfcommEndpointSpec.Channel
+        assertEquals(16, endpoint.number)
+        assertEquals(2000L, endpoint.connectDelayMs)
+        assertEquals(HeadsetFormFactor.HEADPHONES, adapter.formFactor)
+        adapter.receive(report(0x0108, 2 to byteArrayOf(50, 60, 80)))
+        assertEquals(50, adapter.runtimeState().battery.left.percent)
+        assertEquals(60, adapter.runtimeState().battery.right.percent)
+        val power = HuaweiDailyControlRequest.SetGesture(HuaweiGestureKind.DOUBLE, HuaweiGestureSide.LEFT, 12)
+        assertFalse(adapter.supportsControl(power))
+        adapter.receive(report(0x0120, 1 to field(-1), 2 to field(-1)))
+        assertTrue(adapter.supportsControl(power))
+        val session = HuaweiDailySettingsSession(HuaweiDailyProfile.LACE_PRO)
+        session.offer(requireNotNull(Wire.parseFrame(report(0x0120, 1 to field(-1)))))
+        val write = requireNotNull(Wire.parseFrame(requireNotNull(session.encode(power))))
+        assertArrayEquals(field(12), write.params[1])
+        assertArrayEquals(field(12), write.params[2])
+        assertFalse(adapter.supportsControl(power.copy(side = HuaweiGestureSide.RIGHT)))
+        session.offer(requireNotNull(Wire.parseFrame(report(0x2B17, 1 to field(3)))))
+        val hold = HuaweiDailyControlRequest.SetGesture(HuaweiGestureKind.HOLD, HuaweiGestureSide.LEFT, 5)
+        val holdWrite = requireNotNull(Wire.parseFrame(requireNotNull(session.encode(hold))))
+        assertArrayEquals(field(5), holdWrite.params[1]); assertArrayEquals(field(5), holdWrite.params[2])
+        assertNull(session.encode(hold.copy(value = 10)))
+        adapter.resetProtocolSession()
+        assertFalse(adapter.supportsControl(power))
+    }
+
 }

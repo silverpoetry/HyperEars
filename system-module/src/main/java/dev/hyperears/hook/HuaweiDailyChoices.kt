@@ -26,7 +26,9 @@ internal object HuaweiDailyChoices {
                 HuaweiGestureSide.entries.forEach sideLoop@ { side ->
                     val current = gesture.value(side) ?: return@sideLoop
                     val values = if (side == HuaweiGestureSide.CALL) listOf(-1, 0) else gesture.available
-                    val prefix = when (side) { HuaweiGestureSide.LEFT -> "左耳"; HuaweiGestureSide.RIGHT -> "右耳"; HuaweiGestureSide.CALL -> "通话" }
+                    val prefix = if (state.modelId == "huawei-freelace-pro") {
+                        if (gesture.kind == HuaweiGestureKind.DOUBLE) "电源键" else "双耳"
+                    } else when (side) { HuaweiGestureSide.LEFT -> "左耳"; HuaweiGestureSide.RIGHT -> "右耳"; HuaweiGestureSide.CALL -> "通话" }
                     val kind = when (gesture.kind) {
                         HuaweiGestureKind.DOUBLE -> "双击"; HuaweiGestureKind.TRIPLE -> "三击"
                         HuaweiGestureKind.HOLD -> "长按"; HuaweiGestureKind.CYCLE -> "长按噪声循环"; HuaweiGestureKind.SWIPE -> "滑动"
@@ -45,6 +47,14 @@ internal object HuaweiDailyChoices {
         return when (value) { 1 -> "默认"; 2 -> "低音增强"; 3 -> "高音增强"; 9 -> "人声"; 10 -> "运动增强"; else -> "预设 $value" }
     }
     private fun gestureLabel(model: String?, kind: HuaweiGestureKind, side: HuaweiGestureSide, value: Int): String {
+        if (model == "huawei-freelace-pro") return when (kind) {
+            HuaweiGestureKind.DOUBLE -> when (value) { -1 -> "关闭"; 12 -> "切换设备"; else -> "未知" }
+            HuaweiGestureKind.HOLD -> when (value) {
+                -1 -> "关闭"; 3 -> "关闭 / 降噪"; 5 -> "关闭 / 降噪 / 通透"
+                6 -> "降噪 / 通透"; 9 -> "组合模式 9"; else -> "未知"
+            }
+            else -> "未知"
+        }
         if (model == "huawei-freebuds-3" && kind == HuaweiGestureKind.DOUBLE) return when (value) {
             -1 -> "关闭"; 0 -> "语音助手"; 1 -> "播放 / 暂停"; 3 -> "切换降噪"; 4 -> "下一首"; else -> "未知"
         }

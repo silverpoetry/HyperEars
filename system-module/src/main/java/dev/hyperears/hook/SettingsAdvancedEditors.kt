@@ -14,6 +14,7 @@ internal object SettingsAdvancedEditors {
         Editor(BoseDailyCardPolicy::available, BoseDailySettingsDetails::open),
         Editor(PuddingCardPolicy::available, PuddingSettingsDetails::open),
         Editor(RoseRsV2SettingsPolicy::available, RoseRsV2SettingsDetails::open),
+        Editor(RoseCeramicsXSettingsPolicy::available, RoseCeramicsXSettingsDetails::open),
         Editor(QcyCardPolicy::available, QcySettingsDetails::open),
         Editor(VivoTws3eSettingsPolicy::available, VivoTws3eSettingsDetails::open),
         Editor(HuaweiDailySettingsPolicy::available, HuaweiDailySettingsDetails::open),

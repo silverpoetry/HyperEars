@@ -22,6 +22,15 @@ import org.robolectric.util.ReflectionHelpers
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE)
 class HuaweiDailySettingsDetailsTest {
+    @Test fun freeLaceButtonsUsePhysicalLabelsAndNoSeparateRightControl() {
+        val adapter = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity("HUAWEI FreeLace Pro", true)))
+        adapter.receive(HuaweiFreebudsSppCodec.packet(0x0120, listOf(1 to byteArrayOf(12), 2 to byteArrayOf(12))))
+        adapter.receive(HuaweiFreebudsSppCodec.packet(0x2B17, listOf(1 to byteArrayOf(5), 2 to byteArrayOf(5))))
+        val rows = HuaweiDailyChoices.rows(EarbudState(adapter = adapter.snapshot(), features = adapter.runtimeState().features))
+        assertEquals(listOf("电源键双击", "双耳长按"), rows.map { it.label })
+        assertEquals("切换设备", rows.first().choices.single { it.value == 12 }.label)
+        assertEquals("关闭 / 降噪 / 通透", rows.last().choices.single { it.value == 5 }.label)
+    }
     @Test fun buds3GestureAndPro5EqualizerLabelsFollowTheirOwnWireCodes() {
         val buds3 = EarbudAdapterRegistry.resolve(EarbudIdentity("HUAWEI FreeBuds 3", true))!!
         buds3.receive(HuaweiFreebudsSppCodec.packet(0x0120, listOf(1 to byteArrayOf(3), 2 to byteArrayOf(4))))

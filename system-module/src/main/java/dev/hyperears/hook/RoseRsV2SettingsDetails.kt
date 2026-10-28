@@ -122,6 +122,14 @@ internal class RoseRsV2SettingsDetails private constructor(
         settings.bass?.let { selected -> choices("低音增强", profile.bassLevels.indexOf(selected),profile.bassLevels.map { "级别 $it" }) {
             RoseRsV2ControlRequest.SetBass(profile.bassLevels[it])
         } }
+        if (profile.gainAndProtection) {
+            settings.gain?.takeIf { it in 0..2 }?.let { value ->
+                choices("增益", value, RoseRsV2DailyLabels.gain) { RoseRsV2ControlRequest.SetGain(settings.model,it) }
+            }
+            settings.hearingProtection?.takeIf { it in 0..6 }?.let { value ->
+                choices("听力保护", value, RoseRsV2DailyLabels.hearingProtection) { RoseRsV2ControlRequest.SetHearingProtection(settings.model,it) }
+            }
+        }
         settings.game?.let { choices("游戏模式",if(it)1 else 0,listOf("关闭","开启")) { RoseRsV2ControlRequest.SetGame(it==1) } }
         settings.multipoint?.let { choices("双设备连接",if(it)1 else 0,listOf("关闭","开启")) { RoseRsV2ControlRequest.SetMultipoint(it==1) } }
         settings.audio?.let { confirmed ->

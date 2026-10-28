@@ -56,7 +56,7 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
 
     override val featureStateContract: DeviceFeatureStateContract =
         StandardDeviceFeatureStateContract.extending { _, state ->
-            state is AppleListeningModeFeatureState || state is AppleSettingsFeatureState ||
+            state is AppleDeviceInformationFeatureState || state is AppleListeningModeFeatureState || state is AppleSettingsFeatureState ||
                 state is AppleWearFeatureState || state is AppleConversationFeatureState ||
                 state is AppleStemFeatureState || state is AppleGestureSettingsFeatureState ||
                 state is AppleEqualizerFeatureState || state is AppleCaseFeatureState || state is AppleSpatialFeatureState
@@ -146,6 +146,7 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
         super.onProtocolReset()
         proximityBatteryConfirmed = false
         aacpBattery = null
+        removeFeatureState(AppleDeviceInformationFeatureState.FEATURE_ID)
         removeFeatureState(AppleCaseFeatureState.FEATURE_ID)
         removeFeatureState(AppleSpatialFeatureState.FEATURE_ID)
         removeFeatureState(AppleListeningModeFeatureState.FEATURE_ID)
@@ -313,6 +314,7 @@ private class AppleAapProtocolSession(
                 }
 
                 is AppleAapWireCodec.State.DeviceInformation -> buildList<ProtocolEvent> {
+                    add(ProtocolEvent.FeatureStateChanged(AppleDeviceInformationFeatureState(state.reportedName, state.modelIdentifier, state.firmwareActive)))
                     adaptiveModel = state.modelIdentifier in SOURCE_ADAPTIVE_MODELS
                     // Identity alone never establishes live listening controls or native admission.
                     lastNoiseReport?.let { add(listeningEvent(it)) }

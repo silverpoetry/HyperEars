@@ -205,3 +205,27 @@ report in either arrival order. Unknown identities revoke model-inferred eligibi
 actual Adaptive observations remain valid until reset. The earlier recommendations above
 record the audit-time baseline; current behavior is described in
 [the AAP development record](../../apple-aap-protocol.md).
+
+## Implemented identity-only catalog follow-up
+
+`AppleModelCatalog` preserves all 31 APPLE_AACP inventory records and six CLONE_HQB
+records in distinct namespaces. The 11 exact model-identifier groups from LibrePods
+map validated DeviceInfo identifiers to labels. The additional Beats/Max inventory
+records remain indexed source metadata, not 31 verified protocols or invented A####
+identifiers. Namespace is mandatory for index lookup; a colliding HQB index cannot
+silently select an original Apple entry. No discovery admission, battery topology or
+control capability derives from this catalog.
+
+The existing strict DeviceInfo parser now retains the first string as reported name.
+UI projects only bounded printable names (up to 255 UTF-8 bytes); an oversized/control
+name is omitted without discarding independently valid model/firmware fields. Private
+serials and opaque identifiers remain unprojected. Settings shows reported name, exact
+model label (or unknown raw model identifier), and active firmware as read-only rows.
+These features reset with the private conversation and never use the Android alias.
+
+Rename remains unimplemented: AndPods `renameAirPods` writes/logs and its generic refresh
+replays startup packets; LibrePods `AirPodsService.setName` updates local alias/config
+optimistically. Neither traced path establishes an authoritative post-rename name refresh.
+No speculative request, local alias confirmation, or automatic reconnect is introduced.
+Beats-specific battery topology remains report-driven; catalog names do not turn paired
+component reports into aggregate battery readings.

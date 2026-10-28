@@ -1,7 +1,7 @@
 # ROSELINK RS Common v2 model profiles
 
 2026-10-28 source reconstruction from ROSELINK 3.8.2 (5409), Dart 3.11.4 ARM64 AOT.
-This extends nine exact configurations independently of Coral. No vendor code, assets,
+This extends fifteen exact configurations independently of Coral. No vendor code, assets,
 APK, firmware or private keys are bundled. The existing 53-file configuration inventory
 is the index; this document records the additional identity and daily-control contract.
 
@@ -13,7 +13,7 @@ ID in little-endian order. They are not Bluetooth names or the RS/BH product cod
 `identifyDevice` at0x7a7240 prefers12/8/4 hex-character prefixes.
 `RBleScanner._advertisementDataToHexString` at0xa88e6c reconstructs manufacturer data.
 `NormalEventHandler.scanDeviceToEarObject` at0xa88420 passes this raw evidence into
-`buildEarObject`. All nine configs explicitly declare RFCOMM UUID
+`buildEarObject`. All fifteen configs explicitly declare RFCOMM UUID
 `0cf12d31-fac3-4553-bd80-d6832e7b3931` and allocate RsCommonV2Sender / Receiver.
 
 | Config | Advertisement prefix | Config offset | Ordinary EQ labels | Noise / other distinctions |
@@ -79,3 +79,49 @@ They are not enabled by shared sender/config inheritance. No OTA, recording or b
 feature is added. Tests cover source identity, model-specific enum/readback constraints,
 malformed framing, protocol reset, actual scanner callbacks and manager refinement/cache,
 nearby/stale/unbond cancellation, UI codec confirmation and bounded find ownership.
+
+## Six further exact configurations and gain/protection (current slice)
+
+All offsets refer to the same archived ROSELINK 3.8.2 AOT evidence, not device captures.
+The new constructor prefixes are Mirror `0b0a0a13`, Swift2 `5999064c`, Luminous Agumon
+`0b0a34fd`, Gabumon `0b0a2aed`, Patamon `0b0ae916`, Tailmon `0b0a941f`.
+Their files are `config/rs_common_v2/{mirror,swift2,luminous_agumon,luminous_gabumon,
+luminous_patamon,luminous_tailmon}_device_config.dart` beneath the existing AOT asm root.
+Mirror has POP/HIFI/ROCK EQ (constructor pool `0x8108`, semantic indices 0/1/2), game,
+multipoint, touch/master, find and prompts. The other five have the latter controls
+but no EQ/audio/noise widget. All six are explicitly excluded from noise, codec,
+gain/protection parsing and writes. These are candidate profiles until valid reports.
+Swift2 declares `head` and a single battery; Luminous declares two bud batteries, not
+a case; Mirror declares three components. Projection preserves these differences.
+
+Four existing profiles explicitly allocate gain and hearing-protection widgets:
+OpenFeel L, OpenFeel MK2, SpeakFeel2 and Astro X. No other profile inherits them.
+In `roselink_bluetooth/commander/sender/rs_common_v2_sender.dart`:
+
+- `setGainLevel` at `0x92f6b0` accepts integer 0..2 and emits `[45,value]`.
+- `getGainLevel` at `0x92fdd0` emits `[FA,45]`.
+- `setHearingProtection` at `0x896f98` accepts integer 0..6 and emits `[46,value]`.
+
+These constants account for Dart Smi tagging: stored literals 138/140 are wire
+0x45/0x46, not 0x8a/0x8c. `widget_model.dart` query getters `0x79ef18` and `0x79ef24`
+load pools `0x1e1b8` / `0x1e200`; `pp.txt` resolves them to enums `e14111` / `e140f1`,
+and `objs.txt` names those GAIN_LEVEL/HEARING_PROTECTION with strings "45"/"46".
+Thus initial bounded widget queries and readbacks include FA45/FA46. Receiver
+`_handleGainLevel` (`0xf0a140`) and `_handleHearingProtection` (`0xf09f60`) each require
+one byte represented as exactly two hex characters and validate 0..2 / 0..6.
+The existing top-level LTV/checksum decoder remains unchanged in structure.
+
+`DeviceHearingProtectionSlider.build` at `0xd64dac` uses
+`[null,75,80,85,90,95,100]`; null uses translated "关闭". Native rows and details use
+these exact source labels. They denote the earphone setting, not a measured acoustic
+exposure or medical guarantee. Gain uses the source's generic three-level selection;
+no unsupported low/high mapping or dB figure is invented.
+
+New serialized gain/protection requests carry `expectedModel` and are validated both
+by adapter and protocol session against the current reported profile. Missing report,
+wrong profile, invalid value or protocol reset rejects writes. Sends never update the
+reported selection. Popup and native preference tests check stale-profile rejection
+and actual source labels; protocol tests exercise invalid lengths, ranges, all stream
+splits, query separation and reset. Six identities are covered by the existing full
+catalog identity/admission tests. Test results belong to the coordinated build report;
+no phone operations or physical validation were performed in this slice.

@@ -5,7 +5,53 @@ import org.junit.Test
 
 class RoseRsV2WireCodecTest {
     private val models=RoseRsV2IdentityCodec.Model.entries
-    @Test fun manufacturerPrefixesIdentifyNineVariantsWithoutNamesOrSharedUuid() {
+    @Test fun gainAndProtectionStreamResetCannotFinishAnOldPartialReport() {
+        val model=RoseRsV2IdentityCodec.Model.OPENFEEL_L
+        val report=frame(0x45,2)+frame(0x46,6)
+        for(split in 1 until report.size) {
+            val decoder=RoseRsV2WireCodec.Decoder(model)
+            val values=decoder.offer(report.take(split).toByteArray())+decoder.offer(report.drop(split).toByteArray())
+            assertEquals(listOf(RoseRsV2WireCodec.State.Value(0x45,2),RoseRsV2WireCodec.State.Value(0x46,6)),values)
+        }
+        val decoder=RoseRsV2WireCodec.Decoder(model)
+        val gain=frame(0x45,2)
+        assertTrue(decoder.offer(gain.take(4).toByteArray()).isEmpty())
+        decoder.reset()
+        assertTrue(decoder.offer(gain.drop(4).toByteArray()).isEmpty())
+        assertEquals(RoseRsV2WireCodec.State.Value(0x46,6),decoder.offer(frame(0x46,6)).single())
+    }
+    @Test fun gainAndProtectionHaveExactSingleByteBoundsAndPerProfileQueries() {
+        for (m in models) {
+            val payload = RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map { it.toInt() and 255 }
+            assertEquals(m.gainAndProtection, 0x45 in payload)
+            assertEquals(m.gainAndProtection, 0x46 in payload)
+            for ((type, maximum) in listOf(0x45 to 2, 0x46 to 6)) {
+                for (value in 0..maximum) assertEquals(m.gainAndProtection,
+                    RoseRsV2WireCodec.Decoder(m).offer(frame(type,value)).isNotEmpty())
+                assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(type,maximum+1)).isEmpty())
+                assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(type)).isEmpty())
+                assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(type,0,1)).isEmpty())
+            }
+        }
+    }
+    @Test fun sixExactProfilesDoNotBorrowNoiseAudioEqOrCaseSupport() {
+        val expected = mapOf("0b0a0a13" to RoseRsV2IdentityCodec.Model.MIRROR,
+            "5999064c" to RoseRsV2IdentityCodec.Model.SWIFT2,
+            "0b0a34fd" to RoseRsV2IdentityCodec.Model.LUMINOUS_AGUMON,
+            "0b0a2aed" to RoseRsV2IdentityCodec.Model.LUMINOUS_GABUMON,
+            "0b0ae916" to RoseRsV2IdentityCodec.Model.LUMINOUS_PATAMON,
+            "0b0a941f" to RoseRsV2IdentityCodec.Model.LUMINOUS_TAILMON)
+        for ((prefix,m) in expected) {
+            assertEquals(prefix,m.prefix)
+            val payload = RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map { it.toInt() and 255 }
+            assertFalse(9 in payload);assertFalse(0x2B in payload);assertFalse(0x45 in payload)
+            assertEquals(m == RoseRsV2IdentityCodec.Model.MIRROR,0x2A in payload)
+            assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(9,1)+frame(0x2B,0)).isEmpty())
+            assertEquals(m == RoseRsV2IdentityCodec.Model.MIRROR,
+                RoseRsV2WireCodec.Decoder(m).offer(frame(0x2A,1)).isNotEmpty())
+        }
+    }
+    @Test fun manufacturerPrefixesIdentifyQualifiedVariantsWithoutNamesOrSharedUuid() {
         models.forEach { model ->
             val bytes=model.prefix.chunked(2).map {it.toInt(16)}
             assertEquals(model,RoseRsV2IdentityCodec.identify(mapOf((bytes[0] or (bytes[1] shl 8)) to bytes.drop(2))))

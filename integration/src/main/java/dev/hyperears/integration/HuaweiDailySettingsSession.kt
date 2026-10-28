@@ -44,7 +44,8 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
                 val original = state.equalizer?.custom?.singleOrNull { it.id == request.id && it == request.expectedSlot } ?: return null
                 Wire.setCustom(Wire.CustomPreset(original.id, original.name, request.gains))
             }
-            is HuaweiDailyControlRequest.SetGesture -> Wire.setGesture(request.kind.wire(), request.side.field, request.value)
+            is HuaweiDailyControlRequest.SetGesture -> Wire.setGesture(request.kind.wire(), request.side.field, request.value,
+                mirrored = profile.gestures[request.kind]?.mirrored == true)
         }
     }
     fun offer(frame: HuaweiFreebudsSppCodec.Frame): HuaweiDailySettingsFeatureState? {

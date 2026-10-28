@@ -21,7 +21,9 @@ object RoseRsV2WireCodec {
     fun query(sequence: Int, model: RoseRsV2IdentityCodec.Model): ByteArray = command(sequence, buildList {
         add(0xFA); add(0x0D); add(0x0C)
         if (model.noise) add(9)
-        add(0x2A); add(0x0E); add(0x32)
+        if (model.eqPresets.isNotEmpty() || model.bass) add(0x2A)
+        if (model.gainAndProtection) { add(0x45); add(0x46) }
+        add(0x0E); add(0x32)
         if (model.audio) add(0x2B)
         if (model.touch) add(1)
         if (model.touchMaster) add(7)
@@ -94,6 +96,8 @@ object RoseRsV2WireCodec {
                     add(State.Battery(values[0], values[1], values[2]))
                 }
                 0x09 -> if (values.size == 1 && model.noise && values[0] in 1..4) add(State.Value(type, values[0]))
+                0x45 -> if (model.gainAndProtection && values.size == 1 && values[0] in 0..2) add(State.Value(type,values[0]))
+                0x46 -> if (model.gainAndProtection && values.size == 1 && values[0] in 0..6) add(State.Value(type,values[0]))
                 0x0E, 0x32 -> if (values.size == 1 && values[0] in 0..1) add(State.Value(type, values[0]))
                 0x07 -> if (model.touchMaster && values.size == 1 && values[0] in 0..1) add(State.Value(type,values[0]))
                 0x2A -> {

@@ -41,6 +41,7 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
     endpointPrefix: String,
     channelNumbers: List<Int>,
     private val profile: HuaweiProtocolProfile,
+    connectDelayMs: Long = 0L,
 ) : StandardEarbudAdapter() {
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
@@ -48,6 +49,7 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
         RfcommEndpointSpec.Channel(
             number = channel,
             id = "$endpointPrefix-channel-$channel",
+            connectDelayMs = connectDelayMs,
         )
     }
     override val controlApps: List<ControlAppSpec> = listOf(

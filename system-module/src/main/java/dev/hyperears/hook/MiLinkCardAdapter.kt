@@ -73,6 +73,7 @@ internal object MiLinkCardAdapterRegistry {
     private val adapters = listOf(
         StarRingUltraMiLinkCardAdapter,
         RoseLuliXMiLinkCardAdapter,
+        RoseCeramicsXSettingsOnlyMiLinkCardAdapter,
         RoseEarfreeI5MiLinkCardAdapter,
         RoseBudsFeelMk2MiLinkCardAdapter,
         NiceHckOrigMiLinkCardAdapter,

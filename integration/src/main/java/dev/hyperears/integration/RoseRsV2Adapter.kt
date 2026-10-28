@@ -10,13 +10,16 @@ import kotlinx.serialization.Transient
 data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, val bass: Int? = null,
     val game: Boolean? = null, val multipoint: Boolean? = null, val audio: Int? = null,
     val touchEnabled: Boolean? = null, val touch: List<Int>? = null, val prompt: Int? = null,
-    val findLeft: Boolean? = null, val findRight: Boolean? = null) : DeviceFeatureState {
+    val findLeft: Boolean? = null, val findRight: Boolean? = null,
+    val gain: Int? = null, val hearingProtection: Int? = null) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
-    val hasSettings: Boolean get() = listOf(eq,bass,game,multipoint,audio,touchEnabled,touch,prompt,findLeft,findRight).any { it != null }
+    val hasSettings: Boolean get() = listOf(eq,bass,game,multipoint,audio,touchEnabled,touch,prompt,findLeft,findRight,gain,hearingProtection).any { it != null }
     val profile: Identity.Model? get() = Identity.Model.entries.singleOrNull { it.name == model }
     fun supports(request: RoseRsV2ControlRequest): Boolean {
         val p=profile ?: return false
         return when(request) {
+            is RoseRsV2ControlRequest.SetGain -> p.gainAndProtection && gain != null && request.expectedModel == model && request.level in 0..2
+            is RoseRsV2ControlRequest.SetHearingProtection -> p.gainAndProtection && hearingProtection != null && request.expectedModel == model && request.level in 0..6
             is RoseRsV2ControlRequest.SetEqualizer -> eq != null && request.preset in p.eqPresets
             is RoseRsV2ControlRequest.SetBass -> bass != null && request.level in p.bassLevels
             is RoseRsV2ControlRequest.SetGame -> game != null
@@ -31,6 +34,8 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
     companion object { const val FEATURE_ID="rose.rsv2_settings"; val SLOTS=listOf(1,2,3,4,17,18,19,20) }
 }
 @Serializable sealed interface RoseRsV2ControlRequest:ControlRequest {
+    @Serializable @SerialName("rose.rsv2_gain") data class SetGain(val expectedModel:String,val level:Int):RoseRsV2ControlRequest
+    @Serializable @SerialName("rose.rsv2_hearing_protection") data class SetHearingProtection(val expectedModel:String,val level:Int):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_eq") data class SetEqualizer(val preset:Int):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_bass") data class SetBass(val level:Int):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_game") data class SetGame(val enabled:Boolean):RoseRsV2ControlRequest
@@ -49,6 +54,7 @@ class RoseRsV2Adapter(private val model:Identity.Model):StandardEarbudAdapter() 
     override val resolution=AdapterResolution.EXACT_MATCH
     override val privateProtocolRequired=true
     override val transportReadiness=TransportReadiness.PROTOCOL_HANDSHAKE
+    override val formFactor get() = if (model == Identity.Model.SWIFT2) HeadsetFormFactor.HEADPHONES else super.formFactor
     override val transports=listOf(RfcommEndpointSpec.ServiceUuid(Identity.SERVICE_UUID,"rose-rsv2-rfcomm"))
     override val controlApps=listOf(ControlAppCatalog.roseLink)
     override val featureStateContract=StandardDeviceFeatureStateContract.extending { _,state -> state is RoseRsV2SettingsFeatureState && state.model==model.name }
@@ -73,6 +79,8 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
         return when(request) {
             StandardControlRequest.Refresh->initialReadCommands()
             is StandardControlRequest.SetNoiseMode->if(model.noise && noiseConfirmed) listOf(command(9,when(request.mode){NoiseMode.ANC->1;NoiseMode.OFF->2;NoiseMode.TRANSPARENCY->3;NoiseMode.WIND->4})) else emptyList()
+            is RoseRsV2ControlRequest.SetGain->listOf(command(0x45,request.level))
+            is RoseRsV2ControlRequest.SetHearingProtection->listOf(command(0x46,request.level))
             is RoseRsV2ControlRequest.SetEqualizer->listOf(command(0x2A,when(request.preset){0->1;1->0;else->request.preset}))
             is RoseRsV2ControlRequest.SetBass->listOf(command(0x2A,5,request.level))
             is RoseRsV2ControlRequest.SetGame->listOf(command(0x0E,if(request.enabled)1 else 0))
@@ -88,6 +96,8 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
     override fun readback(request:ControlRequest):List<ByteArray> {
         val feature=when(request) {
             is StandardControlRequest.SetNoiseMode->9
+            is RoseRsV2ControlRequest.SetGain->0x45
+            is RoseRsV2ControlRequest.SetHearingProtection->0x46
             is RoseRsV2ControlRequest.SetEqualizer,is RoseRsV2ControlRequest.SetBass->0x2A
             is RoseRsV2ControlRequest.SetGame->0x0E
             is RoseRsV2ControlRequest.SetMultipoint->0x32
@@ -106,8 +116,8 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
                 is Wire.State.Firmware->Unit
                 is Wire.State.Battery->{
                     fun reading(raw:Int)=BatteryReading((raw and 127).takeIf{it<=100},(raw and 127)<=100 && (raw and 128)!=0)
-                    val battery=if(model in setOf(Identity.Model.SPEAKFEEL,Identity.Model.SPEAKFEEL2))
-                        EarbudBattery(overall=reading(report.left)) else EarbudBattery(left=reading(report.left),right=reading(report.right),case=reading(report.case))
+                    val battery=if(model.aggregateBattery)
+                        EarbudBattery(overall=reading(report.left)) else EarbudBattery(left=reading(report.left),right=reading(report.right),case=if(model.caseBattery) reading(report.case) else BatteryReading(null,false))
                     add(ProtocolEvent.CapabilitiesIdentified(battery=true));add(ProtocolEvent.FeatureStateChanged(BatteryFeatureState(battery)))
                 }
                 is Wire.State.Touch->{settings=settings.copy(touch=report.actions);add(ProtocolEvent.FeatureStateChanged(settings))}
@@ -118,6 +128,7 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
                         0x0E->settings.copy(game=report.value==1);0x32->settings.copy(multipoint=report.value==1)
                         0x2B->settings.copy(audio=report.value);7->settings.copy(touchEnabled=report.value==1)
                         0x2E->settings.copy(prompt=report.value)
+                        0x45->settings.copy(gain=report.value);0x46->settings.copy(hearingProtection=report.value)
                         0x2F->when(report.value){1->settings.copy(findLeft=true);2->settings.copy(findRight=true);3->settings.copy(findLeft=true,findRight=true);4->settings.copy(findLeft=false,findRight=false);5->settings.copy(findLeft=false);else->settings.copy(findRight=false)}
                         else->settings};add(ProtocolEvent.FeatureStateChanged(settings))}
                 }

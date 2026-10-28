@@ -34,7 +34,7 @@ object AppleAapWireCodec {
         data class Control(val identifier: Int, val values: List<Int>) : State
 
         /** Only non-private fields with a defined protocol consumer; never retain raw identity data. */
-        data class DeviceInformation(val modelIdentifier: String, val firmwareActive: String) : State
+        data class DeviceInformation(val modelIdentifier: String, val firmwareActive: String, val reportedName: String = "") : State
     }
 
     data class Component(
@@ -148,11 +148,13 @@ object AppleAapWireCodec {
             cursor++
             return value
         }
+        var name = ""
         var model = ""
         var firmware = ""
         repeat(11) { index ->
             val value = readString() ?: return null
             when (index) {
+                0 -> name = value
                 1 -> model = value
                 4 -> firmware = value
             }
@@ -163,7 +165,9 @@ object AppleAapWireCodec {
         if (cursor != frame.size) return null
         // Bound projected text without truncating a model into a different, recognized identifier.
         if (model.length > 128 || firmware.length > 128) return null
-        return State.DeviceInformation(model, firmware)
+        return State.DeviceInformation(model, firmware, name.takeIf {
+            it.toByteArray(Charsets.UTF_8).size <= 255 && it.none(Char::isISOControl)
+        }.orEmpty())
     }
 
     private fun parseBattery(frame: ByteArray): State.Battery? {

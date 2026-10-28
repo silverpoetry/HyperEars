@@ -162,6 +162,10 @@ ROSE Coral 耳夹降噪款使用独立 RS Common V2 适配，依据 ROSELINK 3.8
 | ROSE BudsFeel 产品线 | 产品线 | 家族外推 | 产品线名称或 RFCOMM 服务选择候选；合法状态响应确认能力 | 系统整机 → 私有组件 | 降噪、关闭、通透、抗风噪 |
 | 其他 ROSESELSA / ROSE 耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
+Ceramics X 新增 F8 日常设置：EQ、游戏、提示语言、触控总开关与单一音频/双设备选择器，
+以及当前模式下的降噪/通透三档；均需各字段合法回报，新控制待实机复核。
+详见 [F8 日常协议](rose-ceramics-x-protocol.md)。
+
 EARFREE / EARFEEL 家族候选使用 GATT 服务 `011bf5da`、`7777/8888` 特征；i7 是独立
 RFCOMM 例外，见 [ROSE RFCOMM 型号画像](rose-rfcomm-profiles.md)。BudsFeel 使用 RFCOMM
 UUID `0cf12d31-…`。琉璃 X 使用独立 `CERAMICS X BLE` 或共享音频地址的控制端点；
@@ -471,8 +475,12 @@ MiLink 原始耳机准入决定当前展示归属；有效的原生结果保留�
 请按 [CONTRIBUTING.md](../CONTRIBUTING.md) 提交设备名称、设备形态、服务 UUID、脱敏后的
 只读响应和控制回读。完整个人 MAC 地址不属于协议证据，不应公开。
 
-ROSELINK RS Common v2 新增 Ceramics MK2 三变体、OpenFeel MK2/L、SportFeel 8912F、SpeakFeel/SPEAKFEEL、Astro X：仅同一经典蓝牙地址的已配对厂商广播精确匹配后自动选择，控制还需有效协议回报。型号差异、RPA 地址边界及未移植功能见 [RS v2 协议](rose-rsv2-protocol.md)。源码与测试验证不代替九型号硬件复验。
+ROSELINK RS Common v2 新增 Ceramics MK2 三变体、OpenFeel MK2/L、SportFeel 8912F、SpeakFeel/SPEAKFEEL、Astro X：仅同一经典蓝牙地址的已配对厂商广播精确匹配后自动选择，控制还需有效协议回报。型号差异、RPA 地址边界及未移植功能见 [RS v2 协议](rose-rsv2-protocol.md)。源码与测试验证不代替硬件复验。另新增 Mirror、Swift2、Agumon/Gabumon/Patamon/Tailmon 六个精确广播配置；Swift2 保留单电量、Luminous 不虚构盒电量。OpenFeel L/MK2、SpeakFeel2、Astro X 的增益与听力保护仅在本会话回报后开放。
 
 OPPO／OnePlus／realme 的产品索引噪声控制新增 43 个来源表、304 个已知语义回报位；
 只有产品 ID 与有效当前模式回报同时成立才显示等级／变体选择。来源目录不代表实机
 验收，条件聆听功能保持只读，未知类型不外推；详见 OPPO 协议文档。
+
+第一代 FreeLace Pro 另有精确通道 16 候选，连接前等待 2 秒并支持取消和控制权复查。
+电源键双击、共用长按及三个降噪档位依赖独立回报；耳机形态不屏蔽有效的分部电量。
+该维护路径已添加代码测试，尚待设备复核；提示语言仍通过厂家 App 处理。

@@ -356,6 +356,8 @@ interface AdapterEventScope {
 
 /** A model-declared private-protocol transport candidate. */
 sealed interface EarbudTransportSpec {
+    /** Candidate-scoped cooldown before connecting, never a post-handshake sleep. */
+    val connectDelayMs: Long get() = 0L
     val id: String
 }
 
@@ -370,7 +372,10 @@ sealed interface RfcommEndpointSpec : EarbudTransportSpec {
         val number: Int,
         val secure: Boolean = true,
         override val id: String = "rfcomm-$number${if (secure) "" else "-insecure"}",
-    ) : RfcommEndpointSpec
+        override val connectDelayMs: Long = 0L,
+    ) : RfcommEndpointSpec {
+        init { require(connectDelayMs in 0L..5_000L) }
+    }
 }
 
 /**

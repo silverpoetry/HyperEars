@@ -6,9 +6,10 @@ import dev.hyperears.integration.RoseEarfreeI5Adapter
 import dev.hyperears.integration.RoseLuliXAdapter
 
 /** Model-owned registrations reusing the same native MiLink wind-noise accessory contract. */
-internal object RoseLuliXMiLinkCardAdapter : WindNoiseToggleMiLinkCardAdapter(
+internal object RoseLuliXMiLinkCardAdapter : NativeAncToggleMiLinkCardAdapter(
     presentationId = RoseLuliXAdapter.PRESENTATION_ID,
     modelLabel = "ROSE Ceramics X (Luli X)",
+    toggles = listOf(WindNoiseToggleSpec, RoseCeramicsXDetailsSpec),
 )
 
 internal object RoseEarfreeI5MiLinkCardAdapter : WindNoiseToggleMiLinkCardAdapter(

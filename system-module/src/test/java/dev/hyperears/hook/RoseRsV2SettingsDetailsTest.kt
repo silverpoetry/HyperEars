@@ -35,6 +35,19 @@ class RoseRsV2SettingsDetailsTest {
             {_,callback->observer=callback;{observer=null;released++}},{token})
         fun open()=RoseRsV2SettingsDetails.open(anchor,address,environment).also {shadowOf(Looper.getMainLooper()).idle()}
     }
+    @Test fun gainAndProtectionDetailsWaitForReportsAndRejectChangedModel() {
+        val f=Fixture()
+        f.state=f.state.withFeature(RoseRsV2SettingsFeatureState(RoseRsV2IdentityCodec.Model.OPENFEEL_L.name,gain=0,hearingProtection=1))
+        val details=f.open();val popup=popup(details)
+        val gain=descendants(popup.contentView).filterIsInstance<RadioButton>().single {it.text=="档位 2"}
+        gain.performClick()
+        assertEquals(RoseRsV2ControlRequest.SetGain(RoseRsV2IdentityCodec.Model.OPENFEEL_L.name,2),f.sent.single())
+        assertEquals(0,f.state.features.get<RoseRsV2SettingsFeatureState>()!!.gain)
+        val hearing=descendants(popup.contentView).filterIsInstance<RadioButton>().single {it.text=="100 dB"}
+        f.state=f.state.withFeature(RoseRsV2SettingsFeatureState(RoseRsV2IdentityCodec.Model.ASTRO_X.name,gain=0,hearingProtection=1))
+        hearing.performClick();assertEquals(1,f.sent.size)
+        details.dismiss();assertEquals(1,f.released)
+    }
     @Test fun audioRequiresExplicitConfirmationAndRechecksOwnerBeforeWrite() {
         val f=Fixture();val details=f.open();val popup=popup(details)
         descendants(popup.contentView).filterIsInstance<RadioButton>().single{it.text=="LDAC"}.performClick()

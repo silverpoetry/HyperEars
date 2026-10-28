@@ -121,6 +121,9 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(RoseCeramicsXControlRequest.SetValue::class, RoseCeramicsXControlRequest.SetValue.serializer())
+                subclass(RoseRsV2ControlRequest.SetGain::class, RoseRsV2ControlRequest.SetGain.serializer())
+                subclass(RoseRsV2ControlRequest.SetHearingProtection::class, RoseRsV2ControlRequest.SetHearingProtection.serializer())
                 subclass(RoseRsV2ControlRequest.SetEqualizer::class, RoseRsV2ControlRequest.SetEqualizer.serializer())
                 subclass(RoseRsV2ControlRequest.SetBass::class, RoseRsV2ControlRequest.SetBass.serializer())
                 subclass(RoseRsV2ControlRequest.SetGame::class, RoseRsV2ControlRequest.SetGame.serializer())

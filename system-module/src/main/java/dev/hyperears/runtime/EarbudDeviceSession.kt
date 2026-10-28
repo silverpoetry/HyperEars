@@ -604,7 +604,11 @@ internal class EarbudDeviceSession(
             adapter.resetProtocolSession()
             synchronized(transportLock) { channel = candidate }
             try {
-                withTimeout(CONNECT_TIMEOUT_MS) { candidate.connect() }
+                withTimeout(CONNECT_TIMEOUT_MS + transport.connectDelayMs) {
+                    candidate.connectAfterCooldown(transport) {
+                        externalControlApp == null && synchronized(transportLock) { channel === candidate }
+                    }
+                }
                 updateLifecycle(
                     privateTransport = PrivateTransportState.CONNECTED,
                     protocolHandshake = adapter.initialHandshakeState(),

@@ -6,6 +6,14 @@ import dev.hyperears.integration.*
 internal object SettingsAppleRows {
     fun add(host: SettingsPreferenceHost, state: EarbudState, address: String, add: (Any) -> Unit,
         current: () -> EarbudState?, send: (ControlRequest) -> Unit) {
+        state.features.get<AppleDeviceInformationFeatureState>()?.let { info ->
+            listOf("name" to ("耳机报告名称" to info.reportedName),
+                "model" to ("耳机型号" to (info.catalogModel?.label ?: info.modelIdentifier)),
+                "firmware" to ("固件版本" to info.firmwareActive)).filter { it.second.second.isNotEmpty() }.forEach { (key, item) ->
+                val row = host.row("hyperears.apple.info.$key", item.first)
+                host.summary(row,item.second); host.enable(row,false); add(row)
+            }
+        }
         val feature = state.features.get<AppleSettingsFeatureState>() ?: return
         AppleSetting.entries.forEach { setting ->
             val selected = setting.value(feature) ?: return@forEach

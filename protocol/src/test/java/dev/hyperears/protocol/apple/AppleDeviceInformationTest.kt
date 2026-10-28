@@ -50,7 +50,7 @@ class AppleDeviceInformationTest {
 
     @Test
     fun projectionUsesOnlyPositionalModelAndFirmware() {
-        assertEquals(listOf(AppleAapWireCodec.State.DeviceInformation("unknown", "7A305")),
+        assertEquals(listOf(AppleAapWireCodec.State.DeviceInformation("unknown", "7A305", "A3441")),
             AppleAapWireCodec.Decoder().offer(fixture()))
         val empty = resize(byteArrayOf(4, 0, 4, 0, 0x1d, 0, 55, 0, 0, 99, 88) + ByteArray(47))
         assertEquals(58, empty.size)
@@ -95,7 +95,7 @@ class AppleDeviceInformationTest {
     @Test
     fun projectedFieldsAreBoundedWithoutTruncatingModelAndLargeNameIsNotRetained() {
         listOf(127, 128).forEach { size ->
-            assertEquals(listOf(AppleAapWireCodec.State.DeviceInformation("A".repeat(size), "F".repeat(size))),
+            assertEquals(listOf(AppleAapWireCodec.State.DeviceInformation("A".repeat(size), "F".repeat(size), "A3441")),
                 AppleAapWireCodec.Decoder().offer(fixture(model = "A".repeat(size), firmware = "F".repeat(size))))
         }
         assertTrue(AppleAapWireCodec.Decoder().offer(fixture(model = "A".repeat(129))).isEmpty())
@@ -104,13 +104,13 @@ class AppleDeviceInformationTest {
         assertEquals(9 + 65535, frame.size)
         val decoder = AppleAapWireCodec.Decoder()
         assertTrue(decoder.offer(frame.copyOfRange(0, frame.size - 1)).isEmpty())
-        assertEquals(listOf(identity, AppleAapWireCodec.State.Noise(AppleAapWireCodec.NoiseMode.ANC)),
+        assertEquals(listOf(identity.copy(reportedName = ""), AppleAapWireCodec.State.Noise(AppleAapWireCodec.NoiseMode.ANC)),
             decoder.offer(frame.takeLast(1).toByteArray() + noise))
     }
 
     private fun ByteArray.repeatFrames(count: Int): ByteArray = ByteArray(size * count) { this[it % size] }
 
-    private val identity = AppleAapWireCodec.State.DeviceInformation("unknown", "7A305")
+    private val identity = AppleAapWireCodec.State.DeviceInformation("unknown", "7A305", "A3441")
     private val noise = AppleAapWireCodec.setNoiseMode(AppleAapWireCodec.NoiseMode.ANC)
 
     private fun fixture(name: ByteArray = "A3441".toByteArray(), model: String = "unknown", firmware: String = "7A305", opaque: ByteArray = (noise + ByteArray(34)).copyOf(34)): ByteArray {

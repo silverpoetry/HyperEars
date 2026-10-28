@@ -1405,7 +1405,7 @@ class EarbudAdapterHierarchyTest {
         assertTrue(resolve("HUAWEI FreeBuds Pro", standard = true) is HuaweiDailyModelAdapter)
         assertTrue(resolve("FreeBuds Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertTrue(resolve("FreeClip Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
-        assertTrue(resolve("FreeLace Pro", standard = true) is HuaweiFreebudsFamilyAdapter)
+        assertEquals("huawei-freelace-pro", resolve("FreeLace Pro", standard = true).id)
         assertFalse(resolve("HONOR Unknown", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertFalse(resolve("HUAWEI Sound Joy", standard = true) is HuaweiFreebudsFamilyAdapter)
     }

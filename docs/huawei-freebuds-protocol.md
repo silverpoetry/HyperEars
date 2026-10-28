@@ -355,3 +355,16 @@ no newer FreeClip 2 assistant/volume actions are inferred. Double-tap and swipe 
 only their existing source action sets and require their own reports. Exact FreeClip
 matching does not change FreeClip 2's separately validated battery path. Both newly
 added model profiles and daily controls await physical-device verification.
+
+### First-generation FreeLace Pro
+
+The exact channel-16 profile follows OpenFreebuds `lace_pro.py`. Its 2-second cooldown is
+before each socket connection, inside the cancellable candidate job, with ownership checked
+again afterwards. This does not add a global Bluetooth delay. ANC levels are normal/comfort/ultra;
+dynamic ANC and voice boost are excluded. Power-button double tap accepts only -1/12, while
+combined long press accepts -1/3/5/6/9. Both commands mirror the value into fields 1 and 2;
+only field-1 readback grants their single physical-control row. Hold value 9 retains a neutral
+label because the source `noise_control_off_an` has no verified translation. The headphone
+form factor does not suppress valid component battery reports. Reconnection clears reports.
+Voice-language writes remain with the vendor app because the source query reports available
+languages without an authoritative current-language value. The new profile awaits device feedback.

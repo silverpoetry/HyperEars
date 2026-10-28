@@ -25,6 +25,23 @@ class SettingsHeadsetBindingTest {
             protocolHandshake = ProtocolHandshakeState.CONFIRMED))
         .withFeature(NoiseModeFeatureState(NoiseMode.ANC))
         .withFeature(HonorAncDepthFeatureState(HonorAncDepth.SMART, HonorAncDepth.entries.toSet()))
+    @Test fun ceramicsXNativeAudioWaitsForConfirmationAndDoesNotChangeReportedValue() {
+        val f = Fixture()
+        val adapter = RoseLuliXAdapter()
+        adapter.receive(byteArrayOf(0, 0x28, 2, 0, 3, 11, 1, 0))
+        f.current = f.current.copy(adapter = adapter.snapshot(), features = adapter.runtimeState().features)
+        f.binding.render()
+        val row = f.row("hyperears.ceramicsx.audio") as ListPreference
+        assertFalse(row.callChangeListener("1"))
+        assertTrue(f.sent.isEmpty())
+        val dialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(RoseCeramicsXControlRequest.SetValue(RoseCeramicsXSetting.AUDIO, 1), f.sent.single())
+        assertEquals("0", (f.row("hyperears.ceramicsx.audio") as ListPreference).value)
+        f.binding.close()
+    }
+
     @Test fun controllerRowsRequireModuleForLaunchAndExplicitLocalLeaseForReturn() {
         val f = Fixture(); f.current = f.current.copy(adapter = f.current.adapter!!.copy(controlApps = listOf(ControlAppCatalog.huaweiSmartAudio)))
         f.binding.render()
@@ -239,6 +256,16 @@ class SettingsHeadsetBindingTest {
         val stale=f.row("hyperears.rsv2.eq") as ListPreference
         f.current=f.current.withFeature(RoseRsV2SettingsFeatureState("OPENFEEL_L",eq=0))
         stale.callChangeListener("1"); assertEquals(2,f.sent.size)
+        f.binding.close()
+    }
+    @Test fun appleIdentityRowsUseRemoteReportWithoutGrantingControlsOrUsingAlias() {
+        val f=Fixture()
+        f.current=f.current.withFeature(AppleDeviceInformationFeatureState("Reported name","A3441","9A1"))
+        f.binding.render()
+        assertEquals("Reported name",f.row("hyperears.apple.info.name")!!.summary)
+        assertEquals("AirPods 5 Wireless",f.row("hyperears.apple.info.model")!!.summary)
+        assertFalse(f.row("hyperears.apple.info.name")!!.isEnabled)
+        assertTrue(f.sent.isEmpty())
         f.binding.close()
     }
     private inner class Fixture {
