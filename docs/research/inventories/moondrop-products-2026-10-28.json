@@ -1,0 +1,528 @@
+{
+  "source": "https://cdn-service.moondroplab.tech/api/v1/products/all",
+  "fetchedOn": "2026-10-28",
+  "totalCatalogRecords": 108,
+  "selection": "type == BT; raw product records include aliases, not unique verified models",
+  "models": [
+    {
+      "uuid": "40f974ad-f5be-4174-817d-bed662d24a80",
+      "model": "MOONDROP Dots",
+      "name": "MOONDROP Dots",
+      "type": "BT",
+      "istws": true,
+      "chipType": "jieli",
+      "eqBands": 10,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "d0c111d3-de13-42cb-ade0-fb615358eb9c",
+      "model": "ZZZ-ANGELS-OWS",
+      "name": "ZZZ-ANGELS-OWS",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "2bd187a1-bae1-4f66-bd7e-895d3c8e3f15",
+      "model": "MOONDROP The Garden",
+      "name": "MOONDROP The Garden",
+      "type": "BT",
+      "istws": true,
+      "chipType": "airoha",
+      "eqBands": 10,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "e9aa2b61-74d5-451f-995d-254d3a9e6666",
+      "model": "MOONDROP MIRAGE",
+      "name": "MOONDROP MIRAGE",
+      "type": "BT",
+      "istws": true,
+      "chipType": "jieli",
+      "eqBands": 10,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "b3c589a2-9310-499f-ae70-f7e96582f604",
+      "model": "Moondrop EVO 2",
+      "name": "Moondrop EVO 2",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 10,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "6acdf4b2-1a95-4072-8505-02e6c4d1c929",
+      "model": "MOONDROP EDGE 2",
+      "name": "MOONDROP EDGE 2",
+      "type": "BT",
+      "istws": false,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "7898e618-1559-4bf4-8edc-79924a796906",
+      "model": "MOONDROP MM3A",
+      "name": "MOONDROP MM3A",
+      "type": "BT",
+      "istws": false,
+      "chipType": "bluetrumusb",
+      "eqBands": 8,
+      "isSpeaker": true
+    },
+    {
+      "uuid": "978a9b67-8314-4481-8ab6-e6160aba0e94",
+      "model": "MOONDROP EVO 2",
+      "name": "MOONDROP EVO 2",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 10,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "291a21ef-bca1-4cf1-baf8-151c457bf082",
+      "model": "MOONDROP Pudding",
+      "name": "MOONDROP Pudding",
+      "type": "BT",
+      "istws": true,
+      "chipType": "jieli",
+      "eqBands": 10,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "44f498b3-a54f-4f47-bcc1-a6faa53c6129",
+      "model": "H.I.D.E.404_Klukai",
+      "name": "H.I.D.E.404_Klukai",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "b7a71fef-9c42-4e47-a8d5-b5007f0f6cbc",
+      "model": "PANDAER Space Travel 2",
+      "name": "PANDAER Space Travel 2",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "0767fc45-888d-4e99-b81d-c0566a42b4a2",
+      "model": "LAPLACE-OBA-Ⅱ",
+      "name": "LAPLACE-OBA-Ⅱ",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "134196ff-652b-4671-8de2-9d7e8a7fc6e8",
+      "model": "Moondrop U.C.T.S.",
+      "name": "Moondrop U.C.T.S.",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "655903e7-046f-49d8-be63-bbadb3ea7881",
+      "model": "Pill Yamada Ryo",
+      "name": "Pill Yamada Ryo",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "42b775b3-2781-47f2-95b1-86ef7de4f9bd",
+      "model": "Pill Kita Ikuyo",
+      "name": "Pill Kita Ikuyo",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "91e6febd-d61b-4849-9c0f-5d4e9627700d",
+      "model": "Pill Ijichi Nijika",
+      "name": "Pill Ijichi Nijika",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "fb36c2bb-845d-4e0a-9b83-193b046bc6cb",
+      "model": "Pill Gotoh Hitori",
+      "name": "Pill Gotoh Hitori",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "35855606-dc03-4dd8-bdf3-89b10b0b259a",
+      "model": "SPACE TRAVEL 2 ULTRA",
+      "name": "SPACE TRAVEL 2 ULTRA",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "eea56fc4-9717-485d-b4bf-f183a95c57f3",
+      "model": "Moondrop Nekocake QBZ-191",
+      "name": "Moondrop Nekocake QBZ-191",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "e56b6195-54a2-47a8-a6a9-409c049befef",
+      "model": "Space Travel 2 Ultra",
+      "name": "Space Travel 2 Ultra",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "20f874df-7f71-4446-880c-95bbc39995d4",
+      "model": "MOONDROP Pill",
+      "name": "MOONDROP Pill",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "287fbd9a-76fd-4574-b1fc-75f2c2a56af8",
+      "model": "Me 163 Komet MOCA",
+      "name": "Me 163 Komet MOCA",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "01ae893f-2ad1-47e4-a6de-8c63d52e1042",
+      "model": "SPACE TRAVEL 2",
+      "name": "SPACE TRAVEL 2",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "510aa26a-7745-469c-8940-10835a0d10a3",
+      "model": "Moondrop Golden Ages 2",
+      "name": "Moondrop Golden Ages 2",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "3795b453-41f8-4f7b-aaa8-2709481a2f91",
+      "model": "PANDAER Open Air Pill",
+      "name": "PANDAER Open Air Pill",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "e9004b3a-1657-4d25-a3b3-6e047ec27686",
+      "model": "Space Travel 2",
+      "name": "Space Travel 2",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "7afb7e3c-99c6-45be-b0a8-6adb8603643a",
+      "model": "MOONDROP PILL",
+      "name": "PILL",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "196a50a7-08ea-4b88-a672-325d5f874a77",
+      "model": "MOONDROP EDGE",
+      "name": "MOONDROP EDGE",
+      "type": "BT",
+      "istws": false,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "041e28d4-00a4-4683-a8b1-581b7df34e08",
+      "model": "Robin's earphones",
+      "name": "Robin's earphones",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "2e69a0de-e47a-4f41-b8a1-8f88905ebc32",
+      "model": "ROBIN'S Earphones",
+      "name": "ROBIN'S Earphones",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "ee424e56-cd97-42e7-aa7c-ab461d2d10c6",
+      "model": "ROBIN'S EARPHONES",
+      "name": "ROBIN'S EARPHONES",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "134f2d7c-93d2-44e2-ba04-de6157c48860",
+      "model": "BIANCA:STIGMATA",
+      "name": "BIANCA:STIGMATA",
+      "type": "BT",
+      "istws": false,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "d2546c0d-5338-4df2-a88d-d93eb3e74b87",
+      "model": "Robin's Earphones",
+      "name": "Robin's Earphones",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "2ee9d517-fbf8-4dee-b41b-ffcaa23401c0",
+      "model": "MOONDROP x YASUNO KIYONO",
+      "name": "MOONDROP x YASUNO KIYONO",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "b1e81a50-f27e-4bcf-b879-8c3249447f62",
+      "model": "MOONDROP Ultrasonic",
+      "name": "MOONDROP Ultrasonic",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "b539b5c8-4cb4-4765-865a-1467117c0e11",
+      "model": "MOONDROP MOCA",
+      "name": "MOONDROP MOCA",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "688aebdd-2a08-4bd6-b917-e13df9d63532",
+      "model": "Moondrop SINGER HEADPHONE",
+      "name": "Moondrop SINGER HEADPHONE IOS",
+      "type": "BT",
+      "istws": false,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "3d8a7c9e-1118-42b9-a9a7-db685a50e965",
+      "model": "SINGER HEADPHONE",
+      "name": "SINGER HEADPHONE",
+      "type": "BT",
+      "istws": false,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "52e9ba82-4b08-43fb-a827-013633b294b6",
+      "model": "Moondrop SUSANOO TWS",
+      "name": "Moondrop SUSANOO TWS IOS",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "96f5a091-b245-4939-aeee-50bbf5f840fb",
+      "model": "MOONDROP MOON TRAVEL",
+      "name": "MOONDROP MOON TRAVEL",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "f28b8e0a-5f74-4f48-9e05-a9c651563b1a",
+      "model": "Moondrop PUNISHING;GRAY RAVEN",
+      "name": "Moondrop PUNISHING;GRAY RAVEN IOS",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "61591e02-3292-44d8-9bf7-b1689bbc9d03",
+      "model": "PUNISHING:GRAY RAVEN",
+      "name": "PUNISHING:GRAY RAVEN",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "a70f9004-53c9-46bd-bd2a-5f3075006a2a",
+      "model": "Moondrop Golden Ages",
+      "name": "Moondrop Golden Ages",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "8890dd99-7cec-43fc-8947-c3673edd2eb3",
+      "model": "SUSANOO TWS",
+      "name": "SUSANOO TWS",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "0374dd80-f3d1-4e49-86b5-0051a995dcdd",
+      "model": "Moondrop Space Travel",
+      "name": "Moondrop Space Travel",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "cbab45d3-5d17-4f25-a66a-7f3198f1a8b7",
+      "model": "MOONDROP Voyager",
+      "name": "MOONDROP Voyager",
+      "type": "BT",
+      "istws": false,
+      "chipType": "qualcomm",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "29cb4cbe-ebb3-4f8f-b0c3-bcc57dbd55b2",
+      "model": "Space Force",
+      "name": "Space Force",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "8eedc494-04fc-44dc-926d-579eaa7ff73f",
+      "model": "MOONDROP littlewhite",
+      "name": "MOONDROP littlewhite",
+      "type": "BT",
+      "istws": false,
+      "chipType": "qualcomm",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "cc3fece7-fd2f-4ddb-b030-86ca205247bd",
+      "model": "Moondrop Alice",
+      "name": "Moondrop Alice",
+      "type": "BT",
+      "istws": true,
+      "chipType": "qualcomm",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "830368b9-a50c-4f27-bb9e-8965635135a2",
+      "model": "Moondrop Nekocake Acht Acht Limited",
+      "name": "Moondrop Nekocake Acht Acht Limited",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "179cb29f-80c5-43aa-a6e4-52b05f1aad7a",
+      "model": "Moondrop Nekocake",
+      "name": "Moondrop Nekocake",
+      "type": "BT",
+      "istws": true,
+      "chipType": "bluetrum",
+      "eqBands": 5,
+      "isSpeaker": false
+    },
+    {
+      "uuid": "cffb6269-ee1b-4e5a-9ffa-e5387a0aaa3a",
+      "model": "Moondrop Sparks",
+      "name": "Moondrop Sparks",
+      "type": "BT",
+      "istws": true,
+      "chipType": "qualcomm",
+      "eqBands": 5,
+      "isSpeaker": false
+    }
+  ]
+}

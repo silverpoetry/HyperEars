@@ -1,0 +1,128 @@
+[
+  {
+    "checkout": "bosectl",
+    "url": "https://github.com/aaronsb/bosectl",
+    "commit": "70570b29c1d3c9ba775b08a29eaea72385de27b5",
+    "commitDate": "2026-09-28"
+  },
+  {
+    "checkout": "Gadgetbridge",
+    "url": "https://codeberg.org/Freeyourgadget/Gadgetbridge.git",
+    "commit": "86703c8006fc701a81505a28c48e399d1428e0c1",
+    "commitDate": "2026-10-27"
+  },
+  {
+    "checkout": "GalaxyBudsClient",
+    "url": "https://github.com/timschneeb/GalaxyBudsClient",
+    "commit": "754b6fdfb1c151b022cece775c8aaad4eb185afa",
+    "commitDate": "2026-10-01"
+  },
+  {
+    "checkout": "HuaweiPods",
+    "url": "https://github.com/Nshpiter/HuaweiPods",
+    "commit": "dc5b9d14e9030be95b178699d674d1a3217e1e6d",
+    "commitDate": "2026-10-26"
+  },
+  {
+    "checkout": "HyperOriG",
+    "url": "https://github.com/KiriChen-Wind/HyperOriG",
+    "commit": "8d0014d3dc0a8ce420a3f9847179cf436f33e6cf",
+    "commitDate": "2026-09-12"
+  },
+  {
+    "checkout": "HyperPods",
+    "url": "https://github.com/Art-Chen/HyperPods",
+    "commit": "9796d947daa18a379948349442632510424a1a15",
+    "commitDate": "2025-10-05"
+  },
+  {
+    "checkout": "HyperRose",
+    "url": "https://github.com/DOHEX/HyperRose",
+    "commit": "4e212f79bb1929892e4ac8ae22ed5c2d351e6944",
+    "commitDate": "2026-08-22"
+  },
+  {
+    "checkout": "LibrePods",
+    "url": "https://github.com/librepods-org/librepods",
+    "commit": "89356c08cea3db0b6b54792d9329d09a87cc85fa",
+    "commitDate": "2026-10-16"
+  },
+  {
+    "checkout": "NiceHCK_Controller",
+    "url": "https://github.com/ZaeXT/NiceHCK_Controller",
+    "commit": "f1348a8d09fc57e3b7098a4f15bae5f926475771",
+    "commitDate": "2026-01-07"
+  },
+  {
+    "checkout": "noisecancel",
+    "url": "https://github.com/danielgjackson/noisecancel",
+    "commit": "0391b614fffdf20ca5f3cdd42413dbae194e0740",
+    "commitDate": "2022-06-07"
+  },
+  {
+    "checkout": "OpenFreebuds",
+    "url": "https://github.com/melianmiko/OpenFreebuds",
+    "commit": "0b4f14c0b500d491f0fb4ea38f2984ec334e3649",
+    "commitDate": "2026-10-24"
+  },
+  {
+    "checkout": "OppoPods",
+    "url": "https://github.com/1812z/OppoPods",
+    "commit": "c201e251e68b59d46b6bc2758146b2c7f13ca2a1",
+    "commitDate": "2026-10-04"
+  },
+  {
+    "checkout": "OppoPods-Leaf",
+    "url": "https://github.com/Leaf-lsgtky/OppoPods",
+    "commit": "929d813f1b82d5b09dd39a84b4f18744e8ef7e64",
+    "commitDate": "2026-10-24"
+  },
+  {
+    "checkout": "Pods-Protocol-Reverse-Engineering",
+    "url": "https://github.com/Star-ZER0/Pods-Protocol-Reverse-Engineering",
+    "commit": "7c5c56620232463e7da84132b1dd927a7a35d635",
+    "commitDate": "2026-09-20"
+  },
+  {
+    "checkout": "PuddingPods",
+    "url": "https://github.com/lingbai-rong/PuddingPods",
+    "commit": "f527afe503749d7d2ceadbf5529c0639d7de1f7f",
+    "commitDate": "2026-08-15"
+  },
+  {
+    "checkout": "QCYpods",
+    "url": "https://github.com/SouthautumnYa/QCYpods",
+    "commit": "7bfbd951ad3fb803be84864a2a8493c78695bd61",
+    "commitDate": "2026-06-16"
+  },
+  {
+    "checkout": "ScrewVivoTWS",
+    "url": "https://github.com/moculll/ScrewVivoTWS",
+    "commit": "81beeef0aaca22c7018ba03863c4f0ef759fde9f",
+    "commitDate": "2025-06-02"
+  },
+  {
+    "checkout": "sony-headphones-bluetooth-documentation",
+    "url": "https://github.com/ohm-app/sony-headphones-bluetooth-documentation",
+    "commit": "e38bf35c19e219ced93dd748ac6b48c2c4fe6ffd",
+    "commitDate": "2023-10-28"
+  },
+  {
+    "checkout": "SonyHeadphonesClient",
+    "url": "https://github.com/Plutoberth/SonyHeadphonesClient",
+    "commit": "5620e8ed5deccb957338b54e371b215146080819",
+    "commitDate": "2025-07-19"
+  },
+  {
+    "checkout": "SonyPods",
+    "url": "https://github.com/Mercury000/SonyPods",
+    "commit": "3f701ff8f9b30c6909b9dbe8d99248f20d55560e",
+    "commitDate": "2026-10-12"
+  },
+  {
+    "checkout": "TechincsPods",
+    "url": "https://github.com/MartinKayJr/TechincsPods",
+    "commit": "a378106659d4a90ed7ac28a4ac94d592bebbec85",
+    "commitDate": "2026-06-13"
+  }
+]

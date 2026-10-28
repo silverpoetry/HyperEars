@@ -1,0 +1,241 @@
+{
+  "repository": "aaronsb/bosectl",
+  "commit": "70570b29c1d3c9ba775b08a29eaea72385de27b5",
+  "excluded": "speaker category",
+  "models": [
+    {
+      "productId": "400C",
+      "codename": "wolfcastle",
+      "name": "QuietComfort 35",
+      "category": "headphones",
+      "upstreamConfiguration": "qc35",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4015",
+      "codename": "stetson",
+      "name": "Hearphones",
+      "category": "headphones",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4020",
+      "codename": "baywolf",
+      "name": "QuietComfort 35 II",
+      "category": "headphones",
+      "upstreamConfiguration": "qc35",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4021",
+      "codename": "atlas",
+      "name": "ProFlight",
+      "category": "headphones",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4024",
+      "codename": "goodyear",
+      "name": "Noise Cancelling Headphones 700",
+      "category": "headphones",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "402B",
+      "codename": "beanie",
+      "name": "Hearphones II",
+      "category": "headphones",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4039",
+      "codename": "duran",
+      "name": "QuietComfort 45",
+      "category": "headphones",
+      "upstreamConfiguration": "qc45",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4066",
+      "codename": "lonestarr",
+      "name": "QuietComfort Ultra Headphones",
+      "category": "headphones",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4075",
+      "codename": "prince",
+      "name": "QuietComfort Headphones",
+      "category": "headphones",
+      "upstreamConfiguration": "qc_prince",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4082",
+      "codename": "wolverine",
+      "name": "QuietComfort Ultra Headphones (2nd Gen)",
+      "category": "headphones",
+      "upstreamConfiguration": "qc_ultra2",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4083",
+      "codename": "unconfirmed",
+      "name": "QuietComfort Headphones (2nd Gen)",
+      "category": "headphones",
+      "upstreamConfiguration": "qc_ultra2",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": false
+    },
+    {
+      "productId": "4012",
+      "codename": "ice",
+      "name": "SoundSport",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4013",
+      "codename": "flurry",
+      "name": "SoundSport Pulse",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4014",
+      "codename": "powder",
+      "name": "QuietControl 30",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4018",
+      "codename": "levi",
+      "name": "SoundSport Free",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "402C",
+      "codename": "celine",
+      "name": "Frames",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": false
+    },
+    {
+      "productId": "402D",
+      "codename": "revel",
+      "name": "Sport Earbuds",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "402F",
+      "codename": "lando",
+      "name": "QuietComfort Earbuds",
+      "category": "earbuds",
+      "upstreamConfiguration": "qc_earbuds",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "403A",
+      "codename": "gwen",
+      "name": "Sport Open Earbuds",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "404C",
+      "codename": "celine_ii",
+      "name": "Frames (2nd Gen)",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": false
+    },
+    {
+      "productId": "4060",
+      "codename": "olivia",
+      "name": "Frames Tempo",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": false
+    },
+    {
+      "productId": "4061",
+      "codename": "vedder",
+      "name": "Frames",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": false
+    },
+    {
+      "productId": "4062",
+      "codename": "edith",
+      "name": "QuietComfort Ultra Earbuds (2nd Gen)",
+      "category": "earbuds",
+      "upstreamConfiguration": "qc_ultra2_earbuds",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4064",
+      "codename": "smalls",
+      "name": "QuietComfort Earbuds II",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4068",
+      "codename": "serena",
+      "name": "Ultra Open Earbuds",
+      "category": "earbuds",
+      "upstreamConfiguration": "ultra_open",
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    },
+    {
+      "productId": "4072",
+      "codename": "scotty",
+      "name": "QuietComfort Ultra Earbuds",
+      "category": "earbuds",
+      "upstreamConfiguration": null,
+      "evidence": "catalog-or-upstream-config-not-local-hardware-validation",
+      "productIdPresentInHyperEars": true
+    }
+  ]
+}

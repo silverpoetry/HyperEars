@@ -1,0 +1,401 @@
+{
+  "package": "cn.xiaolongonly.andpodsop",
+  "versionName": "4.3.8",
+  "versionCode": 277,
+  "apkSha256": "79484d3eb66ecfd2cf790f98e5c865c05e4607a6f52d4c86930a7947711a4bdc",
+  "scope": "All 49 enum entries in installed APK; not a complete remote marketing/skin catalog. Generic and HQB entries are not independent validated vendor protocols.",
+  "models": [
+    {
+      "sourceName": "AIRPODS",
+      "ordinal": 0,
+      "sourceModelIndex": 2,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS2",
+      "ordinal": 1,
+      "sourceModelIndex": 15,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS3",
+      "ordinal": 2,
+      "sourceModelIndex": 19,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS4",
+      "ordinal": 3,
+      "sourceModelIndex": 25,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS4_ANC",
+      "ordinal": 4,
+      "sourceModelIndex": 27,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS5",
+      "ordinal": 5,
+      "sourceModelIndex": 54,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS5_WIRELESS",
+      "ordinal": 6,
+      "sourceModelIndex": 48,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSPRO",
+      "ordinal": 7,
+      "sourceModelIndex": 14,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSPRO2",
+      "ordinal": 8,
+      "sourceModelIndex": 20,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSPRO3",
+      "ordinal": 9,
+      "sourceModelIndex": 39,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSPRO2_USBC",
+      "ordinal": 10,
+      "sourceModelIndex": 36,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "POWERBEATSPRO2",
+      "ordinal": 11,
+      "sourceModelIndex": 29,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSMAX",
+      "ordinal": 12,
+      "sourceModelIndex": 10,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSMAX_USBC",
+      "ordinal": 13,
+      "sourceModelIndex": 31,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSMAX2",
+      "ordinal": 14,
+      "sourceModelIndex": 45,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSTUDIOBUDS",
+      "ordinal": 15,
+      "sourceModelIndex": 17,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSTUDIOBUDSPLUS",
+      "ordinal": 16,
+      "sourceModelIndex": 22,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATS360",
+      "ordinal": 17,
+      "sourceModelIndex": 56,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSOLOBUDS",
+      "ordinal": 18,
+      "sourceModelIndex": 38,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "POWERBEATSPRO",
+      "ordinal": 19,
+      "sourceModelIndex": 11,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSX",
+      "ordinal": 20,
+      "sourceModelIndex": 5,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "POWERBEATS3",
+      "ordinal": 21,
+      "sourceModelIndex": 3,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "POWERBEATS4",
+      "ordinal": 22,
+      "sourceModelIndex": 13,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSOLO3",
+      "ordinal": 23,
+      "sourceModelIndex": 6,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSOLO4",
+      "ordinal": 24,
+      "sourceModelIndex": 37,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSOLOPRO",
+      "ordinal": 25,
+      "sourceModelIndex": 12,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSTUDIO3",
+      "ordinal": 26,
+      "sourceModelIndex": 9,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSFITPRO",
+      "ordinal": 27,
+      "sourceModelIndex": 18,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "POWERBEATSFIT",
+      "ordinal": 28,
+      "sourceModelIndex": 47,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSFLEX",
+      "ordinal": 29,
+      "sourceModelIndex": 16,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "BEATSSTUDIOPRO",
+      "ordinal": 30,
+      "sourceModelIndex": 23,
+      "sourceProtocolGroup": "apple-or-beats",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSPROHQB",
+      "ordinal": 31,
+      "sourceModelIndex": 14,
+      "sourceProtocolGroup": "hqb",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSHQB",
+      "ordinal": 32,
+      "sourceModelIndex": 2,
+      "sourceProtocolGroup": "hqb",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS3HQB",
+      "ordinal": 33,
+      "sourceModelIndex": 19,
+      "sourceProtocolGroup": "hqb",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODS4HQB",
+      "ordinal": 34,
+      "sourceModelIndex": 27,
+      "sourceProtocolGroup": "hqb",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSPRO2HQB",
+      "ordinal": 35,
+      "sourceModelIndex": 20,
+      "sourceProtocolGroup": "hqb",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "AIRPODSPRO3HQB",
+      "ordinal": 36,
+      "sourceModelIndex": 39,
+      "sourceProtocolGroup": "hqb",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "VIVO_TWS2",
+      "ordinal": 37,
+      "sourceModelIndex": 1000,
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "VIVO_TWS3",
+      "ordinal": 38,
+      "sourceModelIndex": 1001,
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "FREEBUDSPRO",
+      "ordinal": 39,
+      "sourceModelIndex": 1200,
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "OPPO_ENCO_X2",
+      "ordinal": 40,
+      "sourceModelIndex": 1300,
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "ONEPLUS_BUDS_ACE",
+      "ordinal": 41,
+      "sourceModelIndex": 1399,
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "REDMIBUDS4QCB",
+      "ordinal": 42,
+      "sourceModelIndex": 1400,
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "IQOOTWS1E",
+      "ordinal": 43,
+      "sourceModelIndex": "VideoPlayerUtil.MIN_PLAYBACK_START_BUFFER",
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "SAMSUNG_GALAXY_BUDS2",
+      "ordinal": 44,
+      "sourceModelIndex": 1600,
+      "sourceProtocolGroup": "other",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "UNKNOWN",
+      "ordinal": 45,
+      "sourceModelIndex": 0,
+      "sourceProtocolGroup": "generic",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "COMMON",
+      "ordinal": 46,
+      "sourceModelIndex": -1,
+      "sourceProtocolGroup": "generic",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "COMMON_TWS",
+      "ordinal": 47,
+      "sourceModelIndex": -2,
+      "sourceProtocolGroup": "generic",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    },
+    {
+      "sourceName": "COMMON_NECK",
+      "ordinal": 48,
+      "sourceModelIndex": -3,
+      "sourceProtocolGroup": "generic",
+      "evidence": "installed-apk-static-analysis",
+      "hardwareValidatedThisSession": false
+    }
+  ]
+}
