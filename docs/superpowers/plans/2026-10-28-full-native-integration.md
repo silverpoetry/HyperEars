@@ -145,7 +145,9 @@ does not treat every source command as universally supported. All items below re
 - [ ] C4 Sony: SPP/GATT, V1/V2, Table1/Table2 capability discovery; environment levels/voice,
   EQ/ClearBass, DSEE, LEA/quality, Speak-to-Chat, multipoint/source, gestures/QuickAccess,
   wearing/power-off, legacy VPT/position/optimizer, voice/assistant and bounded safe-listening.
-- [ ] C5 ROSE: i7/Ceramics U identities distinct from existing Ultra; model-qualified six-mode,
+- [ ] C5 ROSE: include RoseLink model/feature differences, prioritizing the user's ROSE Coral ANC
+  earclip and its independently verified configuration/transport/control semantics; shared UUID
+  does not establish compatibility with BudsFeel. Also cover i7/Ceramics U identities distinct from existing Ultra; model-qualified six-mode,
   ANC/transparency depth, EQ, game, find, gain, prompts and touch; preserve i7/MK2 restrictions.
 - [ ] C6 NiceHCK: OriG six ANC/seven EQ, independent wind toggle, game/latency, dual/wearing,
   codec and firmware-qualified mappings, readback and native UI.
@@ -268,3 +270,18 @@ does not treat every source command as universally supported. All items below re
   identified JavaActivity/MiuiAirpodsFragment entry and official connect side effects; the outer
   Settings activity/plugin-loading contract is under read-only investigation. No device install,
   scope change, restart or UI action has been performed.
+- Apple MiLink details milestone: fourteen settings now use the existing native card/details
+  extension path, including a settings-only carrier without genuine noise capability. Popup
+  epochs, latest-state checks, cleanup and host restoration are covered. All 691 tests passed;
+  protocol-test Debug assembly, system Release lint and unsigned assembly passed after resolving
+  three locale-formatting lint errors. Independent reviews approved. See
+  [MiLink details plan](2026-10-28-apple-milink-details.md). Real host/device acceptance remains open.
+- User clarified their native-UI question was informational, not a cancellation or direction change.
+  Existing HyperEars native extension patterns remain first choice; Settings research is retained
+  as evidence for a concrete future gap rather than an automatic replacement architecture.
+- User added explicit RoseLink analysis and all missing model/features to scope, with ROSE Coral
+  ANC earclip first. Installed RoseLink 3.8.2 has an actual CoralDeviceConfig in rs_common_v2;
+  passive UI confirms ANC. Independent diagnostics identify unstable private RFCOMM while current
+  A2DP playback remains connected, with vendor-app yield disabled. Endpoint reuse and a candidate
+  match in installed HyperEars do not yet establish compatible grammar or prove contention cause.
+  Source/AOT analysis continues; no device control, settings change, install or restart performed.

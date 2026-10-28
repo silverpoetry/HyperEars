@@ -47,6 +47,7 @@ internal object AppleListeningMiLinkCardAdapter : MiLinkCardAdapter {
             binding.unbind()
             return null
         }
+        binding.entry = AppleSettingsCardEntry.bind(title, row.container, address, environment)
         return binding
     }
 
@@ -58,29 +59,39 @@ internal object AppleListeningMiLinkCardAdapter : MiLinkCardAdapter {
     ) : MiLinkCardBinding {
         private val items = items.map(::WeakReference)
         private var bound = true
+        var entry: AppleSettingsCardEntry? = null
+        private var token = environment.sessionTokenProvider(address)
 
         override fun render(state: EarbudState) {
             if (!bound) return
+            token = environment.sessionTokenProvider(address)
+            entry?.render(state)
             val projected = AppleListeningCardPolicy.render(state)
+            val sameSession = state.address.equals(address, ignoreCase = true) &&
+                token != null && token == environment.sessionTokenProvider(address)
             items.forEachIndexed { index, reference ->
                 val view = reference.get() ?: return@forEachIndexed
                 val mode = MODES[index]
                 view.visibility = if (mode == AppleListeningMode.ADAPTIVE && mode !in projected.supportedModes) {
                     View.GONE
                 } else View.VISIBLE
-                view.setChoiceEnabled(projected.enabled && mode in projected.supportedModes)
+                view.setChoiceEnabled(sameSession && projected.enabled && mode in projected.supportedModes)
                 view.setSelectedTree(mode == projected.mode)
             }
         }
 
         fun onModeClicked(mode: AppleListeningMode) {
             if (!bound) return
-            val request = AppleListeningCardPolicy.request(environment.stateProvider(address), mode) ?: return
+            val state = environment.stateProvider(address)
+            if (!state.address.equals(address, ignoreCase = true) || token == null || token != environment.sessionTokenProvider(address)) return
+            val request = AppleListeningCardPolicy.request(state, mode) ?: return
             environment.controlSender(address, request)
         }
 
         override fun unbind() {
             bound = false
+            entry?.unbind()
+            entry = null
             items.mapNotNull(WeakReference<View>::get).forEach { it.setOnClickListener(null) }
             host.restore()
         }

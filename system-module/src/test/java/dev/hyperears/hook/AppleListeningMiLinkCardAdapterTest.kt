@@ -170,6 +170,43 @@ class AppleListeningMiLinkCardAdapterTest {
         }
     }
 
+    @Test
+    fun advancedEntryPreservesFourModesAndRestoresTitle() {
+        val fixture = Fixture()
+        fixture.current = fixture.current.withFeature(dev.hyperears.integration.AppleSettingsFeatureState(oneBudAnc = false))
+        val binding = fixture.bind()
+        binding.render(fixture.current)
+        fun find(view: View): View? {
+            if (view.contentDescription == "耳机高级设置") return view
+            if (view is android.view.ViewGroup) for (index in 0 until view.childCount) {
+                find(view.getChildAt(index))?.let { return it }
+            }
+            return null
+        }
+        assertNotNull(find(fixture.root))
+        assertEquals(4, fixture.items().size)
+        binding.unbind()
+        assertNull(find(fixture.root))
+        assertEquals(fixture.root, fixture.title.parent)
+    }
+
+    @Test
+    fun newSessionRejectsOldGestureThenRefreshesTheSameCard() {
+        val fixture = Fixture()
+        val binding = fixture.bind()
+        binding.render(fixture.current)
+        fixture.token = "next-session"
+        fixture.items()[0].performClick()
+        assertTrue(fixture.sent.isEmpty())
+        binding.render(fixture.current)
+        fixture.items()[0].performClick()
+        assertEquals(listOf(AppleControlRequest.SetListeningMode(AppleListeningMode.TRANSPARENCY)), fixture.sent)
+        fixture.current = fixture.current.copy(address = "00:11:22:33:44:66")
+        fixture.items()[0].performClick()
+        assertEquals(1, fixture.sent.size)
+        binding.unbind()
+    }
+
     private class Fixture(val layout: NativeAncModeLayout = NativeAncModeLayout.ORIGINAL) {
         private val app = RuntimeEnvironment.getApplication()
         private val ids = mapOf(
@@ -196,6 +233,7 @@ class AppleListeningMiLinkCardAdapterTest {
             }
         }
         var current = connected()
+        var token: String? = "session"
         val sent = mutableListOf<ControlRequest>()
         init {
             container.id = ids.getValue(layout.containerId)
@@ -210,7 +248,7 @@ class AppleListeningMiLinkCardAdapterTest {
                     javaClass.classLoader!!, { current }, { address, request ->
                         assertEquals("00:11:22:33:44:55", address)
                         sent += request
-                    }, { _, _ -> {} },
+                    }, { _, _ -> {} }, { token },
                 ),
             )
         fun items(): List<View> = (0 until container.childCount).map(container::getChildAt)
@@ -220,7 +258,7 @@ class AppleListeningMiLinkCardAdapterTest {
         private fun connected(
             mode: AppleListeningMode = AppleListeningMode.ANC,
             supported: Set<AppleListeningMode> = setOf(AppleListeningMode.TRANSPARENCY, AppleListeningMode.ANC, AppleListeningMode.OFF),
-        ) = EarbudState(lifecycle = DeviceLifecycle(
+        ) = EarbudState(address = "00:11:22:33:44:55", lifecycle = DeviceLifecycle(
             systemProfile = SystemProfileState.CONNECTED,
             privateTransport = PrivateTransportState.CONNECTED,
             protocolHandshake = ProtocolHandshakeState.CONFIRMED,

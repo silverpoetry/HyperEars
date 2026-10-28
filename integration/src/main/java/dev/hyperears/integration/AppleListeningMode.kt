@@ -31,6 +31,7 @@ data class AppleListeningModeFeatureState(
 
 object AppleMiLinkPresentationIds {
     val LISTENING = MiLinkCardPresentationId("apple-listening")
+    val SETTINGS = MiLinkCardPresentationId("apple-settings")
 }
 
 @Serializable

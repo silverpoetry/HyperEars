@@ -59,6 +59,8 @@ internal data class MiLinkCardEnvironment(
     val controlSender: (String, ControlRequest) -> Unit,
     /** Observe accepted state while a details window is open; returned callback unsubscribes. */
     val observeState: (String, (EarbudState) -> Unit) -> (() -> Unit),
+    /** Accepted bridge session identity; null disables session-bound advanced controls. */
+    val sessionTokenProvider: (String) -> String? = { null },
 )
 
 /**
@@ -82,6 +84,7 @@ internal object MiLinkCardAdapterRegistry {
         FitClipUltraGameModeMiLinkCardAdapter,
         FloS2SoundEffectMiLinkCardAdapter,
         AppleListeningMiLinkCardAdapter,
+        AppleSettingsOnlyMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
         SamsungBuds2ProMiLinkCardAdapter,
     )

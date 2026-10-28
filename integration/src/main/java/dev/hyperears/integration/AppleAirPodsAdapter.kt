@@ -46,8 +46,10 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
         }
 
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
-        get() = AppleMiLinkPresentationIds.LISTENING.takeIf {
-            runtimeState().features.get<AppleListeningModeFeatureState>() != null
+        get() = when {
+            runtimeState().features.get<AppleListeningModeFeatureState>() != null -> AppleMiLinkPresentationIds.LISTENING
+            runtimeState().features.get<AppleSettingsFeatureState>() != null -> AppleMiLinkPresentationIds.SETTINGS
+            else -> null
         }
 
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy = when (request) {

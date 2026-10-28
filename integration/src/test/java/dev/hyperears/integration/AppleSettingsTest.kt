@@ -9,7 +9,7 @@ class AppleSettingsTest {
         assertEquals(HandshakeResult.Ready, adapter.receive(byteArrayOf(4, 0, 4, 0, 9, 0, 1, 2, 0, 0, 0)).handshake)
         assertNotNull(adapter.runtimeState().features.get("apple.settings"))
         assertNull(adapter.runtimeState().features.get<AppleListeningModeFeatureState>())
-        assertNull(adapter.miLinkCardPresentationId)
+        assertEquals(AppleMiLinkPresentationIds.SETTINGS, adapter.miLinkCardPresentationId)
     }
 
     private data class Case(val id: Int, val old: Int, val target: Int, val request: AppleControlRequest, val index: Int = 0)
