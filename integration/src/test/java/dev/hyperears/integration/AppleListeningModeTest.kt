@@ -139,6 +139,69 @@ class AppleListeningModeTest {
         assertEquals(AppleListeningMode.ANC, adapter.listening()?.mode)
     }
 
+    @Test
+    fun deviceModelAndLiveModeEnableAdaptiveInEitherOrder() {
+        val models = listOf("A3056", "A3055", "A3057", "A3531", "A3532", "A3533",
+            "A3439", "A3440", "A3441", "A2931", "A2699", "A2698",
+            "A3047", "A3048", "A3049", "A3063", "A3064", "A3065")
+        models.forEach { model ->
+            (1..3).forEach { mode ->
+                listOf(true, false).forEach { identityFirst ->
+                    val adapter = AppleAirPodsAdapter()
+                    adapter.receive(if (identityFirst) deviceInfo(model) else report(mode))
+                    assertFalse(adapter.supportsControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE)))
+                    adapter.receive(if (identityFirst) report(mode) else deviceInfo(model))
+                    assertTrue("$model / $mode / $identityFirst", adapter.supportsControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE)))
+                    val before = adapter.runtimeState()
+                    val result = adapter.executeControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE))
+                    assertTrue(result.accepted)
+                    assertEquals(listOf(report(4).toList()), result.commands.map(ByteArray::toList))
+                    assertEquals(before, adapter.runtimeState())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun deviceInfoAloneNeverAdmitsListeningAndResetClearsBothEvidenceKinds() {
+        val adapter = AppleAirPodsAdapter()
+        adapter.receive(deviceInfo("A3441"))
+        assertNull(adapter.listening())
+        assertNull(adapter.miLinkCardPresentationId)
+        assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
+        adapter.resetProtocolSession()
+        adapter.receive(report(2))
+        assertFalse(adapter.supportsControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE)))
+        adapter.resetProtocolSession()
+        adapter.receive(deviceInfo("A3441"))
+        assertNull(adapter.listening())
+    }
+
+    @Test
+    fun nameSpoofsAndUnknownModelsNeedObservedAdaptiveAndIdentityCanRevokeInference() {
+        val adapter = AppleAirPodsAdapter()
+        listOf("", "unknown", "a3441", " A3441", "A3053", "A2084", "A1523").forEach {
+            adapter.receive(deviceInfo(it, "A3441"))
+            adapter.receive(report(2))
+            assertFalse(adapter.supportsControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE)))
+        }
+        adapter.receive(deviceInfo("A3441"))
+        assertTrue(adapter.supportsControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE)))
+        adapter.receive(deviceInfo("unknown"))
+        assertFalse(adapter.supportsControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE)))
+        adapter.receive(report(4))
+        adapter.receive(deviceInfo("unknown"))
+        adapter.receive(report(1))
+        assertTrue(adapter.supportsControl(AppleControlRequest.SetListeningMode(AppleListeningMode.ADAPTIVE)))
+    }
+
+    private fun deviceInfo(model: String, name: String = "Fixture"): ByteArray {
+        val fields = listOf(name, model, "", "", "7A305", "", "", "", "", "", "")
+        val body = fields.flatMap { (it.toByteArray(Charsets.UTF_8) + byteArrayOf(0)).toList() }.toByteArray() + ByteArray(34) + byteArrayOf(0, 0)
+        val length = body.size + 2
+        return byteArrayOf(4, 0, 4, 0, 0x1d, 0, 2, length.toByte(), (length shr 8).toByte(), 4, 0) + body
+    }
+
     private fun AppleAirPodsAdapter.listening() = runtimeState().features.get<AppleListeningModeFeatureState>()
 
     private fun report(value: Int) = byteArrayOf(4, 0, 4, 0, 9, 0, 0x0d, value.toByte(), 0, 0, 0)

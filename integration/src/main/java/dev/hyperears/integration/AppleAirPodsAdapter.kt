@@ -98,6 +98,8 @@ private class AppleAapProtocolSession : ProtocolSession {
     private val decoder = AppleAapWireCodec.Decoder()
     private var handshakePublished = false
     private var adaptiveReported = false
+    private var adaptiveModel = false
+    private var lastNoiseReport: AppleAapWireCodec.NoiseMode? = null
 
     override fun initialReadCommands(): List<ByteArray> = listOf(
         AppleAapWireCodec.handshake,
@@ -142,17 +144,16 @@ private class AppleAapProtocolSession : ProtocolSession {
                     publishHandshakeIfNeeded()
                 }
 
+                is AppleAapWireCodec.State.DeviceInformation -> buildList<ProtocolEvent> {
+                    adaptiveModel = state.modelIdentifier in SOURCE_ADAPTIVE_MODELS
+                    // Identity alone never establishes live listening controls or native admission.
+                    lastNoiseReport?.let { add(listeningEvent(it)) }
+                }
+
                 is AppleAapWireCodec.State.Noise -> buildList<ProtocolEvent> {
-                    // A three-state report does not prove adaptive support. Once actually reported,
-                    // retain that evidence only for the lifetime of this protocol session.
+                    lastNoiseReport = state.mode
                     if (state.mode == AppleAapWireCodec.NoiseMode.ADAPTIVE) adaptiveReported = true
-                    val supportedModes = BASELINE_LISTENING_MODES +
-                        if (adaptiveReported) setOf(AppleListeningMode.ADAPTIVE) else emptySet()
-                    add(
-                        ProtocolEvent.FeatureStateChanged(
-                            AppleListeningModeFeatureState(state.mode.toListeningMode(), supportedModes),
-                        ),
-                    )
+                    add(listeningEvent(state.mode))
                     add(
                         ProtocolEvent.CapabilitiesIdentified(
                             battery = false,
@@ -169,7 +170,18 @@ private class AppleAapProtocolSession : ProtocolSession {
         decoder.reset()
         handshakePublished = false
         adaptiveReported = false
+        adaptiveModel = false
+        lastNoiseReport = null
     }
+
+    private fun listeningEvent(mode: AppleAapWireCodec.NoiseMode): ProtocolEvent =
+        ProtocolEvent.FeatureStateChanged(
+            AppleListeningModeFeatureState(
+                mode.toListeningMode(),
+                BASELINE_LISTENING_MODES +
+                    if (adaptiveReported || adaptiveModel) setOf(AppleListeningMode.ADAPTIVE) else emptySet(),
+            ),
+        )
 
     private fun MutableList<ProtocolEvent>.publishHandshakeIfNeeded() {
         if (handshakePublished) return
@@ -211,6 +223,17 @@ private class AppleAapProtocolSession : ProtocolSession {
         BatteryReading(percent, charging)
 
     private companion object {
+        // Exact modelIdentifier declarations from LibrePods' model registry, corroborating
+        // the AndPods identity schema. Source support is conditional on a same-session live report.
+        // See docs/research/source-audits/apple-device-identity-followup.md; not hardware validation.
+        val SOURCE_ADAPTIVE_MODELS = setOf(
+            "A3056", "A3055", "A3057", // AirPods 4 ANC
+            "A3531", "A3532", "A3533", // AirPods 5
+            "A3439", "A3440", "A3441", // AirPods 5 wireless case
+            "A2931", "A2699", "A2698", // Pro 2 Lightning
+            "A3047", "A3048", "A3049", // Pro 2 USB-C
+            "A3063", "A3064", "A3065", // Pro 3
+        )
         val BASELINE_LISTENING_MODES = setOf(
             AppleListeningMode.OFF,
             AppleListeningMode.ANC,

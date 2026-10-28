@@ -42,15 +42,23 @@ BudsFeel MK2 的 RFCOMM、校验帧和 LTV 状态字段。HyperEars 在自身 Pr
 组件电量通知和降噪状态。HyperEars 在现有 AAP 子集上逐步增加类型化控制，不使用或分发
 上述项目的名称、图标、图片、界面和其他品牌资产。
 
-Apple 四态聆听扩展还核对了以下互操作资料：
+Apple 四态聆听及设备信息扩展还核对了以下互操作资料：
 
 - AndPods 4.3.8（`cn.xiaolongonly.andpodsop`）：用户已购买的本地应用，仅提取聆听值、
-  控制帧和行为事实，独立实现；不复制或分发应用代码、反编译产物、身份密钥或素材。
+  控制帧、设备信息字段结构和行为事实，独立实现；不复制或分发应用代码、反编译产物、身份密钥或素材。
 - NEORUAA/HyperPods-X，固定提交 `018765be94f24a49bf28be26fbb5924a3652018f`：
   <https://github.com/NEORUAA/HyperPods-X/tree/018765be94f24a49bf28be26fbb5924a3652018f>。
   上游代码声明 GPL-3.0-or-later，基于 YeFeng233/HyperPods-X，并注明 LibrePods 等来源。
   本轮用于交叉核对四态值、控制回报和 A3441 实测边界，没有移入其应用连接管理器、
   Glasmio 界面、SF 字体或 Apple 图片。
+
+设备信息的长度与字段顺序以 AndPods 4.3.8 的实际 DEX 行为交叉确认；自适应型号候选
+另参考 LibrePods 固定提交 `89356c08cea3db0b6b54792d9329d09a87cc85fa` 的
+`android/app/src/main/java/me/kavishdevar/librepods/data/AirPods.kt`。
+来源：<https://github.com/kavishdevar/LibrePods/tree/89356c08cea3db0b6b54792d9329d09a87cc85fa>，
+GPL-3.0-or-later，Copyright (C) 2025 LibrePods contributors。
+仅使用协议与型号能力事实，不引入其图片资源。型号候选仍须结合本会话合法聆听回报；
+来源声明不等同于本项目的各型号实机验证。
 
 ## NiceHCK Controller
 

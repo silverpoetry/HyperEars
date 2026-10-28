@@ -194,3 +194,14 @@ in the original checkout's ignored `.analysis/verification/native-dex/` director
 A read-only package refresh on the revalidated nezha target confirms the installed AndPods is
 still versionName 4.3.8 / versionCode 277. This keeps the analyzed application version aligned
 with the user's installed reference; it does not establish hardware packet behavior.
+
+## Implementation follow-up
+
+The subsequent development slice implements explicit DeviceInfo framing, strict UTF-8 for all
+thirteen text fields, exact structural end validation and bounded buffering. Only model and
+active firmware survive in the protocol state; identity alone emits no public capability.
+The eighteen declared adaptive model identifiers now combine with a same-session listening
+report in either arrival order. Unknown identities revoke model-inferred eligibility while
+actual Adaptive observations remain valid until reset. The earlier recommendations above
+record the audit-time baseline; current behavior is described in
+[the AAP development record](../../apple-aap-protocol.md).

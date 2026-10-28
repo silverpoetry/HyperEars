@@ -247,3 +247,14 @@ does not treat every source command as universally supported. All items below re
   strict device identity/capability discovery, advanced Apple controls and physical acceptance
   remain. Next protocol work follows [AndPods identity evidence](../../research/source-audits/apple-device-identity-followup.md).
   Other brands, complete native Settings integration and release/PR acceptance remain queued.
+- Apple DeviceInfo milestone: strict length-delimited parsing now consumes opaque fields without
+  interpreting embedded protocol prefixes as listening reports. Only bounded model/firmware fields
+  survive; exact source-declared adaptive candidates plus live session reports work in either order.
+  Identity replacement and reset remove inferred capabilities without inventing confirmed mode.
+  Full verification passed 662 tests (195 protocol, 308 integration, 159 system-module), protocol-test
+  Debug assembly, Release lint and unsigned Release assembly. Specification and quality reviews
+  approved; no hardware acceptance is claimed. See [slice plan](2026-10-28-apple-device-information.md).
+- Next Apple settings evidence is recorded in
+  [the settings audit](../../research/source-audits/apple-settings-followup.md): preserve four-byte
+  AACP values, distinguish actual reports from optimistic UI state, and keep ATT loud-sound controls
+  separate from AACP one-bud ANC. Advanced settings and native Settings presentation remain pending.

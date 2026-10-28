@@ -1,5 +1,9 @@
 package dev.hyperears.protocol.apple
 
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
+
 /** Minimal Apple Accessory Protocol subset required for AirPods battery and ANC controls. */
 object AppleAapWireCodec {
     enum class NoiseMode(val value: Int) {
@@ -17,6 +21,9 @@ object AppleAapWireCodec {
         ) : State
 
         data class Noise(val mode: NoiseMode) : State
+
+        /** Only non-private fields with a defined protocol consumer; never retain raw identity data. */
+        data class DeviceInformation(val modelIdentifier: String, val firmwareActive: String) : State
     }
 
     data class Component(
@@ -37,9 +44,18 @@ object AppleAapWireCodec {
 
         fun offer(bytes: ByteArray): List<State> {
             if (bytes.isEmpty()) return emptyList()
-            pending += bytes
             val result = mutableListOf<State>()
+            var offset = 0
+            while (offset < bytes.size) {
+                val count = minOf(bytes.size - offset, MAX_FRAME_SIZE - pending.size)
+                pending += bytes.copyOfRange(offset, offset + count)
+                offset += count
+                drain(result)
+            }
+            return result
+        }
 
+        private fun drain(result: MutableList<State>) {
             while (pending.isNotEmpty()) {
                 val match = PACKETS
                     .mapNotNull { packet -> pending.indexOf(packet.prefix).takeIf { it >= 0 }?.let { it to packet } }
@@ -63,12 +79,49 @@ object AppleAapWireCodec {
                 pending = pending.copyOfRange(frameSize, pending.size)
                 packet.parse(frame)?.let(result::add)
             }
-            return result
         }
 
         fun reset() {
             pending = ByteArray(0)
         }
+    }
+
+    // AndPods 4.3.8 schema, independently reconstructed; see apple-device-identity-followup.md.
+    // Header bytes 6 and 9..10 have unknown semantics and deliberately are not constrained.
+    private fun parseDeviceInformation(frame: ByteArray): State.DeviceInformation? {
+        if (frame.size < 58) return null
+        var cursor = 11
+        fun readString(): String? {
+            val start = cursor
+            while (cursor < frame.size && frame[cursor] != 0.toByte()) cursor++
+            if (cursor == frame.size) return null
+            val value = try {
+                Charsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(frame, start, cursor - start)).toString()
+            } catch (_: CharacterCodingException) {
+                return null
+            }
+            cursor++
+            return value
+        }
+        var model = ""
+        var firmware = ""
+        repeat(11) { index ->
+            val value = readString() ?: return null
+            when (index) {
+                1 -> model = value
+                4 -> firmware = value
+            }
+        }
+        if (frame.size - cursor < 36) return null
+        cursor += 34 // Two opaque 17-byte identifiers; embedded headers and NULs are ordinary data.
+        repeat(2) { readString() ?: return null }
+        if (cursor != frame.size) return null
+        // Bound projected text without truncating a model into a different, recognized identifier.
+        if (model.length > 128 || firmware.length > 128) return null
+        return State.DeviceInformation(model, firmware)
     }
 
     private fun parseBattery(frame: ByteArray): State.Battery? {
@@ -140,6 +193,7 @@ object AppleAapWireCodec {
     private const val BATTERY_RECORD_SIZE = 5
     private const val BATTERY_RECORD_MARKER = 1
     private const val MAX_BATTERY_COMPONENTS = 3
+    private const val MAX_FRAME_SIZE = 9 + 0xFFFF
     private const val FRAME_INCOMPLETE = 0
     private const val FRAME_INVALID = -1
     private val unavailableComponent = Component(null, false)
@@ -163,6 +217,14 @@ object AppleAapWireCodec {
             parse = ::parseBattery,
         ),
         PacketSpec(NOISE_PREFIX, { 11 }, ::parseNoise),
+        PacketSpec(
+            prefix = hex("04 00 04 00 1D 00"),
+            frameSize = { bytes ->
+                if (bytes.size < 9) FRAME_INCOMPLETE
+                else 9 + bytes[7].unsigned() + (bytes[8].unsigned() shl 8)
+            },
+            parse = ::parseDeviceInformation,
+        ),
     )
     private val MAX_PREFIX_SIZE = PACKETS.maxOf { it.prefix.size }
 }
