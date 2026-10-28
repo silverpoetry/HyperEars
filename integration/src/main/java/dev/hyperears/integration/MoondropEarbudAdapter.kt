@@ -14,12 +14,37 @@ open class MoondropEarbudAdapter(
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         val name = normalizeDeviceName(identity.deviceName.orEmpty())
-        return "moondrop" in name || "水月雨" in name || name in UNBRANDED_MODEL_NAMES
+        return "moondrop" in name || "水月雨" in name || UNBRANDED_MODEL_NAMES.any { normalizeDeviceName(it) == name }
     }
 
     companion object {
         const val ID = "moondrop-family"
-        private val UNBRANDED_MODEL_NAMES = setOf("spacetravel2ultra")
+        // Exact BT catalog names, 2026-10-28; catalog membership grants no private protocol.
+        private val UNBRANDED_MODEL_NAMES = setOf(
+            "BIANCA:STIGMATA",
+            "H.I.D.E.404_Klukai",
+            "LAPLACE-OBA-Ⅱ",
+            "Me 163 Komet MOCA",
+            "PANDAER Open Air Pill",
+            "PANDAER Space Travel 2",
+            "PUNISHING:GRAY RAVEN",
+            "Pill Gotoh Hitori",
+            "Pill Ijichi Nijika",
+            "Pill Kita Ikuyo",
+            "Pill Yamada Ryo",
+            "ROBIN'S EARPHONES",
+            "ROBIN'S Earphones",
+            "Robin's Earphones",
+            "Robin's earphones",
+            "SINGER HEADPHONE",
+            "SPACE TRAVEL 2",
+            "SPACE TRAVEL 2 ULTRA",
+            "SUSANOO TWS",
+            "Space Force",
+            "Space Travel 2",
+            "Space Travel 2 Ultra",
+            "ZZZ-ANGELS-OWS",
+        )
     }
 }
 

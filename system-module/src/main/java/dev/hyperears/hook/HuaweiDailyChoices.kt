@@ -9,6 +9,12 @@ internal object HuaweiDailyChoices {
     fun rows(state: EarbudState): List<Row> {
         val feature = state.features.get<HuaweiDailySettingsFeatureState>() ?: return emptyList()
         return buildList {
+            feature.lowLatency?.let { value -> add(Row("lowLatency", "低延迟模式", if(value) 1 else 0,
+                listOf(false,true).map { Choice(if(it) 1 else 0,if(it) "开启" else "关闭",HuaweiDailyControlRequest.SetLowLatency(it)) })) }
+            feature.preferSoundQuality?.let { value -> add(Row("soundQuality", "音质偏好", if(value) 1 else 0,
+                listOf(Choice(0,"连接稳定优先",HuaweiDailyControlRequest.SetSoundQualityPreference(false)),
+                    Choice(1,"音质优先",HuaweiDailyControlRequest.SetSoundQualityPreference(true))))) }
+
             feature.wearDetection?.let { value -> add(Row("wear", "佩戴检测 / 摘下暂停", if (value) 1 else 0,
                 listOf(false, true).map { Choice(if (it) 1 else 0, if (it) "开启" else "关闭", HuaweiDailyControlRequest.SetWearDetection(it)) })) }
             feature.multipoint?.let { value -> add(Row("multipoint", "双设备连接", if (value) 1 else 0,

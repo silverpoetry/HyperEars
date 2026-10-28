@@ -209,6 +209,31 @@ class OppoSettingsDetailsTest {
         assertTrue(fixture.sent.isEmpty())
     }
 
+    @Test fun indexedNoiseChoicesWaitForReportsAndRejectStaleProductDefinitions() {
+        val fixture = Fixture()
+        val definition = OppoNoiseDefinition(0x065414,listOf(
+            OppoNoiseOption(OppoNoiseMode.ANC,1,true), OppoNoiseOption(OppoNoiseMode.DEEP,4,true),
+            OppoNoiseOption(OppoNoiseMode.TRANSPARENCY,2,true), OppoNoiseOption(OppoNoiseMode.TRANSPARENCY,8,false),
+            OppoNoiseOption(OppoNoiseMode.LISTEN,3,false)))
+        fixture.current = fixture.current.withFeature(OppoSettingsFeatureState(noise=OppoNoiseSelection(definition,1)))
+        val details = fixture.open()
+        fun button(name: String) = descendants(popup(details).contentView).filterIsInstance<android.widget.TextView>()
+            .single { it.contentDescription == "降噪与通透 $name" }
+        val deep = button("深度降噪")
+        deep.performClick()
+        assertEquals(listOf(OppoControlRequest.SelectNoiseOption(definition,4)),fixture.sent)
+        assertFalse(deep.isSelected)
+        assertEquals(1,descendants(popup(details).contentView).count { it.contentDescription == "降噪与通透 标准通透" })
+        assertFalse(descendants(popup(details).contentView).any { it.contentDescription == "降噪与通透 聆听" })
+        fixture.current = fixture.current.withFeature(OppoSettingsFeatureState(noise=OppoNoiseSelection(definition,4)))
+        fixture.observer!!(fixture.current)
+        assertTrue(deep.isSelected)
+        fixture.current = fixture.current.withFeature(OppoSettingsFeatureState(noise=OppoNoiseSelection(definition.copy(productId=0x063810),1)))
+        deep.performClick() // Provider changed before observer; old callback must not target new product.
+        assertEquals(1,fixture.sent.size)
+        details.dismiss()
+    }
+
     private fun attachListenerCount(view: View): Int {
         val info = org.robolectric.util.ReflectionHelpers.getField<Any?>(view, "mListenerInfo") ?: return 0
         return org.robolectric.util.ReflectionHelpers.getField<List<*>?>(info, "mOnAttachStateChangeListeners")?.size ?: 0

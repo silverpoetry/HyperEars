@@ -24,6 +24,7 @@ data class OppoEqualizer(val id: Int, val name: String, val minimum: Int, val ma
 @Serializable
 @SerialName("oppo.settings")
 data class OppoSettingsFeatureState(
+    val noise: OppoNoiseSelection? = null,
     val toggles: Map<OppoToggle, Boolean> = emptyMap(),
     val currentEqualizer: Int? = null,
     val equalizers: List<OppoEqualizer>? = null,
@@ -31,13 +32,15 @@ data class OppoSettingsFeatureState(
     val canonicalLongFrames: Boolean = false,
     val equalizerWriteBudget: Int? = null,
 ) : DeviceFeatureState {
-    val hasSettings: Boolean get() = toggles.isNotEmpty() || !equalizers.isNullOrEmpty() || currentEqualizer != null
+    val hasSettings: Boolean get() = noise != null || toggles.isNotEmpty() || !equalizers.isNullOrEmpty() || currentEqualizer != null
     @Transient override val featureId = FEATURE_ID
     companion object { const val FEATURE_ID = "oppo.settings" }
 }
 
 @Serializable
 sealed interface OppoControlRequest : ControlRequest {
+    @Serializable @SerialName("oppo.select_noise_option")
+    data class SelectNoiseOption(val expected: OppoNoiseDefinition, val index: Int) : OppoControlRequest
     @Serializable @SerialName("oppo.set_toggle")
     data class SetToggle(val setting: OppoToggle, val enabled: Boolean) : OppoControlRequest
     @Serializable @SerialName("oppo.select_equalizer")
@@ -47,6 +50,8 @@ sealed interface OppoControlRequest : ControlRequest {
 }
 
 fun OppoSettingsFeatureState.supports(request: OppoControlRequest): Boolean = when (request) {
+    is OppoControlRequest.SelectNoiseOption -> noise?.definition == request.expected &&
+        noise?.definition?.option(request.index)?.writable == true
     is OppoControlRequest.SetToggle -> toggles.containsKey(request.setting)
     is OppoControlRequest.SelectEqualizer -> equalizers?.any { it.id == request.id } == true
     is OppoControlRequest.UpdateEqualizer -> request.id in editableEqualizers &&

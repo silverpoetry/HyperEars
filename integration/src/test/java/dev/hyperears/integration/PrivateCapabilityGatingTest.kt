@@ -59,15 +59,18 @@ class PrivateCapabilityGatingTest {
 
     @Test
     fun oppoExactModelUnlocksModesOnlyFromAValidAncReport() {
-        val adapter = OppoEncoAir2ProAdapter()
+        var adapter: EarbudAdapter = OppoEncoAir2ProAdapter()
         val response = OppoWireCodec.packet(
             command = OppoWireCodec.ANC_RESPONSE,
-            payload = hex("00 01 01 00 08"),
+            payload = hex("00 01 01 01"),
         )
 
-        val result = adapter.receive(response)
+        adapter.receive(response)
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        adapter = (adapter.receive(OppoWireCodec.packet(0x8103, payload = hex("00 10 38 06")))
+            .handshake as HandshakeResult.Replace).adapter
+        adapter.receive(response)
 
-        assertEquals(HandshakeResult.Ready, result.handshake)
         assertTrue(adapter.snapshot().capabilities.noiseControl)
         assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
         assertEquals(THREE_STATE_MODES, adapter.snapshot().supportedNoiseModes)

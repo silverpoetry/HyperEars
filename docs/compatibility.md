@@ -197,6 +197,12 @@ EQ 最后两个预设受实际固件 minor 字段限制；未知版本不开放�
 
 ### 2.8 MOONDROP / 水月雨
 
+2026-10-28 官方 BT 目录中的未带品牌前缀名称（如 Space Travel 2、Pill 联名、
+BIANCA:STIGMATA、SUSANOO TWS）补入精确名称家族识别，沿用系统总电量和标准蓝牙。
+目录的 52 条 BT 记录含大小写及联名别名，不代表 52 个已验证私有协议型号；芯片分类
+不授予降噪／EQ 能力。Robin、Pudding、MIRAGE、ZZZ 的专门协议仍优先匹配。
+来源明细见 [官方目录快照](research/inventories/moondrop-products-2026-10-28.json)。
+
 | 设备范围 | 层级 | 证据 | 识别与确认 | 电量 | 噪声模式 |
 |---|---|---|---|---|---|
 | Robin / 知更鸟（蓝牙名称 `Robin's Earphones`） | 具体型号 | 公开实现 | 已知完整名称或同时包含品牌与型号的名称规则选择候选；严格握手响应确认协议 | 私有左右耳 | 降噪、关闭、通透 |
@@ -295,6 +301,9 @@ HyperEars 实机验证。协议边界见 [QCY 标准 GATT 协议](qcy-standard-g
 ---
 
 ### 2.12 Sony
+
+V2 双设备开关另要求当前设备完整 GS 能力、唯一 `MULTIPOINT_SETTING` 槽位及参数／可用性回报；
+重连与 LDAC 提示使用本次操作关联的原生确认流程，型号目录不授予此能力，新增流程尚待实机复核。
 
 高级详情另按 V1/V2 功能发现、查询类型及合法可用状态开放 DSEE、连接质量与
 Speak-to-Chat。DSEE／连接质量写入限有来源依据的 V2 路径；Speak-to-Chat 保留版本
@@ -444,3 +453,7 @@ MiLink 原始耳机准入决定当前展示归属；有效的原生结果保留�
 只读响应和控制回读。完整个人 MAC 地址不属于协议证据，不应公开。
 
 ROSELINK RS Common v2 新增 Ceramics MK2 三变体、OpenFeel MK2/L、SportFeel 8912F、SpeakFeel/SPEAKFEEL、Astro X：仅同一经典蓝牙地址的已配对厂商广播精确匹配后自动选择，控制还需有效协议回报。型号差异、RPA 地址边界及未移植功能见 [RS v2 协议](rose-rsv2-protocol.md)。源码与测试验证不代替九型号硬件复验。
+
+OPPO／OnePlus／realme 的产品索引噪声控制新增 43 个来源表、304 个已知语义回报位；
+只有产品 ID 与有效当前模式回报同时成立才显示等级／变体选择。来源目录不代表实机
+验收，条件聆听功能保持只读，未知类型不外推；详见 OPPO 协议文档。

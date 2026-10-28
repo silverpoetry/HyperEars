@@ -28,12 +28,15 @@ data class HuaweiEqualizerState(
 @SerialName("huawei.daily_settings")
 data class HuaweiDailySettingsFeatureState(
     val wearDetection: Boolean? = null, val multipoint: Boolean? = null,
+    val lowLatency: Boolean? = null, val preferSoundQuality: Boolean? = null,
     val equalizer: HuaweiEqualizerState? = null, val gestures: List<HuaweiGestureState> = emptyList(),
 ) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
-    val hasSettings get() = wearDetection != null || multipoint != null || equalizer != null ||
+    val hasSettings get() = lowLatency != null || preferSoundQuality != null || wearDetection != null || multipoint != null || equalizer != null ||
         gestures.any { it.left != null || it.right != null || it.call != null }
     fun supports(request: HuaweiDailyControlRequest): Boolean = when (request) {
+        is HuaweiDailyControlRequest.SetLowLatency -> lowLatency != null
+        is HuaweiDailyControlRequest.SetSoundQualityPreference -> preferSoundQuality != null
         is HuaweiDailyControlRequest.SetWearDetection -> wearDetection != null
         is HuaweiDailyControlRequest.SetMultipoint -> multipoint != null
         is HuaweiDailyControlRequest.SetEqualizer -> request.preset in equalizer?.presets.orEmpty()
@@ -46,10 +49,14 @@ data class HuaweiDailySettingsFeatureState(
                 (if (request.side == HuaweiGestureSide.CALL) listOf(-1, 0) else it.available)
         } == true
     }
-    companion object { const val FEATURE_ID = "huawei.daily_settings" }
+    companion object { const val FEATURE_ID = "huawei.daily_settings"; const val LOW_LATENCY_QUERY = "huawei.low_latency_readback" }
 }
 @Serializable
 sealed interface HuaweiDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("huawei.set_low_latency")
+    data class SetLowLatency(val enabled: Boolean) : HuaweiDailyControlRequest
+    @Serializable @SerialName("huawei.set_sound_quality_preference")
+    data class SetSoundQualityPreference(val preferQuality: Boolean) : HuaweiDailyControlRequest
     @Serializable @SerialName("huawei.set_wear_detection")
     data class SetWearDetection(val enabled: Boolean) : HuaweiDailyControlRequest
     @Serializable @SerialName("huawei.set_multipoint")

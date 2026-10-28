@@ -61,6 +61,7 @@ class OppoIdentityTest {
         assertEquals(AdapterResolution.EXACT_MATCH, promoted.resolution)
         assertFalse(promoted.snapshot().capabilities.noiseControl)
         assertNull(promoted.runtimeState().noiseMode)
+        promoted.receive(product(0x063810))
         promoted.receive(anc(1))
         assertEquals(NoiseMode.ANC, promoted.runtimeState().noiseMode)
     }
@@ -78,6 +79,7 @@ class OppoIdentityTest {
         // Policy is checked on the current aggregate after a successful in-place refinement.
         original.configureDisabledAdapterIds(emptySet())
         val promoted = replacement(original, product(0x067410))
+        promoted.receive(anc(2)) // Product-indexed writes require a report after identity selection.
         promoted.configureDisabledAdapterIds(setOf(OppoEncoAir2ProAdapter.ID))
         assertFalse(promoted.receive(product(0x063810)).handshake is HandshakeResult.Replace)
         assertArrayEquals(OppoWireCodec.setAnc(1), promoted.executeControl(
@@ -93,6 +95,8 @@ class OppoIdentityTest {
         val family = resolve("OPPO Future")
         family.receive(anc(2))
         val x3 = replacement(family, product(0x067410))
+        assertFalse(x3.snapshot().capabilities.noiseControl)
+        x3.receive(anc(2))
         assertTrue(x3.snapshot().capabilities.noiseControl)
         val air2 = replacement(x3, product(0x063810))
         assertFalse(air2.snapshot().capabilities.noiseControl)

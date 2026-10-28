@@ -7,6 +7,8 @@ internal data class HuaweiDailyProfile(
     val presets: List<Int> = emptyList(),
     val custom: Boolean = false,
     val gestures: Map<HuaweiGestureKind, GestureProfile> = emptyMap(),
+    val lowLatency: Boolean = false,
+    val soundQuality: Boolean = false,
 ) {
     data class GestureProfile(val values: List<Int>, val right: Boolean = true, val call: Boolean = false)
     companion object {
@@ -14,10 +16,10 @@ internal data class HuaweiDailyProfile(
         private val hold = GestureProfile(listOf(-1, 10))
         private val cycle = GestureProfile(listOf(1, 2, 3, 4))
         private val swipe = GestureProfile(listOf(-1, 0), right = false)
-        val PRO3 = HuaweiDailyProfile(true, true, listOf(5, 1, 2, 9), custom = true,
+        val PRO3 = HuaweiDailyProfile(true, true, listOf(5, 1, 2, 9), custom = true, lowLatency = true, soundQuality = true,
             gestures = mapOf(HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.HOLD to hold,
                 HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
-        val BUDS5I = HuaweiDailyProfile(true, true, listOf(1, 2, 3, 9), gestures = mapOf(
+        val BUDS5I = HuaweiDailyProfile(true, true, listOf(1, 2, 3, 9), lowLatency = true, soundQuality = true, gestures = mapOf(
             HuaweiGestureKind.DOUBLE to tap.copy(call = true), HuaweiGestureKind.TRIPLE to tap,
             HuaweiGestureKind.HOLD to hold, HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
         val BUDS6I = BUDS5I.copy(custom = true, gestures = BUDS5I.gestures + mapOf(
@@ -27,15 +29,15 @@ internal data class HuaweiDailyProfile(
             HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.HOLD to hold.copy(right = false),
             HuaweiGestureKind.CYCLE to cycle.copy(right = false)))
         // HuaweiPods captured FreeClip2 effect IDs take precedence over the generic desktop list.
-        val FREECLIP2 = HuaweiDailyProfile(true, true, listOf(1, 10, 3, 9), gestures = mapOf(
+        val FREECLIP2 = HuaweiDailyProfile(true, true, listOf(1, 10, 3, 9), lowLatency = true, soundQuality = true, gestures = mapOf(
             HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1)),
             HuaweiGestureKind.HOLD to GestureProfile(listOf(-1, 0, 18, 19), right = false),
             HuaweiGestureKind.SWIPE to swipe))
         val PRO = HuaweiDailyProfile(multipoint = true, gestures = mapOf(
             HuaweiGestureKind.HOLD to hold, HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
-        val PRO2 = PRO.copy(wear = true, presets = listOf(1, 2, 3))
+        val PRO2 = PRO.copy(wear = true, presets = listOf(1, 2, 3), soundQuality = true)
         val STUDIO = HuaweiDailyProfile(wear = true) // EQ explicitly wo_read upstream.
-        val LACE_PRO2 = HuaweiDailyProfile(multipoint = true, custom = true,
+        val LACE_PRO2 = HuaweiDailyProfile(multipoint = true, custom = true, lowLatency = true, soundQuality = true,
             // Built-ins must be advertised; no model-specific preset labels are inferred.
             gestures = mapOf(HuaweiGestureKind.HOLD to hold.copy(right = false),
                 HuaweiGestureKind.CYCLE to cycle.copy(right = false)))

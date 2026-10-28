@@ -223,3 +223,44 @@ QuickBuds 的 `docs/PROTOCOL.md`、`protocol/Wire.kt` 和 `testdata/protocol_cas
   不先发送大包试探。合法预算也限制旧短更新；畸形预算不覆盖已有确认值。
 - 型号名称不选择方言。新增证据仅属于当前协议会话；reset 后重新取得，发送与 ACK 不改变
   EQ 确认值。更长列表沿用原完整结构验证、当前定义竞态校验、内置槽位排除和原生详情编辑。
+
+## Product-indexed ANC and transparency selectors
+
+Leaf-lsgtky/OppoPods `929d813f1b82d5b09dd39a84b4f18744e8ef7e64`
+`DeviceModelRegistry.kt:358–465` and `CapabilityProfileFactory.kt:62–106` define the
+per-product `noiseReductionMode` tree and the parent/child write distinction. QuickBuds
+`6e069325984bab50c5bd331ced8805923c1db410`, `protocol/Commands.kt`, `Anc.kt` and
+`Decode.kt` independently establish the bitmap command and distinguish actual current-mode
+reports from gesture-cycle mask echoes. Both upstreams publish GNU GPLv3 license metadata.
+Only protocol mappings are adapted; no vendor graphics are included.
+
+The catalog contains 43 product tables and 304 report slots with known semantic names.
+Six child slots using modeType 11/12/13 on products `06EC10` and `067814` remain excluded:
+the reviewed implementation does not establish their meaning. Product identity and a complete
+current-mode report are both required; the catalog alone grants no control capability.
+Run `python tools/verify-oppo-noise-catalog.py PATH_TO_PINNED_device_models.json` to compare
+every imported slot, writable alias and conditional gate against the full source.
+
+Writes use `0x0404` payload `01 01` followed by the minimal little-endian bitmap with one
+`protocolIndex` bit set. For example, Buds 4 `065414` sends off at bit 0, transparency at bit 2,
+deep/medium/light/smart ANC at bits 4/5/6/7 and adaptive at bit 11. Reports can name off at
+bit 3 and transparency at bit 8; those same-name child slots are report aliases, not write choices.
+Older product tables such as Air2 Pro `063810` use their own parent indices without extra swapping.
+
+The advanced parser accepts `0x810C` status `00` followed by exact `01 01 <bitmap>`, or
+`0x0204` exact subtype `03 01 01 <bitmap>`. It requires one set bit in one or two bitmap bytes.
+Gesture-cycle echoes `03 02 01 ...`, fit results, error statuses, multi-bit masks and trailing data
+cannot enable selectors. The existing family fallback retains its historical no-status captures;
+that permissive parser is not used to grant indexed controls on identified models.
+
+The existing native OPPO details panel now displays the model's ANC levels, adaptive mode and
+proven transparency variants. Four `decideByEarDevice` listening entries remain report-only
+because their extra support query has not been implemented. Current reports stay authoritative;
+selecting a mode writes once and reads current ANC again. Standard native mode buttons use the
+model's parent indices after report qualification. Typed selection requests carry the immutable
+product/table definition, so a delayed UI or IPC request cannot apply an old product's bit index.
+Identity changes revoke old noise selection while retaining independently confirmed EQ/toggles;
+unknown current indices revoke the selector and prevent stale indexed writes.
+
+These are source-backed candidate controls with automated fixtures. No additional physical-device
+acceptance is claimed, and LE Audio/GoldenSound workflows are outside this slice.

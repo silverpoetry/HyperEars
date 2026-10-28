@@ -8,21 +8,31 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
     var state = HuaweiDailySettingsFeatureState()
         private set
     fun reset() { state = HuaweiDailySettingsFeatureState() }
+    fun lowLatencyQuery(): List<ByteArray> = if (profile.lowLatency) listOf(Wire.query(Wire.LOW_LATENCY, 2)) else emptyList()
     fun queries(): List<ByteArray> = buildList {
+        addAll(lowLatencyQuery())
+        if (profile.soundQuality) add(Wire.query(Wire.SOUND_QUALITY_READ, 1))
         if (profile.wear) add(Wire.query(Wire.WEAR_READ, 1))
         if (profile.multipoint) add(Wire.query(Wire.MULTIPOINT_READ, 1))
         if (profile.presets.isNotEmpty() || profile.custom) add(Wire.queryEqualizer())
         profile.gestures.keys.forEach { add(Wire.queryGesture(it.wire())) }
     }
-    fun readback(request: HuaweiDailyControlRequest): List<ByteArray> = listOf(when (request) {
+    fun readback(request: HuaweiDailyControlRequest): List<ByteArray> {
+        if (request is HuaweiDailyControlRequest.SetLowLatency) return emptyList()
+        return listOf(when (request) {
+        is HuaweiDailyControlRequest.SetLowLatency -> error("delayed readback handled above")
+        is HuaweiDailyControlRequest.SetSoundQualityPreference -> Wire.query(Wire.SOUND_QUALITY_READ, 1)
         is HuaweiDailyControlRequest.SetWearDetection -> Wire.query(Wire.WEAR_READ, 1)
         is HuaweiDailyControlRequest.SetMultipoint -> Wire.query(Wire.MULTIPOINT_READ, 1)
         is HuaweiDailyControlRequest.SetEqualizer, is HuaweiDailyControlRequest.SetCustomEqualizer -> Wire.queryEqualizer()
         is HuaweiDailyControlRequest.SetGesture -> Wire.queryGesture(request.kind.wire())
     })
+    }
     fun encode(request: HuaweiDailyControlRequest): ByteArray? {
         if (!state.supports(request)) return null
         return when (request) {
+            is HuaweiDailyControlRequest.SetLowLatency -> Wire.setBoolean(Wire.LOW_LATENCY, request.enabled)
+            is HuaweiDailyControlRequest.SetSoundQualityPreference -> Wire.setBoolean(Wire.SOUND_QUALITY_WRITE, request.preferQuality)
             is HuaweiDailyControlRequest.SetWearDetection -> Wire.setBoolean(Wire.WEAR_WRITE, request.enabled)
             is HuaweiDailyControlRequest.SetMultipoint -> Wire.setBoolean(Wire.MULTIPOINT_WRITE, request.enabled)
             is HuaweiDailyControlRequest.SetEqualizer -> {
@@ -39,6 +49,10 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
     }
     fun offer(frame: HuaweiFreebudsSppCodec.Frame): HuaweiDailySettingsFeatureState? {
         val next = when {
+            profile.lowLatency && frame.command == Wire.LOW_LATENCY ->
+                Wire.parsePreference(frame, Wire.LOW_LATENCY)?.let { state.copy(lowLatency = it) }
+            profile.soundQuality && frame.command == Wire.SOUND_QUALITY_READ ->
+                Wire.parsePreference(frame, Wire.SOUND_QUALITY_READ)?.let { state.copy(preferSoundQuality = it) }
             profile.wear && frame.command == Wire.WEAR_READ ->
                 Wire.parseBoolean(frame, Wire.WEAR_READ)?.let { state.copy(wearDetection = it) }
             profile.multipoint && frame.command == Wire.MULTIPOINT_READ ->

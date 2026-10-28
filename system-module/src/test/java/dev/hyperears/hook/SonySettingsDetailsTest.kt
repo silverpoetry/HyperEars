@@ -25,6 +25,77 @@ class SonySettingsDetailsTest {
         protocolHandshake = ProtocolHandshakeState.CONFIRMED,
     )).withFeature(SonyAmbientFeatureState(10, false, true, false))
 
+    @Test fun pendingMultipointAssociationDisablesInverseToggleBeforeAlertAndRefreshesAtDeadline() {
+        val fixture = Fixture()
+        val definition = SonyMultipointDefinition(0xD2)
+        fixture.current = fixture.current.withFeature(SonyMultipointFeatureState(definition, true, true,
+            pendingTransaction = 4, pendingExpiresAtMillis = 0))
+        val details = fixture.open()
+        val toggle = descendants(popup(details).contentView).filterIsInstance<CompoundButton>()
+            .single { it.contentDescription == "同时连接两台设备" }
+        assertTrue(toggle.isChecked)
+        assertFalse(toggle.isEnabled)
+        toggle.isChecked = false
+        assertEquals(listOf(StandardControlRequest.Refresh), fixture.sent)
+        fixture.current = fixture.current.withFeature(SonyMultipointFeatureState(definition, true, true))
+        fixture.observer!!(fixture.current)
+        assertTrue(toggle.isEnabled)
+        assertTrue(toggle.isChecked)
+        details.dismiss()
+    }
+    @Test fun expiredMultipointAlertRequestsOneGuardedRefreshAndDismissCancelsDeadline() {
+        val fixture = Fixture()
+        val definition = SonyMultipointDefinition(0xD2)
+        val expired = SonyMultipointAlert(2, 7, true, 0)
+        fixture.current = fixture.current.withFeature(SonyMultipointFeatureState(definition, false, true, expired))
+        val details = fixture.open()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(listOf(StandardControlRequest.Refresh), fixture.sent)
+        fixture.observer!!(fixture.current)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1, fixture.sent.size)
+        assertFalse(descendants(popup(details).contentView).single { it.contentDescription == "确认双设备变更" }.isEnabled)
+        fixture.current = fixture.current.withFeature(SonyMultipointFeatureState(definition, false, true,
+            expired.copy(transaction = 3, expiresAtMillis = System.nanoTime() / 1_000_000 + 60_000)))
+        fixture.observer!!(fixture.current)
+        details.dismiss()
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMinutes(2))
+        assertEquals(1, fixture.sent.size)
+        assertEquals(1, fixture.unsubscribed)
+    }
+    @Test fun multipointConfirmationUsesDisplayedAlertAndWaitsForReportedValue() {
+        val fixture = Fixture()
+        val definition = SonyMultipointDefinition(0xD2)
+        val confirmed = SonyMultipointFeatureState(definition, false, true)
+        fixture.current = fixture.current.withFeature(confirmed)
+        val details = fixture.open()
+        val views = descendants(popup(details).contentView)
+        val toggle = views.filterIsInstance<CompoundButton>().single { it.contentDescription == "同时连接两台设备" }
+        toggle.isChecked = true
+        assertEquals(SonyControlRequest.SetMultipoint(definition, true), fixture.sent.single())
+        assertFalse(toggle.isChecked)
+        val first = SonyMultipointAlert(1, 7, true)
+        fixture.current = fixture.current.withFeature(confirmed.copy(alert = first))
+        fixture.observer!!(fixture.current)
+        assertFalse(toggle.isEnabled)
+        val accept = views.single { it.contentDescription == "确认双设备变更" }
+        // Provider changed before the observer: do not confirm a different, unseen warning.
+        val second = SonyMultipointAlert(1, 6, true)
+        fixture.current = fixture.current.withFeature(confirmed.copy(alert = second))
+        accept.performClick()
+        assertEquals(1, fixture.sent.size)
+        accept.performClick()
+        assertEquals(SonyControlRequest.ReplyMultipointAlert(definition, second, true), fixture.sent.last())
+        assertFalse(toggle.isChecked)
+        fixture.current = fixture.current.withFeature(confirmed.copy(enabled = true))
+        fixture.observer!!(fixture.current)
+        assertTrue(toggle.isChecked)
+        fixture.token = "new-session"
+        toggle.isChecked = false
+        assertEquals(2, fixture.sent.size)
+        assertEquals(1, fixture.unsubscribed)
+    }
+
     @Test fun audioControlsNeedFreshAvailabilityAndWaitForConfirmation() {
         val fixture = Fixture()
         val definition = SonyAudioDefinition(2, 11)

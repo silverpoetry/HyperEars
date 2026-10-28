@@ -68,6 +68,11 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
         get() = HuaweiDailyPresentationIds.SETTINGS.takeIf {
             runtimeState().features.get<HuaweiDailySettingsFeatureState>()?.hasSettings == true
         }
+    override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
+        if (request is HuaweiDailyControlRequest.SetLowLatency && profile.daily?.lowLatency == true)
+            scope.requestState(HuaweiDailySettingsFeatureState.LOW_LATENCY_QUERY, 1_000L)
+        else super.onControlWritten(request, scope)
+    }
     override fun onProtocolReset() {
         super.onProtocolReset()
         removeFeatureState(HuaweiDailySettingsFeatureState.FEATURE_ID)
@@ -176,6 +181,7 @@ private class HuaweiFreebudsProtocolSession(
     override fun query(request: TelemetryQuery): List<ByteArray> = when (request) {
         TelemetryQuery.RefreshAll -> telemetryQueries()
         is TelemetryQuery.RefreshFeature -> when {
+            request.featureId == HuaweiDailySettingsFeatureState.LOW_LATENCY_QUERY -> daily?.lowLatencyQuery().orEmpty()
             request.featureId == HuaweiDailySettingsFeatureState.FEATURE_ID -> daily?.queries().orEmpty()
             request.featureId == BatteryFeatureState.FEATURE_ID ->
                 listOf(HuaweiFreebudsSppCodec.queryBattery)

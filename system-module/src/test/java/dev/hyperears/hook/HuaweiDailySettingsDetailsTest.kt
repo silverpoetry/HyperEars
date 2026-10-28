@@ -112,6 +112,21 @@ class HuaweiDailySettingsDetailsTest {
         assertTrue(fixture.sent.isEmpty())
         details.dismiss()
     }
+    @Test fun preferenceRowsRemainConfirmedAndRejectRevokedFieldsOrSession() {
+        val fixture=Fixture()
+        fixture.state=fixture.state.withFeature(HuaweiDailySettingsFeatureState(lowLatency=false,preferSoundQuality=false))
+        val details=fixture.open();val popup=popup(details)
+        descendants(popup.contentView).filterIsInstance<RadioButton>().single { it.text=="开启" }.performClick()
+        assertEquals(HuaweiDailyControlRequest.SetLowLatency(true),fixture.sent.single())
+        assertTrue(descendants(popup.contentView).filterIsInstance<RadioButton>().single { it.text=="关闭" }.isChecked)
+        val quality=descendants(popup.contentView).filterIsInstance<RadioButton>().single { it.text=="音质优先" }
+        fixture.state=fixture.state.withFeature(HuaweiDailySettingsFeatureState(lowLatency=false))
+        quality.performClick();assertEquals(1,fixture.sent.size)
+        assertFalse(descendants(popup.contentView).filterIsInstance<RadioButton>().any { it.text=="音质优先" })
+        fixture.token="replacement"
+        descendants(popup.contentView).filterIsInstance<RadioButton>().single { it.text=="开启" }.performClick()
+        assertEquals(1,fixture.sent.size);assertFalse(popup.isShowing)
+    }
     private fun popup(details: MiLinkToggleDetails) = details.javaClass.getDeclaredField("popup").apply { isAccessible = true }.get(details) as PopupWindow
     private fun descendants(view: View): Sequence<View> = sequence {
         yield(view)

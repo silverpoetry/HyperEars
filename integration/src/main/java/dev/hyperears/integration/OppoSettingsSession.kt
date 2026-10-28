@@ -7,18 +7,25 @@ import dev.hyperears.protocol.oppo.OppoWireCodec
 internal class OppoSettingsSession {
     private var state = OppoSettingsFeatureState()
     private var reported = false
+    val noise: OppoNoiseSelection? get() = state.noise
     val initialQueries: List<ByteArray> get() = listOf(OppoSettingsCodec.querySwitches(),
         OppoSettingsCodec.queryCurrentEq, OppoSettingsCodec.queryEqualizers, OppoWireCodec.queryFrameBudget)
 
     fun identify(productId: Int?): OppoSettingsFeatureState? {
         val builtIns = OppoBuiltInEqIds.byProduct[productId]
-        state = state.copy(editableEqualizers = if (builtIns == null) emptySet() else
+        state = state.copy(noise = state.noise?.takeIf { it.definition.productId == productId }, editableEqualizers = if (builtIns == null) emptySet() else
             state.equalizers.orEmpty().filter { it.id !in builtIns &&
                 OppoSettingsCodec.canUpdate(it.wire(), it.gains, state.maximumEqualizerPayload()) }.map { it.id }.toSet())
         return state.takeIf { reported }
     }
     fun offer(frame: OppoWireCodec.Frame, productId: Int?): OppoSettingsFeatureState? {
         var changed = false
+        OppoNoiseCatalog.find(productId)?.let { definition ->
+            dev.hyperears.protocol.oppo.OppoNoiseCodec.reportIndex(frame)?.let { index ->
+                state = state.copy(noise = definition.option(index)?.let { OppoNoiseSelection(definition,index) })
+                changed = true
+            }
+        }
         OppoWireCodec.parseFrameBudget(frame)?.let {
             state = state.copy(equalizerWriteBudget = it)
             // Transport evidence alone is not a user setting and must not create an empty card.
@@ -52,6 +59,7 @@ internal class OppoSettingsSession {
                 state.equalizers!!.single { it.id == request.id }.wire(), request.gains, state.equalizerWriteBudget!!)
         }
         return listOf(when (request) {
+            is OppoControlRequest.SelectNoiseOption -> dev.hyperears.protocol.oppo.OppoNoiseCodec.setIndex(request.index)
             is OppoControlRequest.SetToggle -> OppoSettingsCodec.setSwitch(request.setting.featureId, request.enabled)
             is OppoControlRequest.SelectEqualizer -> OppoSettingsCodec.selectEqualizer(request.id)
             is OppoControlRequest.UpdateEqualizer -> OppoSettingsCodec.updateEqualizer(
@@ -59,6 +67,7 @@ internal class OppoSettingsSession {
         })
     }
     fun readback(request: OppoControlRequest): List<ByteArray> = when (request) {
+        is OppoControlRequest.SelectNoiseOption -> listOf(OppoWireCodec.queryAnc)
         is OppoControlRequest.SetToggle -> listOf(OppoSettingsCodec.querySwitches())
         is OppoControlRequest.SelectEqualizer -> listOf(OppoSettingsCodec.queryCurrentEq, OppoSettingsCodec.queryEqualizers)
         is OppoControlRequest.UpdateEqualizer -> listOf(OppoSettingsCodec.queryEqualizers)

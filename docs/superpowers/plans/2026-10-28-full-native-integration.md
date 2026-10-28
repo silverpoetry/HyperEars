@@ -160,6 +160,8 @@ does not treat every source command as universally supported. All items below re
   Long-frame/fragment parsing now follows capture-backed canonical lengths, preserving legacy
   frames. Larger EQ writes require live long-frame and budget evidence. Additional workflows
   and LE Audio remain outstanding; identities grant no controls.
+  Indexed noise selection now covers 43 source product tables with strict current-state reports,
+  pre-identity control gating, native parent choices and model-specific level/transparency options.
 - [ ] C3 Huawei/Honor: union HuaweiPods/OpenFreebuds exact routes and aliases; old HFP plus SPP
   FreeBuds3 paths, Studio/FreeLace topology, firmware-specific ANC/transparency, EQ, gestures,
   spatial, wearing, dual-device, latency, quality, prompts/language and smart functions.
@@ -167,13 +169,17 @@ does not treat every source command as universally supported. All items below re
   Daily slice implemented: nine additional exact candidates, per-model wear/multipoint/EQ/gesture
   profiles, native details, stale-slot guards and aggregate-battery qualification. Other workflows
   and hardware validation remain outstanding.
+  Model-qualified low latency and sound-quality preference now have native choices and exact
+  readback contracts; the latency query uses a bounded one-second adapter effect.
 - [ ] C4 Sony: SPP/GATT, V1/V2, Table1/Table2 capability discovery; environment levels/voice,
   EQ/ClearBass, DSEE, LEA/quality, Speak-to-Chat, multipoint/source, gestures/QuickAccess,
   wearing/power-off, legacy VPT/position/optimizer, voice/assistant and bounded safe-listening.
   Daily Table1 EQ/ClearBass/ambient slice implemented with capability discovery, native details,
   Table2 separation and ACK-queue rejection semantics. GATT and remaining Sony functions are open.
   DSEE, connection quality and Speak-to-Chat now have version/inquiry-qualified reports, typed
-  requests and native details, with independent protocol review. Multipoint remains in progress.
+  requests and native details, with independent protocol review. V2 multipoint now discovers a
+  unique GS semantic slot and serializes local confirmation transactions; native alerts expire
+  through a single guarded refresh. Hardware acceptance and remaining functions stay open.
 - [ ] C5 ROSE: include RoseLink model/feature differences, prioritizing the user's ROSE Coral ANC
   earclip and its independently verified configuration/transport/control semantics; shared UUID
   does not establish compatibility with BudsFeel. Also cover i7/Ceramics U identities distinct from existing Ultra; model-qualified six-mode,
@@ -203,6 +209,8 @@ does not treat every source command as universally supported. All items below re
   Pudding's APK dialect now has bounded framing, exact-report dialect admission, five noise
   values, gain and LED with native details; battery alone cannot select a dialect. A one-shot
   handshake fallback uses existing adapter effects. Catalog-family expansion remains open.
+  The official BT catalog's unbranded exact names now reach standard family fallback without
+  inventing private protocol compatibility from chip labels; existing exact protocols win.
 - [ ] C10 Bose: additional product IDs/Frames candidates; CNC levels/EQ/spatial/profiles/buttons,
   sidetone/multipoint/auto-pause/answer/prompts/rename with per-product dialect and readback.
   First daily slice implemented: three-band EQ, prompts, multipoint, model-qualified auto-pause,

@@ -136,10 +136,39 @@ internal class OppoSettingsDetails private constructor(
                 if (value != null) toggle.isChecked = value
             }
         }
+        addNoiseOptions(controls)
         addEqualizers(controls)
         body.addView(ScrollView(context).apply { addView(controls) },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         return body
+    }
+    private fun addNoiseOptions(parent: LinearLayout) {
+        val row = column(); val title = text("降噪与通透",17f); val entries = column()
+        row.addView(title); row.addView(entries); parent.addView(row)
+        var shown: OppoNoiseDefinition? = null
+        val choices = mutableListOf<Pair<TextView,OppoNoiseOption>>()
+        renders += { state ->
+            val noise = state.noise
+            row.visibility = if (noise == null) View.GONE else View.VISIBLE
+            if (shown != noise?.definition) {
+                shown = noise?.definition; entries.removeAllViews(); choices.clear()
+                noise?.definition?.let { definition ->
+                    definition.options.filter { it.writable }.forEach { option ->
+                        val view = text(option.mode.title,16f).apply {
+                            contentDescription = "降噪与通透 " + option.mode.title
+                            setOnClickListener { send(OppoControlRequest.SelectNoiseOption(definition,option.index)) }
+                        }
+                        entries.addView(view); choices += view to option
+                    }
+                }
+            }
+            title.text = noise?.selected?.mode?.title?.let { String.format(Locale.getDefault(),"当前模式：%s",it) } ?: "降噪与通透"
+            choices.forEach { (view,option) ->
+                view.isEnabled = noise != null
+                view.isSelected = noise?.selected?.mode == option.mode
+                view.text = String.format(Locale.getDefault(),"%s%s",if (view.isSelected) "✓ " else "",option.mode.title)
+            }
+        }
     }
     private fun addEqualizers(parent: LinearLayout) {
         val row = column()

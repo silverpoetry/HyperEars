@@ -6,6 +6,9 @@ object HuaweiDailySettingsCodec {
     const val WEAR_WRITE = 0x2B10
     const val MULTIPOINT_READ = 0x2B2F
     const val MULTIPOINT_WRITE = 0x2B2E
+    const val LOW_LATENCY = 0x2B6C
+    const val SOUND_QUALITY_READ = 0x2BA3
+    const val SOUND_QUALITY_WRITE = 0x2BA2
     const val EQ_READ = 0x2B4A
     const val EQ_WRITE = 0x2B49
     enum class Gesture(val read: Int, val write: Int) {
@@ -22,7 +25,7 @@ object HuaweiDailySettingsCodec {
     fun queryEqualizer() = query(EQ_READ, 1, 2, 3, 4, 5, 6, 7, 8)
     fun queryGesture(kind: Gesture) = query(kind.read, 1, 2)
     fun setBoolean(command: Int, enabled: Boolean): ByteArray {
-        require(command == WEAR_WRITE || command == MULTIPOINT_WRITE)
+        require(command in setOf(WEAR_WRITE, MULTIPOINT_WRITE, LOW_LATENCY, SOUND_QUALITY_WRITE))
         return HuaweiFreebudsSppCodec.packet(command, listOf(1 to byteArrayOf(if (enabled) 1 else 0)))
     }
     fun setGesture(kind: Gesture, field: Int, value: Int): ByteArray {
@@ -51,6 +54,11 @@ object HuaweiDailySettingsCodec {
         if (frame.command != expected || !successful(frame)) return null
         val value = frame.params[1]?.singleOrNull()?.toInt() ?: return null
         return when (value) { 0 -> false; 1 -> true; else -> null }
+    }
+    /** Both preference reports carry field2; field1 writes/echoes never confirm state. */
+    fun parsePreference(frame: HuaweiFreebudsSppCodec.Frame, expected: Int): Boolean? {
+        if (expected !in setOf(LOW_LATENCY, SOUND_QUALITY_READ) || frame.command != expected || !successful(frame)) return null
+        return when (frame.params[2]?.singleOrNull()?.toInt()) { 0 -> false; 1 -> true; else -> null }
     }
     fun parseGesture(frame: HuaweiFreebudsSppCodec.Frame, kind: Gesture): Gestures? = runCatching {
         require(frame.command == kind.read && successful(frame))

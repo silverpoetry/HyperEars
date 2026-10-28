@@ -7,6 +7,22 @@ class HuaweiDailySettingsCodecTest {
     private fun hex(value: String) = value.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     private fun frame(command: Int, vararg fields: Pair<Int, ByteArray>) =
         HuaweiFreebudsSppCodec.parseFrame(HuaweiFreebudsSppCodec.packet(command, fields.toList()))!!
+    @Test fun latencyAndQualityUseDifferentReadAndWriteFieldsAndRejectEchoes() {
+        assertArrayEquals(hex("5a0005002b6c0200b820"),HuaweiDailySettingsCodec.query(0x2B6C,2))
+        assertArrayEquals(hex("5a0006002b6c010101a411"),HuaweiDailySettingsCodec.setBoolean(0x2B6C,true))
+        for (command in listOf(0x2B6C,0x2BA3)) {
+            assertEquals(false,HuaweiDailySettingsCodec.parsePreference(frame(command,2 to byteArrayOf(0)),command))
+            assertEquals(true,HuaweiDailySettingsCodec.parsePreference(frame(command,2 to byteArrayOf(1)),command))
+            for (fields in listOf(listOf(1 to byteArrayOf(1)),listOf(2 to byteArrayOf(2)),
+                listOf(2 to byteArrayOf(0,1)),listOf(2 to byteArrayOf(1),127 to byteArrayOf(0))))
+                assertNull(HuaweiDailySettingsCodec.parsePreference(frame(command,*fields.toTypedArray()),command))
+        }
+        assertNull(HuaweiDailySettingsCodec.parsePreference(frame(0x2BA2,2 to byteArrayOf(1)),0x2BA3))
+        val low=HuaweiFreebudsSppCodec.parseFrame(HuaweiDailySettingsCodec.setBoolean(0x2B6C,true))!!
+        assertEquals(0x2B6C,low.command);assertEquals(setOf(1),low.params.keys);assertArrayEquals(byteArrayOf(1),low.params[1])
+        val quality=HuaweiFreebudsSppCodec.parseFrame(HuaweiDailySettingsCodec.setBoolean(0x2BA2,false))!!
+        assertEquals(0x2BA2,quality.command);assertArrayEquals(byteArrayOf(0),quality.params[1])
+    }
     @Test fun queriesAndWritesMatchPublicCapturedTraffic() {
         assertArrayEquals(hex("5A0005002B110100772A"), HuaweiDailySettingsCodec.query(0x2B11, 1))
         assertArrayEquals(hex("5A0006002B10010101A956"), HuaweiDailySettingsCodec.setBoolean(0x2B10, true))

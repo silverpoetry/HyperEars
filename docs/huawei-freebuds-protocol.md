@@ -266,3 +266,37 @@ EQ 草稿。滑动仅修改本地草稿，点击保存才发送；设备回读�
 
 低延迟、质量偏好、配对设备列表操作、语音语言和现代机型更多智能功能不由本轮公共
 设置画像推定。特别是旧型号低延迟的“保存并重连回放”不等同于设备权威回读。
+
+## Low latency and sound-quality preference (2026-10-28)
+
+Source pin: OpenFreebuds `0b4f14c0b500d491f0fb4ea38f2984ec334e3649`.
+`openfreebuds/driver/huawei/handler/low_latency.py` reads2B6C field2 and writes
+2B6C field1 Boolean, then waits one second before reading again. The published
+`test/test_low_latency.py` supplies query `5A0005002B6C0200B820` and enabled write
+`5A0006002B6C010101A411`; those exact bytes are regression fixtures.
+`handler/sound_quality_preference.py` reads2BA3 with empty field1 and obtains its
+value from field2:0 connectivity-first,1 quality-first. Writes use2BA2 field1,
+followed by an authoritative2BA3 query. This preference is not the currently
+negotiated Android audio codec and does not report codec identity.
+
+Current local profiles with both executable handlers: FreeBuds Pro3,5i,6i,
+FreeClip2 and FreeLace Pro2. Pro2 declares only sound-quality preference and
+therefore gains no latency query/control. Pro,4i/Honor Earbuds2 variants and
+Studio remain unchanged. Source `driver/constants.py` maps Pro4 and FreeClip1
+to its Pro3 driver, but this does not broaden local Pro3 matching or overwrite
+local Pro4's separate qualified profile. Pro5/SE2/SE4 source declarations are
+outside this existing-profile slice.
+
+Both nullable settings become available only after a strict single-byte0/1
+field2 response for that exact model's enabled handler. Wrong field, write
+command, truncated/multi-byte/out-of-range response, or7F ACK/error envelope
+cannot confirm a preference. A latency write schedules one replaceable adapter
+state request at1000ms; its targeted query contains only2B6C field2. Runtime
+state-request ownership/cancellation remains in the existing session dispatcher,
+including reset, channel replacement and vendor handoff. No optimistic values,
+automatic replay or Android-side model switch is added. Voice language remains
+excluded because its handler does not supply actual selected-language readback.
+
+Native daily settings show low-latency on/off and connection-stability/quality
+preference only with current evidence; callbacks revalidate session/owner and
+support. Source/fixture/UI tests are distinct from physical device acceptance.

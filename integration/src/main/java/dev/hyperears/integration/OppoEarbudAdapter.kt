@@ -49,6 +49,11 @@ open class OppoEarbudAdapter(
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
         if (request is OppoControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
     override fun onProtocolReset() { removeFeatureState(OppoSettingsFeatureState.FEATURE_ID) }
+    override fun onFeatureReported(state: DeviceFeatureState, scope: AdapterEventScope): FeatureReportDecision {
+        if (state is OppoSettingsFeatureState && state.noise == null &&
+            (protocolSession as? OppoProtocolSession)?.indexedNoise == true) removeFeatureState(NoiseModeFeatureState.FEATURE_ID)
+        return FeatureReportDecision.ACCEPT
+    }
 
 
     override fun matches(identity: EarbudIdentity): Boolean {
@@ -60,7 +65,10 @@ open class OppoEarbudAdapter(
     }
 
     override fun createProtocolSession(): ProtocolSession =
-        OppoProtocolSession(wireConfig, ::isAdapterEnabled)
+        OppoProtocolSession(wireConfig, ::isAdapterEnabled,
+            indexedIdentityRequired = OppoProductCatalog.products.any {
+                it.adapterId == id && OppoNoiseCatalog.find(it.productId) != null
+            })
 
     override fun onProductIdentified(productId: Int): HandshakeResult? {
         val session = protocolSession as? OppoProtocolSession ?: return null
@@ -173,9 +181,8 @@ class OppoCatalogEarbudAdapter internal constructor(
 /**
  * Model-owned interpretation of the raw ANC values.
  *
- * Adaptive and intensity variants remain read-compatible, but HyperEars intentionally exposes
- * only MiLink's native ANC/off/transparency controls until the common domain gains a distinct
- * adaptive mode.
+ * Family fallback preserves the captured scalar mapping. Product-indexed advanced selectors
+ * retain adaptive/intensity variants separately while the native card keeps its coarse modes.
  */
 data class OppoWireConfig(
     val ancPrimary: Int,
@@ -190,6 +197,7 @@ data class OppoWireConfig(
 internal class OppoProtocolSession(
     initialConfiguration: OppoWireConfig,
     internal var productAdmission: (String) -> Boolean,
+    private var indexedIdentityRequired: Boolean = false,
 ) : ProtocolSession {
     private var configuration = initialConfiguration
     var productId: Int? = null
@@ -197,6 +205,8 @@ internal class OppoProtocolSession(
     var confirmedNoiseMode: NoiseMode? = null
         private set
     private val settings = OppoSettingsSession()
+    val indexedNoise: Boolean get() = OppoNoiseCatalog.find(productId) != null
+    private val noiseIdentityPending: Boolean get() = indexedIdentityRequired && productId == null
     private val decoder = OppoWireCodec.Decoder()
     private var handshakePublished = false
     private var battery = EarbudBattery()
@@ -240,8 +250,10 @@ internal class OppoProtocolSession(
                     // invalidate report evidence. Adapter replacement applies the same gate.
                     if (product != null && !productAdmission(product.adapterId)) return@buildList
                     val nextConfiguration = product?.wireConfig ?: configuration
-                    if (configuration != nextConfiguration) confirmedNoiseMode = null
+                    if (configuration != nextConfiguration || (productId != identified &&
+                        (indexedNoise || OppoNoiseCatalog.find(identified) != null))) confirmedNoiseMode = null
                     configuration = nextConfiguration
+                    indexedIdentityRequired = OppoNoiseCatalog.find(identified) != null
                     publishHandshakeIfNeeded()
                     if (productId != identified) {
                         productId = identified
@@ -253,6 +265,13 @@ internal class OppoProtocolSession(
                 settings.offer(frame, productId)?.let {
                     publishHandshakeIfNeeded()
                     add(ProtocolEvent.FeatureStateChanged(it))
+                    if (frame.command == OppoWireCodec.ANC_RESPONSE || frame.command == OppoWireCodec.ACTIVE_REPORT) {
+                        confirmedNoiseMode = it.noise?.selected?.mode?.domain
+                        confirmedNoiseMode?.let { mode ->
+                            add(ProtocolEvent.CapabilitiesIdentified(battery=false,noiseModes=OPPO_NOISE_MODES))
+                            add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode)))
+                        }
+                    }
                     return@buildList
                 }
                 OppoWireCodec.parseNotificationSupport(frame)?.let { advertisedIds ->
@@ -276,6 +295,8 @@ internal class OppoProtocolSession(
                     add(ProtocolEvent.FeatureStateChanged(BatteryFeatureState(battery)))
                     return@buildList
                 }
+                // Known indexed models never reinterpret rejected masks/foreign events as scalar ANC.
+                if (indexedNoise || noiseIdentityPending) return@buildList
                 OppoWireCodec.parseAncState(frame)
                     ?.toDomainMode()
                     ?.let { mode ->
@@ -317,11 +338,23 @@ internal class OppoProtocolSession(
         add(ProtocolEvent.HandshakeAccepted)
     }
 
-    private fun NoiseMode.toWireCommand(): ByteArray? = when (this) {
-        NoiseMode.ANC -> OppoWireCodec.setAnc(configuration.ancPrimary)
-        NoiseMode.OFF -> OppoWireCodec.setAnc(configuration.offPrimary)
-        NoiseMode.TRANSPARENCY -> OppoWireCodec.setAnc(primary = 0x04)
-        NoiseMode.WIND -> null
+    private fun NoiseMode.toWireCommand(): ByteArray? {
+        if (noiseIdentityPending) return null
+        if (indexedNoise) {
+            val selection = settings.noise ?: return null
+            val currentAnc = selection.selected?.takeIf {
+                this == NoiseMode.ANC && it.writable && it.mode.domain == NoiseMode.ANC
+            }
+            return (currentAnc ?: selection.definition.primary(this))?.let {
+                dev.hyperears.protocol.oppo.OppoNoiseCodec.setIndex(it.index)
+            }
+        }
+        return when (this) {
+            NoiseMode.ANC -> OppoWireCodec.setAnc(configuration.ancPrimary)
+            NoiseMode.OFF -> OppoWireCodec.setAnc(configuration.offPrimary)
+            NoiseMode.TRANSPARENCY -> OppoWireCodec.setAnc(primary = 0x04)
+            NoiseMode.WIND -> null
+        }
     }
 
     private fun OppoWireCodec.AncState.toDomainMode(): NoiseMode? = when {

@@ -28,6 +28,18 @@ internal class SonySettingsDetails private constructor(
     private var rendering = false
     private var pending: SonyControlRequest? = null
     private val status = text("", 14f)
+    private var alertRefreshKey: Pair<Long, Long>? = null
+    private val alertExpiry = Runnable {
+        if (!closed) withCurrent { current ->
+            val settings = current.features.get<SonyMultipointFeatureState>()
+            val key = settings?.let { multipointDeadline(it) }
+            if (key != null && key == alertRefreshKey) {
+                status.text = "变更等待已过期，正在重新读取耳机状态。"
+                render(current)
+                if (!closed) withCurrent { environment.controlSender(address, StandardControlRequest.Refresh) }
+            }
+        }
+    }
     private val timeout = Runnable {
         if (!closed && pending != null) {
             pending = null
@@ -70,6 +82,13 @@ internal class SonySettingsDetails private constructor(
     private fun renderState(state: EarbudState) {
         if (closed) return
         if (!valid(state)) { dismiss(); return }
+        val alert = state.features.get<SonyMultipointFeatureState>()?.let(::multipointDeadline)
+        if (alert != alertRefreshKey) {
+            handler.removeCallbacks(alertExpiry)
+            alertRefreshKey = alert
+            if (alert != null && alert.second != Long.MAX_VALUE)
+                handler.postDelayed(alertExpiry, (alert.second - System.nanoTime() / 1_000_000).coerceAtLeast(0))
+        }
         pending?.let {
             if (matches(state, it)) {
                 pending = null; handler.removeCallbacks(timeout); status.text = "耳机已确认设置。"
@@ -101,6 +120,7 @@ internal class SonySettingsDetails private constructor(
         closed = true
         handler.removeCallbacks(timeout)
         pending = null
+        handler.removeCallbacks(alertExpiry); alertRefreshKey = null
         anchor.get()?.removeOnAttachStateChangeListener(detach)
         val release = unsubscribe; unsubscribe = null
         runCatching { release?.invoke() }
@@ -108,9 +128,13 @@ internal class SonySettingsDetails private constructor(
     }
     private fun matches(state: EarbudState, request: SonyControlRequest): Boolean {
         val eq = state.features.get<SonyEqFeatureState>()
+        val multipoint = state.features.get<SonyMultipointFeatureState>()
         val audio = state.features.get<SonyAudioSettingsFeatureState>()
         val ambient = state.features.get<SonyAmbientFeatureState>()
         return when (request) {
+            is SonyControlRequest.SetMultipoint -> multipoint?.let { it.definition == request.expected && it.enabled == request.enabled && it.alert == null && it.pendingTransaction == null } == true
+            is SonyControlRequest.ReplyMultipointAlert -> multipoint?.let { it.definition == request.expected && it.alert == null &&
+                it.enabled == (if (request.confirm) request.expectedAlert.target else !request.expectedAlert.target) } == true
             is SonyControlRequest.SetDsee -> audio?.let { it.dseeDefinition == request.expected && it.dsee == request.enabled } == true
             is SonyControlRequest.SetConnectionQuality -> audio?.let { it.qualityDefinition == request.expected && it.quality == request.mode } == true
             is SonyControlRequest.SetSpeakToChat -> audio?.let { it.speakDefinition == request.expected && it.speak == request.enabled } == true
@@ -119,6 +143,49 @@ internal class SonySettingsDetails private constructor(
                 value.rawSteps.map { it - value.center } == request.steps } == true
             is SonyControlRequest.SetClearBass -> eq?.clearBass == request.level
             is SonyControlRequest.SetAmbient -> ambient?.let { it.level == request.level && it.voice == request.voice } == true
+        }
+    }
+    private fun multipointDeadline(state: SonyMultipointFeatureState): Pair<Long, Long>? =
+        state.pendingTransaction?.let { id -> state.pendingExpiresAtMillis?.let { id to it } }
+            ?: state.alert?.let { it.transaction to it.expiresAtMillis }
+    private fun addMultipoint(parent: LinearLayout) {
+        val row = column(); row.addView(text("同时连接两台设备", 17f)); parent.addView(row)
+        val toggle = createToggle().apply {
+            contentDescription = "同时连接两台设备"; isSaveEnabled = false
+            setOnCheckedChangeListener { _, enabled -> if (!rendering) withCurrent { current ->
+                current.features.get<SonyMultipointFeatureState>()?.definition?.let { send(SonyControlRequest.SetMultipoint(it, enabled)) }
+            } }
+        }
+        row.addView(toggle)
+        val confirmation = column(); val caption = text("", 16f); confirmation.addView(caption); row.addView(confirmation)
+        var shown: Pair<SonyMultipointDefinition, SonyMultipointAlert>? = null
+        fun reply(confirm: Boolean) {
+            val expected = shown ?: return
+            withCurrent { current ->
+                val settings = current.features.get<SonyMultipointFeatureState>() ?: return@withCurrent
+                if (settings.definition == expected.first && settings.alert == expected.second &&
+                    System.nanoTime() / 1_000_000 < expected.second.expiresAtMillis)
+                    send(SonyControlRequest.ReplyMultipointAlert(expected.first, expected.second, confirm))
+                else render(current)
+            }
+        }
+        confirmation.addView(text("确认并继续", 16f).apply { contentDescription = "确认双设备变更"; setOnClickListener { reply(true) } })
+        confirmation.addView(text("取消变更", 16f).apply { contentDescription = "取消双设备变更"; setOnClickListener { reply(false) } })
+        renders += { current ->
+            val settings = current.features.get<SonyMultipointFeatureState>()
+            row.visibility = if (settings?.hasSettings == true) View.VISIBLE else View.GONE
+            toggle.isChecked = settings?.enabled == true
+            toggle.isEnabled = settings?.let { it.available == true && it.alert == null && it.pendingTransaction == null } == true
+            shown = settings?.definition?.let { definition -> settings.alert?.let { definition to it } }
+            confirmation.visibility = if (shown == null) View.GONE else View.VISIBLE
+            val unexpired = settings?.alert?.let { System.nanoTime() / 1_000_000 < it.expiresAtMillis } == true
+            for (index in 1 until confirmation.childCount) confirmation.getChildAt(index).isEnabled = unexpired
+            caption.text = when (settings?.alert?.message) {
+                6 -> "耳机提示：启用双设备连接需要关闭 LDAC。确认继续吗？"
+                7 -> "耳机提示：更改双设备连接需要断开并重新连接。确认继续吗？"
+                112 -> "耳机提示：将同时启用双设备连接和 LDAC，音质选项可能受到限制。确认继续吗？"
+                else -> ""
+            }
         }
     }
     private fun addAudioSettings(parent: LinearLayout) {
@@ -179,6 +246,7 @@ internal class SonySettingsDetails private constructor(
         body.addView(status)
         val controls = column()
         addAudioSettings(controls)
+        addMultipoint(controls)
         val ambientRow = column()
         val ambientCaption = text("环境声强度", 17f)
         ambientRow.addView(ambientCaption)

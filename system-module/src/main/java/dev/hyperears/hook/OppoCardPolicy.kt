@@ -14,6 +14,10 @@ internal object OppoCardPolicy {
         return request.takeIf { settings.supports(it) && !matches(settings, it) }
     }
     fun matches(state: OppoSettingsFeatureState, request: OppoControlRequest): Boolean = when (request) {
+        is OppoControlRequest.SelectNoiseOption -> state.noise?.let {
+            it.definition == request.expected && (it.reportedIndex == request.index ||
+                it.selected?.mode == request.expected.option(request.index)?.mode)
+        } == true
         is OppoControlRequest.SetToggle -> state.toggles[request.setting] == request.enabled
         is OppoControlRequest.SelectEqualizer -> state.currentEqualizer == request.id
         is OppoControlRequest.UpdateEqualizer -> state.equalizers?.firstOrNull { it.id == request.id }?.gains == request.gains
