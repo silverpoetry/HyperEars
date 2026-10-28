@@ -171,4 +171,65 @@ class BoseDailySettingsTest {
         assertTrue(session.encode(BoseDailyControlRequest.SetButton(expected,2)).isEmpty())
     }
 
+    @Test fun liveAudioIs4082OnlyAndWholeSnapshotPinnedWithoutOptimism() {
+        val raw=byteArrayOf(31,10,3,5,7,1,0,1,0)
+        val device=adapter(0x4082);device.receive(raw)
+        val expected=device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.liveAudio!!
+        val request=BoseDailyControlRequest.SetSpatial(expected,2)
+        assertEquals(request,ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+        assertArrayEquals(byteArrayOf(31,10,2,5,7,1,2,1,0),device.executeControl(request).commands.single())
+        assertArrayEquals(byteArrayOf(31,10,1,0),device.protocolSession.readback(request).single())
+        assertEquals(expected,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.liveAudio)
+        val oldWind=BoseDailyControlRequest.SetWind(expected,false)
+        assertFalse(device.executeControl(oldWind).accepted) // no sibling overwrite before authoritative readback
+        assertTrue(device.protocolSession.encode(StandardControlRequest.Refresh).isNotEmpty())
+        device.receive(byteArrayOf(31,10,3,5,7,1,2,1,0))
+        val wind=BoseDailyControlRequest.SetWind(expected.copy(raw=listOf(7,1,2,1,0)),false)
+        assertEquals(wind,ControlRequestTransport.decode(ControlRequestTransport.encode(wind)))
+        assertArrayEquals(byteArrayOf(31,10,2,5,7,1,2,0,0),device.executeControl(wind).commands.single())
+        device.receive(byteArrayOf(31,10,3,5,6,1,0,1,0))
+        assertFalse(device.supportsControl(request));assertFalse(device.supportsControl(wind))
+        device.resetProtocolSession();assertNull(device.runtimeState().features.get<BoseDailySettingsFeatureState>())
+        for(id in listOf(0x4020,0x4039,0x4075,0x402F,0x4062)) {
+            val other=adapter(id);other.receive(raw)
+            assertNull(other.runtimeState().features.get<BoseDailySettingsFeatureState>()?.liveAudio)
+        }
+    }
+    @Test fun renamePinsReportedProductFlagAndNameAndRequiresFreshReadback() {
+        val original=byteArrayOf(1,2,3,6,0,70,97,114,103,111)
+        for(id in listOf(0x4020,0x4039)) {
+            val device=adapter(id);device.receive(original)
+            val source=device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.deviceName!!
+            val request=BoseDailyControlRequest.Rename(source,"Cafe")
+            assertEquals(request,ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+            assertArrayEquals(byteArrayOf(1,2,2,4,67,97,102,101),device.executeControl(request).commands.single())
+            assertArrayEquals(byteArrayOf(1,2,1,0),device.protocolSession.readback(request).single())
+            assertEquals("Fargo",device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.deviceName!!.name)
+            assertFalse(device.supportsControl(request.copy(name="é".repeat(16))))
+            device.receive(byteArrayOf(1,2,3,3,0,0xc3.toByte(),0x28))
+            assertTrue(device.supportsControl(request)) // malformed UTF-8 preserves valid report
+            device.receive(original.copyOf().apply{this[4]=1})
+            assertFalse(device.supportsControl(request)) // same name, changed report flag
+            device.receive(byteArrayOf(1,2,3,5,1,67,97,102,101))
+            assertEquals("Cafe",device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.deviceName!!.name)
+            device.resetProtocolSession();assertFalse(device.supportsControl(request))
+        }
+        for(id in listOf(0x400C,0x4075,0x4082,0x402F)) {
+            val device=adapter(id);device.receive(original)
+            assertNull(device.runtimeState().features.get<BoseDailySettingsFeatureState>()?.deviceName)
+        }
+    }
+
+    @Test fun longReportedNameMayBeRenamedWithinWriteLimit() {
+        val device=adapter(0x4039)
+        val longName="Long headset name "+"é".repeat(30)
+        val data=byteArrayOf(7)+longName.toByteArray(Charsets.UTF_8)
+        device.receive(Bmap.packet(1,2,Bmap.Operator.STATUS,data))
+        val reported=device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.deviceName!!
+        assertEquals(longName,reported.name);assertEquals(7,reported.flag)
+        val request=BoseDailyControlRequest.Rename(reported,"Short")
+        assertTrue(device.executeControl(request).accepted)
+        assertFalse(device.supportsControl(request.copy(name=longName+"x")))
+    }
+
 }

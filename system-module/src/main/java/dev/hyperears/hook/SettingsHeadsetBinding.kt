@@ -104,7 +104,9 @@ internal class SettingsHeadsetBinding(
             SettingsSonyAssignableRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdditionalRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsBoseButtonRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
+            SettingsBoseAudioRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsRoseRsV2Rows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
+            SettingsHuaweiPairedRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsAdvancedEditors.forState(state)?.takeIf { it.available(state, address) }?.let { editor ->
                 val row = host.row("hyperears.advanced", "高级设置")
                 host.summary(row, "均衡器、手势及耳机已确认的扩展设置")

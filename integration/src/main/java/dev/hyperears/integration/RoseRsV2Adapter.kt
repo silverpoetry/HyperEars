@@ -9,7 +9,7 @@ import kotlinx.serialization.Transient
 @Serializable @SerialName("rose.rsv2_settings")
 data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, val bass: Int? = null,
     val game: Boolean? = null, val multipoint: Boolean? = null, val audio: Int? = null,
-    val touchEnabled: Boolean? = null, val touch: List<Int>? = null, val prompt: Int? = null,
+    val touchEnabled: Boolean? = null, val touch: List<Int>? = null,val touchRaw:List<Int>?=null, val prompt: Int? = null,
     val findLeft: Boolean? = null, val findRight: Boolean? = null,
     val gain: Int? = null, val hearingProtection: Int? = null,
     val language: Int? = null, val wearDetection: Boolean? = null,
@@ -33,7 +33,8 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
             is RoseRsV2ControlRequest.SetMultipoint -> multipoint != null
             is RoseRsV2ControlRequest.SetAudio -> p.audio && audio != null && request.mode in p.audioModes
             is RoseRsV2ControlRequest.SetTouchEnabled -> p.touchMaster && touchEnabled != null
-            is RoseRsV2ControlRequest.SetTouch -> touch != null && request.slot in SLOTS && request.action in p.touchActions
+            is RoseRsV2ControlRequest.SetTouch -> p.touch && touch != null && touchRaw != null &&
+                request.expectedModel==model && request.expectedMapping==touchRaw && request.slot in SLOTS && request.action in p.touchActions && touch[SLOTS.indexOf(request.slot)]!=request.action
             is RoseRsV2ControlRequest.SetPrompt -> prompt != null && request.level in 1..5
             is RoseRsV2ControlRequest.Find -> p.findSupported && (findLeft != null || findRight != null) && request.target in 1..4
         }
@@ -52,7 +53,7 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
     @Serializable @SerialName("rose.rsv2_multipoint") data class SetMultipoint(val enabled:Boolean):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_audio") data class SetAudio(val mode:Int):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_touch_enable") data class SetTouchEnabled(val enabled:Boolean):RoseRsV2ControlRequest
-    @Serializable @SerialName("rose.rsv2_touch") data class SetTouch(val slot:Int,val action:Int):RoseRsV2ControlRequest
+    @Serializable @SerialName("rose.rsv2_touch") data class SetTouch(val slot:Int,val action:Int,val expectedModel:String?=null,val expectedMapping:List<Int>?=null):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_prompt") data class SetPrompt(val level:Int):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_find") data class Find(val target:Int):RoseRsV2ControlRequest
 }
@@ -140,7 +141,7 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
                         EarbudBattery(overall=reading(report.case)) else EarbudBattery(left=reading(report.left),right=reading(report.right),case=if(model.caseBattery) reading(report.case) else BatteryReading(null,false))
                     add(ProtocolEvent.CapabilitiesIdentified(battery=true));add(ProtocolEvent.FeatureStateChanged(BatteryFeatureState(battery)))
                 }
-                is Wire.State.Touch->{settings=settings.copy(touch=report.actions);add(ProtocolEvent.FeatureStateChanged(settings))}
+                is Wire.State.Touch->{settings=settings.copy(touch=report.actions,touchRaw=report.raw);add(ProtocolEvent.FeatureStateChanged(settings))}
                 is Wire.State.Value->{
                     if(report.type==9){noiseConfirmed=true;currentNoise=when(report.value){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND};add(ProtocolEvent.CapabilitiesIdentified(false,model.noiseValues.map { when(it){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND} }.toSet()));add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(when(report.value){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND})))}
                     else {settings=when(report.type){

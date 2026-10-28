@@ -121,6 +121,37 @@ class BoseDailySettingsDetailsTest {
         val old=option();f.token="replacement";old.performClick();assertEquals(1,f.sent.size);assertEquals(1,f.released)
     }
 
+    @Test fun spatialControlsPinAllFieldsAndKeepReportedSelection() {
+        val f=Fixture();val snapshot=BoseLiveAudioSettings(0x4082,listOf(7,1,0,1,0))
+        f.current=f.current.withFeature(BoseDailySettingsFeatureState(liveAudio=snapshot))
+        val details=f.open()
+        fun option()=views(details).single{it.contentDescription=="bose.spatial.2"}
+        val old=option()
+        f.current=f.current.withFeature(BoseDailySettingsFeatureState(liveAudio=snapshot.copy(raw=listOf(6,1,0,1,0))))
+        old.performClick();assertTrue(f.sent.isEmpty())
+        f.observer!!(f.current);option().performClick()
+        assertEquals(BoseDailyControlRequest.SetSpatial(snapshot.copy(raw=listOf(6,1,0,1,0)),2),f.sent.single())
+        assertFalse((option() as android.widget.RadioButton).isChecked)
+        val refresh=views(details).single{it.contentDescription=="bose.audio.refresh"}
+        refresh.performClick();assertEquals(StandardControlRequest.Refresh,f.sent.last());assertEquals(2,f.sent.size)
+        f.token="new-session";option().performClick();refresh.performClick();assertEquals(2,f.sent.size);assertEquals(1,f.released)
+    }
+    @Test fun renameDraftValidatesBytesRejectsStaleNameAndWaitsForFirmwareReport() {
+        val f=Fixture();val original=BoseDeviceName(0x4039,0,"Fargo")
+        f.current=f.current.withFeature(BoseDailySettingsFeatureState(deviceName=original))
+        val details=f.open()
+        val draft=views(details).filterIsInstance<android.widget.EditText>().single{it.contentDescription=="bose.rename.draft"}
+        val apply=views(details).single{it.contentDescription=="bose.rename.apply"}
+        draft.setText("é".repeat(16));apply.performClick();assertTrue(f.sent.isEmpty());assertNotNull(draft.error)
+        draft.setText("Cafe");apply.performClick()
+        assertEquals(BoseDailyControlRequest.Rename(original,"Cafe"),f.sent.single())
+        assertEquals("Fargo",f.current.features.get<BoseDailySettingsFeatureState>()!!.deviceName!!.name)
+        f.current=f.current.withFeature(BoseDailySettingsFeatureState(deviceName=original.copy(name="Other")))
+        draft.setText("Another");apply.performClick();assertEquals(1,f.sent.size)
+        f.observer!!(f.current);assertEquals("Other",draft.text.toString())
+        draft.setText("New");f.token="replacement";apply.performClick();assertEquals(1,f.sent.size);assertEquals(1,f.released)
+    }
+
     private inner class Fixture {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)

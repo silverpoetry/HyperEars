@@ -1,0 +1,29 @@
+<resources>
+    <string name="widget_label">HyperEars 电量</string>
+    <string name="widget_description">查看耳机最近记录的电量，点按打开蓝牙设置</string>
+    <string name="widget_waiting">等待耳机电量</string>
+    <string name="widget_fixed_unavailable">等待所选耳机</string>
+    <string name="widget_recorded_connected">上次记录：已连接</string>
+    <string name="widget_recorded_disconnected">上次记录：已断开</string>
+    <string name="widget_recorded_external">上次记录：应用管理</string>
+    <string name="widget_system_owned">上次记录：由系统管理</string>
+    <string name="widget_unconfirmed">连接状态待确认</string>
+    <string name="widget_recorded_time">记录 %1$s</string>
+    <string name="widget_time_unknown">记录时间未知</string>
+    <string name="widget_overall">耳机</string>
+    <string name="widget_left">左耳</string>
+    <string name="widget_right">右耳</string>
+    <string name="widget_case">充电盒</string>
+    <string name="widget_unknown">—</string>
+    <string name="widget_component_value">%1$s\n%2$s%3$s</string>
+    <string name="widget_charging"> ⚡</string>
+    <string name="widget_open_settings">打开此耳机的蓝牙设置</string>
+    <string name="widget_configure">选择设备</string>
+    <string name="widget_auto">自动选择最近连接的耳机</string>
+    <string name="widget_choose_device">电量组件显示设备</string>
+    <string name="widget_device_label">%1$s · %2$s</string>
+    <string name="widget_left_short">左</string>
+    <string name="widget_right_short">右</string>
+    <string name="widget_case_short">盒</string>
+    <string name="widget_component_compact">%1$s%3$s\n%2$s</string>
+</resources>

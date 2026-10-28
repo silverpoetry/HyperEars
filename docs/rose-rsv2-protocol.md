@@ -286,3 +286,36 @@ Regression coverage includes same class/ID qualification, renamed and disabled
 adapters, conflicting identities, no capability from metadata, report/reset gates,
 07/31 collision isolation, MK2 no-depth/audio-range limits, i7 source labels and actual
 native Settings composition using the qualified existing Ceramics U class.
+
+## Complete touch snapshots and native Settings coverage
+
+The existing RSv2 touch editor already covered the source-qualified profiles before
+this follow-up; historical inventory widget counts are not a count of missing editors.
+This update adds the previously missing eight inline Android Settings rows and hardens
+the existing popup/session contract, rather than adding another transport or model.
+
+Executable `RsCommonV2Receiver._handleKeyData` at0xf0c9bc calls
+`_keyValuesFromPairs` at0xf0aa9c with slots01/02/03/04/11/12/13/14.
+That helper parses full hexadecimal byte pairs into a keyed map; unlike RS Common
+and F8, it does not extract low-nibble positions from the complete frame. A valid
+report contains all eight distinct slots in16 bytes. Raw pair order is retained
+alongside canonical left/right single/double/triple/hold values. Unknown current
+function bytes remain reported state and are shown read-only; they do not become
+writable actions. Duplicate/missing slots and malformed envelopes grant no evidence.
+
+All25 touch-capable entries select config pool8658's four operations. Source action
+lists are pool8660 (0..7) or8738 (0..8). Full-list membership is explicit, independent
+of noise-mode widgets: KY01 and SportFeel8912F both allow source ANC-cycle8 even
+though they do not expose a noise-mode selector. SpeakFeel, Magician and Moka retain
+no touch mapping. The four source-qualified old classes retain their original IDs
+and acquire this contract only through the existing qualified source dialect.
+
+SetTouch now pins the expected model and complete raw pair snapshot. Old serialized
+requests lacking these fields are decoded but rejected; no stale unqualified request
+is upgraded implicitly. Adapter and session reject changed siblings, reordered raw
+reports, changed models and reset evidence. One-slot writes remain01/slot/action,
+followed by the existing FA01 readback; reported state is never changed optimistically.
+Both native surfaces capture the same snapshot and recheck current owner/session.
+Independent literal frames include reordered pairs and unknown action200 so tests
+exercise raw-to-canonical ordering without using production slot constants.
+No additional hardware validation is claimed.

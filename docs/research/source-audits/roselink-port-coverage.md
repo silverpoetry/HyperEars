@@ -65,3 +65,14 @@ in progress. Parent reported 1307 passing tests for that checkpoint; this task d
 run Gradle, use a phone or claim additional hardware acceptance. After pending source
 ports merge, regenerate the affected rows instead of treating this dated snapshot as
 permanent feature truth.
+
+### RSv2 follow-up after checkpoint39a273c
+
+The JSON above remains an explicit3029c98 snapshot. Current RSv2 already had a
+popup touch editor for its25 source-qualified touch profiles (including the four
+old adapter IDs refined by manufacturer evidence). These are not25 new ports and
+the old20-row cross-protocol widget gap is not a current RSv2 backlog. The follow-up
+adds missing inline Settings rows, expected model/raw snapshot validation and
+read-only unknown current actions. KY01's source full action list is now explicit.
+RS Common seven-model and F8 Explorer/7034 mapping ports were completed separately;
+Agate/Agate X/Ceramics six-value-to-hold association remains an exact documented gap.

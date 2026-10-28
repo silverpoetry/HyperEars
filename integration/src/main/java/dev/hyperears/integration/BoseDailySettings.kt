@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
+@Serializable data class BoseLiveAudioSettings(val productId:Int,val raw:List<Int>)
+@Serializable data class BoseDeviceName(val productId:Int,val flag:Int,val name:String)
 @Serializable
 data class BoseButtonSetting(val productId:Int,val button:Int,val event:Int,val current:Int,val mask:List<Int>) {
     val actions:List<Int> get()=dev.hyperears.protocol.bose.BoseDailySettingsCodec.buttonActions.filter {id ->
@@ -28,11 +30,19 @@ data class BoseDailySettingsFeatureState(
     val sidetone: Int? = null,
     val autoAnswer: Boolean? = null,
     val buttons: List<BoseButtonSetting> = emptyList(),
+    val liveAudio:BoseLiveAudioSettings?=null,
+    val deviceName:BoseDeviceName?=null,
 ) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
     val hasSettings get() = !eq.isNullOrEmpty() || promptsRaw != null || multipoint != null ||
-        autoPause != null || cnc != null || anr != null || sidetone != null || autoAnswer != null || buttons.isNotEmpty()
+        autoPause != null || cnc != null || anr != null || sidetone != null || autoAnswer != null || buttons.isNotEmpty() || liveAudio!=null || deviceName!=null
     fun supports(request: BoseDailyControlRequest): Boolean = when (request) {
+        is BoseDailyControlRequest.SetSpatial -> liveAudio==request.expected && liveAudio?.productId==0x4082 &&
+            dev.hyperears.protocol.bose.BoseDailySettingsCodec.validAudioSettings(request.expected.raw) && request.mode in 0..2 && request.mode!=request.expected.raw[2]
+        is BoseDailyControlRequest.SetWind -> liveAudio==request.expected && liveAudio?.productId==0x4082 &&
+            dev.hyperears.protocol.bose.BoseDailySettingsCodec.validAudioSettings(request.expected.raw) && request.enabled!=(request.expected.raw[3]==1)
+        is BoseDailyControlRequest.Rename -> deviceName==request.expected && request.expected.productId in setOf(0x4020,0x4039) &&
+            request.name!=request.expected.name && dev.hyperears.protocol.bose.BoseDailySettingsCodec.encodeDeviceName(request.name)!=null
         is BoseDailyControlRequest.SetButton -> request.expected in buttons && request.action in request.expected.actions && request.action!=request.expected.current
         is BoseDailyControlRequest.SetEqBand -> eq?.any { it.definition == request.expected &&
             request.value in it.definition.minimum..it.definition.maximum } == true
@@ -48,6 +58,9 @@ data class BoseDailySettingsFeatureState(
 }
 @Serializable
 sealed interface BoseDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("bose.set_spatial") data class SetSpatial(val expected:BoseLiveAudioSettings,val mode:Int):BoseDailyControlRequest
+    @Serializable @SerialName("bose.set_wind") data class SetWind(val expected:BoseLiveAudioSettings,val enabled:Boolean):BoseDailyControlRequest
+    @Serializable @SerialName("bose.rename") data class Rename(val expected:BoseDeviceName,val name:String):BoseDailyControlRequest
     @Serializable @SerialName("bose.set_button")
     data class SetButton(val expected:BoseButtonSetting,val action:Int):BoseDailyControlRequest
     @Serializable @SerialName("bose.set_sidetone")
@@ -72,16 +85,16 @@ sealed interface BoseDailyControlRequest : ControlRequest {
 internal data class BoseDailyProfile(val eq: Boolean = false, val prompts: Boolean = false,
     val multipoint: Boolean = false, val autoPause: Boolean = false, val cnc: Boolean = false,
     val anr: Boolean = false, val repeatCncEnable: Boolean = false,
-    val sidetone: Boolean = false, val autoAnswer: Boolean = false, val buttons:Boolean=false) {
+    val sidetone: Boolean = false, val autoAnswer: Boolean = false, val buttons:Boolean=false,val liveAudio:Boolean=false,val rename:Boolean=false) {
     companion object {
         fun forProduct(id: Int?): BoseDailyProfile = when (id) {
             0x400C -> BoseDailyProfile(prompts = true, anr = true)
-            0x4020 -> BoseDailyProfile(buttons=true, prompts = true, anr = true, sidetone = true)
+            0x4020 -> BoseDailyProfile(rename=true, buttons=true, prompts = true, anr = true, sidetone = true)
             0x4024 -> BoseDailyProfile(cnc = true, repeatCncEnable = true)
-            0x4039 -> BoseDailyProfile(buttons=true, eq = true, prompts = true, multipoint = true, sidetone = true)
+            0x4039 -> BoseDailyProfile(rename=true, buttons=true, eq = true, prompts = true, multipoint = true, sidetone = true)
             0x4075 -> BoseDailyProfile(eq = true, prompts = true)
             0x402F -> BoseDailyProfile(buttons=true, eq = true, prompts = true, multipoint = true, cnc = true, sidetone = true)
-            0x4082 -> BoseDailyProfile(buttons=true, eq = true, prompts = true, multipoint = true, autoPause = true, sidetone = true, autoAnswer = true)
+            0x4082 -> BoseDailyProfile(liveAudio=true, buttons=true, eq = true, prompts = true, multipoint = true, autoPause = true, sidetone = true, autoAnswer = true)
             0x4062 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true, autoPause = true)
             0x4068 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true)
             else -> BoseDailyProfile()

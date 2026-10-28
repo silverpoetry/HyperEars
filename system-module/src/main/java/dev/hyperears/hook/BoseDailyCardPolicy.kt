@@ -8,6 +8,9 @@ internal object BoseDailyCardPolicy {
     fun available(state: EarbudState, address: String) = ready(state, address) &&
         state.features.get<BoseDailySettingsFeatureState>()?.hasSettings == true
     fun matches(state: BoseDailySettingsFeatureState, request: BoseDailyControlRequest) = when (request) {
+        is BoseDailyControlRequest.SetSpatial -> state.liveAudio?.let{it.productId==request.expected.productId && it.raw==request.expected.raw.toMutableList().apply{this[2]=request.mode}}==true
+        is BoseDailyControlRequest.SetWind -> state.liveAudio?.let{it.productId==request.expected.productId && it.raw==request.expected.raw.toMutableList().apply{this[3]=if(request.enabled)1 else 0}}==true
+        is BoseDailyControlRequest.Rename -> state.deviceName?.let{it.productId==request.expected.productId && it.name==request.name}==true
         is BoseDailyControlRequest.SetButton -> state.buttons.any {it.productId==request.expected.productId && it.button==request.expected.button && it.event==request.expected.event && it.current==request.action}
         is BoseDailyControlRequest.SetSidetone -> state.sidetone == request.level
         is BoseDailyControlRequest.SetAutoAnswer -> state.autoAnswer == request.enabled

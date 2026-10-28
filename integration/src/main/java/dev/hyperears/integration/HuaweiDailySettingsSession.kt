@@ -5,11 +5,16 @@ import dev.hyperears.protocol.huawei.HuaweiFreebudsSppCodec
 
 /** Session-owned authoritative settings. Read commands only are accepted as state, never write ACKs. */
 internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfile) {
+    private val paired=HuaweiPairedCollector(profile.autoConnect)
+    private var pendingPairedQuery=false
+    private fun pairedQuery():ByteArray {paired.reset();return dev.hyperears.protocol.huawei.HuaweiPairedDevicesCodec.query()}
+    fun drainCommands():List<ByteArray> {if(!pendingPairedQuery)return emptyList();pendingPairedQuery=false;return listOf(pairedQuery())}
     var state = HuaweiDailySettingsFeatureState()
         private set
-    fun reset() { state = HuaweiDailySettingsFeatureState() }
+    fun reset() { state = HuaweiDailySettingsFeatureState();paired.reset();pendingPairedQuery=false }
     fun lowLatencyQuery(): List<ByteArray> = if (profile.lowLatency) listOf(Wire.query(Wire.LOW_LATENCY, 2)) else emptyList()
     fun queries(): List<ByteArray> = buildList {
+        if(profile.multipoint)add(pairedQuery())
         addAll(lowLatencyQuery())
         if (profile.soundQuality) add(Wire.query(Wire.SOUND_QUALITY_READ, 1))
         if (profile.wear) add(Wire.query(Wire.WEAR_READ, 1))
@@ -20,6 +25,7 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
     fun readback(request: HuaweiDailyControlRequest): List<ByteArray> {
         if (request is HuaweiDailyControlRequest.SetLowLatency) return emptyList()
         return listOf(when (request) {
+        is HuaweiDailyControlRequest.ManageDevice -> pairedQuery()
         is HuaweiDailyControlRequest.SetLowLatency -> error("delayed readback handled above")
         is HuaweiDailyControlRequest.SetSoundQualityPreference -> Wire.query(Wire.SOUND_QUALITY_READ, 1)
         is HuaweiDailyControlRequest.SetWearDetection -> Wire.query(Wire.WEAR_READ, 1)
@@ -29,8 +35,9 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
     })
     }
     fun encode(request: HuaweiDailyControlRequest): ByteArray? {
-        if (!state.supports(request)) return null
+        if (!state.supports(request) || request is HuaweiDailyControlRequest.ManageDevice && (!profile.multipoint || !paired.complete)) return null
         return when (request) {
+            is HuaweiDailyControlRequest.ManageDevice -> dev.hyperears.protocol.huawei.HuaweiPairedDevicesCodec.write(request.target,request.action.wire)
             is HuaweiDailyControlRequest.SetLowLatency -> Wire.setBoolean(Wire.LOW_LATENCY, request.enabled)
             is HuaweiDailyControlRequest.SetSoundQualityPreference -> Wire.setBoolean(Wire.SOUND_QUALITY_WRITE, request.preferQuality)
             is HuaweiDailyControlRequest.SetWearDetection -> Wire.setBoolean(Wire.WEAR_WRITE, request.enabled)
@@ -49,6 +56,12 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
         }
     }
     fun offer(frame: HuaweiFreebudsSppCodec.Frame): HuaweiDailySettingsFeatureState? {
+        if(profile.multipoint) {
+            if(dev.hyperears.protocol.huawei.HuaweiPairedDevicesCodec.change(frame)) {
+                paired.reset();pendingPairedQuery=true;state=state.copy(pairedDevices=null);return state
+            }
+            paired.offer(frame)?.let { result -> state=state.copy(pairedDevices=result.second);return state }
+        }
         val next = when {
             profile.lowLatency && frame.command == Wire.LOW_LATENCY ->
                 Wire.parsePreference(frame, Wire.LOW_LATENCY)?.let { state.copy(lowLatency = it) }

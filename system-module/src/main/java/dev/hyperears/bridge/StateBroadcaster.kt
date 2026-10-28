@@ -27,6 +27,7 @@ object StateBroadcaster {
                 },
             )
         }
+        BatteryWidgetPublisher.publish(context, state, sessionToken, presentation, producer)
     }
 
     fun reply(
@@ -46,5 +47,8 @@ object StateBroadcaster {
                     }
                 },
         )
+        if (targetPackage == ModuleContract.MODULE_PACKAGE) {
+            BatteryWidgetPublisher.publish(context, state, sessionToken, presentation, producer, replay = true)
+        }
     }
 }

@@ -18,6 +18,7 @@ internal class HuaweiDailySettingsDetails private constructor(
     private val context = anchor.context
     private val popup = PopupWindow(context)
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private var pendingDevice:HuaweiDailyControlRequest.ManageDevice?=null
     private var closed = false
     private var rendering = false
     private var unsubscribe: (() -> Unit)? = null
@@ -85,9 +86,39 @@ internal class HuaweiDailySettingsDetails private constructor(
                 }) }
                 controls.addView(group)
             }
+            renderPaired(state)
             renderAncLevels(state)
             renderCustom(state)
         } finally { rendering = false }
+    }
+    private fun renderPaired(state:EarbudState) {
+        val snapshot=state.features.get<HuaweiDailySettingsFeatureState>()?.pairedDevices
+        if(pendingDevice?.expected!=snapshot)pendingDevice=null
+        if(snapshot==null)return
+        snapshot.devices.forEach { device ->
+            controls.addView(text(device.name.ifBlank{device.mac},17f))
+            controls.addView(text(HuaweiPairedLabels.status(device),14f))
+            HuaweiPairedAction.entries.filter{snapshot.supports(device.mac,it)}.forEach { action ->
+                val request=HuaweiDailyControlRequest.ManageDevice(snapshot,device.mac,action)
+                controls.addView(Button(context).apply {
+                    text=HuaweiPairedLabels.action(action);contentDescription="huawei.device.${device.mac}.${action.name}"
+                    setOnClickListener { guarded {
+                        val fresh=environment.stateProvider(address)
+                        if(!valid(fresh)){dismiss();return@guarded}
+                        if(HuaweiDailySettingsPolicy.request(fresh,address,request)==null)return@guarded
+                        if(HuaweiPairedLabels.destructive(action)){pendingDevice=request;render(fresh)}else send(request)
+                    } }
+                })
+            }
+        }
+        pendingDevice?.let { request ->
+            controls.addView(text("确认${HuaweiPairedLabels.action(request.action)}？",16f))
+            controls.addView(Button(context).apply {
+                text="确认";contentDescription="huawei.device.confirm"
+                setOnClickListener {guarded{if(pendingDevice!=request)return@guarded;pendingDevice=null;send(request)}}
+            })
+            controls.addView(Button(context).apply {text="取消";setOnClickListener{pendingDevice=null;render(environment.stateProvider(address))}})
+        }
     }
     private fun renderAncLevels(state: EarbudState) {
         val level = state.features.get<HuaweiAncLevelFeatureState>() ?: return

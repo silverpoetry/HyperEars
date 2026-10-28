@@ -1,0 +1,11 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp" android:minHeight="100dp"
+    android:minResizeWidth="110dp" android:minResizeHeight="90dp"
+    android:targetCellWidth="2" android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical" android:updatePeriodMillis="0"
+    android:initialLayout="@layout/battery_widget_compact"
+    android:previewLayout="@layout/battery_widget_compact"
+    android:description="@string/widget_description"
+    android:configure="dev.hyperears.widget.BatteryWidgetConfigurationActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional"
+    android:widgetCategory="home_screen" />

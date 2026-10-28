@@ -9,6 +9,7 @@ internal data class HuaweiDailyProfile(
     val gestures: Map<HuaweiGestureKind, GestureProfile> = emptyMap(),
     val lowLatency: Boolean = false,
     val soundQuality: Boolean = false,
+    val autoConnect:Boolean=true,
 ) {
     data class GestureProfile(val values: List<Int>, val right: Boolean = true, val call: Boolean = false, val left: Boolean = true, val mirrored: Boolean = false)
     companion object {
@@ -30,7 +31,7 @@ internal data class HuaweiDailyProfile(
         val BUDS5I = HuaweiDailyProfile(true, true, listOf(1, 2, 3, 9), lowLatency = true, soundQuality = true, gestures = mapOf(
             HuaweiGestureKind.DOUBLE to tap.copy(call = true), HuaweiGestureKind.TRIPLE to tap,
             HuaweiGestureKind.HOLD to hold, HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
-        val BUDS6I = BUDS5I.copy(custom = true, gestures = BUDS5I.gestures + mapOf(
+        val BUDS6I = BUDS5I.copy(autoConnect=false,custom = true, gestures = BUDS5I.gestures + mapOf(
             HuaweiGestureKind.DOUBLE to GestureProfile(listOf(1, 2), call = true),
             HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1))))
         val BUDS4I = HuaweiDailyProfile(wear = true, gestures = mapOf(
@@ -56,7 +57,7 @@ internal data class HuaweiDailyProfile(
             HuaweiGestureKind.HOLD to hold, HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
         val PRO2 = PRO.copy(wear = true, presets = listOf(1, 2, 3), soundQuality = true)
         val STUDIO = HuaweiDailyProfile(wear = true) // EQ explicitly wo_read upstream.
-        val LACE_PRO2 = HuaweiDailyProfile(multipoint = true, custom = true, lowLatency = true, soundQuality = true,
+        val LACE_PRO2 = HuaweiDailyProfile(autoConnect=false,multipoint = true, custom = true, lowLatency = true, soundQuality = true,
             // Built-ins must be advertised; no model-specific preset labels are inferred.
             gestures = mapOf(HuaweiGestureKind.HOLD to hold.copy(right = false),
                 HuaweiGestureKind.CYCLE to cycle.copy(right = false)))

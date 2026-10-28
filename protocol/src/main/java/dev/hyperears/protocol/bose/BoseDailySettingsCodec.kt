@@ -13,6 +13,33 @@ object BoseDailySettingsCodec {
     const val AUTO_PAUSE = 24
     data class EqBand(val id: Int, val minimum: Int, val maximum: Int, val current: Int)
     data class Cnc(val rawLevel: Int, val enabled: Boolean)
+    data class DeviceName(val flag:Int,val text:String)
+    fun validAudioSettings(raw:List<Int>)=raw.size==5 && raw[0] in 0..10 && raw[1] in 0..1 && raw[2] in 0..2 && raw[3] in 0..1 && raw[4] in 0..1
+    fun parseAudioSettings(frame:BoseBmapWireCodec.Frame):List<Int>? {
+        if(frame.functionBlock!=31||frame.function!=10||frame.operator!=BoseBmapWireCodec.Operator.STATUS)return null
+        return frame.payload.map{it.toInt() and 255}.takeIf(::validAudioSettings)
+    }
+    fun queryAudioSettings()=BoseBmapWireCodec.packet(31,10,BoseBmapWireCodec.Operator.GET)
+    fun setAudioSettings(expected:List<Int>,index:Int,value:Int):ByteArray {
+        require(validAudioSettings(expected)&&index in setOf(2,3))
+        val next=expected.toMutableList().apply{this[index]=value}
+        require(validAudioSettings(next))
+        return BoseBmapWireCodec.packet(31,10,BoseBmapWireCodec.Operator.SET_GET,next.map(Int::toByte).toByteArray())
+    }
+    fun encodeDeviceName(name:String):ByteArray? = runCatching {
+        if(name.isBlank()||name.any{it.isISOControl()})return null
+        val buffer=Charsets.UTF_8.newEncoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).encode(java.nio.CharBuffer.wrap(name))
+        if(buffer.remaining() !in 1..31)return null
+        ByteArray(buffer.remaining()).also{buffer.get(it)}
+    }.getOrNull()
+    fun parseDeviceName(frame:BoseBmapWireCodec.Frame):DeviceName? {
+        if(!isState(frame,2)||frame.payload.size !in 1..255)return null
+        val text=runCatching {Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(frame.payload,1,frame.payload.size-1)).toString()}.getOrNull()?:return null
+        return DeviceName(frame.payload[0].toInt() and 255,text)
+    }
+    fun setDeviceName(name:String)=write(2,requireNotNull(encodeDeviceName(name)))
     data class Button(val id:Int,val event:Int,val current:Int,val mask:List<Int>)
     val buttonActions=(1..17).toSet()+setOf(19,20,21)
     fun parseButton(frame:BoseBmapWireCodec.Frame):Button? {

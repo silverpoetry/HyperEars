@@ -259,6 +259,8 @@ does not treat every source command as universally supported. All items below re
 
 - [ ] D1 Notifications/lockscreen/widgets, connection presentation duration/theme/layout,
   battery speech, connection-volume presets, wearing playback behavior and action remapping.
+  Desktop widgets implemented with authenticated event-driven battery projection, historical timestamps,
+  per-widget selection and native Settings navigation; remaining D1 features stay open.
 - [ ] D2 Distinguish phone AudioEffect from on-earbud EQ; add session-aware audio controls.
 - [ ] D3 Last-seen location/RSSI proximity/media ringing and actual device find commands with
   precise capability labels; do not imply cloud offline finding or UWB from approximate RSSI.
@@ -428,24 +430,28 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The F8 touch/Bose buttons/Pudding battery checkpoint passes 1,358 tests (346 protocol,
-536 integration, 476 system-module), Release lint/assembly and protocol-test Debug assembly.
-Explorer and Ceramics X 7034 gain their distinct eight-slot F8 mapping with source queries,
-independent frame fixtures and full-snapshot guards; ambiguous Agate layouts remain excluded.
-Bose products 4020/4039/402F/4082 gain device-advertised button actions, mask revocation and
-native Settings/details. Each slice received independent executable-source review.
+The widget/Huawei paired-device/Bose audio-name/RSv2 touch checkpoint passes 1,394 tests
+(348 protocol, 546 integration, 500 system-module), Release lint/assembly and protocol-test
+Debug assembly. Verification log: `.analysis/verification/widgets-huawei-bose-rsv2-final.log`.
 
-Pudding now merges initial partial battery reports only during its existing bounded bootstrap;
-after commit, complete snapshots clear explicitly unavailable components. Four new regressions
-first failed on the old implementation and now pass. A default-identity adapter normalization
-hook keeps this policy outside the protocol decoder and correctly orders coalesced reports;
-input/output contracts and feature IDs are checked. APK zero/delta semantics and ZZZ's measured
-policy remain distinct. Malformed mixed snapshots cannot masquerade as offline components.
+Desktop battery widgets use authenticated reduced state, bounded dedup, historical timestamps,
+per-widget selection and native Settings navigation without private controls or periodic work.
+Resource-aware Robolectric tests exercise actual layouts, sender and scope rejection, producer
+replacement rollback, restore-ID overlap, lifecycle and production broadcaster wiring. Six native
+rendered previews cover compact/wide/minimum dimensions and large-font/dark variants. Reviewed
+minimum size is 110 by 90 dp; labels are at least 11 sp. Launcher acceptance remains pending.
 
-D1 battery-widget design has passed root technical review and implementation is in progress.
-It uses coalesced authenticated projection, explicit historical timestamps, no polling, per-widget
-selection and existing native Settings navigation. Next source slices include RSv2 touch and
-Bose's exact 4082 spatial/wind plus 4020/4039 device rename contracts. The RoseLink baseline
-inventory remains routing evidence, not complete feature certification. Other open family,
-Android-experience and release requirements remain in scope. No new phone installation or
-hardware acceptance is claimed; this checkpoint does not complete the comprehensive goal.
+Huawei paired-device management requires a complete bounded source-defined enumeration, pins
+its full snapshot and rechecks destructive confirmations. FreeBuds 6i and FreeLace Pro 2 do not
+inherit auto-connect writes. Bose 4082 gains five-byte-preserving spatial/wind controls with a
+pending-write guard and explicit refresh; 4020/4039 gain firmware rename through native text
+preferences with a 31-byte UTF-8 write limit, distinct from the larger readable name bound.
+
+RSv2 already had 25 model-qualified popup touch editors; this batch adds missing native inline
+rows and full raw/model stale guards, preserves unknown current actions as read-only, and fixes
+KY01's source-declared ANC-cycle gesture independently of noise-control availability. Historical
+inventory counts are not current missing-editor counts. Independent source review preceded tests.
+
+These are code/build/render checks, not new hardware acceptance. No phone installation, scope
+change, restart or settings mutation occurred. Other open family and Android-experience features,
+owned-device feedback and release/Draft-PR work remain; the comprehensive goal stays active.

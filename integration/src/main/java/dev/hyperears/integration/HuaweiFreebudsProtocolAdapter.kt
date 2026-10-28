@@ -210,9 +210,10 @@ private class HuaweiFreebudsProtocolSession(
     }
 
     override fun drainImmediateCommands(): List<ByteArray> {
-        if (!pendingNoiseRefresh) return emptyList()
+        val commands=daily?.drainCommands().orEmpty()
+        if (!pendingNoiseRefresh) return commands
         pendingNoiseRefresh = false
-        return listOf(HuaweiFreebudsSppCodec.queryNoiseState)
+        return commands+listOf(HuaweiFreebudsSppCodec.queryNoiseState)
     }
 
     override fun offer(bytes: ByteArray): List<ProtocolEvent> = buildList {

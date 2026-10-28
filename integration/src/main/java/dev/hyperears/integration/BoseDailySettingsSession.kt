@@ -5,6 +5,7 @@ import dev.hyperears.protocol.bose.BoseDailySettingsCodec as Wire
 
 internal class BoseDailySettingsSession {
     private var productId: Int? = null
+    private var liveAudioPending=false
     private var profile = BoseDailyProfile()
     var state = BoseDailySettingsFeatureState()
         private set
@@ -12,8 +13,10 @@ internal class BoseDailySettingsSession {
         if (productId != id) reset()
         productId = id; profile = BoseDailyProfile.forProduct(id)
     }
-    fun reset() { state = BoseDailySettingsFeatureState() }
+    fun reset() { state = BoseDailySettingsFeatureState();liveAudioPending=false }
     fun queries(): List<ByteArray> = buildList {
+        if(profile.liveAudio)add(Wire.queryAudioSettings())
+        if(profile.rename)add(Wire.query(2))
         if(profile.buttons)add(Wire.query(Wire.BUTTONS))
         if (profile.sidetone) add(Wire.query(Wire.SIDETONE))
         if (profile.autoAnswer) add(Wire.query(Wire.AUTO_ANSWER))
@@ -26,6 +29,8 @@ internal class BoseDailySettingsSession {
     }
     fun offer(frame: BoseBmapWireCodec.Frame): BoseDailySettingsFeatureState? {
         val next = when {
+            profile.liveAudio && frame.functionBlock==31 && frame.function==10 -> Wire.parseAudioSettings(frame)?.let{liveAudioPending=false;state.copy(liveAudio=BoseLiveAudioSettings(requireNotNull(productId),it))}
+            profile.rename && frame.functionBlock==1 && frame.function==2 -> Wire.parseDeviceName(frame)?.let{state.copy(deviceName=BoseDeviceName(requireNotNull(productId),it.flag,it.text))}
             profile.buttons && frame.function==Wire.BUTTONS -> Wire.parseButton(frame)?.let { report ->
                 val product=productId?:return null
                 val value=BoseButtonSetting(product,report.id,report.event,report.current,report.mask)
@@ -48,7 +53,12 @@ internal class BoseDailySettingsSession {
     }
     fun encode(request: BoseDailyControlRequest): List<ByteArray> {
         if (!state.supports(request)) return emptyList()
+        val wholeAudio=request is BoseDailyControlRequest.SetSpatial || request is BoseDailyControlRequest.SetWind
+        if(wholeAudio&&liveAudioPending)return emptyList()
         return when (request) {
+            is BoseDailyControlRequest.SetSpatial -> listOf(Wire.setAudioSettings(request.expected.raw,2,request.mode))
+            is BoseDailyControlRequest.SetWind -> listOf(Wire.setAudioSettings(request.expected.raw,3,if(request.enabled)1 else 0))
+            is BoseDailyControlRequest.Rename -> listOf(Wire.setDeviceName(request.name))
             is BoseDailyControlRequest.SetButton -> listOf(Wire.setButton(request.expected.button,request.expected.event,request.action))
             is BoseDailyControlRequest.SetSidetone -> listOf(Wire.setSidetone(request.level))
             is BoseDailyControlRequest.SetAutoAnswer -> listOf(Wire.setToggle(Wire.AUTO_ANSWER, request.enabled))
@@ -62,9 +72,11 @@ internal class BoseDailySettingsSession {
                 if (profile.repeatCncEnable && state.cnc?.enabled == false && request.rawLevel != 0)
                     listOf(command, command) else listOf(command)
             }
-        }
+        }.also {if(wholeAudio)liveAudioPending=true}
     }
-    fun readback(request: BoseDailyControlRequest): List<ByteArray> = listOf(Wire.query(when (request) {
+    fun readback(request: BoseDailyControlRequest): List<ByteArray> = if(request is BoseDailyControlRequest.SetSpatial || request is BoseDailyControlRequest.SetWind) listOf(Wire.queryAudioSettings()) else listOf(Wire.query(when (request) {
+        is BoseDailyControlRequest.SetSpatial,is BoseDailyControlRequest.SetWind -> error("handled audio block")
+        is BoseDailyControlRequest.Rename -> 2
         is BoseDailyControlRequest.SetButton -> Wire.BUTTONS
         is BoseDailyControlRequest.SetSidetone -> Wire.SIDETONE
         is BoseDailyControlRequest.SetAutoAnswer -> Wire.AUTO_ANSWER

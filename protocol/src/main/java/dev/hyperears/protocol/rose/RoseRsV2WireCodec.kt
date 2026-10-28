@@ -9,7 +9,7 @@ object RoseRsV2WireCodec {
         data class Value(val type: Int, val value: Int) : State
         data class Firmware(val major: Int, val minor: Int, val patch: Int) : State
         /** Validated complete slot order: left 1..4, right 0x11..0x14. */
-        data class Touch(val actions: List<Int>) : State
+        data class Touch(val actions: List<Int>,val raw:List<Int>) : State
     }
 
     fun command(sequence: Int, payload: ByteArray): ByteArray {
@@ -123,8 +123,8 @@ object RoseRsV2WireCodec {
                 0x2F -> if (model.findSupported && values.size == 1 && values[0] in 1..6) add(State.Value(type, values[0]))
                 0x01 -> if (model.touch && values.size == 16) {
                     val pairs = values.chunked(2)
-                    if (pairs.map { it[0] }.toSet() == TOUCH_SLOTS && pairs.all { it[1] in model.touchActions }) {
-                        add(State.Touch(TOUCH_SLOTS.map { slot -> pairs.single { it[0] == slot }[1] }))
+                    if (pairs.map { it[0] }.toSet() == TOUCH_SLOTS) {
+                        add(State.Touch(TOUCH_SLOTS.map { slot -> pairs.single { it[0] == slot }[1] },values.toList()))
                     }
                 }
             }

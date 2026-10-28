@@ -45,6 +45,28 @@ internal class SettingsPreferenceHost(private val loader: ClassLoader, private v
             })
         }
     }
+    fun textInput(key: String, title: String, reported: String, enabled: Boolean,
+        valid: (String) -> Boolean, invalidMessage: String, changed: (String) -> Unit): Any {
+        val type = runCatching { loader.loadClass("androidx.preference.EditTextPreference") }.getOrNull()
+            ?: return row(key, title).also { summary(it, reported); enable(it, false) }
+        return create(type, key, title).also { row ->
+            type.getMethod("setText", String::class.java).invoke(row, reported)
+            type.getMethod("setDialogTitle", CharSequence::class.java).invoke(row, title)
+            summary(row, reported)
+            enable(row, enabled)
+            preference.getMethod("setOnPreferenceChangeListener", change).invoke(row,
+                Proxy.newProxyInstance(loader, arrayOf(change)) { _, method, args ->
+                    if (method.name == "onPreferenceChange") {
+                        (args?.getOrNull(1) as? String)?.let { proposed ->
+                            if (valid(proposed)) changed(proposed)
+                            else android.widget.Toast.makeText(context, invalidMessage, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        // Only a device report may replace the value displayed by the host.
+                        false
+                    } else proxyObject(method.name)
+                })
+        }
+    }
     fun range(key: String, title: String, values: IntRange, selected: Int, enabled: Boolean, changed: (Int) -> Unit): Any {
         val type = loader.loadClass("androidx.preference.SeekBarPreference")
         return create(type, key, title).also { row ->

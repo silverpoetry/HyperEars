@@ -1,0 +1,25 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_body" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:baselineAligned="false" android:gravity="center_vertical" android:padding="8dp"
+    android:background="@drawable/widget_background">
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/widget_name" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/widget_label" android:textColor="@color/widget_foreground" android:textSize="15sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/widget_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/widget_unconfirmed" android:textColor="@color/widget_secondary" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/widget_time" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/widget_time_unknown" android:textColor="@color/widget_secondary" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" />
+    <TextView android:id="@+id/widget_configure" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:padding="4dp" android:text="@string/widget_configure" android:contentDescription="@string/widget_configure"
+        android:textColor="@color/widget_accent" android:textSize="11sp" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/widget_batteries" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center" android:paddingTop="6dp" android:paddingBottom="4dp">
+        <TextView android:id="@+id/widget_left" android:layout_width="48dp" android:layout_height="wrap_content"
+            android:gravity="center" android:text="@string/widget_unknown" android:textColor="@color/widget_foreground" android:textSize="12sp" android:maxLines="2" />
+        <TextView android:id="@+id/widget_right" android:layout_width="48dp" android:layout_height="wrap_content"
+            android:gravity="center" android:text="@string/widget_unknown" android:textColor="@color/widget_foreground" android:textSize="12sp" android:maxLines="2" />
+        <TextView android:id="@+id/widget_case" android:layout_width="48dp" android:layout_height="wrap_content"
+            android:gravity="center" android:text="@string/widget_unknown" android:textColor="@color/widget_foreground" android:textSize="12sp" android:maxLines="2" />
+    </LinearLayout>
+
+</LinearLayout>

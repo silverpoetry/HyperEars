@@ -368,3 +368,43 @@ label because the source `noise_control_off_an` has no verified translation. The
 form factor does not suppress valid component battery reports. Reconnection clears reports.
 Voice-language writes remain with the vendor app because the source query reports available
 languages without an authoritative current-language value. The new profile awaits device feedback.
+
+## Paired-device management
+
+OpenFreebuds `0b4f14c0`, `openfreebuds/driver/huawei/handler/dual_connect/`
+`handler.py`, `models.py`, `constants.py` and `constants/spp_commands.py` provide
+this separate device-list contract. Existing executable multipoint profiles permit
+the query; FreeBuds6i and FreeLace Pro2 explicitly disable auto-connect management.
+A global multipoint toggle report does not substitute for a paired-device list.
+
+Enumeration2B31 sends field1 empty. Each row reports signed big-endian count(field2)
+and zero-based index(field3), exact six-byte MAC(field4), connection byte(field5;
+positive=connected,9=playing), preferred boolean(field7), optional-profile auto-connect
+boolean(field8), and UTF8 name(field9). The implementation bounds counts to1..32,
+integer widths to1..4 and names to the255-byte TLV limit; these are defensive implementation
+bounds, not claims about source device limits. Unknown fields remain in the raw
+packet snapshot. CRC/envelope parsing and strict field validation precede collection.
+
+Only all distinct indices0..count-1 with unique MACs and a consistent count produce
+an actionable snapshot. A new query clears pending rows and immediately invalidates
+session write admission; its first valid partial response revokes the published old
+snapshot. Conflicting rows lock that round until a new query. Valid2B36 change events
+revoke and schedule one existing immediate read-only enumeration command. No timer,
+polling or partial-list write is added. A missing-MAC or zero-count packet is not
+invented as an empty-list completion. Malformed data and7F acknowledgements never
+confirm or remove a device.
+
+Preferred writes2B32 field1=MAC. Execute2B33 uses action field1 connect,2 disconnect,
+3 forget,4 enable auto-connect,5 disable auto-connect. Each accepted management write
+is followed by full enumeration; no optimistic connected/preferred/name state is
+published. Requests pin the full ordered snapshot, local revision and target MAC.
+Disconnect/forget require one native confirmation and recheck ownership, current
+session and full snapshot at acceptance. Other paired-device operations use the same
+current-state guards. The existing multipoint toggle is unchanged.
+
+Fixtures were generated directly by the pinned Python `HuaweiSppPackage.to_bytes`
+writer, with source utility/exception modules loaded without starting its platform
+backend. For example query is `5a0005002b310100f1ec` and forgetting001122334455 is
+`5a000b002b330306001122334455bfc9`. Tests use these literal CRC-bearing frames,
+including a two-row enumeration, and do not derive goldens from the Kotlin encoder.
+Source/fixture verification does not establish physical device validation.

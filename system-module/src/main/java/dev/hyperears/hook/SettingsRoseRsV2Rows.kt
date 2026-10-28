@@ -19,6 +19,7 @@ internal object RoseRsV2DailyLabels {
 internal object SettingsRoseRsV2Rows {
     fun add(host: SettingsPreferenceHost, state: EarbudState, address: String, add: (Any) -> Unit,
         current: () -> EarbudState?, send: (ControlRequest) -> Unit) {
+        if(!RoseRsV2SettingsPolicy.available(state,address))return
         val feature = state.features.get<RoseRsV2SettingsFeatureState>() ?: return
         val profile = feature.profile ?: return
         fun choice(key: String, title: String, selected: Int?, labels: List<String>, request: (Int) -> RoseRsV2ControlRequest) {
@@ -51,5 +52,24 @@ internal object SettingsRoseRsV2Rows {
         if (profile.hearingProtectionSupported) choice("hearing", "听力保护", feature.hearingProtection, RoseRsV2DailyLabels.hearingProtection) {
             RoseRsV2ControlRequest.SetHearingProtection(feature.model, it)
         }
+        feature.touch?.takeIf{feature.touchRaw!=null}?.forEachIndexed { index,value ->
+            val slot=RoseRsV2SettingsFeatureState.SLOTS[index]
+            val choices=profile.touchActions.toList()
+            val row=host.choice("hyperears.rsv2.touch.$slot",RoseRsV2TouchLabels.title(index),choices.map{RoseRsV2TouchLabels.actions[it]},
+                choices.map(Int::toString),value.toString(),true) { raw -> runCatching {
+                val action=raw.toIntOrNull()?:return@runCatching
+                val request=RoseRsV2ControlRequest.SetTouch(slot,action,feature.model,feature.touchRaw)
+                current()?.let{RoseRsV2SettingsPolicy.request(it,address,request)}?.let(send)
+            } }
+            if(value !in choices)host.summary(row,RoseRsV2TouchLabels.current(value))
+            add(row)
+        }
+
     }
+}
+
+internal object RoseRsV2TouchLabels {
+    val actions=listOf("无操作","播放 / 暂停","上一曲","下一曲","增大音量","减小音量","游戏模式","语音助手","降噪切换")
+    fun title(index:Int)=(if(index<4)"左耳"else"右耳")+listOf("单击","双击","三击","长按")[index%4]
+    fun current(value:Int)="当前：${actions.getOrNull(value)?:"耳机功能 $value"}（耳机回报）"
 }

@@ -170,12 +170,14 @@ internal class RoseRsV2SettingsDetails private constructor(
         }
         settings.prompt?.let { choices("提示音音量",it-1,(1..5).map { "级别 $it" }) { RoseRsV2ControlRequest.SetPrompt(it+1) } }
         settings.touchEnabled?.let { choices("触摸控制",if(it)1 else 0,listOf("关闭","开启")) { RoseRsV2ControlRequest.SetTouchEnabled(it==1) } }
-        settings.touch?.let { mappings ->
-            val gestures=listOf("单击","双击","三击","长按")
-            val labels=listOf("无操作","播放 / 暂停","上一曲","下一曲","增大音量","减小音量","游戏模式","语音助手","降噪切换").take(profile.touchActions.last+1)
-            mappings.forEachIndexed { index,value -> choices("${if(index<4) "左耳" else "右耳"}${gestures[index%4]}",value,labels) {
-                RoseRsV2ControlRequest.SetTouch(RoseRsV2SettingsFeatureState.SLOTS[index],it)
-            } }
+        settings.touch?.takeIf{settings.touchRaw!=null}?.let { mappings ->
+            val labels=RoseRsV2TouchLabels.actions.take(profile.touchActions.last+1)
+            mappings.forEachIndexed { index,value ->
+                if(value !in profile.touchActions)controls.addView(text(RoseRsV2TouchLabels.current(value),14f))
+                choices(RoseRsV2TouchLabels.title(index),value,labels) {
+                    RoseRsV2ControlRequest.SetTouch(RoseRsV2SettingsFeatureState.SLOTS[index],it,settings.model,settings.touchRaw)
+                }
+            }
         }
         if(settings.findLeft!=null || settings.findRight!=null) {
             controls.addView(text("查找耳机：60 秒或关闭面板后停止；状态以耳机回报为准。",14f))

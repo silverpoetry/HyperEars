@@ -27,14 +27,16 @@ data class HuaweiEqualizerState(
 @Serializable
 @SerialName("huawei.daily_settings")
 data class HuaweiDailySettingsFeatureState(
+    val pairedDevices:HuaweiPairedSnapshot?=null,
     val wearDetection: Boolean? = null, val multipoint: Boolean? = null,
     val lowLatency: Boolean? = null, val preferSoundQuality: Boolean? = null,
     val equalizer: HuaweiEqualizerState? = null, val gestures: List<HuaweiGestureState> = emptyList(),
 ) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
-    val hasSettings get() = lowLatency != null || preferSoundQuality != null || wearDetection != null || multipoint != null || equalizer != null ||
+    val hasSettings get() = pairedDevices!=null || lowLatency != null || preferSoundQuality != null || wearDetection != null || multipoint != null || equalizer != null ||
         gestures.any { it.left != null || it.right != null || it.call != null }
     fun supports(request: HuaweiDailyControlRequest): Boolean = when (request) {
+        is HuaweiDailyControlRequest.ManageDevice -> pairedDevices==request.expected && pairedDevices?.supports(request.target,request.action)==true
         is HuaweiDailyControlRequest.SetLowLatency -> lowLatency != null
         is HuaweiDailyControlRequest.SetSoundQualityPreference -> preferSoundQuality != null
         is HuaweiDailyControlRequest.SetWearDetection -> wearDetection != null
@@ -53,6 +55,8 @@ data class HuaweiDailySettingsFeatureState(
 }
 @Serializable
 sealed interface HuaweiDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("huawei.manage_device")
+    data class ManageDevice(val expected:HuaweiPairedSnapshot,val target:String,val action:HuaweiPairedAction):HuaweiDailyControlRequest
     @Serializable @SerialName("huawei.set_low_latency")
     data class SetLowLatency(val enabled: Boolean) : HuaweiDailyControlRequest
     @Serializable @SerialName("huawei.set_sound_quality_preference")

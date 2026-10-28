@@ -248,3 +248,52 @@ device report; it is not offered as a new write option. Existing owner/address/s
 checks and the captured expected slot reject stale callbacks. This addition neither
 creates a transport nor changes mode profiles, spatial settings, device names or
 firmware behavior. Source-based tests are not physical-device validation.
+
+## QC Ultra 2 live spatial/wind settings
+
+Only product4082's `qc_ultra2.py:126–130` declares executable audio_settings
+read/write support. Bosectl `70570b2` (MIT), `parsers.py:398–420` defines the five-byte
+AudioModes31/10 structure: CNC level0..10, automatic CNC boolean, spatial0/1/2,
+wind boolean, and ANC-toggle boolean. `connection.py:442–464` implements the live
+spatial operation with GET then SET_GET. Spatial0 means off,1 fixed room stage,
+2 head tracking. This is separate from editing or creating a ModeConfig slot.
+
+The independent implementation requires exactly five valid STATUS bytes after
+accepted4082 identity. Typed spatial/wind requests pin product and the complete raw
+snapshot. Writes replace only byte2 or3; CNC, automatic-CNC and ANC-toggle bytes are
+preserved. In particular, the upstream convenience helper omits automatic-CNC when
+rebuilding the payload; this port preserves its reported value instead. Both writes
+query31/10 again and do not publish intent as state. A session guard rejects another
+whole-body edit before a valid31/10 STATUS or reset, avoiding replay of stale sibling
+fields after a local write. Native Settings and details include an explicit refresh action after a missing reply;
+it uses Standard Refresh and queries31/10 to restore writable evidence; no retry loop or timer is added.
+Other products, including similarly
+named Ultra earbuds, do not acquire this control. Snapshot changes and reset reject
+old requests; the feature does not itself advertise a noise-mode capability.
+
+## Device-reported name and rename
+
+Products4020/4039 explicitly declare product_name builders in qc35.py/qc45.py.
+`connection.py:29,482–488` limits writes to31 UTF-8 bytes and sends the name alone
+through SET_GET1/2. `parsers.py:55–57` reads a flag followed by UTF-8 name bytes.
+Its independent captured fixture is `00 46 61 72 67 6F` (flag0, name Fargo).
+GET1/2 supplies authoritative readback; the flag is retained in expected snapshot
+identity, not prepended to the write. A new flag/name/product report invalidates an
+old draft even when its target text would still be valid.
+
+STATUS names use the BMAP payload bound (flag plus at most254 bytes), not the write
+limit; a long existing device name can be renamed to a shorter valid name. Writes
+reject malformed UTF-8, unpaired UTF-16 surrogates, empty/blank names, control
+characters and more than31 encoded bytes, without truncating multibyte text.
+Native Settings uses the host EditTextPreference with report-only value and summary;
+missing host support falls back to a read-only name row. The existing Bose native
+details also contains an explicit draft and Save-to-headphones action; current firmware
+name remains unchanged until STATUS. Input validation explains the byte limit.
+Session/owner/address loss closes the editor through the existing lifecycle.
+No Android Bluetooth alias is modified or treated as device confirmation. These
+write capabilities are not inferred for other product_name readers or generic models.
+
+Protocol, adapter and native UI fixtures cover independent golden bytes, preserved
+unmodified fields, stale full snapshots, exact product exclusion, UTF-8 boundaries,
+readback-only display and lifecycle cleanup. Physical-device revalidation remains
+separate from source and unit verification.

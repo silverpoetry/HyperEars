@@ -17,6 +17,24 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE)
 class SettingsHeadsetBindingTest {
+    @Test fun nativeTextDraftWaitsForDeviceReportAndRejectsInvalidInput() {
+        val f = Fixture()
+        val sent = mutableListOf<String>()
+        val host = SettingsPreferenceHost(javaClass.classLoader!!, f.screen.context, f.screen)
+        val row = host.textInput("text-test", "名称", "耳机", true,
+            { it.isNotBlank() && it.length <= 8 }, "名称无效", sent::add) as EditTextPreference
+        assertFalse(row.isPersistent)
+        assertFalse(row.callChangeListener("新名称"))
+        assertEquals(listOf("新名称"), sent)
+        assertEquals("耳机", row.text)
+        assertEquals("耳机", row.summary.toString())
+        assertFalse(row.callChangeListener(""))
+        assertEquals(1, sent.size)
+        host.clearListeners(row)
+        row.callChangeListener("旧回调")
+        assertEquals(1, sent.size)
+        f.binding.close()
+    }
     private val address = "00:11:22:33:44:55"
     private fun state() = EarbudState(address = address, adapter = HonorX5sProAdapter().snapshot().copy(
         presentationId = HonorX5sProAdapter.PRESENTATION_ID,

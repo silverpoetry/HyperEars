@@ -57,7 +57,7 @@ object RoseRsV2IdentityCodec {
         val audioModes: List<Int> get() = when(this) { OPENFEEL_L, HYACINTH, MOKA -> listOf(0,1); CERAMICS_U_HSC_2710, CERAMICS_U_SOURCE -> listOf(0,1,2); BUDSFEEL_MK2_SOURCE -> listOf(0,1,3); MAGICIAN -> listOf(0,1,4,5); SPEAKFEEL2 -> listOf(0,1,2); SPEAKFEEL -> listOf(0,1,4,5,6); CERAMICS_MK2_5736 -> emptyList(); else -> listOf(0,1,2,3) }
         val touchMaster: Boolean get() = touch && this != SPEAKFEEL2
         val bassLevels: List<Int> get() = if (this == OPENFEEL_MK2) listOf(3) else if (this == SPEAKFEEL2) listOf(0,1) else emptyList()
-        val touchActions: IntRange get() = if (noise || this == SPORTFEEL_8912F) 0..8 else 0..7
+        val touchActions: IntRange get() = if (this in setOf(CERAMICS_MK2,CERAMICS_MK2_5736,CERAMICS_MK2_8912F,CERAMICS_U_HSC_2710,KY01,OPAL,ZIRCON,SPORTFEEL_8912F,BUDSFEEL_MK2_SOURCE,EARFEEL_I7_SOURCE,CERAMICS_U_SOURCE,FURINA_SOURCE)) 0..8 else 0..7
     }
     fun identify(manufacturerData: Map<Int,List<Int>>): Model? {
         if (manufacturerData.size !in 1..8) return null

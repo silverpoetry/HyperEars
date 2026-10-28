@@ -112,7 +112,7 @@ alone cannot reconstruct it. No periodic age-refresh is required for an absolute
   ID rejected, same current selected address passed to BluetoothDeviceSettings.open,
   existing Bluetooth-settings fallback respected, no ACTION_CONTROL emitted.
 - [ ] No alarm, polling worker, foreground service, notification permission or scope added.
-- [ ] Root coordinated unit/lint/release verification after technical review; no phone.
+- [x] Root coordinated unit/lint/release verification after technical review; no phone.
 
 ## Trade-offs
 
@@ -122,3 +122,7 @@ telemetry. A foreground service/polling worker is unnecessary and outside this s
 Reusing one responsive provider reduces duplicated layouts/lifecycle logic versus
 copying AndPods' multiple providers. Conservative native admission and historical
 wording prioritize truthful display over pretending every persisted record is live.
+
+Final combined verification passes 1,394 tests, Release lint/assembly and protocol-test Debug
+assembly. Native preview inspection covers six sizes/themes/font cases; no phone or launcher
+acceptance is claimed.

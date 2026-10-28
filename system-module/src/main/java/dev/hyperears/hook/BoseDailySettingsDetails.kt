@@ -135,6 +135,8 @@ internal class BoseDailySettingsDetails private constructor(
                 view.text = String.format(Locale.getDefault(), "%s%s", if (view.isSelected) "✓ " else "", label)
             }
         }
+        addLiveAudio(controls)
+        addDeviceName(controls)
         addButtons(controls)
         addEq(controls)
         val cnc = column(); val caption = text("降噪强度", 17f); cnc.addView(caption)
@@ -190,6 +192,61 @@ internal class BoseDailySettingsDetails private constructor(
             row.visibility = if (current == null) View.GONE else View.VISIBLE
             control.isEnabled = current != null
             if (current != null) control.isChecked = current
+        }
+    }
+    private fun addLiveAudio(parent:LinearLayout) {
+        val container=column();parent.addView(container)
+        renders += { settings ->
+            container.removeAllViews()
+            settings.liveAudio?.takeIf{dev.hyperears.protocol.bose.BoseDailySettingsCodec.validAudioSettings(it.raw)}?.let { snapshot ->
+                container.addView(text("沉浸式音频",17f))
+                val group=RadioGroup(context)
+                SettingsBoseAudioRows.spatialLabels.forEachIndexed { mode,label -> group.addView(RadioButton(context).apply {
+                    id=View.generateViewId();text=label;contentDescription="bose.spatial.$mode"
+                    isSaveEnabled=false;isChecked=snapshot.raw[2]==mode
+                    setOnClickListener {send(BoseDailyControlRequest.SetSpatial(snapshot,mode))}
+                }) }
+                container.addView(group)
+                container.addView(text("抗风噪",17f))
+                container.addView(createToggle().apply {
+                    contentDescription="bose.wind";isSaveEnabled=false;isChecked=snapshot.raw[3]==1
+                    setOnCheckedChangeListener {_,enabled->send(BoseDailyControlRequest.SetWind(snapshot,enabled))}
+                })
+                container.addView(text("重新读取耳机设置",16f).apply {
+                    contentDescription="bose.audio.refresh"
+                    setOnClickListener {if(!closed)runCatching {
+                        val fresh=environment.stateProvider(address)
+                        if(!valid(fresh)){dismiss();return@runCatching}
+                        pending=null;handler.removeCallbacks(timeout)
+                        status.text="正在读取耳机设置…"
+                        environment.controlSender(address,StandardControlRequest.Refresh)
+                    }.onFailure{dismiss()}}
+                })
+            }
+        }
+    }
+    private fun addDeviceName(parent:LinearLayout) {
+        val row=column();parent.addView(row)
+        val current=text("",16f);row.addView(text("耳机内保存的名称",17f));row.addView(current)
+        val draft=EditText(context).apply {setSingleLine(true);isSaveEnabled=false;contentDescription="bose.rename.draft";setTextColor(color(true))}
+        row.addView(draft)
+        row.addView(text("名称最多 31 个 UTF-8 字节；中文通常占 3 字节。",14f))
+        var expected:BoseDeviceName?=null
+        row.addView(text("保存到耳机",16f).apply {
+            contentDescription="bose.rename.apply"
+            setOnClickListener {
+                val source=expected?:return@setOnClickListener
+                val name=draft.text.toString()
+                if(dev.hyperears.protocol.bose.BoseDailySettingsCodec.encodeDeviceName(name)==null) {
+                    draft.error="请输入有效名称，长度不超过 31 个 UTF-8 字节。"
+                } else send(BoseDailyControlRequest.Rename(source,name))
+            }
+        })
+        renders += { settings ->
+            val report=settings.deviceName
+            row.visibility=if(report==null)View.GONE else View.VISIBLE
+            if(expected!=report) {expected=report;draft.setText(report?.name.orEmpty());draft.error=null}
+            current.text=report?.name.orEmpty()
         }
     }
     private fun addButtons(parent:LinearLayout) {
