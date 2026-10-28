@@ -210,3 +210,12 @@ does not treat every source command as universally supported. All items below re
 - Next priority is B4/C1: Apple native-first connection admission and AirPods5 wireless protocol
   path, using the follow-up ROM evidence. A5/A6 remain queued alongside the other brand work;
   no Apple dynamic ownership production change has been made in this foundation milestone.
+- 2026-10-28 follow-up: Added user reference HyperPods-X `018765be` and audited its protocol,
+  native card and real head-tracking implementation. Its unchanged pure protocol suite passed
+  67 tests in an isolated JVM harness; its Android/device behavior has not been independently run.
+- 2026-10-28 follow-up: B4's surviving-MiLink ownership-claim replay prerequisite is implemented
+  and spec/quality reviewed. Seven hook-level regressions cover fresh/retired tokens, duplicate
+  states, initial no-session claims, partial sends, missing context, disconnect and reset.
+  All 120 system-module tests, Release lint and Release assembly passed; unchanged protocol and
+  integration suites retain 183/294 passing tests (597 total). Native Apple capability probing,
+  private-transport admission and new model activation are still pending, so B4 remains open.

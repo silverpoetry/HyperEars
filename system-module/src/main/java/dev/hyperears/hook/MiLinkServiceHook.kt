@@ -49,7 +49,7 @@ internal class MiLinkServiceHook : HookContext() {
     private val knownAddresses = Collections.synchronizedSet(mutableSetOf<String>())
     private val deviceOwnership = MiLinkDeviceOwnershipRegistry()
     private val pendingSystemOwnershipClaims =
-        Collections.synchronizedSet(mutableSetOf<String>())
+        Collections.synchronizedMap(mutableMapOf<String, Boolean>())
     private val runtimeOwners = Collections.synchronizedSet(
         Collections.newSetFromMap(WeakHashMap<Any, Boolean>()),
     )
@@ -757,6 +757,7 @@ internal class MiLinkServiceHook : HookContext() {
             } else {
                 if (systemOwned) {
                     knownAddresses.remove(normalized)
+                    if (state.sessionActive) sendSystemOwnershipClaim(it, requireActiveSession = true)
                 }
                 synchronized(observationLock) {
                     sessionStages.remove(normalized)
@@ -1253,42 +1254,60 @@ internal class MiLinkServiceHook : HookContext() {
     }
 
     private fun publishSystemOwnershipClaim(address: String) {
-        val targetContext = context
-        if (targetContext == null) {
-            pendingSystemOwnershipClaims += normalizeAddress(address)
-            return
-        }
-        var deliveryFailed = false
-        listOf(ModuleContract.MILINK_PACKAGE, ModuleContract.BLUETOOTH_PACKAGE)
-            .forEach { targetPackage ->
-                runCatching {
-                    targetContext.sendBroadcast(
-                        ModuleContract.systemOwnershipClaimed(address, targetPackage)
-                            .addFlags(Intent.FLAG_RECEIVER_FOREGROUND),
-                        null,
-                        ModuleContract.systemOwnershipClaimOptions(),
-                    )
-                }.onFailure {
-                    deliveryFailed = true
-                    ModuleLog.warn(
-                        "MiLink",
-                        "system-ownership broadcast failed target=$targetPackage",
-                        it,
-                    )
+        sendSystemOwnershipClaim(address, requireActiveSession = false)
+    }
+
+    private fun sendSystemOwnershipClaim(address: String, requireActiveSession: Boolean) {
+        // ProcessStateStore exposes tokens only for accepted active sessions. Never infer a token
+        // from a retained known snapshot after disconnect or replay an unaccepted broadcast.
+        val token = ProcessStateStore.sessionToken(address)?.takeIf(String::isNotBlank)
+        if (requireActiveSession && token == null) return
+        val normalized = normalizeAddress(address)
+        deviceOwnership.deliverSystemOwnershipClaim(address, token) {
+            val targetContext = context
+            var deliveryFailed = targetContext == null
+            if (targetContext != null) {
+                listOf(ModuleContract.MILINK_PACKAGE, ModuleContract.BLUETOOTH_PACKAGE)
+                    .forEach { targetPackage ->
+                        runCatching {
+                            targetContext.sendBroadcast(
+                                ModuleContract.systemOwnershipClaimed(address, targetPackage)
+                                    .addFlags(Intent.FLAG_RECEIVER_FOREGROUND),
+                                null,
+                                ModuleContract.systemOwnershipClaimOptions(),
+                            )
+                        }.onFailure {
+                            deliveryFailed = true
+                            ModuleLog.warn(
+                                "MiLink",
+                                "system-ownership broadcast failed target=$targetPackage",
+                                it,
+                            )
+                        }
+                    }
+            }
+            synchronized(pendingSystemOwnershipClaims) {
+                if (deliveryFailed) {
+                    // A pending first authoritative claim must still work before state arrives.
+                    pendingSystemOwnershipClaims[normalized] = requireActiveSession &&
+                        pendingSystemOwnershipClaims[normalized] != false
+                } else {
+                    pendingSystemOwnershipClaims.remove(normalized)
                 }
             }
-        if (deliveryFailed) {
-            pendingSystemOwnershipClaims += normalizeAddress(address)
+            !deliveryFailed
         }
     }
 
     private fun flushPendingSystemOwnershipClaims() {
         val pending = synchronized(pendingSystemOwnershipClaims) {
-            pendingSystemOwnershipClaims.toList().also {
+            pendingSystemOwnershipClaims.toMap().also {
                 pendingSystemOwnershipClaims.clear()
             }
         }
-        pending.forEach(::publishSystemOwnershipClaim)
+        pending.forEach { (address, requireActiveSession) ->
+            sendSystemOwnershipClaim(address, requireActiveSession)
+        }
     }
 
     @SuppressLint("MissingPermission")

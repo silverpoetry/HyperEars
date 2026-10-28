@@ -24,6 +24,7 @@ internal class MiLinkDeviceOwnershipRegistry {
 
     private val lock = Any()
     private val owners = mutableMapOf<String, Owner>()
+    private val deliveredSystemClaims = mutableMapOf<String, String>()
 
     fun observeNativeAdmission(
         address: String,
@@ -66,6 +67,19 @@ internal class MiLinkDeviceOwnershipRegistry {
 
     fun clear() = synchronized(lock) {
         owners.clear()
+        deliveredSystemClaims.clear()
+    }
+
+    /** Initial native claims may precede a session; successful session deliveries are deduplicated. */
+    fun deliverSystemOwnershipClaim(
+        address: String,
+        sessionToken: String?,
+        deliver: () -> Boolean,
+    ) = synchronized(lock) {
+        val key = normalizeAddress(address)
+        if (owners[key] != Owner.SYSTEM) return@synchronized
+        if (sessionToken != null && deliveredSystemClaims[key] == sessionToken) return@synchronized
+        if (deliver() && sessionToken != null) deliveredSystemClaims[key] = sessionToken
     }
 
     private fun normalizeAddress(address: String): String = address.uppercase(Locale.ROOT)
