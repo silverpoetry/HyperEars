@@ -89,8 +89,7 @@ class FloS2NativeAncHostTest {
             ).apply { isAccessible = true }.newInstance(
                 NativeAncModeLayout.ORIGINAL, container, originals,
             )
-            val hostType = FloS2SoundEffectMiLinkCardAdapter::class.java.declaredClasses
-                .single { it.simpleName == "NativeAncHost" }
+            val hostType = NativeAncModeHost::class.java
             host = hostType.getDeclaredConstructor(TextView::class.java, NativeAncModeRow::class.java)
                 .apply { isAccessible = true }.newInstance(title, row)
         }

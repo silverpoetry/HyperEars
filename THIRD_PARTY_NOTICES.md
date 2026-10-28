@@ -39,8 +39,18 @@ BudsFeel MK2 的 RFCOMM、校验帧和 LTV 状态字段。HyperEars 在自身 Pr
 - Copyright: Copyright (C) 2025 LibrePods contributors
 
 用于交叉核对 Apple Accessory Protocol 的 SDP UUID、BR/EDR L2CAP PSM、初始化帧、
-组件电量通知和降噪状态。HyperEars 只实现 MiLink 所需的最小 AAP 子集，不使用或分发
+组件电量通知和降噪状态。HyperEars 在现有 AAP 子集上逐步增加类型化控制，不使用或分发
 上述项目的名称、图标、图片、界面和其他品牌资产。
+
+Apple 四态聆听扩展还核对了以下互操作资料：
+
+- AndPods 4.3.8（`cn.xiaolongonly.andpodsop`）：用户已购买的本地应用，仅提取聆听值、
+  控制帧和行为事实，独立实现；不复制或分发应用代码、反编译产物、身份密钥或素材。
+- NEORUAA/HyperPods-X，固定提交 `018765be94f24a49bf28be26fbb5924a3652018f`：
+  <https://github.com/NEORUAA/HyperPods-X/tree/018765be94f24a49bf28be26fbb5924a3652018f>。
+  上游代码声明 GPL-3.0-or-later，基于 YeFeng233/HyperPods-X，并注明 LibrePods 等来源。
+  本轮用于交叉核对四态值、控制回报和 A3441 实测边界，没有移入其应用连接管理器、
+  Glasmio 界面、SF 字体或 Apple 图片。
 
 ## NiceHCK Controller
 

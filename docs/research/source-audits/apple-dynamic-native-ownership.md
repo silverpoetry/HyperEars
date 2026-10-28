@@ -76,3 +76,35 @@ Fix design: separate sticky ownership decision from receipt delivery. On authent
 - Test unsupported -> fallback; missing resource/type/error ->UNKNOWN/no private transport; stale response ignored; exact model doesn't imply all controls; native Apple coexistence and standard fallback UI unaffected.
 
 All above tests remain unperformed in this read-only pass. No claim that false native boolean alone proves unsupported, and no requirement for active-session hot takeover remains after user clarification.
+
+## Follow-up: observe the actual native connection decision
+
+The earlier product-type query design has a bootstrap limitation: a new device may not yet have
+native type or AACP-derived identity. Further static source tracing identified a better primary
+boundary. `a2/a.java:235-260` is the native AirCoreManager `onDeviceConnected` implementation:
+after valid context/device checks it calls `AirLocalStorage.isFeatureSupport(..., "ConnectL2cap")`;
+false returns without opening a native channel, true schedules the native transport. HFP connected
+and HFP service-rebind paths schedule this native decision (the native delay is 2 seconds).
+
+An observed false in THIS actual connection call can mean NATIVE_DECLINED for that connection,
+including a successfully read empty native type. It must not be described as MODEL_UNSUPPORTED.
+An arbitrary provider false, elapsed wait, missing hook, failed initialization or failed storage read
+remains UNKNOWN. A true native decision means SYSTEM even if the subsequent socket attempt fails.
+This resolves the first-connection circular dependency without requiring a copied model allowlist.
+
+Discover the outer method by unique semantic strings and signature `void(BluetoothDevice)` plus
+its call to the stable feature method, not by hardcoding `a2.a.i`. Observe the original call using a
+thread-local scope, matching address and exact feature name, and preserve return values/exceptions.
+Only a real observed gate plus successful enclosing completion permits a negative result. Validate
+storage-read health separately because native storage methods can swallow errors as empty strings.
+
+Bind evidence to the current Bluetooth producer and physical-connection token; invalidate on
+disconnect/restart and reject stale callbacks. The Apple candidate must remain transport-pending
+until this decision. Native acceptance always wins; later real native acceptance uses existing
+session close/reset and presentation cleanup. An asynchronous yield broadcast alone does not prove
+zero socket overlap. Do not block native behavior to hide that limitation. Resource update watchers,
+permanent polling and persistent support tables remain unnecessary.
+
+This is static design evidence, not implemented or device-verified behavior. The earlier public
+provider query remains useful positive evidence, but the mandatory product-type negative-query
+bridge is superseded as the primary bootstrap plan by actual connection-scoped native admission.

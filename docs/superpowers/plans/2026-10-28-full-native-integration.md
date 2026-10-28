@@ -219,3 +219,16 @@ does not treat every source command as universally supported. All items below re
   All 120 system-module tests, Release lint and Release assembly passed; unchanged protocol and
   integration suites retain 183/294 passing tests (597 total). Native Apple capability probing,
   private-transport admission and new model activation are still pending, so B4 remains open.
+- Apple follow-up: typed listening state now preserves ADAPTIVE, with session-qualified mode
+  admission and device-report-only confirmation. Its native CardAdapter reuses original/select-card
+  native item classes and the existing transactional replacement helper shared with FloS2. Runtime
+  Apple registry/reservation remains unchanged until transport admission is complete.
+- Native bootstrap follow-up: the actual native onDeviceConnected feature-gate result can provide
+  connection-scoped NATIVE_DECLINED even with healthy empty native type. This supersedes mandatory
+  product-type discovery before fallback, avoiding a circular dependency. Arbitrary provider false
+  remains UNKNOWN. Implementation plan: [Apple native admission](2026-10-28-apple-native-admission.md).
+- Apple listening/card milestone verification: protocol 186, integration 303, system-module 127
+  tests passed (616 total, no failures/errors/skips); protocol-test debug assembly, system Release
+  lint and unsigned Release assembly passed. Both integration and native-card slices passed
+  independent spec and quality review. All 56 Markdown files and doc consistency checks passed.
+  These checks do not validate live Apple activation, physical controls or actual MiLink rendering.
