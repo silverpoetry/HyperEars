@@ -88,8 +88,9 @@ class MoondropPuddingAdapterTest {
             ),
         )
         assertTrue(adapter.snapshot().capabilities.noiseControl)
+        assertTrue(adapter.snapshot().capabilities.windNoiseControl)
         assertEquals(
-            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY, NoiseMode.WIND),
             adapter.snapshot().supportedNoiseModes,
         )
         assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
@@ -275,6 +276,82 @@ class MoondropPuddingAdapterTest {
     }
 
     @Test
+    fun windNoiseSwitchUsesTheWindTierAndPublishesAfterWrite() {
+        val adapter = readyAdapterWithNoiseMode(NoiseMode.ANC)
+
+        val result = adapter.executeControl(
+            StandardControlRequest.SetNoiseMode(NoiseMode.WIND),
+        )
+        val policy = adapter.controlPolicy(
+            StandardControlRequest.SetNoiseMode(NoiseMode.WIND),
+        )
+
+        assertTrue(result.accepted)
+        assertTrue(result.stateChanged)
+        assertEquals(ControlConfirmationPolicy.PUBLISH_AFTER_WRITE, policy.confirmation)
+        assertEquals(
+            NoiseModeFeatureState(NoiseMode.WIND),
+            policy.stateAfterWrite,
+        )
+        assertEquals(
+            listOf(
+                MoondropPuddingWireCodec
+                    .setNoiseMode(MoondropPuddingWireCodec.NoiseMode.WIND)
+                    .toList(),
+            ),
+            result.commands.map(ByteArray::toList),
+        )
+        assertEquals(NoiseMode.WIND, adapter.runtimeState().noiseMode)
+        assertEquals(
+            listOf(
+                AdapterEffect.CancelStateRequest(NoiseModeFeatureState.FEATURE_ID),
+                AdapterEffect.RequestState(
+                    NoiseModeFeatureState.FEATURE_ID,
+                    MoondropPuddingAdapter.INITIAL_MODE_QUERY_DELAY_MS,
+                ),
+            ),
+            adapter.controlWritten(StandardControlRequest.SetNoiseMode(NoiseMode.WIND)),
+        )
+
+        val confirmed = adapter.receive(noiseModeFrame(NoiseMode.WIND))
+
+        assertFalse(confirmed.stateChanged)
+        assertEquals(NoiseMode.WIND, adapter.runtimeState().noiseMode)
+        assertEquals(
+            listOf(AdapterEffect.CancelStateRequest(NoiseModeFeatureState.FEATURE_ID)),
+            confirmed.effects,
+        )
+    }
+
+    @Test
+    fun ancSwitchWritesTheAdaptiveTierAndBasicReportsProjectBack() {
+        val adapter = readyAdapterWithNoiseMode(NoiseMode.OFF)
+
+        val basicReport = adapter.receive(
+            MoondropPuddingWireCodec.frame(
+                command = 0x1D,
+                subcommand = 0x41,
+                opcode = 0x03,
+                parameters = byteArrayOf(0x01),
+            ),
+        )
+
+        assertTrue(basicReport.stateChanged)
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+        assertTrue(basicReport.effects.isEmpty())
+
+        val write = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+        assertEquals(
+            listOf(
+                MoondropPuddingWireCodec
+                    .setNoiseMode(MoondropPuddingWireCodec.NoiseMode.ADAPTIVE)
+                    .toList(),
+            ),
+            write.commands.map(ByteArray::toList),
+        )
+    }
+
+    @Test
     fun staleModeReadbacksKeepTheOptimisticStateAndScheduleBoundedReads() {
         val adapter = readyAdapterWithNoiseMode(NoiseMode.OFF)
         val control = adapter.executeControl(
@@ -411,7 +488,7 @@ class MoondropPuddingAdapterTest {
                     NoiseMode.OFF -> 0
                     NoiseMode.ANC -> 1
                     NoiseMode.TRANSPARENCY -> 2
-                    NoiseMode.WIND -> error("Pudding does not support wind mode")
+                    NoiseMode.WIND -> 3
                 },
             ),
         )

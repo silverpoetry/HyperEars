@@ -283,6 +283,38 @@ class MoondropMirageAdapterTest {
     }
 
     @Test
+    fun windAndBasicTierReportsStayUnrecognizedOnMirage() {
+        val adapter = readyAdapterWithNoiseMode(NoiseMode.OFF)
+
+        val windReport = adapter.receive(
+            MoondropPuddingWireCodec.frame(
+                command = 0x1D,
+                subcommand = 0x41,
+                opcode = 0x03,
+                parameters = byteArrayOf(0x03),
+            ),
+        )
+        val basicReport = adapter.receive(
+            MoondropPuddingWireCodec.frame(
+                command = 0x1D,
+                subcommand = 0x41,
+                opcode = 0x04,
+                parameters = byteArrayOf(0x04),
+            ),
+        )
+
+        assertFalse(windReport.stateChanged)
+        assertFalse(basicReport.stateChanged)
+        assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
+        assertFalse(adapter.snapshot().capabilities.windNoiseControl)
+        assertEquals(
+            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            adapter.snapshot().supportedNoiseModes,
+        )
+        assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.WIND)))
+    }
+
+    @Test
     fun sharedProtocolKeepsPuddingAndMirageSessionsIndependent() {
         val mirage = readyAdapterWithNoiseMode(NoiseMode.ANC)
         val pudding = MoondropPuddingAdapter()

@@ -14,11 +14,19 @@ package dev.hyperears.protocol.moondrop
  * covered by the declared length participate in validation.
  */
 object MoondropPuddingWireCodec {
-    /** Query and write share the same value for every mode. */
+    /**
+     * Query and write share the same value for every tier.
+     *
+     * Device-confirmed on Pudding (2026-10-26, tier written then cross-checked in the vendor
+     * app): `01` basic, `04` adaptive, `03` wind. MIRAGE observes the same basic landing for
+     * `01` but keeps `03`/`04` outside its verified surface.
+     */
     enum class NoiseMode(val value: Int) {
         OFF(0x00),
-        ANC(0x01),
+        BASIC(0x01),
         TRANSPARENCY(0x02),
+        WIND(0x03),
+        ADAPTIVE(0x04),
     }
 
     data class Frame(
