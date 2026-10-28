@@ -135,4 +135,40 @@ class BoseDailySettingsTest {
             assertEquals(it, ControlRequestTransport.decode(ControlRequestTransport.encode(it)))
         }
     }
+    @Test fun advertisedButtonMaskGatesExactProductsAndStaleSlotsRevoke() {
+        val raw=byteArrayOf(1,9,3,7,16,4,1,6,0,0,0)
+        for(id in listOf(0x4020,0x4039,0x402F,0x4082)) {
+            val device=adapter(id);device.receive(raw)
+            val button=device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.buttons.single()
+            assertEquals(listOf(1,2),button.actions)
+            val request=BoseDailyControlRequest.SetButton(button,2)
+            assertEquals(request,ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+            assertTrue(device.supportsControl(request))
+            assertArrayEquals(byteArrayOf(1,9,2,3,16,4,2),device.executeControl(request).commands.single())
+            assertArrayEquals(byteArrayOf(1,9,1,0),device.protocolSession.readback(request).single())
+            assertEquals(1,device.runtimeState().features.get<BoseDailySettingsFeatureState>()!!.buttons.single().current)
+            assertFalse(device.supportsControl(request.copy(action=14)))
+            device.receive(byteArrayOf(1,9,3,3,16,4,2))
+            assertFalse(device.supportsControl(request)) // legitimate short reply revokes old mask.
+            device.receive(raw);assertTrue(device.supportsControl(request))
+            device.receive(byteArrayOf(1,9,3,7,16,4,1,2,0,0,0));assertFalse(device.supportsControl(request))
+            device.resetProtocolSession();assertFalse(device.supportsControl(request))
+        }
+        for(id in listOf(0x400C,0x4075,0x4062,0x4068,0x4024)) {
+            val device=adapter(id);device.receive(raw)
+            assertTrue(device.runtimeState().features.get<BoseDailySettingsFeatureState>()?.buttons.isNullOrEmpty())
+        }
+    }
+    @Test fun buttonReportsKeepIndependentSlotsButProductChangeInvalidatesSnapshot() {
+        val session=BoseDailySettingsSession();session.configure(0x4020)
+        fun offer(vararg payload:Int)=session.offer(Bmap.Decoder().offer(report(9,*payload)).single())
+        offer(16,4,1,6,0,0,0)
+        val expected=session.state.buttons.single()
+        offer(128,9,14,0,64,0,0)
+        assertEquals(2,session.state.buttons.size)
+        assertFalse(session.encode(BoseDailyControlRequest.SetButton(expected,2)).isEmpty())
+        session.configure(0x4082);offer(16,4,1,6,0,0,0)
+        assertTrue(session.encode(BoseDailyControlRequest.SetButton(expected,2)).isEmpty())
+    }
+
 }

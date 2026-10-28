@@ -2,6 +2,7 @@ package dev.hyperears.protocol.bose
 
 /** Bosectl 70570b2 / noisecancel 0391b61 interoperability fields; only STATUS is evidence. */
 object BoseDailySettingsCodec {
+    const val BUTTONS = 9
     const val PROMPTS = 3
     const val CNC = 5
     const val ANR = 6
@@ -12,6 +13,18 @@ object BoseDailySettingsCodec {
     const val AUTO_PAUSE = 24
     data class EqBand(val id: Int, val minimum: Int, val maximum: Int, val current: Int)
     data class Cnc(val rawLevel: Int, val enabled: Boolean)
+    data class Button(val id:Int,val event:Int,val current:Int,val mask:List<Int>)
+    val buttonActions=(1..17).toSet()+setOf(19,20,21)
+    fun parseButton(frame:BoseBmapWireCodec.Frame):Button? {
+        if(!isState(frame,BUTTONS)||frame.payload.size !in 3..7)return null
+        val p=frame.payload.map{it.toInt() and 255}
+        if(p[0] !in setOf(0,2,3,4,16,128)||p[1] !in 1..12)return null
+        return Button(p[0],p[1],p[2],p.drop(3))
+    }
+    fun setButton(id:Int,event:Int,action:Int):ByteArray {
+        require(id in setOf(0,2,3,4,16,128)&&event in 1..12&&action in buttonActions)
+        return write(BUTTONS,byteArrayOf(id.toByte(),event.toByte(),action.toByte()))
+    }
     fun query(function: Int) = BoseBmapWireCodec.packet(1, function, BoseBmapWireCodec.Operator.GET)
     private fun isState(frame: BoseBmapWireCodec.Frame, function: Int) =
         frame.functionBlock == 1 && frame.function == function && frame.operator == BoseBmapWireCodec.Operator.STATUS

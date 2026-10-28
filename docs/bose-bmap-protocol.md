@@ -218,3 +218,33 @@ Wrong operators, wrong payload sizes and out-of-domain values grant no controls.
 Existing product-change/session reset removes the evidence. Native details expose
 four sidetone choices and the automatic-answer toggle only after their own reports.
 No phone or physical-device verification was performed for this addition.
+
+## Report-advertised button actions
+
+The next daily slice uses bosectl `70570b2` (MIT), `devices/parsers.py:92–160`,
+`constants.py:62–85`, and `connection.py:321,535–552`. Explicit device modules
+qc35/qc45/qc_earbuds/qc_ultra2 declare both GET and SET_GET builders at1/9.
+Only product IDs4020/4039/402F/4082 qualify; original QC35I400C, prince4075,
+Ultra earbuds and other Bose identities do not inherit these controls.
+
+A STATUS payload contains button ID, event, current action, then zero to four mask
+bytes. Mask bit N advertises action N; bit0 is not a writable advertised action.
+Known named actions are intersected with the reported mask. No default action list
+is invented from product identity. Three-byte reports retain their current value but
+revoke previous mask-based write eligibility for that button/event. Unknown reserved
+button/event IDs, wrong operators, malformed lengths and other function blocks do
+not grant controls. Independent slots retain their own report snapshots.
+
+Typed SetButton pins product, button, event, current action and all reported mask
+bytes. SET_GET contains only button/event/action, followed by GET1/9. A changed
+mask/current value/product rejects an old request; reset clears all button reports.
+Selection stays unchanged until STATUS. The original QC35 fixture
+`01 09 03 07 10 04 01 06 00 00 00` independently proves VPA/current1 and the
+advertised VPA/ANC mask; its ANC write is `01 09 02 03 10 04 02`.
+
+Native Settings and existing Bose details expose finite choices only from these
+reports. A current value outside writable choices remains explicitly labeled as a
+device report; it is not offered as a new write option. Existing owner/address/session
+checks and the captured expected slot reject stale callbacks. This addition neither
+creates a transport nor changes mode profiles, spatial settings, device names or
+firmware behavior. Source-based tests are not physical-device validation.

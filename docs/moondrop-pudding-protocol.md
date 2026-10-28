@@ -67,12 +67,15 @@ FF 04 00 02 00 1D 1A 01 01 02
 `LL`、`RR` 分别为左耳和右耳电量：`1..100` 为有效值，`00` 与 `FF` 均表示未连接
 （如耳机在充电盒内）并解码为未知。`03` 键为充电盒电量，
 `0..100` 为有效值（空盒 `0` 是真实状态），`FF` 表示不可读并解码为未知。没有充电状态
-证据，因此实现不会构造充电状态。三个组件全部为已知不可读标记时，清除此前的私有
-读数；初次仅收到未知值不确认私有电量能力。全为越界垃圾值或缺失字段的帧仍被拒绝。
+证据，因此实现不会构造充电状态。首次私有电量提交后，任一组件的明确不可读标记都会清除该组件旧读数；
+初次仅收到未知值不确认私有电量能力。任一组件越界或缺失字段时整帧拒绝，
+避免把垃圾字节解释为离线。
 
 协议确认前电量沿用 Android 系统整机；收到合法电量帧后切换为私有左右耳与充电盒电量
 并发布。连接初期的分侧回报会在会话内合并，并通过有界的单次查询补齐另一侧；补齐成功
-或达到重试边界后才提交首次私有电量。查询会在握手确认后、显式刷新和电池特性重查时
+或达到重试边界后才提交首次私有电量。此后完整快照直接替换，单侧入盒不会继续显示
+旧电量。初期合并位于 Adapter 的逐事件规范化阶段，同一传输读取包含多帧时也按顺序
+推进提交状态；协议会话只提供原始完整快照。查询会在握手确认后、显式刷新和电池特性重查时
 发出，不创建常驻轮询。
 
 ## 5. 噪声模式
@@ -170,6 +173,6 @@ address, session token, private-channel state and module ownership at interactio
 
 APK battery pairs are accepted only after dialect selection, require unique keys 1/2/3 and valid
 0..100 percentages, and merge only reported components. This does not change captured legacy
-zero/unavailable handling, bootstrap or stabilization, nor Robin/Mirage codecs. Extended controls
+zero/unavailable distinction or bounded bootstrap/stabilization, nor Robin/Mirage valid-frame behavior. Extended controls
 on the legacy dialect remain unclaimed. Validation is source fixtures and automated tests;
 no new hardware acceptance is asserted.

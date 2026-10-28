@@ -21,8 +21,11 @@ internal object RoseLegacySettingsPolicy {
     }
     fun request(state:EarbudState,address:String,request:RoseLegacyControlRequest.SetTouch):RoseLegacyControlRequest.SetTouch? =
         request.takeIf { available(state,address) && state.features.get<RoseLegacySettingsFeatureState>()?.supports(it)==true }
-    fun touchTitle(slot:Int)= (if(slot<16)"左耳" else "右耳")+when(slot and 15){1->"单击";2->"双击";else->"三击"}
-    fun touchLabel(model:String,action:Int):String = when(action){
+    fun touchTitle(slot:Int)= (if(slot<16)"左耳" else "右耳")+when(slot and 15){1->"单击";2->"双击";3->"三击";else->"长按"}
+    fun touchCaption(model:String,action:Int)="当前：${touchLabel(model,action)}（耳机回报）"
+    fun touchLabel(model:String,action:Int):String = if(model in setOf("EXPLORER","CERAMICS_X_7034")) when(action){
+        0->"无功能";5->"音量增加";6->"音量降低";3->"上一曲";4->"下一曲";7->"播放 / 暂停";9->"切换降噪模式";2->"语音助手";else->"耳机功能 $action"
+    }else when(action){
         0->"无功能";1->"播放 / 暂停";2->"上一曲";3->"下一曲"
         4->"音量增加";5->if(model=="BUDSFREE")"音量增加"else"音量降低";else->"音量降低"
     }
@@ -140,16 +143,16 @@ internal class RoseLegacySettingsDetails private constructor(
         }
         val feature=state.features.get<RoseLegacySettingsFeatureState>()!!
         feature.touch?.let { snapshot ->
-            RoseLegacyTouch.SLOTS.forEachIndexed { index,slot ->
+            RoseLegacyTouch.slots(feature.profile).forEachIndexed { index,slot ->
                 controls.addView(text(RoseLegacySettingsPolicy.touchTitle(slot)))
-                if(RoseLegacyTouch.action(snapshot,index) !in RoseLegacyTouch.choices(feature.profile))
-                    controls.addView(text("当前：无功能（耳机回报）"))
+                if(RoseLegacyTouch.action(snapshot,index,feature.profile) !in RoseLegacyTouch.choices(feature.profile))
+                    controls.addView(text(RoseLegacySettingsPolicy.touchCaption(feature.model,RoseLegacyTouch.action(snapshot,index,feature.profile))))
                 controls.addView(RadioGroup(context).apply {
                     RoseLegacyTouch.choices(feature.profile).forEach { action ->
                         addView(RadioButton(context).apply {
                             id=View.generateViewId();text=RoseLegacySettingsPolicy.touchLabel(feature.model,action)
                             contentDescription="rose.legacy.touch.$slot.$action"
-                            isSaveEnabled=false;isChecked=RoseLegacyTouch.action(snapshot,index)==action
+                            isSaveEnabled=false;isChecked=RoseLegacyTouch.action(snapshot,index,feature.profile)==action
                             setOnClickListener { send(RoseLegacyControlRequest.SetTouch(feature.model,snapshot,slot,action)) }
                         })
                     }

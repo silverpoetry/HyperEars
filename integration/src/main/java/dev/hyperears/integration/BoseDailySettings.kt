@@ -5,6 +5,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
 @Serializable
+data class BoseButtonSetting(val productId:Int,val button:Int,val event:Int,val current:Int,val mask:List<Int>) {
+    val actions:List<Int> get()=dev.hyperears.protocol.bose.BoseDailySettingsCodec.buttonActions.filter {id ->
+        mask.getOrNull(id/8)?.let{it and (1 shl (id%8)) != 0} == true
+    }.sorted()
+}
+@Serializable
 data class BoseEqBandDefinition(val id: Int, val minimum: Int, val maximum: Int)
 @Serializable
 data class BoseEqBand(val definition: BoseEqBandDefinition, val current: Int)
@@ -21,11 +27,13 @@ data class BoseDailySettingsFeatureState(
     val anr: Int? = null,
     val sidetone: Int? = null,
     val autoAnswer: Boolean? = null,
+    val buttons: List<BoseButtonSetting> = emptyList(),
 ) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
     val hasSettings get() = !eq.isNullOrEmpty() || promptsRaw != null || multipoint != null ||
-        autoPause != null || cnc != null || anr != null || sidetone != null || autoAnswer != null
+        autoPause != null || cnc != null || anr != null || sidetone != null || autoAnswer != null || buttons.isNotEmpty()
     fun supports(request: BoseDailyControlRequest): Boolean = when (request) {
+        is BoseDailyControlRequest.SetButton -> request.expected in buttons && request.action in request.expected.actions && request.action!=request.expected.current
         is BoseDailyControlRequest.SetEqBand -> eq?.any { it.definition == request.expected &&
             request.value in it.definition.minimum..it.definition.maximum } == true
         is BoseDailyControlRequest.SetVoicePrompts -> promptsRaw != null
@@ -40,6 +48,8 @@ data class BoseDailySettingsFeatureState(
 }
 @Serializable
 sealed interface BoseDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("bose.set_button")
+    data class SetButton(val expected:BoseButtonSetting,val action:Int):BoseDailyControlRequest
     @Serializable @SerialName("bose.set_sidetone")
     data class SetSidetone(val level: Int) : BoseDailyControlRequest
     @Serializable @SerialName("bose.set_auto_answer")
@@ -62,16 +72,16 @@ sealed interface BoseDailyControlRequest : ControlRequest {
 internal data class BoseDailyProfile(val eq: Boolean = false, val prompts: Boolean = false,
     val multipoint: Boolean = false, val autoPause: Boolean = false, val cnc: Boolean = false,
     val anr: Boolean = false, val repeatCncEnable: Boolean = false,
-    val sidetone: Boolean = false, val autoAnswer: Boolean = false) {
+    val sidetone: Boolean = false, val autoAnswer: Boolean = false, val buttons:Boolean=false) {
     companion object {
         fun forProduct(id: Int?): BoseDailyProfile = when (id) {
             0x400C -> BoseDailyProfile(prompts = true, anr = true)
-            0x4020 -> BoseDailyProfile(prompts = true, anr = true, sidetone = true)
+            0x4020 -> BoseDailyProfile(buttons=true, prompts = true, anr = true, sidetone = true)
             0x4024 -> BoseDailyProfile(cnc = true, repeatCncEnable = true)
-            0x4039 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true, sidetone = true)
+            0x4039 -> BoseDailyProfile(buttons=true, eq = true, prompts = true, multipoint = true, sidetone = true)
             0x4075 -> BoseDailyProfile(eq = true, prompts = true)
-            0x402F -> BoseDailyProfile(eq = true, prompts = true, multipoint = true, cnc = true, sidetone = true)
-            0x4082 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true, autoPause = true, sidetone = true, autoAnswer = true)
+            0x402F -> BoseDailyProfile(buttons=true, eq = true, prompts = true, multipoint = true, cnc = true, sidetone = true)
+            0x4082 -> BoseDailyProfile(buttons=true, eq = true, prompts = true, multipoint = true, autoPause = true, sidetone = true, autoAnswer = true)
             0x4062 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true, autoPause = true)
             0x4068 -> BoseDailyProfile(eq = true, prompts = true, multipoint = true)
             else -> BoseDailyProfile()

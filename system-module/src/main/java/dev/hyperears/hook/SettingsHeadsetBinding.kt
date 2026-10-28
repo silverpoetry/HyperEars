@@ -103,6 +103,7 @@ internal class SettingsHeadsetBinding(
             SettingsCeramicsXRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsSonyAssignableRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdditionalRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
+            SettingsBoseButtonRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsRoseRsV2Rows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdvancedEditors.forState(state)?.takeIf { it.available(state, address) }?.let { editor ->
                 val row = host.row("hyperears.advanced", "高级设置")

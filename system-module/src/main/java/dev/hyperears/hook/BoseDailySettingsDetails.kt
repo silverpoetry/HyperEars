@@ -135,6 +135,7 @@ internal class BoseDailySettingsDetails private constructor(
                 view.text = String.format(Locale.getDefault(), "%s%s", if (view.isSelected) "✓ " else "", label)
             }
         }
+        addButtons(controls)
         addEq(controls)
         val cnc = column(); val caption = text("降噪强度", 17f); cnc.addView(caption)
         val strength = SeekBar(context).apply {
@@ -189,6 +190,24 @@ internal class BoseDailySettingsDetails private constructor(
             row.visibility = if (current == null) View.GONE else View.VISIBLE
             control.isEnabled = current != null
             if (current != null) control.isChecked = current
+        }
+    }
+    private fun addButtons(parent:LinearLayout) {
+        val container=column();parent.addView(container)
+        renders += {settings ->
+            container.removeAllViews()
+            settings.buttons.forEach { button ->
+                container.addView(text(SettingsBoseButtonRows.title(button),17f))
+                container.addView(text("当前："+SettingsBoseButtonRows.label(button.current)+"（耳机回报）",14f))
+                val group=RadioGroup(context)
+                button.actions.forEach { action -> group.addView(RadioButton(context).apply {
+                    id=View.generateViewId();text=SettingsBoseButtonRows.label(action)
+                    contentDescription="bose.button.${button.button}.${button.event}.$action"
+                    isSaveEnabled=false;isChecked=button.current==action
+                    setOnClickListener{send(BoseDailyControlRequest.SetButton(button,action))}
+                }) }
+                container.addView(group)
+            }
         }
     }
     private fun addEq(parent: LinearLayout) {

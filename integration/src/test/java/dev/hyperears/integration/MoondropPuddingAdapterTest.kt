@@ -8,6 +8,56 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MoondropPuddingAdapterTest {
+    private fun snapshot(left: Int, right: Int, case: Int) = byteArrayOf(
+        -1, 4, 0, 6, 0, 0x1d, 0x1b, 1, 1, left.toByte(), 2, right.toByte(), 3, case.toByte(),
+    )
+
+    @Test fun committedSnapshotClearsIndividualUnavailableComponents() {
+        val adapter = readyAdapter()
+        adapter.receive(snapshot(80, 70, 60))
+        adapter.receive(snapshot(0, 71, 255))
+        assertNull(adapter.runtimeState().battery.left.percent)
+        assertEquals(71, adapter.runtimeState().battery.right.percent)
+        assertNull(adapter.runtimeState().battery.case.percent)
+        adapter.receive(snapshot(81, 255, 0))
+        assertEquals(81, adapter.runtimeState().battery.left.percent)
+        assertNull(adapter.runtimeState().battery.right.percent)
+        assertEquals(0, adapter.runtimeState().battery.case.percent)
+    }
+
+    @Test fun coalescedSnapshotAdmissionUsesEventOrder() {
+        val adapter = readyAdapter()
+        adapter.receive(snapshot(80, 70, 60) + snapshot(0, 71, 255))
+        assertNull(adapter.runtimeState().battery.left.percent)
+        assertEquals(71, adapter.runtimeState().battery.right.percent)
+        assertNull(adapter.runtimeState().battery.case.percent)
+    }
+
+    @Test fun exhaustedBootstrapStopsMergingAndResetRestoresInitialPolicy() {
+        val adapter = readyAdapter()
+        val initial = snapshot(80, 255, 60)
+        // All reports in one read also exercise the bounded policy's event ordering.
+        adapter.receive((0..MoondropPuddingAdapter.BATTERY_BOOTSTRAP_DELAYS_MS.size)
+            .fold(byteArrayOf()) { bytes, _ -> bytes + initial } + snapshot(0, 255, 61))
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        assertNull(adapter.runtimeState().battery.left.percent)
+        assertEquals(61, adapter.runtimeState().battery.case.percent)
+        adapter.resetProtocolSession()
+        adapter.receive(byteArrayOf(-1, 4, 0, 4, 0, 10, -125, 0, 0, 4, 3, 1))
+        adapter.receive(snapshot(0, 72, 62) + snapshot(82, 0, 255))
+        assertEquals(82, adapter.runtimeState().battery.left.percent)
+        assertEquals(72, adapter.runtimeState().battery.right.percent)
+        assertEquals(62, adapter.runtimeState().battery.case.percent)
+    }
+
+    @Test fun malformedMixedSnapshotDoesNotClearOrUpdateAnyComponent() {
+        val adapter = readyAdapter()
+        adapter.receive(snapshot(80, 70, 60))
+        val before = adapter.runtimeState().battery
+        adapter.receive(snapshot(101, 71, 255))
+        assertEquals(before, adapter.runtimeState().battery)
+    }
+
     @Test fun explicitUnavailableSnapshotClearsPreviouslyConfirmedBattery() {
         val adapter = readyAdapter()
         fun report(left: Int, right: Int, case: Int) = MoondropPuddingWireCodec.frame(

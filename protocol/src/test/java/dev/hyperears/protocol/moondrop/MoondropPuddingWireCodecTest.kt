@@ -15,6 +15,8 @@ class MoondropPuddingWireCodecTest {
         assertEquals(MoondropPuddingWireCodec.BatteryState(null, null, null),
             MoondropPuddingWireCodec.parseBattery(frame(255, 0, 255)))
         assertNull(MoondropPuddingWireCodec.parseBattery(frame(101, 120, 128)))
+        assertNull(MoondropPuddingWireCodec.parseBattery(frame(80, 101, 60)))
+        assertNull(MoondropPuddingWireCodec.parseBattery(frame(80, 70, 254)))
         assertNull(MoondropPuddingWireCodec.parseBattery(frame(0, 255, 255).copy(parameters = byteArrayOf(1, 0))))
     }
     @Test

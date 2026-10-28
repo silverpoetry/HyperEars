@@ -106,6 +106,21 @@ class BoseDailySettingsDetailsTest {
     private fun children(view: View): List<View> = listOf(view) + if (view is ViewGroup)
         (0 until view.childCount).flatMap { children(view.getChildAt(it)) } else emptyList()
     private fun popup(details: MiLinkToggleDetails) = details.javaClass.getDeclaredField("popup").let { it.isAccessible = true; it.get(details) as PopupWindow }
+    @Test fun buttonChoiceUsesDisplayedMaskSnapshotAndNewSessionDismisses() {
+        val f=Fixture()
+        val button=BoseButtonSetting(0x4020,16,4,1,listOf(6,0,0,0))
+        f.current=f.current.withFeature(BoseDailySettingsFeatureState(buttons=listOf(button)))
+        val details=f.open()
+        fun option()=views(details).single{it.contentDescription=="bose.button.16.4.2"}
+        val stale=option()
+        f.current=f.current.withFeature(BoseDailySettingsFeatureState(buttons=listOf(button.copy(mask=listOf(2,0,0,0)))))
+        stale.performClick();assertTrue(f.sent.isEmpty())
+        f.current=f.current.withFeature(BoseDailySettingsFeatureState(buttons=listOf(button)));f.observer!!(f.current)
+        option().performClick();assertEquals(BoseDailyControlRequest.SetButton(button,2),f.sent.single())
+        assertEquals(1,f.current.features.get<BoseDailySettingsFeatureState>()!!.buttons.single().current)
+        val old=option();f.token="replacement";old.performClick();assertEquals(1,f.sent.size);assertEquals(1,f.released)
+    }
+
     private inner class Fixture {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)

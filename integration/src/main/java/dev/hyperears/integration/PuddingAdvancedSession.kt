@@ -6,7 +6,7 @@ import dev.hyperears.protocol.moondrop.PuddingApkWireCodec as Wire
 internal class PuddingAdvancedSession : ProtocolSession {
     private enum class Dialect { LEGACY, APK }
     private var dialect: Dialect? = null
-    private val legacy = MoondropPuddingProtocolSession()
+    private val legacy = MoondropPuddingProtocolSession(mergeBatteryReports = false)
     private val apk = Wire.Decoder()
     val isApk: Boolean get() = dialect == Dialect.APK
     private var fallbackSent = false

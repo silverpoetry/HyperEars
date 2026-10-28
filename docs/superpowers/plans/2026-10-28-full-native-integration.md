@@ -101,7 +101,7 @@ revalidated changed device behavior. The full model/function scope remains uncha
   selected-state UI workaround. Add codec/adapter tests, origin attribution, native projection.
   Merge 91868b3 preserves original d38eea5 ancestry, adds strict V1 parsing/readback/reset and the
   current native host. Original PR remains author-closed; changed hardware validation is pending.
-- [ ] A6 Correct explicit-offline versus absent-component state semantics, beginning with Pudding;
+- [x] A6 Correct explicit-offline versus absent-component state semantics, beginning with Pudding;
   retain measured ZZZ firmware behavior instead of guessing offline from battery age.
 
 ## B. Native presentation through existing extension patterns
@@ -428,23 +428,24 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The RS Common touch/ZT daily/Sony wearing checkpoint passes 1,340 tests (344 protocol,
-524 integration, 472 system-module), Release lint/assembly and protocol-test Debug assembly.
-Seven RS Common profiles now expose six source-defined gestures with independent full-frame
-fixtures, exact low-nibble offsets, model action domains and full-report stale guards.
-OpenFeel's reported zero remains visible but not writable without its missing firmware evidence.
+The F8 touch/Bose buttons/Pudding battery checkpoint passes 1,358 tests (346 protocol,
+536 integration, 476 system-module), Release lint/assembly and protocol-test Debug assembly.
+Explorer and Ceramics X 7034 gain their distinct eight-slot F8 mapping with source queries,
+independent frame fixtures and full-snapshot guards; ambiguous Agate layouts remain excluded.
+Bose products 4020/4039/402F/4082 gain device-advertised button actions, mask revocation and
+native Settings/details. Each slice received independent executable-source review.
 
-HeadFeel prompt volume and the existing i5 class's exact-source daily profile preserve distinct
-query/write/normalization rules. Sony V1 wearing playback requires function, availability and
-parameter reports; unresolved V2 wearing/power schemas remain documented rather than guessed.
-Native selection rows now show report-derived summaries and preserve them until readback,
-including hosts whose theme installs a SummaryProvider. Independent review preceded validation.
-No new phone installation or hardware acceptance is claimed.
+Pudding now merges initial partial battery reports only during its existing bounded bootstrap;
+after commit, complete snapshots clear explicitly unavailable components. Four new regressions
+first failed on the old implementation and now pass. A default-identity adapter normalization
+hook keeps this policy outside the protocol decoder and correctly orders coalesced reports;
+input/output contracts and feature IDs are checked. APK zero/delta semantics and ZZZ's measured
+policy remain distinct. Malformed mixed snapshots cannot masquerade as offline components.
 
-The RoseLink baseline inventory still separates routing from complete feature coverage.
-Next priorities are source-qualified F8 touch mapping, remaining finite protocol gaps and the
-planned Android-side battery widget experience. AndPods' manifest and widget providers confirm
-that widgets are a reference feature; implementation should reuse authenticated state delivery,
-coalesce battery-only updates, avoid periodic private I/O, and route user actions to existing
-native Settings. Other open family and release requirements remain in scope; this checkpoint
-does not complete the comprehensive goal.
+D1 battery-widget design has passed root technical review and implementation is in progress.
+It uses coalesced authenticated projection, explicit historical timestamps, no polling, per-widget
+selection and existing native Settings navigation. Next source slices include RSv2 touch and
+Bose's exact 4082 spatial/wind plus 4020/4039 device rename contracts. The RoseLink baseline
+inventory remains routing evidence, not complete feature certification. Other open family,
+Android-experience and release requirements remain in scope. No new phone installation or
+hardware acceptance is claimed; this checkpoint does not complete the comprehensive goal.

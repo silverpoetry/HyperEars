@@ -7,6 +7,8 @@ object RoseLegacyWireCodec {
         byteArrayOf(0xfa.toByte(),1,7,8,9,12,13,14,18,42,43,44,45,46,51))
     fun rsWrite(sequence:Int,type:Int,value:Int)=RoseBudsFeelMk2WireCodec.command(sequence,2,byteArrayOf(type.toByte(),value.toByte()))
     fun rsTouchWrite(sequence:Int,slot:Int,action:Int)=RoseBudsFeelMk2WireCodec.command(sequence,3,byteArrayOf(1,slot.toByte(),action.toByte()))
+    fun f8TouchQuery()=byteArrayOf(2,0x27,1,0,1,5)
+    fun f8TouchWrite(selector:Int,action:Int)=byteArrayOf(0,0x22,1,0,3,selector.toByte(),1,action.toByte())
     fun f8Query(type:Int)=byteArrayOf(0,0x27,1,0,1,type.toByte())
     fun f8Write(command:Int,value:Int,eq:Boolean=false):ByteArray =
         byteArrayOf(0,command.toByte(),1,0,if(eq) 2 else 1)+(if(eq) byteArrayOf(0,value.toByte()) else byteArrayOf(value.toByte()))

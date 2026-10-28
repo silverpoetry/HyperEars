@@ -171,14 +171,17 @@ abstract class EarbudAdapter(
             when (event) {
                 is ProtocolEvent.FeatureStateChanged -> {
                     if (!featureStateContract.accepts(this, event.state)) return@forEach
-                    when (onFeatureReported(event.state, eventScope)) {
+                    val report = normalizeFeatureReport(event.state)
+                    if (report.featureId != event.state.featureId ||
+                        !featureStateContract.accepts(this, report)) return@forEach
+                    when (onFeatureReported(report, eventScope)) {
                         FeatureReportDecision.ACCEPT -> {
-                            if (event.state is BatteryFeatureState) {
+                            if (report is BatteryFeatureState) {
                                 batterySourceAfterProtocolEvidence()?.let {
                                     confirmedBatterySource = it
                                 }
                             }
-                            val nextFeatures = runtimeState.features.update(event.state)
+                            val nextFeatures = runtimeState.features.update(report)
                             if (nextFeatures != runtimeState.features) {
                                 runtimeState = runtimeState.copy(features = nextFeatures)
                                 changed = true
@@ -249,6 +252,13 @@ abstract class EarbudAdapter(
         state: DeviceFeatureState,
         scope: AdapterEventScope,
     ): FeatureReportDecision = FeatureReportDecision.ACCEPT
+
+    /**
+     * Model-owned normalization before each report's admission, including coalesced reads.
+     * The result must retain the feature ID and satisfy the adapter's declared contract.
+     * Defaults to identity; bounded bootstrap policy remains in the adapter, not the decoder.
+     */
+    protected open fun normalizeFeatureReport(state: DeviceFeatureState): DeviceFeatureState = state
 
     /** Maps authoritative vendor identity evidence to a new concrete adapter when needed. */
     protected open fun onProductIdentified(productId: Int): HandshakeResult? = null

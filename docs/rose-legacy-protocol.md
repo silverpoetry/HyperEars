@@ -151,3 +151,42 @@ settings entry, with six finite choices and current owner/address/session checks
 Reset clears the mapping. Source-derived tests cover truncated/invalid reports,
 F8 isolation, variant action domains, sibling changes and stale native callbacks.
 Device validation remains pending.
+
+## F8 eight-gesture mapping: Explorer and Ceramics X 7034
+
+Only these two Legacy profiles select `CeramicsXReceiveHandler.keyDataReceived`
+(Explorer inherits that handler). At0xeed9bc the handler ignores the generic F8
+six-value list and extracts the raw frame again. Its Smi-decoded character indexes
+are19/31/43/55/25/37/49/61; `RReceiverTool.keyDataFromIndexs` takes exactly one
+character and parses decimal. These are low nibbles of complete-frame bytes
+9/15/21/27/12/18/24/30. Since the F8 field data starts at byte7, stored snapshot
+positions are2/8/14/20/5/11/17/23. They represent left single/double/triple/hold,
+then right single/double/triple/hold. Source config pool8658 declares those four
+operations; pool8c48 declares actions0=None,5=volume up,6=volume down,3=previous,
+4=next,7=play/pause,9=noise cycle,2=assistant. RS Common labels must not be reused.
+
+`F8Sender.getKey` at0xc37120 constructs `02 27 01 00 01 05`. Initial queries and
+mapping readback use that exact source query. The existing incoming `00 27/28 02 00`
+envelope remains unchanged; query prefix02 alone is not evidence to admit response
+prefix02. Field05 must contain at least24 bytes, with envelope widths consistent.
+All decimal low-nibble values are retained, including unmapped1/8 displayed read-only;
+only source-listed actions are writable. Upper nibbles and all other bytes remain
+opaque and are included in the expected immutable snapshot.
+
+Eight setters in `f8_sender.dart` at0xc36f84/0xc34b24/0xc34860/0xc3433c and
+0xc34170/0xc33fa4/0xc339e4/0xc33790 generate `00 22 01 00 03 selector 01 action`.
+Selectors are left1/3/5/7 and right2/4/6/8. One write changes only the selected
+operation, then queries05; no ACK or local intent is treated as reported state.
+The existing typed SetTouch carries expected model and complete raw mapping. Reset,
+stale sibling/opaque changes and old native callbacks revoke acceptance.
+
+Independent literal source-layout fixtures exercise the exact full-frame offsets,
+query, selector and readback bytes, not positions generated from implementation
+constants. Tests retain incoming prefix00 only. Hardware validation remains pending.
+
+Agate, Agate X and Ceramics are excluded from this mapping extension. Their generic
+F8 receiver extracts only six values at character offsets15/19/23/17/21/25, while
+config pool8c78 declares single/double/hold and the shared sender exposes eight
+separate operations. The missing executable association between those six values
+and long-press setters is recorded rather than borrowing the Explorer layout.
+Original Ceramics X is outside this Legacy adapter slice and is unchanged.

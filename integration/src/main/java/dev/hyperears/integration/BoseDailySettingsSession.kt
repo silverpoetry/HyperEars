@@ -14,6 +14,7 @@ internal class BoseDailySettingsSession {
     }
     fun reset() { state = BoseDailySettingsFeatureState() }
     fun queries(): List<ByteArray> = buildList {
+        if(profile.buttons)add(Wire.query(Wire.BUTTONS))
         if (profile.sidetone) add(Wire.query(Wire.SIDETONE))
         if (profile.autoAnswer) add(Wire.query(Wire.AUTO_ANSWER))
         if (profile.eq) add(Wire.query(Wire.EQ))
@@ -25,6 +26,11 @@ internal class BoseDailySettingsSession {
     }
     fun offer(frame: BoseBmapWireCodec.Frame): BoseDailySettingsFeatureState? {
         val next = when {
+            profile.buttons && frame.function==Wire.BUTTONS -> Wire.parseButton(frame)?.let { report ->
+                val product=productId?:return null
+                val value=BoseButtonSetting(product,report.id,report.event,report.current,report.mask)
+                state.copy(buttons=state.buttons.filterNot{it.button==value.button&&it.event==value.event}+value)
+            }
             profile.sidetone && frame.function == Wire.SIDETONE -> Wire.parseSidetone(frame)?.let { state.copy(sidetone = it) }
             profile.autoAnswer && frame.function == Wire.AUTO_ANSWER -> Wire.parseAutoAnswer(frame)?.let { state.copy(autoAnswer = it) }
             profile.eq && frame.function == Wire.EQ -> Wire.parseEq(frame)?.let { bands -> state.copy(eq = bands.map {
@@ -43,6 +49,7 @@ internal class BoseDailySettingsSession {
     fun encode(request: BoseDailyControlRequest): List<ByteArray> {
         if (!state.supports(request)) return emptyList()
         return when (request) {
+            is BoseDailyControlRequest.SetButton -> listOf(Wire.setButton(request.expected.button,request.expected.event,request.action))
             is BoseDailyControlRequest.SetSidetone -> listOf(Wire.setSidetone(request.level))
             is BoseDailyControlRequest.SetAutoAnswer -> listOf(Wire.setToggle(Wire.AUTO_ANSWER, request.enabled))
             is BoseDailyControlRequest.SetEqBand -> listOf(Wire.setEq(request.expected.id, request.value))
@@ -58,6 +65,7 @@ internal class BoseDailySettingsSession {
         }
     }
     fun readback(request: BoseDailyControlRequest): List<ByteArray> = listOf(Wire.query(when (request) {
+        is BoseDailyControlRequest.SetButton -> Wire.BUTTONS
         is BoseDailyControlRequest.SetSidetone -> Wire.SIDETONE
         is BoseDailyControlRequest.SetAutoAnswer -> Wire.AUTO_ANSWER
         is BoseDailyControlRequest.SetEqBand -> Wire.EQ

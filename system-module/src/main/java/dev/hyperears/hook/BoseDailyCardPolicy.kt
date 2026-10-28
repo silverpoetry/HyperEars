@@ -8,6 +8,7 @@ internal object BoseDailyCardPolicy {
     fun available(state: EarbudState, address: String) = ready(state, address) &&
         state.features.get<BoseDailySettingsFeatureState>()?.hasSettings == true
     fun matches(state: BoseDailySettingsFeatureState, request: BoseDailyControlRequest) = when (request) {
+        is BoseDailyControlRequest.SetButton -> state.buttons.any {it.productId==request.expected.productId && it.button==request.expected.button && it.event==request.expected.event && it.current==request.action}
         is BoseDailyControlRequest.SetSidetone -> state.sidetone == request.level
         is BoseDailyControlRequest.SetAutoAnswer -> state.autoAnswer == request.enabled
         is BoseDailyControlRequest.SetEqBand -> state.eq?.firstOrNull { it.definition == request.expected }?.current == request.value

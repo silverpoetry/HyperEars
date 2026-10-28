@@ -87,6 +87,11 @@ object MoondropPuddingWireCodec {
         ) {
             return null
         }
+        // A malformed component invalidates the snapshot; it is not an offline marker.
+        if (listOf(1, 3, 5).any {
+                val raw = frame.parameters[it].unsigned()
+                raw !in 0..100 && raw != 255
+            }) return null
         val left = frame.parameters[1].unsigned().takeIf { it in 1..100 }
         val right = frame.parameters[3].unsigned().takeIf { it in 1..100 }
         val case = frame.parameters[5].unsigned().takeIf { it in 0..100 }

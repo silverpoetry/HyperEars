@@ -29,15 +29,15 @@ internal object SettingsLegacyRows {
         }
         feature.touch?.let { snapshot ->
             val choices=RoseLegacyTouch.choices(feature.profile)
-            RoseLegacyTouch.SLOTS.forEachIndexed { index,slot ->
+            RoseLegacyTouch.slots(feature.profile).forEachIndexed { index,slot ->
                 val row=host.choice("hyperears.legacy.touch.$slot",RoseLegacySettingsPolicy.touchTitle(slot),
                     choices.map{RoseLegacySettingsPolicy.touchLabel(feature.model,it)},choices.map(Int::toString),
-                    RoseLegacyTouch.action(snapshot,index).toString(),true) { raw -> runCatching {
+                    RoseLegacyTouch.action(snapshot,index,feature.profile).toString(),true) { raw -> runCatching {
                     val value=raw.toIntOrNull()?:return@runCatching
                     val request=RoseLegacyControlRequest.SetTouch(feature.model,snapshot,slot,value)
                     latest()?.let{RoseLegacySettingsPolicy.request(it,address,request)}?.let(send)
                 } }
-                if(RoseLegacyTouch.action(snapshot,index) !in choices)host.summary(row,"当前：无功能（耳机回报）")
+                if(RoseLegacyTouch.action(snapshot,index,feature.profile) !in choices)host.summary(row,RoseLegacySettingsPolicy.touchCaption(feature.model,RoseLegacyTouch.action(snapshot,index,feature.profile)))
                 add(row)
             }
         }

@@ -123,6 +123,7 @@ EarbudAdapter
 ```text
 ProtocolSession
   -> ProtocolEvent.FeatureStateChanged
+  -> EarbudAdapter.normalizeFeatureReport
   -> EarbudAdapter.onFeatureReported
   -> FeatureReportDecision
   -> EarbudAdapter.runtimeState.features
@@ -489,3 +490,11 @@ libxposed `RemotePreferences`，因此修改该开关不会唤醒或重配任何
 - 跨进程 AdapterSnapshot、DeviceLifecycle 和特性快照往返一致；
 - UI/MiLink 不依赖 Registry 按 ID 重建运行时对象；
 - 一次控制只产生一次完整写事务。
+
+### 报告的逐事件规范化
+
+`normalizeFeatureReport()` 默认原样返回。模型需要将有实测依据的初期分侧报告合并时，
+可在 Adapter 内覆盖；输入与输出都必须符合已声明的 feature contract，并保留同一 feature ID。
+规范化与接纳按事件顺序交替执行，因此同一次传输读取中的后续报告能看到前一报告的提交结果。
+Pudding 只在既有有界电量初始化阶段合并，提交后完整快照直接清除明确不可读分量；
+协议会话不保存该模型的重试次数或提交策略。其他 Adapter 保持默认行为。

@@ -11,6 +11,7 @@ import dev.hyperears.protocol.moondrop.MoondropPuddingWireCodec
  * noise control are exposed only after their corresponding valid responses.
  */
 class MoondropPuddingAdapter : MoondropJieliAdapter("moondrop-pudding-spp") {
+    private var bootstrapBattery = EarbudBattery()
     override val id: String = ID
     override val displayName: String = "MOONDROP Pudding"
     override fun createProtocolSession(): ProtocolSession = PuddingAdvancedSession()
@@ -36,7 +37,20 @@ class MoondropPuddingAdapter : MoondropJieliAdapter("moondrop-pudding-spp") {
         if (request is PuddingControlRequest || (protocolSession as PuddingAdvancedSession).isApk) ControlExecutionPolicy() else super.controlPolicy(request)
     override fun onProtocolReset() {
         super.onProtocolReset()
+        bootstrapBattery = EarbudBattery()
         removeFeatureState(PuddingSettingsFeatureState.FEATURE_ID)
+    }
+
+    override fun normalizeFeatureReport(state: DeviceFeatureState): DeviceFeatureState {
+        if (state !is BatteryFeatureState || hasCommittedPrivateBattery ||
+            (protocolSession as PuddingAdvancedSession).isApk) return state
+        val report = state.battery
+        bootstrapBattery = if (report == EarbudBattery()) report else bootstrapBattery.copy(
+            left = report.left.takeIf { it.percent != null } ?: bootstrapBattery.left,
+            right = report.right.takeIf { it.percent != null } ?: bootstrapBattery.right,
+            case = report.case.takeIf { it.percent != null } ?: bootstrapBattery.case,
+        )
+        return state.copy(battery = bootstrapBattery)
     }
 
 
@@ -61,6 +75,7 @@ abstract class MoondropJieliAdapter(
 ) : MoondropEarbudAdapter() {
     private var batteryBootstrapAttempt = 0
     private var privateBatteryCommitted = false
+    protected val hasCommittedPrivateBattery: Boolean get() = privateBatteryCommitted
     private var expectedNoiseMode: NoiseMode? = null
     private var noiseModeAttempt = 0
 
@@ -174,7 +189,9 @@ abstract class MoondropJieliAdapter(
     }
 }
 
-internal class MoondropPuddingProtocolSession : ProtocolSession {
+internal class MoondropPuddingProtocolSession(
+    private val mergeBatteryReports: Boolean = true,
+) : ProtocolSession {
     private val decoder = MoondropPuddingWireCodec.Decoder()
     private var handshakeAccepted = false
     private var battery = EarbudBattery()
@@ -223,6 +240,12 @@ internal class MoondropPuddingProtocolSession : ProtocolSession {
                 this@MoondropPuddingProtocolSession.battery =
                     if (unavailable) {
                         EarbudBattery()
+                    } else if (!mergeBatteryReports) {
+                        EarbudBattery(
+                            left = BatteryReading(battery.leftPercent, false),
+                            right = BatteryReading(battery.rightPercent, false),
+                            case = BatteryReading(battery.casePercent, false),
+                        )
                     } else {
                         this@MoondropPuddingProtocolSession.battery.merge(battery)
                     }

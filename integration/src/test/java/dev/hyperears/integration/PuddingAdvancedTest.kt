@@ -6,6 +6,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PuddingAdvancedTest {
+    @Test fun apkZeroIsKnownAndOmittedComponentsRemainUnchanged() {
+        val adapter = MoondropPuddingAdapter()
+        adapter.receive(byteArrayOf(-1,4,0,5,0,29,39,1,1)) // Exact LED report selects APK dialect.
+        adapter.receive(byteArrayOf(-1,4,0,10,0,29,27,1,1,80,2,70,3,60))
+        adapter.receive(byteArrayOf(-1,4,0,6,0,29,27,1,1,0))
+        assertEquals(0, adapter.runtimeState().battery.left.percent)
+        assertEquals(70, adapter.runtimeState().battery.right.percent)
+        assertEquals(60, adapter.runtimeState().battery.case.percent)
+        adapter.receive(byteArrayOf(-1,4,0,6,0,29,27,1,2,-1))
+        assertEquals(70, adapter.runtimeState().battery.right.percent)
+    }
     private fun report(sub: Int, op: Int, value: Int) = Wire.packet(byteArrayOf(0,29,sub.toByte(),op.toByte(),value.toByte()))
     @Test fun completeReportSelectsApkButNegotiationAloneDoesNot() {
         val adapter = MoondropPuddingAdapter()
