@@ -1,0 +1,2167 @@
+{
+  "evidence": "Installed ROSELINK 3.8.2 code 5409, matching Dart 3.11.4 AOT analysis; static configuration declarations only. No runtime or hardware validation.",
+  "audit_date": "2026-10-28",
+  "comparison_commit": "34e90c65c3c7bec0c101124ac5e4b55b3ed8444f",
+  "total_directory_files": 53,
+  "family_config_files": 48,
+  "family_counts": {
+    "f8": 6,
+    "rs_common": 8,
+    "rs_common_v2": 31,
+    "zt": 3
+  },
+  "models": [
+    {
+      "path": "f8/agate_device_config.dart",
+      "class": "AgateDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b3e54",
+      "config_id": {
+        "value": "agate",
+        "offset": "0x7b3e54"
+      },
+      "display_name": {
+        "value": "AGATE",
+        "offset": "0x7b3e64"
+      },
+      "protocol": {
+        "value": "f8",
+        "offset": "0x7b3e5c"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b3e74"
+      },
+      "sender_allocations": {
+        "F8Sender": "0x6dbed4"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6dbfdc",
+        "DeviceEqPanelItemWidgetModel": "0x6dc004",
+        "DeviceOptionPanelWidgetModel": "0x6dc060",
+        "DeviceGamePanelItemWidgetModel": "0x6dc078",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dc098"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "f8/agate_x_device_config.dart",
+      "class": "AgateXDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b3ea0",
+      "config_id": {
+        "value": "agatex",
+        "offset": "0x7b3ea0"
+      },
+      "display_name": {
+        "value": "AGATE X",
+        "offset": "0x7b3eb0"
+      },
+      "protocol": {
+        "value": "f8",
+        "offset": "0x7b3ea8"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b3ec0"
+      },
+      "sender_allocations": {
+        "F8Sender": "0x6dbacc"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6dbbd4",
+        "DeviceEqPanelItemWidgetModel": "0x6dbbfc",
+        "DeviceOptionPanelWidgetModel": "0x6dbc58",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dbc70"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "f8/ceramics_device_config.dart",
+      "class": "CeramicsDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b3eec",
+      "config_id": {
+        "value": "ceramics",
+        "offset": "0x7b3eec"
+      },
+      "display_name": {
+        "value": "CERAMICS",
+        "offset": "0x7b3efc"
+      },
+      "protocol": {
+        "value": "f8",
+        "offset": "0x7b3ef4"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b3f0c"
+      },
+      "sender_allocations": {
+        "F8Sender": "0x6df374"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6df430",
+        "DeviceEqPanelItemWidgetModel": "0x6df45c",
+        "DeviceOptionPanelWidgetModel": "0x6df4b8",
+        "DeviceGamePanelItemWidgetModel": "0x6df4d0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6df4f0"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "f8/ceramics_x_7034_device_config.dart",
+      "class": "CeramicsX7034DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b3f38",
+      "config_id": {
+        "value": "CERAMICS-X-7034",
+        "offset": "0x7b3f40"
+      },
+      "display_name": {
+        "value": "CERAMICS-X",
+        "offset": "0x7b3f50"
+      },
+      "protocol": {
+        "value": "f8",
+        "offset": "0x7b3f48"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b3fa4"
+      },
+      "sender_allocations": {
+        "F8Sender": "0x6de85c"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6de918",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6de944",
+        "DeviceEqPanelItemWidgetModel": "0x6de98c",
+        "DeviceOptionPanelWidgetModel": "0x6de9e8",
+        "DeviceGamePanelItemWidgetModel": "0x6dea00",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6dea20",
+        "DeviceAudioPanelItemWidgetModel": "0x6dea5c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dea8c",
+        "RDeviceLangItemWidgetModel": "0x6deaa4",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6deb3c",
+        "DeviceOtaPanelItemWidgetModel": "0x6deba8"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b3f60"
+        },
+        {
+          "value": "00007034-0000-1000-8000-00805f9b34fb",
+          "offset": "0x7b3f68"
+        }
+      ]
+    },
+    {
+      "path": "f8/ceramics_x_device_config.dart",
+      "class": "CeramicsXDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b411c",
+      "config_id": {
+        "value": "CERAMICS-X",
+        "offset": "0x7b4124"
+      },
+      "display_name": {
+        "value": "CERAMICS-X",
+        "offset": "0x7b4124"
+      },
+      "protocol": {
+        "value": "f8",
+        "offset": "0x7b412c"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4174"
+      },
+      "sender_allocations": {
+        "F8Sender": "0x6dedf8"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6deeb4",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6deee0",
+        "DeviceEqPanelItemWidgetModel": "0x6def28",
+        "DeviceOptionPanelWidgetModel": "0x6def84",
+        "DeviceGamePanelItemWidgetModel": "0x6def9c",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6defbc",
+        "DeviceAudioPanelItemWidgetModel": "0x6deffc",
+        "RDeviceTouchSettingItemWidgetModel": "0x6df02c",
+        "RDeviceLangItemWidgetModel": "0x6df044",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6df0dc",
+        "DeviceOtaPanelItemWidgetModel": "0x6df148"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "00007034-0000-1000-8000-00805f9b34fb",
+          "offset": "0x7b413c"
+        }
+      ]
+    },
+    {
+      "path": "f8/explorer_device_config.dart",
+      "class": "ExplorerDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b41a4",
+      "config_id": {
+        "value": "EXPLORER",
+        "offset": "0x7b41ac"
+      },
+      "display_name": {
+        "value": "EXPLORER",
+        "offset": "0x7b41ac"
+      },
+      "protocol": {
+        "value": "f8",
+        "offset": "0x7b41b4"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b41d4"
+      },
+      "sender_allocations": {
+        "ExplorerSender": "0x6db3ac"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6db468",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6db494",
+        "DeviceEqPanelItemWidgetModel": "0x6db4e0",
+        "DeviceOptionPanelWidgetModel": "0x6db53c",
+        "DeviceGamePanelItemWidgetModel": "0x6db554",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6db574",
+        "DeviceAudioPanelItemWidgetModel": "0x6db5b4",
+        "RDeviceFindItemWidgetModel": "0x6db5e4",
+        "RDeviceTouchSettingItemWidgetModel": "0x6db5fc",
+        "RDeviceMoreItemWidgetModel": "0x6db614",
+        "RDeviceLangItemWidgetModel": "0x6db62c",
+        "DeviceOtaPanelItemWidgetModel": "0x6db6d4",
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x6db7d0",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6db850"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b41c4"
+        },
+        {
+          "value": "00007034-0000-1000-8000-00805f9b34fb",
+          "offset": "0x7b41cc"
+        }
+      ]
+    },
+    {
+      "path": "rs_common/budsfree_device_config.dart",
+      "class": "BudsfreeDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4228",
+      "config_id": {
+        "value": "budsfree",
+        "offset": "0x7b4228"
+      },
+      "display_name": {
+        "value": "BudsFree i",
+        "offset": "0x7b4238"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b4230"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4248"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6d9bd8"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d9c84",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6d9cb0",
+        "DeviceEqPanelItemWidgetModel": "0x6d9cf8",
+        "DeviceOptionPanelWidgetModel": "0x6d9d54",
+        "DeviceGamePanelItemWidgetModel": "0x6d9d6c",
+        "DeviceAudioPanelItemWidgetModel": "0x6d9d8c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d9dc0"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "rs_common/cambrian_device_config.dart",
+      "class": "CambrianDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4274",
+      "config_id": {
+        "value": "cambrian",
+        "offset": "0x7b4274"
+      },
+      "display_name": {
+        "value": "Cambrian",
+        "offset": "0x7b4284"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b427c"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b4294"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6d67d0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d687c",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6d68a8",
+        "DeviceEqPanelItemWidgetModel": "0x6d68f4",
+        "DeviceOptionPanelWidgetModel": "0x6d6950",
+        "DeviceGamePanelItemWidgetModel": "0x6d6968",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d6988",
+        "DeviceAudioPanelItemWidgetModel": "0x6d69c4",
+        "RDeviceFindItemWidgetModel": "0x6d69f4",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d6a0c",
+        "RDeviceMoreItemWidgetModel": "0x6d6a24",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6d6abc",
+        "DeviceOtaPanelItemWidgetModel": "0x6d6b28",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d6c1c"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b42a0"
+        }
+      ]
+    },
+    {
+      "path": "rs_common/openfree_device_config.dart",
+      "class": "OpenfreeDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b42fc",
+      "config_id": {
+        "value": "OpenFree",
+        "offset": "0x7b42fc"
+      },
+      "display_name": {
+        "value": "OpenFeel",
+        "offset": "0x7b430c"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b4304"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b431c"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6d521c"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0xc38784",
+        "DeviceEqPanelItemWidgetModel": "0xc387b0",
+        "DeviceOptionPanelWidgetModel": "0xc3880c",
+        "DeviceGamePanelItemWidgetModel": "0xc38824",
+        "DeviceMulDevicePanelItemWidgetModel": "0xc38844",
+        "DeviceAudioPanelItemWidgetModel": "0xc38888",
+        "RDeviceTouchSettingItemWidgetModel": "0xc388b4"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "rs_common/openfun_device_config.dart",
+      "class": "OpenfunDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4348",
+      "config_id": {
+        "value": "openfun",
+        "offset": "0x7b4348"
+      },
+      "display_name": {
+        "value": "OpenFun",
+        "offset": "0x7b4358"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b4350"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4368"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6d6364"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d6410",
+        "DeviceGamePanelItemWidgetModel": "0x6d643c",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d645c",
+        "DeviceOptionPanelWidgetModel": "0x6d64e8",
+        "RDeviceFindItemWidgetModel": "0x6d6500",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d6518",
+        "RDeviceMoreItemWidgetModel": "0x6d6590",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d6678"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4374"
+        }
+      ]
+    },
+    {
+      "path": "rs_common/openlink_device_config.dart",
+      "class": "OpenlinkDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b43a0",
+      "config_id": {
+        "value": "openlink",
+        "offset": "0x7b43a0"
+      },
+      "display_name": {
+        "value": "OpenLink",
+        "offset": "0x7b43b0"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b43a8"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b43c0"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6d5f04"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d5fb0",
+        "DeviceGamePanelItemWidgetModel": "0x6d5fdc",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d5ffc",
+        "DeviceOptionPanelWidgetModel": "0x6d6088",
+        "RDeviceFindItemWidgetModel": "0x6d60a0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d60b8",
+        "RDeviceMoreItemWidgetModel": "0x6d6130",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d6218"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b43cc"
+        }
+      ]
+    },
+    {
+      "path": "rs_common/rs_common_device_config.dart",
+      "class": "RsCommonDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b43f8",
+      "config_id": {
+        "value": "RS-Common",
+        "offset": "0x7b43f8"
+      },
+      "display_name": {
+        "value": "RS-Common",
+        "offset": "0x7b43f8"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b4400"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4418"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6df908"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6df9b4",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6df9e0",
+        "DeviceEqPanelItemWidgetModel": "0x6dfa2c",
+        "DeviceOptionPanelWidgetModel": "0x6dfa88",
+        "DeviceGamePanelItemWidgetModel": "0x6dfaa0",
+        "RDeviceFindItemWidgetModel": "0x6dfac0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dfad8",
+        "RDeviceMoreItemWidgetModel": "0x6dfaf0",
+        "DeviceOtaPanelItemWidgetModel": "0x6dfb78",
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x6dfc74",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6dfcf4",
+        "DeviceSpatialSwitchPanelItemWidgetModel": "0x6dfd78"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4410"
+        }
+      ]
+    },
+    {
+      "path": "rs_common/sportfree_device_config.dart",
+      "class": "SportfreeDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4448",
+      "config_id": {
+        "value": "sportfree",
+        "offset": "0x7b4448"
+      },
+      "display_name": {
+        "value": "SportFeel",
+        "offset": "0x7b4458"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b4450"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4468"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6d596c"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d5a18",
+        "DeviceGamePanelItemWidgetModel": "0x6d5a44",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d5a64",
+        "DeviceOptionPanelWidgetModel": "0x6d5af0",
+        "RDeviceFindItemWidgetModel": "0x6d5b08",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d5b20",
+        "RDeviceMoreItemWidgetModel": "0x6d5b98",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d5c80",
+        "DeviceSpatialSwitchPanelItemWidgetModel": "0x6d5d04"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4474"
+        }
+      ]
+    },
+    {
+      "path": "rs_common/swift_device_config.dart",
+      "class": "SwiftDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b44a0",
+      "config_id": {
+        "value": "swift",
+        "offset": "0x7b44a0"
+      },
+      "display_name": {
+        "value": "SWIFT",
+        "offset": "0x7b44b0"
+      },
+      "protocol": {
+        "value": "rs-common",
+        "offset": "0x7b44a8"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b44c0"
+      },
+      "sender_allocations": {
+        "RsCommonSender": "0x6d9848"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d98f4",
+        "DeviceGamePanelItemWidgetModel": "0x6d9920",
+        "DeviceOptionPanelWidgetModel": "0x6d9980",
+        "RDeviceFindItemWidgetModel": "0x6d9998",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d99b0"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "rs_common_v2/astro_x_device_config.dart",
+      "class": "AstroXDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b44ec",
+      "config_id": {
+        "value": "astrox",
+        "offset": "0x7b44f4"
+      },
+      "display_name": {
+        "value": "Astro X",
+        "offset": "0x7b4504"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b44fc"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4550"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d2048"
+      },
+      "direct_widget_allocations": {
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x6d20d8",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d20fc",
+        "DeviceOptionPanelWidgetModel": "0x6d2170",
+        "DeviceEarAdaptivePanelItemWidgetModel": "0x6d2188",
+        "RDeviceComponentDisplayBarWidgetModel": "0xc38a0c",
+        "RDeviceSpatialAudioBarWidgetModel": "0xc38a54",
+        "DeviceEqPanelItemWidgetModel": "0xc38a8c",
+        "RDeviceGainLevelItemWidgetModel": "0xc38b2c",
+        "RDeviceHearingProtectionItemWidgetModel": "0xc38b6c",
+        "DeviceGamePanelItemWidgetModel": "0xc38bb4",
+        "DeviceMulDevicePanelItemWidgetModel": "0xc38bd4",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0xc38c74",
+        "DeviceAudioPanelItemWidgetModel": "0xc38d70",
+        "RDeviceTouchSettingItemWidgetModel": "0xc38da0",
+        "RDeviceFindItemWidgetModel": "0xc38db8",
+        "RDeviceMoreItemWidgetModel": "0xc38dd0",
+        "RDeviceTapControlItemWidgetModel": "0xc38e0c",
+        "DeviceOtaPanelItemWidgetModel": "0xc38e94"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4514"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/auramic_device_config.dart",
+      "class": "AuramicDeviceConfig",
+      "extends": "RsCommonV2DeviceConfig",
+      "config_offset": "0x7b4580",
+      "config_id": {
+        "value": "AURAMIC",
+        "offset": "0x79cdfc"
+      },
+      "display_name": {
+        "value": "AURAMIC1 / AURAMIC1_<address suffix>",
+        "offset": "0x79ce70 / 0x79cee8"
+      },
+      "protocol": {
+        "value": "rs-common-v2 (inherited)",
+        "offset": "0x7b45b0"
+      },
+      "form": {
+        "value": "mic",
+        "offset": "0x79cef4"
+      },
+      "sender_allocations": {},
+      "direct_widget_allocations": {
+        "DeviceOptionPanelWidgetModel": "0xc3115c",
+        "DeviceMicSwitchPanelItemWidgetModel": "0xc311dc",
+        "DeviceOptionPanelItemByCommandWidgetModel": "0xc31248",
+        "DeviceOtaPanelItemWidgetModel": "0xc38fe0"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "rs_common_v2/budsfeel_mk2_device_config.dart",
+      "class": "BudsfeelMk2DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b46cc",
+      "config_id": {
+        "value": "budsfeel_mk2",
+        "offset": "0x7b46cc"
+      },
+      "display_name": {
+        "value": "BudsFeel MK2",
+        "offset": "0x7b46dc"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b46d4"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4718"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d0880"
+      },
+      "direct_widget_allocations": {
+        "DeviceDingLevelPanelItemWidgetModel": "0x9877f0",
+        "DeviceOptionPanelWidgetModel": "0x98785c",
+        "DeviceAncLinePanelItemWidgetModel": "0x987874",
+        "RDeviceComponentDisplayBarWidgetModel": "0xc3a7a8",
+        "RDeviceComponentNoiseBarWidgetModel": "0xc3a7d4",
+        "RDeviceEqBassPlusItemWidgetModel": "0xc3a81c",
+        "DeviceGamePanelItemWidgetModel": "0xc3a83c",
+        "DeviceMulDevicePanelItemWidgetModel": "0xc3a85c",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0xc3a8d0",
+        "DeviceAudioPanelItemWidgetModel": "0xc3a93c",
+        "RDeviceTouchSettingItemWidgetModel": "0xc3a970",
+        "RDeviceMoreItemWidgetModel": "0xc3a988",
+        "RDeviceFindItemWidgetModel": "0xc3aa08",
+        "DeviceOtaPanelItemWidgetModel": "0xc3aa20"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b46ec"
+        },
+        {
+          "value": "0000AE00-0000-1000-8000-00805F9B34FB",
+          "offset": "0x7b472c"
+        },
+        {
+          "value": "0000AE01-0000-1000-8000-00805F9B34FB",
+          "offset": "0x7b4734"
+        },
+        {
+          "value": "0000AE02-0000-1000-8000-00805F9B34FB",
+          "offset": "0x7b473c"
+        },
+        {
+          "value": "00001101-0000-1000-8000-00805F9B34FB",
+          "offset": "0x7b4744"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/ceramics_mk2_5736_device_config.dart",
+      "class": "CeramicsMk25736DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b476c",
+      "config_id": {
+        "value": "ceramics-mk2-5736",
+        "offset": "0x7b4774"
+      },
+      "display_name": {
+        "value": "CERAMICS-MK2",
+        "offset": "0x7b4784"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b477c"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b47d0"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6dd1d0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6dd2ac",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6dd338",
+        "DeviceEqPanelItemWidgetModel": "0x6dd380",
+        "DeviceOptionPanelWidgetModel": "0x6dd3e8",
+        "DeviceGamePanelItemWidgetModel": "0x6dd400",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6dd420",
+        "RDeviceFindItemWidgetModel": "0x6dd434",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dd44c",
+        "RDeviceMoreItemWidgetModel": "0x6dd464",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6dd4f4",
+        "DeviceOtaPanelItemWidgetModel": "0x6dd560",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6dd664",
+        "DeviceAncLinePanelItemWidgetModel": "0x6dd6e8"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4794"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/ceramics_mk2_8912f_device_config.dart",
+      "class": "CeramicsMk28912fDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4800",
+      "config_id": {
+        "value": "ceramics-mk2-8912f",
+        "offset": "0x7b4808"
+      },
+      "display_name": {
+        "value": "CERAMICS-MK2",
+        "offset": "0x7b4818"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4810"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4864"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6dd8e0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6dd9c8",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6dda54",
+        "DeviceEqPanelItemWidgetModel": "0x6dda9c",
+        "DeviceOptionPanelWidgetModel": "0x6ddb04",
+        "DeviceGamePanelItemWidgetModel": "0x6ddb1c",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6ddb3c",
+        "DeviceAudioPanelItemWidgetModel": "0x6ddb9c",
+        "RDeviceFindItemWidgetModel": "0x6ddbcc",
+        "RDeviceTouchSettingItemWidgetModel": "0x6ddbe4",
+        "RDeviceLangItemWidgetModel": "0x6ddbfc",
+        "RDeviceMoreItemWidgetModel": "0x6ddc1c",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6ddcbc",
+        "DeviceOtaPanelItemWidgetModel": "0x6ddd28",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6dde1c",
+        "DeviceAncLinePanelItemWidgetModel": "0x6ddea0"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4828"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/ceramics_mk2_device_config.dart",
+      "class": "CeramicsMk2DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4894",
+      "config_id": {
+        "value": "ceramics-mk2",
+        "offset": "0x7b489c"
+      },
+      "display_name": {
+        "value": "CERAMICS-MK2",
+        "offset": "0x7b48ac"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b48a4"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b48f8"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6de098"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6de180",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6de20c",
+        "DeviceEqPanelItemWidgetModel": "0x6de254",
+        "DeviceOptionPanelWidgetModel": "0x6de2c0",
+        "DeviceGamePanelItemWidgetModel": "0x6de2d8",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6de2f8",
+        "DeviceAudioPanelItemWidgetModel": "0x6de358",
+        "RDeviceFindItemWidgetModel": "0x6de388",
+        "RDeviceTouchSettingItemWidgetModel": "0x6de3a0",
+        "RDeviceLangItemWidgetModel": "0x6de3b8",
+        "RDeviceMoreItemWidgetModel": "0x6de3d8",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6de478",
+        "DeviceOtaPanelItemWidgetModel": "0x6de4e4",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6de5d8",
+        "DeviceAncLinePanelItemWidgetModel": "0x6de664"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b48bc"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/ceramics_u_device_config.dart",
+      "class": "CeramicsUDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4928",
+      "config_id": {
+        "value": "CERAMICS-U",
+        "offset": "0x7b4928"
+      },
+      "display_name": {
+        "value": "CERAMICS-U",
+        "offset": "0x7b4928"
+      },
+      "protocol": null,
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4978"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6dc9f8"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6dca88",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6dcab4",
+        "DeviceEqPanelItemWidgetModel": "0x6dcb08",
+        "DeviceOptionPanelWidgetModel": "0x6dcb74",
+        "RDeviceGainLevelItemWidgetModel": "0x6dcb8c",
+        "DeviceGamePanelItemWidgetModel": "0x6dcbac",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6dcbcc",
+        "DeviceAudioPanelItemWidgetModel": "0x6dcbe0",
+        "RDeviceFindItemWidgetModel": "0x6dcc14",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dcc2c",
+        "RDeviceLangItemWidgetModel": "0x6dcc44",
+        "RDeviceMoreItemWidgetModel": "0x6dcc64",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6dcd04",
+        "DeviceOtaPanelItemWidgetModel": "0x6dcd70",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6dce7c",
+        "DeviceAutoNoiseAncPanelItemWidgetModel": "0x6dcf08",
+        "DeviceLimitNoiseAncPanelItemWidgetModel": "0x6dcf68",
+        "DeviceAncLinePanelItemWidgetModel": "0x6dcfc8"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4940"
+        },
+        {
+          "value": "00007034-0000-1000-8000-00805f9b34fb",
+          "offset": "0x7b4948"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/ceramics_u_hsc_2710_device_config.dart",
+      "class": "CeramicsUHsc2710DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b49c0",
+      "config_id": {
+        "value": "CERAMICS-U-HSC-2710",
+        "offset": "0x7b49c0"
+      },
+      "display_name": {
+        "value": "CERAMICS-U",
+        "offset": "0x7b49d0"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b49c8"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4a18"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6dc2c0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6dc350",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6dc37c",
+        "DeviceEqPanelItemWidgetModel": "0x6dc3d0",
+        "DeviceOptionPanelWidgetModel": "0x6dc438",
+        "RDeviceGainLevelItemWidgetModel": "0x6dc450",
+        "DeviceGamePanelItemWidgetModel": "0x6dc468",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6dc488",
+        "DeviceAudioPanelItemWidgetModel": "0x6dc49c",
+        "RDeviceFindItemWidgetModel": "0x6dc4d0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dc4e8",
+        "RDeviceMoreItemWidgetModel": "0x6dc500",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6dc598",
+        "DeviceOtaPanelItemWidgetModel": "0x6dc604",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6dc714",
+        "DeviceLimitNoiseAncPanelItemWidgetModel": "0x6dc798",
+        "DeviceAncLinePanelItemWidgetModel": "0x6dc7f8"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b49e0"
+        },
+        {
+          "value": "66666666-6666-6666-6666-666666666666",
+          "offset": "0x7b49e8"
+        },
+        {
+          "value": "77777777-7777-7777-7777-777777777777",
+          "offset": "0x7b4a2c"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/coral_device_config.dart",
+      "class": "CoralDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4a50",
+      "config_id": {
+        "value": "coral",
+        "offset": "0x7b4a58"
+      },
+      "display_name": {
+        "value": "Coral",
+        "offset": "0x7b4a68"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4a60"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4ab4"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d0a30"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d0ac0",
+        "RDeviceEqBassPlusItemWidgetModel": "0x6d0aec",
+        "DeviceGamePanelItemWidgetModel": "0x6d0b0c",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d0b2c",
+        "DeviceOptionPanelWidgetModel": "0x6d0b88",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6d0ba0",
+        "DeviceAudioPanelItemWidgetModel": "0x6d0c0c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d0c40",
+        "RDeviceMoreItemWidgetModel": "0x6d0c58",
+        "RDeviceFindItemWidgetModel": "0x6d0cd8",
+        "DeviceOtaPanelItemWidgetModel": "0x6d0cf0",
+        "RDeviceComponentOnlyNoiseBarWidgetModel": "0x6d0d80",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d0dfc"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4a78"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/earfeel_i7_device_config.dart",
+      "class": "EarfeelI7DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4ae4",
+      "config_id": {
+        "value": "earfeel-i7",
+        "offset": "0x7b4b0c"
+      },
+      "display_name": {
+        "value": "EarFeel i7",
+        "offset": "0x7b4aec"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4ae4"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4b3c"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6cdec4"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6cdf54",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6cdfe8",
+        "DeviceOptionPanelWidgetModel": "0x6ce074",
+        "DeviceEqPanelItemWidgetModel": "0x6ce0d0",
+        "RDeviceGainLevelItemWidgetModel": "0x6ce17c",
+        "RDeviceHearingProtectionItemWidgetModel": "0x6ce1bc",
+        "DeviceGamePanelItemWidgetModel": "0x6ce204",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6ce224",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6ce2d0",
+        "DeviceAudioPanelItemWidgetModel": "0x6ce36c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6ce3a0",
+        "RDeviceMoreItemWidgetModel": "0x6ce3b8",
+        "RDeviceFindItemWidgetModel": "0x6ce464",
+        "DeviceOtaPanelItemWidgetModel": "0x6ce47c",
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x6ce574",
+        "DeviceAutoNoiseAncPanelItemWidgetModel": "0x6ce5f4",
+        "DeviceAutoNoiseAncDynamicPanelItemWidgetModel": "0x6ce614",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6ce694",
+        "DeviceAncLinePanelItemWidgetModel": "0x6ce720"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4afc"
+        },
+        {
+          "value": "66666666-6666-6666-6666-666666666666",
+          "offset": "0x7b4b04"
+        },
+        {
+          "value": "77777777-7777-7777-7777-777777777777",
+          "offset": "0x7b4b50"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/first_angel_device_config.dart",
+      "class": "FirstAngelDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4b74",
+      "config_id": {
+        "value": "first-angel",
+        "offset": "0x7b4ba0"
+      },
+      "display_name": {
+        "value": "FIRST ANGEL",
+        "offset": "0x7b4b88"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4b80"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b4bec"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6ccb88"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6ccc58",
+        "DeviceEqPanelItemWidgetModel": "0x6ccc84",
+        "DeviceOptionPanelWidgetModel": "0x6ccd00",
+        "DeviceGamePanelItemWidgetModel": "0x6ccd18",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6ccd38",
+        "RDeviceTouchSettingItemWidgetModel": "0x6ccdac",
+        "RDeviceFindItemWidgetModel": "0x6ccdc4",
+        "RDeviceMoreItemWidgetModel": "0x6ccddc",
+        "DeviceOtaPanelItemWidgetModel": "0x6cce5c",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6ccfbc"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4b98"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/furina_device_config.dart",
+      "class": "FurinaDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4c38",
+      "config_id": {
+        "value": "furina",
+        "offset": "0x7b4c40"
+      },
+      "display_name": {
+        "value": "FURINA",
+        "offset": "0x7b4c50"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4c48"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4c9c"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d39a0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d3a30",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6d3a5c",
+        "DeviceEqPanelItemWidgetModel": "0x6d3aa8",
+        "DeviceOptionPanelWidgetModel": "0x6d3b14",
+        "DeviceGamePanelItemWidgetModel": "0x6d3b44",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d3b64",
+        "DeviceAudioPanelItemWidgetModel": "0x6d3bec",
+        "RDeviceFindItemWidgetModel": "0x6d3c1c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d3c34",
+        "RDeviceLangItemWidgetModel": "0x6d3c4c",
+        "RDeviceMoreItemWidgetModel": "0x6d3c6c",
+        "DeviceOtaPanelItemWidgetModel": "0x6d3d24",
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x6d3e38",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d3ed0",
+        "DeviceLimitNoiseAncPanelItemWidgetModel": "0x6d3f6c",
+        "DeviceAncLinePanelItemWidgetModel": "0x6d3ff4",
+        "RDevicePersonalizationItemWidgetModel": "0x981548"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4c60"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/hyacinth_device_config.dart",
+      "class": "HyacinthDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4ccc",
+      "config_id": {
+        "value": "hyacinth",
+        "offset": "0x7b4ccc"
+      },
+      "display_name": {
+        "value": "Hyacinth",
+        "offset": "0x7b4cdc"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4cd4"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4d18"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d2888"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d2918",
+        "DeviceEqPanelItemWidgetModel": "0x6d2944",
+        "DeviceOptionPanelWidgetModel": "0x6d29a0",
+        "DeviceGamePanelItemWidgetModel": "0x6d29b8",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d29d8",
+        "DeviceAudioPanelItemWidgetModel": "0x6d2a4c",
+        "RDeviceFindItemWidgetModel": "0x6d2a80",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d2a98",
+        "RDeviceLangItemWidgetModel": "0x6d2ab0",
+        "RDeviceMoreItemWidgetModel": "0x6d2ad0",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d2bd8"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4cec"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/jasmine_device_config.dart",
+      "class": "JasmineDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4d34",
+      "config_id": {
+        "value": "jasmine",
+        "offset": "0x7b4d34"
+      },
+      "display_name": {
+        "value": "Jasmine",
+        "offset": "0x7b4d44"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4d3c"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4d80"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d2380"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d2410",
+        "DeviceGamePanelItemWidgetModel": "0x6d243c",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d245c",
+        "DeviceOptionPanelWidgetModel": "0x6d24b8",
+        "RDeviceFindItemWidgetModel": "0x6d24d0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d24e8",
+        "RDeviceLangItemWidgetModel": "0x6d2500",
+        "RDeviceMoreItemWidgetModel": "0x6d2520",
+        "DeviceOtaPanelItemWidgetModel": "0x6d25a8",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d269c"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4d54"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/ky01_device_config.dart",
+      "class": "Ky01DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4d9c",
+      "config_id": {
+        "value": "ky01",
+        "offset": "0x7b4da4"
+      },
+      "display_name": {
+        "value": "KY01",
+        "offset": "0x7b4db4"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4dac"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4e00"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d1000"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d1090",
+        "DeviceEqPanelItemWidgetModel": "0x6d10bc",
+        "DeviceOptionPanelWidgetModel": "0x6d1118",
+        "DeviceGamePanelItemWidgetModel": "0x6d1130",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d1150",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d11c4",
+        "RDeviceLangItemWidgetModel": "0x6d11dc",
+        "RDeviceMoreItemWidgetModel": "0x6d11fc",
+        "RDeviceFindItemWidgetModel": "0x6d127c",
+        "DeviceOtaPanelItemWidgetModel": "0x6d1294",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d1388"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4dc4"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/luminous_agumon_device_config.dart",
+      "class": "LuminousAgumonDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4e30",
+      "config_id": {
+        "value": "luminous_agumon",
+        "offset": "0x7b4e30"
+      },
+      "display_name": {
+        "value": "Agumon",
+        "offset": "0x7b4e40"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4e38"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4e7c"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6cf21c"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6cf2ac",
+        "DeviceGamePanelItemWidgetModel": "0x6cf2d8",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6cf2f8",
+        "DeviceOptionPanelWidgetModel": "0x6cf354",
+        "RDeviceTouchSettingItemWidgetModel": "0x6cf36c",
+        "RDeviceFindItemWidgetModel": "0x6cf384",
+        "RDeviceMoreItemWidgetModel": "0x6cf39c",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6cf48c"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4e50"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/luminous_gabumon_device_config.dart",
+      "class": "LuminousGabumonDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4e98",
+      "config_id": {
+        "value": "luminous_gabumon",
+        "offset": "0x7b4e98"
+      },
+      "display_name": {
+        "value": "Gabumon",
+        "offset": "0x7b4ea8"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4ea0"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4ee4"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6cf678"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6cf708",
+        "DeviceGamePanelItemWidgetModel": "0x6cf734",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6cf754",
+        "DeviceOptionPanelWidgetModel": "0x6cf7b0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6cf7c8",
+        "RDeviceFindItemWidgetModel": "0x6cf7e0",
+        "RDeviceMoreItemWidgetModel": "0x6cf7f8",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6cf8e8"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4eb8"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/luminous_patamon_device_config.dart",
+      "class": "LuminousPatamonDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4f00",
+      "config_id": {
+        "value": "luminous_patamon",
+        "offset": "0x7b4f00"
+      },
+      "display_name": {
+        "value": "Patamon",
+        "offset": "0x7b4f10"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4f08"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4f4c"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6cff30"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6cffc0",
+        "DeviceGamePanelItemWidgetModel": "0x6cffec",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d000c",
+        "DeviceOptionPanelWidgetModel": "0x6d0068",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d0080",
+        "RDeviceFindItemWidgetModel": "0x6d0098",
+        "RDeviceMoreItemWidgetModel": "0x6d00b0",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d01a0"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4f20"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/luminous_tailmon_device_config.dart",
+      "class": "LuminousTailmonDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4f68",
+      "config_id": {
+        "value": "luminous_tailmon",
+        "offset": "0x7b4f68"
+      },
+      "display_name": {
+        "value": "Tailmon",
+        "offset": "0x7b4f78"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4f70"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b4fb4"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6cfad4"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6cfb64",
+        "DeviceGamePanelItemWidgetModel": "0x6cfb90",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6cfbb0",
+        "DeviceOptionPanelWidgetModel": "0x6cfc0c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6cfc24",
+        "RDeviceFindItemWidgetModel": "0x6cfc3c",
+        "RDeviceMoreItemWidgetModel": "0x6cfc54",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6cfd44"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4f88"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/magician_device_config.dart",
+      "class": "MagicianDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4fd0",
+      "config_id": {
+        "value": "magician",
+        "offset": "0x7b4fd8"
+      },
+      "display_name": {
+        "value": "Magician",
+        "offset": "0x7b4fe8"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4fe0"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b5034"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d4214"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d42a4",
+        "DeviceGamePanelItemWidgetModel": "0x6d42d0",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d42f0",
+        "DeviceOptionPanelWidgetModel": "0x6d434c",
+        "DeviceAudioPanelItemWidgetModel": "0x6d4364",
+        "RDeviceFindItemWidgetModel": "0x6d4398",
+        "RDeviceLangItemWidgetModel": "0x6d43b0",
+        "RDeviceMoreItemWidgetModel": "0x6d43d0",
+        "DeviceOtaPanelItemWidgetModel": "0x6d4458",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d4548"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b4ff8"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/mirror_device_config.dart",
+      "class": "MirrorDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b5064",
+      "config_id": {
+        "value": "mirror",
+        "offset": "0x7b5064"
+      },
+      "display_name": {
+        "value": "Mirror",
+        "offset": "0x7b5074"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b506c"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b50b0"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d1580"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d1610",
+        "DeviceEqPanelItemWidgetModel": "0x6d163c",
+        "DeviceOptionPanelWidgetModel": "0x6d1698",
+        "DeviceGamePanelItemWidgetModel": "0x6d16b0",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d16d0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d1744",
+        "RDeviceMoreItemWidgetModel": "0x6d175c",
+        "RDeviceFindItemWidgetModel": "0x6d17d4",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d18c4"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b5084"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/moka_device_config.dart",
+      "class": "MokaDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b50cc",
+      "config_id": {
+        "value": "moka",
+        "offset": "0x7b50f4"
+      },
+      "display_name": {
+        "value": "MOKA",
+        "offset": "0x7b50dc"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b50d4"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b5130"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6c9064"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6c9134",
+        "DeviceEqPanelItemWidgetModel": "0x6c9160",
+        "DeviceOptionPanelWidgetModel": "0x6c91c8",
+        "DeviceGamePanelItemWidgetModel": "0x6c91e0",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6c9200",
+        "DeviceAudioPanelItemWidgetModel": "0x6c9274",
+        "RDeviceMoreItemWidgetModel": "0x6c92a8",
+        "DeviceOtaPanelItemWidgetModel": "0x6c9320",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6c9430"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b50ec"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/opal_device_config.dart",
+      "class": "OpalDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b5160",
+      "config_id": {
+        "value": "opal",
+        "offset": "0x7b5160"
+      },
+      "display_name": {
+        "value": "Opal",
+        "offset": "0x7b5170"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b5168"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b51ac"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d1ab0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d1b40",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6d1b6c",
+        "DeviceEqPanelItemWidgetModel": "0x6d1bb4",
+        "DeviceOptionPanelWidgetModel": "0x6d1c10",
+        "DeviceGamePanelItemWidgetModel": "0x6d1c28",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d1c48",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d1cbc",
+        "RDeviceMoreItemWidgetModel": "0x6d1cd4",
+        "RDeviceFindItemWidgetModel": "0x6d1d4c",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d1e44"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b5180"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/openfeel_l_device_config.dart",
+      "class": "OpenfeelLDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b51c8",
+      "config_id": {
+        "value": "openfeel-l",
+        "offset": "0x7b51f0"
+      },
+      "display_name": {
+        "value": "OpenFeel L",
+        "offset": "0x7b51d8"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b51d0"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b522c"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6cd28c"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6cd31c",
+        "DeviceEqPanelItemWidgetModel": "0x6cd348",
+        "DeviceOptionPanelWidgetModel": "0x6cd3b0",
+        "RDeviceGainLevelItemWidgetModel": "0x6cd3c8",
+        "RDeviceHearingProtectionItemWidgetModel": "0x6cd3e0",
+        "DeviceGamePanelItemWidgetModel": "0x6cd3f8",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6cd418",
+        "DeviceAudioPanelItemWidgetModel": "0x6cd48c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6cd4c0",
+        "RDeviceFindItemWidgetModel": "0x6cd4d8",
+        "RDeviceMoreItemWidgetModel": "0x6cd4f0",
+        "DeviceOtaPanelItemWidgetModel": "0x6cd578",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6cd698"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b51e8"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/openfeel_mk2_device_config.dart",
+      "class": "OpenfeelMk2DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b525c",
+      "config_id": {
+        "value": "openfeel_mk2",
+        "offset": "0x7b5264"
+      },
+      "display_name": {
+        "value": "OpenFeel MK2",
+        "offset": "0x7b5274"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b526c"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b52c0"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d4bc4"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d4c54",
+        "DeviceEqPanelItemWidgetModel": "0x6d4c80",
+        "DeviceOptionPanelWidgetModel": "0x6d4cec",
+        "RDeviceGainLevelItemWidgetModel": "0x6d4d04",
+        "RDeviceHearingProtectionItemWidgetModel": "0x6d4d1c",
+        "DeviceGamePanelItemWidgetModel": "0x6d4d34",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d4d54",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6d4dc8",
+        "DeviceAudioPanelItemWidgetModel": "0x6d4e34",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d4e68",
+        "RDeviceMoreItemWidgetModel": "0x6d4e80",
+        "RDeviceFindItemWidgetModel": "0x6d4f00",
+        "DeviceOtaPanelItemWidgetModel": "0x6d4f18",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d5024"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b5284"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/rs_common_v2_device_config.dart",
+      "class": "RsCommonV2DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b4688",
+      "config_id": {
+        "value": "RS-Common-v2",
+        "offset": "0x7b4688"
+      },
+      "display_name": {
+        "value": "RS-Common-v2",
+        "offset": "0x7b4688"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b4690"
+      },
+      "form": null,
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6df764"
+      },
+      "direct_widget_allocations": {
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x987454",
+        "DeviceOptionPanelWidgetModel": "0x9874bc",
+        "DeviceDingLevelPanelItemWidgetModel": "0x9874d4",
+        "DeviceAutoNoiseAncPanelItemWidgetModel": "0x987558",
+        "DeviceLimitNoiseAncPanelItemWidgetModel": "0x9875b8",
+        "DeviceSpatialSwitchPanelItemWidgetModel": "0x987618",
+        "DeviceEarAdaptivePanelItemWidgetModel": "0x987678",
+        "DeviceAncLinePanelItemWidgetModel": "0x9876ec",
+        "DeviceOtaPanelItemWidgetModel": "0xc31850",
+        "DeviceMicTxRecordPanelItemWidgetModel": "0xc31a84",
+        "DeviceMicSwitchPanelItemWidgetModel": "0xc31aec",
+        "_MicTxSettingsPanelWidgetModel": "0xc31c10",
+        "RDeviceComponentDisplayBarWidgetModel": "0xc39138",
+        "RDeviceComponentNoiseBarWidgetModel": "0xc391e4",
+        "RDeviceSpatialAudioBarWidgetModel": "0xc39254",
+        "DeviceEqPanelItemWidgetModel": "0xc3928c",
+        "RDeviceEqBassPlusItemWidgetModel": "0xc39338",
+        "RDeviceGainLevelItemWidgetModel": "0xc39380",
+        "RDeviceHearingProtectionItemWidgetModel": "0xc393b8",
+        "DeviceGamePanelItemWidgetModel": "0xc393f0",
+        "DeviceMulDevicePanelItemWidgetModel": "0xc39410",
+        "DeviceIndependentMicModePanelItemWidgetModel": "0xc39440",
+        "RDeviceRecordItemWidgetModel": "0xc3950c",
+        "RDeviceLocalRecordItemWidgetModel": "0xc39530",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0xc39540",
+        "DeviceAudioPanelItemWidgetModel": "0xc3960c",
+        "RDeviceTapControlItemWidgetModel": "0xc396f8",
+        "RDeviceHeadControlItemWidgetModel": "0xc39770",
+        "RDeviceTouchSettingItemWidgetModel": "0xc397a4",
+        "RDeviceLangItemWidgetModel": "0xc39830",
+        "RDeviceMoreItemWidgetModel": "0xc398c4",
+        "RDeviceFindItemWidgetModel": "0xc3998c",
+        "RDeviceEarTipFitTestItemWidgetModel": "0xc399a4",
+        "DeviceMicGainPanelItemWidgetModel": "0xc39b9c",
+        "MicRxStatusWidgetModel": "0xc39bc4",
+        "DeviceMicRxChannelPanelItemWidgetModel": "0xc39bf0",
+        "DeviceMicTimecodePanelItemWidgetModel": "0xc39cc8",
+        "MicTxStatusWidgetModel": "0xc39d5c",
+        "DeviceMicTfCardStoragePanelItemWidgetModel": "0xc39d70",
+        "DeviceMicRemotePanelItemWidgetModel": "0xc39d84",
+        "DeviceMicTxNoisePanelItemWidgetModel": "0xc39ddc",
+        "DeviceMicTxTonePanelItemWidgetModel": "0xc39df0"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b46a0"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/speakfeel2_device_config.dart",
+      "class": "Speakfeel2DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b52f0",
+      "config_id": {
+        "value": "speakfeel2",
+        "offset": "0x7b531c"
+      },
+      "display_name": {
+        "value": "SPEAKFEEL",
+        "offset": "0x7b5304"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b52fc"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b5368"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6cd89c"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6cd92c",
+        "RDeviceEqBassPlusItemWidgetModel": "0x6cd958",
+        "RDeviceGainLevelItemWidgetModel": "0x6cd978",
+        "RDeviceHearingProtectionItemWidgetModel": "0x6cd990",
+        "DeviceGamePanelItemWidgetModel": "0x6cd9a8",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6cd9c8",
+        "DeviceIndependentMicModePanelItemWidgetModel": "0x6cd9f8",
+        "DeviceOptionPanelWidgetModel": "0x6cda34",
+        "DeviceAudioPanelItemWidgetModel": "0x6cda4c",
+        "RDeviceTouchSettingItemWidgetModel": "0x6cda80",
+        "RDeviceFindItemWidgetModel": "0x6cda98",
+        "RDeviceMoreItemWidgetModel": "0x6cdab0",
+        "DeviceOtaPanelItemWidgetModel": "0x6cdb38",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6cdca8"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b5314"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/speakfree_device_config.dart",
+      "class": "SpeakfreeDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b53b4",
+      "config_id": {
+        "value": "speakfree",
+        "offset": "0x7b53b4"
+      },
+      "display_name": {
+        "value": "SpeakFeel",
+        "offset": "0x7b53c4"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b53bc"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b5404"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d46a0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d4730",
+        "DeviceEqPanelItemWidgetModel": "0x6d475c",
+        "DeviceOptionPanelWidgetModel": "0x6d47b8",
+        "DeviceGamePanelItemWidgetModel": "0x6d47d0",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d47f0",
+        "DeviceAudioPanelItemWidgetModel": "0x6d4870",
+        "RDeviceFindItemWidgetModel": "0x6d48a4",
+        "RDeviceLangItemWidgetModel": "0x6d48bc",
+        "RDeviceMoreItemWidgetModel": "0x6d48dc",
+        "DeviceOtaPanelItemWidgetModel": "0x6d4964",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d4a60"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b53d4"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/sportfeel_8912f_device_config.dart",
+      "class": "Sportfeel8912fDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b5420",
+      "config_id": {
+        "value": "sportfeel-8912f",
+        "offset": "0x7b5428"
+      },
+      "display_name": {
+        "value": "SportFeel",
+        "offset": "0x7b5438"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b5430"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b5484"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d5394"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d547c",
+        "DeviceEqPanelItemWidgetModel": "0x6d54a4",
+        "DeviceOptionPanelWidgetModel": "0x6d5500",
+        "DeviceGamePanelItemWidgetModel": "0x6d5518",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d5538",
+        "DeviceAudioPanelItemWidgetModel": "0x6d5598",
+        "RDeviceFindItemWidgetModel": "0x6d55c8",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d55e0",
+        "RDeviceMoreItemWidgetModel": "0x6d55f8",
+        "DeviceOtaPanelItemWidgetModel": "0x6d5690",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d5774"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b5448"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/swift2_device_config.dart",
+      "class": "Swift2DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b54b4",
+      "config_id": {
+        "value": "swift2",
+        "offset": "0x7b54bc"
+      },
+      "display_name": {
+        "value": "SWIFT 2",
+        "offset": "0x7b54cc"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b54c4"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b5520"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d0398"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d0428",
+        "DeviceGamePanelItemWidgetModel": "0x6d0454",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d0474",
+        "DeviceOptionPanelWidgetModel": "0x6d04d0",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d04e8",
+        "RDeviceMoreItemWidgetModel": "0x6d0500",
+        "RDeviceFindItemWidgetModel": "0x6d0578",
+        "DeviceOtaPanelItemWidgetModel": "0x6d0590",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d0688"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b54dc"
+        },
+        {
+          "value": "0cf12d32-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b54e4"
+        }
+      ]
+    },
+    {
+      "path": "rs_common_v2/zircon_device_config.dart",
+      "class": "ZirconDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b5550",
+      "config_id": {
+        "value": "zircon",
+        "offset": "0x7b5558"
+      },
+      "display_name": {
+        "value": "Zircon",
+        "offset": "0x7b5568"
+      },
+      "protocol": {
+        "value": "rs-common-v2",
+        "offset": "0x7b5560"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b55b4"
+      },
+      "sender_allocations": {
+        "RsCommonV2Sender": "0x6d2dd0"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6d2e60",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6d2e8c",
+        "DeviceEqPanelItemWidgetModel": "0x6d2ed8",
+        "DeviceOptionPanelWidgetModel": "0x6d2f34",
+        "RDeviceRecordItemWidgetModel": "0x6d2f4c",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6d2fd0",
+        "DeviceGamePanelItemWidgetModel": "0x6d3098",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6d30b8",
+        "DeviceAudioPanelItemWidgetModel": "0x6d30cc",
+        "RDeviceFindItemWidgetModel": "0x6d3100",
+        "RDeviceTouchSettingItemWidgetModel": "0x6d3118",
+        "RDeviceLangItemWidgetModel": "0x6d3130",
+        "RDeviceMoreItemWidgetModel": "0x6d3150",
+        "DeviceOtaPanelItemWidgetModel": "0x6d31f0",
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x6d32f4",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6d3374",
+        "DeviceLimitNoiseAncPanelItemWidgetModel": "0x6d33f8",
+        "DeviceAncLinePanelItemWidgetModel": "0x6d3458"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b5578"
+        }
+      ]
+    },
+    {
+      "path": "zt/earfree_i3_device_config.dart",
+      "class": "EarfreeI3DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b55e4",
+      "config_id": {
+        "value": "earfree-i3",
+        "offset": "0x7b55ec"
+      },
+      "display_name": {
+        "value": "EarFree-i3",
+        "offset": "0x7b55fc"
+      },
+      "protocol": {
+        "value": "zt",
+        "offset": "0x7b55f4"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b5638"
+      },
+      "sender_allocations": {
+        "Zt219Sender": "0x6d9fdc"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6da09c",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6da0c8",
+        "DeviceEqPanelItemWidgetModel": "0x6da110",
+        "DeviceOptionPanelWidgetModel": "0x6da16c",
+        "DeviceGamePanelItemWidgetModel": "0x6da184",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6da1a4",
+        "DeviceAudioPanelItemWidgetModel": "0x6da1dc",
+        "RDeviceTouchSettingItemWidgetModel": "0x6da20c",
+        "RDeviceMoreItemWidgetModel": "0x6da224",
+        "DeviceOtaPanelItemWidgetModel": "0x6da2b4",
+        "RDeviceHideSearchItemWidgetModel": "0x6da3b4"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "zt/earfree_i5_device_config.dart",
+      "class": "EarfreeI5DeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b5668",
+      "config_id": {
+        "value": "EARFREE-i5",
+        "offset": "0x7b5670"
+      },
+      "display_name": {
+        "value": "EarFeel-i5",
+        "offset": "0x7b5680"
+      },
+      "protocol": {
+        "value": "zt",
+        "offset": "0x7b5678"
+      },
+      "form": {
+        "value": "tws",
+        "offset": "0x7b5690"
+      },
+      "sender_allocations": {
+        "Zt229Sender": "0x6dac14"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6dacd4",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6dad00",
+        "DeviceEqPanelItemWidgetModel": "0x6dad4c",
+        "DeviceOptionPanelWidgetModel": "0x6dada8",
+        "DeviceGamePanelItemWidgetModel": "0x6dadc0",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6dade0",
+        "DeviceAudioPanelItemWidgetModel": "0x6dae18",
+        "RDeviceFindItemWidgetModel": "0x6dae48",
+        "RDeviceTouchSettingItemWidgetModel": "0x6dae60",
+        "RDeviceMoreItemWidgetModel": "0x6dae78",
+        "RDeviceStarburstBusinessEntryItemWidgetModel": "0x6daf10",
+        "DeviceOtaPanelItemWidgetModel": "0x6daf7c",
+        "DeviceDetectionSwitchPanelItemWidgetModel": "0x6db090",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6db110",
+        "DeviceAncLinePanelItemWidgetModel": "0x6db194"
+      },
+      "config_uuid_literals": []
+    },
+    {
+      "path": "zt/headfree_device_config.dart",
+      "class": "HeadfreeDeviceConfig",
+      "extends": "BaseDeviceConfig",
+      "config_offset": "0x7b56dc",
+      "config_id": {
+        "value": "headfree",
+        "offset": "0x7b56dc"
+      },
+      "display_name": {
+        "value": "HeadFeel",
+        "offset": "0x7b56ec"
+      },
+      "protocol": {
+        "value": "zt",
+        "offset": "0x7b56e4"
+      },
+      "form": {
+        "value": "head",
+        "offset": "0x7b56fc"
+      },
+      "sender_allocations": {
+        "Zt231Sender": "0x6da610"
+      },
+      "direct_widget_allocations": {
+        "RDeviceComponentDisplayBarWidgetModel": "0x6da6d4",
+        "RDeviceComponentNoiseBarWidgetModel": "0x6da700",
+        "DeviceEqPanelItemWidgetModel": "0x6da74c",
+        "DeviceOptionPanelWidgetModel": "0x6da7b8",
+        "RDeviceGainLevelItemWidgetModel": "0x6da7d0",
+        "DeviceGamePanelItemWidgetModel": "0x6da7f0",
+        "DeviceMulDevicePanelItemWidgetModel": "0x6da810",
+        "DeviceAudioPanelItemWidgetModel": "0x6da830",
+        "RDeviceFindItemWidgetModel": "0x6da860",
+        "RDeviceTouchSettingItemWidgetModel": "0x6da878",
+        "RDeviceMoreItemWidgetModel": "0x6da890",
+        "DeviceOtaPanelItemWidgetModel": "0x6da928",
+        "DeviceDingLevelPanelItemWidgetModel": "0x6daa2c",
+        "DeviceAncLinePanelItemWidgetModel": "0x6daab0"
+      },
+      "config_uuid_literals": [
+        {
+          "value": "0cf12d31-fac3-4553-bd80-d6832e7b3931",
+          "offset": "0x7b5708"
+        },
+        {
+          "value": "66666666-6666-6666-6666-666666666666",
+          "offset": "0x7b5710"
+        },
+        {
+          "value": "77777777-7777-7777-7777-777777777777",
+          "offset": "0x7b571c"
+        }
+      ]
+    }
+  ]
+}
