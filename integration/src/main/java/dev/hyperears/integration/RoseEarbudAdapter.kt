@@ -39,11 +39,14 @@ open class RoseEarbudAdapter(
 open class RoseEarfreeProtocolFamilyAdapter(
     transferredSession: ProtocolSession? = null,
     initialRuntimeState: AdapterRuntimeState = AdapterRuntimeState(),
+    val sourceZtProfile: dev.hyperears.protocol.rose.RoseZtWireCodec.Model? = null,
 ) : RoseEarbudAdapter(transferredSession, initialRuntimeState) {
     override val id: String = ID
     override val displayName: String = "ROSE EARFREE protocol family"
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
-        get() = PRESENTATION_ID.takeIf { effectiveCapabilities().noiseControl }
+        get() = if(sourceZtProfile != null) RoseZtAdapter.PRESENTATION_ID.takeIf {
+            runtimeState().features.get<RoseZtSettingsFeatureState>()?.hasSettings == true || effectiveCapabilities().noiseControl
+        } else PRESENTATION_ID.takeIf { effectiveCapabilities().noiseControl }
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness =
         TransportReadiness.PROTOCOL_HANDSHAKE
@@ -75,7 +78,16 @@ open class RoseEarfreeProtocolFamilyAdapter(
         return namedProductLine || advertisedService
     }
 
-    override fun createProtocolSession(): ProtocolSession = RoseEarfreeProtocolSession()
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _,state ->
+        sourceZtProfile != null && state is RoseZtSettingsFeatureState && state.model == sourceZtProfile.name
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter,request ->
+        sourceZtProfile != null && request is RoseZtControlRequest.SetValue &&
+            adapter.runtimeState().features.get<RoseZtSettingsFeatureState>()?.supports(request) == true
+    }
+    override fun controlPolicy(request:ControlRequest) = if(request is RoseZtControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() { removeFeatureState(RoseZtSettingsFeatureState.FEATURE_ID) }
+    override fun createProtocolSession(): ProtocolSession = sourceZtProfile?.let(::RoseZtProtocolSession) ?: RoseEarfreeProtocolSession()
 
     override fun onInitialProtocolUnavailable(): InitialProtocolFailureResolution =
         InitialProtocolFailureResolution.FallbackTo(
@@ -263,7 +275,8 @@ class RoseLuliUltraAdapter : RoseBudsFeelProtocolFamilyAdapter() {
     }
 }
 
-class RoseEarfreeI5Adapter : RoseEarfreeProtocolFamilyAdapter() {
+class RoseEarfreeI5Adapter(sourceQualified:Boolean=false) : RoseEarfreeProtocolFamilyAdapter(
+    sourceZtProfile=if(sourceQualified) dev.hyperears.protocol.rose.RoseZtWireCodec.Model.I5_SOURCE else null) {
 
     override val id: String = ID
     override val displayName: String = "ROSESELSA EARFREE i5"
@@ -271,6 +284,8 @@ class RoseEarfreeI5Adapter : RoseEarfreeProtocolFamilyAdapter() {
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (identity.nativeSystemEarbud) return false
+        if(identity.manufacturerData.isNotEmpty()) return identity.standardHeadset &&
+            dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData) == id
         return normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
     }
 

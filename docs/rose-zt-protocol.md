@@ -70,3 +70,50 @@ OTA and calibration stay in the vendor application. Their presence in the shared
 or widget configuration does not enable controls here. The new files contain original
 Kotlin reconstruction of protocol facts; no vendor implementation or assets are shipped.
 See the existing ROSELINK application research entry in THIRD_PARTY_NOTICES.
+
+## HeadFeel prompts and qualified existing i5 daily controls
+
+HeadFeel's Zt231Sender.setDingLevel0x931590 writes **0E03/value1..5**, while inherited
+getDingLevel0x933768 queries **0E06**. Receiver dispatch0xf11ee4 and
+_handlePromptToneLevelHeadfree0xf12a3c return the direct level. 0E03 is not accepted
+as a HeadFeel report merely because it resembles the write; i3 does not acquire this
+control from the shared sender.
+
+The exact `earfree_i5_device_config.dart` constructor0x6dabd8 has manufacturer prefix
+525300010001 and allocates Zt229Sender/ZTReceiver. Its existing
+`roseselsa-earfree-i5` adapter class, ID and GATT route are retained. Only the global
+unique manufacturer identity selects an immutable source profile; name-only i5 and
+the generic EARFREE family preserve their existing battery/noise session. Same-ID
+refinement uses the existing connection-bound retirement/new-token lifecycle.
+No duplicate generic ZT adapter is registered for this profile.
+
+Its bounded source-qualified daily subset:
+
+- EQ0201/0281 values0..3. Pool0x8bd8 defines source labels 弱水经典、日系柔情、乐器大师、清新空灵.
+- Game0603/0683 retains0=enabled,1=disabled.
+- Audio0801/0881 values0 AAC/SBC with multipoint,1 LDAC. Zt229 inherits coupled
+  setConnectMul/getConnectMul; no independent0802 multipoint control is invented.
+- Wearing0C01/0C81:0 enabled,1 disabled. getEarDetection0x95d2fc,
+  setEarDetectionOn0x95c15c and Off0x9345e8 establish these exact bytes. Only i5's
+  actual DeviceDetectionSwitchPanelItemWidgetModel enables this setting.
+- Prompt volume differs from HeadFeel: Zt229 getDingLevel0x9336e0 queries0E03;
+  setDingLevel0x9314cc writes0E83 with level minus1. Receiver
+  _handlePromptToneLevel0xf12b4c adds1. Wire0..4 is normalized to UI1..5, without
+  widening the accepted range. Independent command-specific readback is preserved.
+- Battery uses0101's existing seven-component-field layout, not HeadFeel0103.
+  Source four-mode noise reports/writes remain separate from i3's three-byte writes.
+
+All fields require their own exact legal report. Writes carry expected source model,
+keep selection unchanged until readback, reject cross-model/stale session/owner/address,
+and reset removes every setting. Existing native ZT Settings rows and details display
+source labels and prompt levels; audio changes continue to require confirmation.
+
+### Bounded find remains a separate contract
+
+ZT source has explicit find/stop setters and0E02 receive handling, including distinct
+HeadFeel0E02 versus Zt2290E82 writes. However, the inspected ZtSender query surface
+contains no independent read-only find query/getter establishing an initial state.
+The receiver passes the find body to model handlers; it is not sufficient to invent
+an empty0E02 read or start ringing to establish capability. This slice sends no find
+or stop at initialization and does not introduce speculative ring controls. Touch
+remapping, ANC tuning and firmware-specific custom EQ likewise remain separate.

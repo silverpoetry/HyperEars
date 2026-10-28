@@ -27,6 +27,7 @@ internal class SettingsPreferenceHost(private val loader: ClassLoader, private v
         list.getMethod("setEntries", Array<CharSequence>::class.java).invoke(row, labels.toTypedArray<CharSequence>())
         list.getMethod("setEntryValues", Array<CharSequence>::class.java).invoke(row, values.toTypedArray<CharSequence>())
         list.getMethod("setValue", String::class.java).invoke(row, selected)
+        labels.getOrNull(values.indexOf(selected))?.let { summary(row, it) }
         enable(row, enabled)
         preference.getMethod("setOnPreferenceChangeListener", change).invoke(row, Proxy.newProxyInstance(loader, arrayOf(change)) { _, method, args ->
             if (method.name == "onPreferenceChange") { (args?.getOrNull(1) as? String)?.takeIf(values::contains)?.let(changed); false }
@@ -87,7 +88,11 @@ internal class SettingsPreferenceHost(private val loader: ClassLoader, private v
     fun add(parent: Any, row: Any) { check(group.getMethod("addPreference", preference).invoke(parent, row) == true) }
     fun detach(row: Any) { preference.getMethod("getParent").invoke(row)?.let { group.getMethod("removePreference", preference).invoke(it, row) } }
     fun parent(row: Any): Any? = preference.getMethod("getParent").invoke(row)
-    fun summary(row: Any, value: String) { preference.getMethod("setSummary", CharSequence::class.java).invoke(row, value) }
+    fun summary(row: Any, value: String) {
+        // Host themes may install a provider; explicit report-derived summaries take precedence.
+        preference.methods.firstOrNull { it.name == "setSummaryProvider" && it.parameterCount == 1 }?.invoke(row, null)
+        preference.getMethod("setSummary", CharSequence::class.java).invoke(row, value)
+    }
     fun enable(row: Any, value: Boolean) { preference.getMethod("setEnabled", Boolean::class.javaPrimitiveType).invoke(row, value) }
     fun clearListeners(row: Any) {
         preference.getMethod("setOnPreferenceClickListener", click).invoke(row, null)

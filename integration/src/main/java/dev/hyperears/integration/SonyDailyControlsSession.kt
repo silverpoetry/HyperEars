@@ -127,7 +127,7 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     fun encode(request: SonyControlRequest): List<ByteArray> {
         if (request is SonyControlRequest.SetAssignablePreset || request is SonyControlRequest.SetAssignableAction) return assignable.encode(request)
         if (request is SonyControlRequest.SetMultipoint || request is SonyControlRequest.ReplyMultipointAlert) return multipoint.encode(request)
-        if (request is SonyControlRequest.SetDsee || request is SonyControlRequest.SetConnectionQuality || request is SonyControlRequest.SetSpeakToChat)
+        if (request is SonyControlRequest.SetDsee || request is SonyControlRequest.SetConnectionQuality || request is SonyControlRequest.SetSpeakToChat || request is SonyControlRequest.SetWearingPlayback)
             return audio.encode(request)
         val state = eqState()
         if (request is SonyControlRequest.SetAmbient) {

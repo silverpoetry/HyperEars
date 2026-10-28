@@ -12,6 +12,8 @@ internal class SonyAudioSettingsSession(private val v2: Boolean) {
             if (selection == next) return null
             val old = selection; selection = next
             state = state.copy(
+                wearingDefinition = definition(next.wearing), wearingPlayback = state.wearingPlayback.takeIf {old?.wearing == next.wearing},
+                wearingAvailable = state.wearingAvailable.takeIf {old?.wearing == next.wearing},
                 dseeDefinition = definition(next.dsee), dsee = state.dsee.takeIf { old?.dsee == next.dsee },
                 dseeGeneration = state.dseeGeneration.takeIf { old?.dsee == next.dsee },
                 dseeAvailable = state.dseeAvailable.takeIf { old?.dsee == next.dsee },
@@ -24,6 +26,11 @@ internal class SonyAudioSettingsSession(private val v2: Boolean) {
             return SonyDailyControlsSession.Update(listOf(state), emptyList())
         }
         val selected = selection ?: return null
+        Wire.wearing(v2,payload)?.takeIf{it.type==selected.wearing}?.let { report ->
+            state=if(report.command in setOf(0xF3,0xF5))state.copy(wearingAvailable=report.value==0)
+                else state.copy(wearingPlayback=report.value==1)
+            return SonyDailyControlsSession.Update(listOf(state),emptyList())
+        }
         val audio = if (v2) Wire.audio(payload) else null
         val next = if (audio != null) when {
             audio.type == selected.dsee -> when (audio.command) {
@@ -46,6 +53,7 @@ internal class SonyAudioSettingsSession(private val v2: Boolean) {
         return SonyDailyControlsSession.Update(listOf(state), emptyList())
     }
     fun reads(): List<ByteArray> = buildList {
+        selection?.wearing?.let {add(Wire.bytes(0xF2,it));add(Wire.bytes(0xF6,it))}
         selection?.dsee?.let { add(Wire.bytes(0xE0, it)); add(Wire.bytes(0xE6, it)); if (it == 11) add(Wire.bytes(0xE2, it)) }
         selection?.quality?.let { add(Wire.bytes(0xE2, it)); add(Wire.bytes(0xE6, it)) }
         selection?.speak?.let { add(Wire.bytes(0xF2, it)); add(Wire.bytes(0xF6, it)) }
@@ -53,6 +61,7 @@ internal class SonyAudioSettingsSession(private val v2: Boolean) {
     fun encode(request: SonyControlRequest): List<ByteArray> {
         if (!state.supports(request)) return emptyList()
         return when (request) {
+            is SonyControlRequest.SetWearingPlayback -> listOf(Wire.bytes(0xF8,3,0,if(request.enabled)1 else 0),Wire.bytes(0xF6,3),Wire.bytes(0xF2,3))
             is SonyControlRequest.SetDsee -> listOf(Wire.bytes(0xE8, request.expected.inquiredType, if (request.enabled) 1 else 0),
                 Wire.bytes(0xE6, request.expected.inquiredType)) +
                 if (request.expected.inquiredType == 11) listOf(Wire.bytes(0xE2, 11)) else emptyList()

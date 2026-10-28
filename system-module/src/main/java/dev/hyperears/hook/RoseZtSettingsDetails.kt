@@ -11,15 +11,17 @@ import java.lang.ref.WeakReference
 internal object RoseZtLabels {
     fun title(setting: String) = when(setting) {
         "EQ" -> "音效"; "GAME" -> "游戏模式"; "AUDIO" -> "音频模式"
-        "MULTIPOINT" -> "双设备连接"; "GAIN" -> "增益"; else -> setting
+        "MULTIPOINT" -> "双设备连接"; "GAIN" -> "增益"; "PROMPT" -> "提示音音量"; "WEAR_DETECTION" -> "佩戴检测"; else -> setting
     }
     fun labels(setting: String, model: dev.hyperears.protocol.rose.RoseZtWireCodec.Model) = when(setting) {
-        "EQ" -> listOf("流行", "高保真", "摇滚")
+        "EQ" -> if(model==dev.hyperears.protocol.rose.RoseZtWireCodec.Model.I5_SOURCE) listOf("弱水经典","日系柔情","乐器大师","清新空灵") else listOf("流行", "高保真", "摇滚")
         "GAME" -> listOf("开启", "关闭")
-        "AUDIO" -> if (model == dev.hyperears.protocol.rose.RoseZtWireCodec.Model.I3)
+        "AUDIO" -> if (model != dev.hyperears.protocol.rose.RoseZtWireCodec.Model.HEADFEEL)
             listOf("AAC / SBC · 双设备", "LDAC") else listOf("AAC / SBC", "LDAC", "LHDC", "LDAC / LHDC")
         "MULTIPOINT" -> listOf("关闭", "开启")
         "GAIN" -> listOf("档位 1", "档位 2", "档位 3")
+        "PROMPT" -> (1..5).map { "级别 $it" }
+        "WEAR_DETECTION" -> listOf("开启","关闭")
         else -> emptyList()
     }
 }

@@ -3,15 +3,19 @@ package dev.hyperears.protocol.rose
 /** Exact ZT219/231 profiles from ROSELINK 3.8.2; never inferred from the i5 product line. */
 object RoseZtWireCodec {
     enum class Model(val display: String, val prefixes: List<String>) {
-        I3("EarFree-i3", listOf("f10203", "010203")), HEADFEEL("HeadFeel", listOf("525300020002"));
-        val id get() = if (this == I3) "rose-zt-i3" else "rose-zt-headfeel"
+        I3("EarFree-i3", listOf("f10203", "010203")), HEADFEEL("HeadFeel", listOf("525300020002")), I5_SOURCE("EarFree-i5",listOf("525300010001"));
+        val existingAdapterId: String? get() = if(this==I5_SOURCE) "roseselsa-earfree-i5" else null
+        val id get() = existingAdapterId ?: if (this == I3) "rose-zt-i3" else "rose-zt-headfeel"
     }
     enum class Setting(val group: Int, val command: Int) {
-        EQ(2, 1), GAME(6, 3), AUDIO(8, 1), MULTIPOINT(8, 2), GAIN(2, 3);
+        EQ(2, 1), GAME(6, 3), AUDIO(8, 1), MULTIPOINT(8, 2), GAIN(2, 3), PROMPT(14,3), WEAR_DETECTION(12,1);
+        fun readCommand(model:Model):Int = if(this==PROMPT && model==Model.HEADFEEL) 6 else command
         fun values(model: Model): IntRange = when(this) {
-            EQ -> 0..2; GAME -> 0..1; AUDIO -> if (model == Model.I3) 0..1 else 0..3
+            EQ -> if(model==Model.I5_SOURCE) 0..3 else 0..2; GAME -> 0..1; AUDIO -> if (model != Model.HEADFEEL) 0..1 else 0..3
             MULTIPOINT -> if (model == Model.HEADFEEL) 0..1 else IntRange.EMPTY
             GAIN -> if (model == Model.HEADFEEL) 1..3 else IntRange.EMPTY
+            PROMPT -> if(model==Model.HEADFEEL || model==Model.I5_SOURCE) 1..5 else IntRange.EMPTY
+            WEAR_DETECTION -> if(model==Model.I5_SOURCE) 0..1 else IntRange.EMPTY
         }
     }
     data class Frame(val group: Int, val command: Int, val payload: List<Int>)
@@ -31,14 +35,18 @@ object RoseZtWireCodec {
         val bytes = listOf(8, 0xEE, 0, 0, 0, group, command, 10 + payload.size, 0) + payload
         return (bytes + (bytes.sum() and 255)).map(Int::toByte).toByteArray()
     }
-    fun query(model: Model): List<ByteArray> = listOf(command(1, if (model == Model.I3) 1 else 3), command(6, 2)) +
-        Setting.entries.filter { !it.values(model).isEmpty() }.map { command(it.group, it.command) }
+    fun query(model: Model): List<ByteArray> = listOf(command(1, if (model != Model.HEADFEEL) 1 else 3), command(6, 2)) +
+        Setting.entries.filter { !it.values(model).isEmpty() }.map { command(it.group, it.readCommand(model)) }
     fun write(model: Model, setting: Setting, value: Int): ByteArray? =
-        value.takeIf { it in setting.values(model) }?.let { command(setting.group, setting.command or 0x80, listOf(it)) }
+        value.takeIf { it in setting.values(model) }?.let {
+            if(setting==Setting.PROMPT) command(14,if(model==Model.HEADFEEL)3 else 0x83,listOf(if(model==Model.I5_SOURCE)it-1 else it))
+            else command(setting.group,setting.command or 0x80,listOf(it))
+        }
     fun readSetting(model: Model, frame: Frame): Pair<Setting, Int>? {
         if (frame.payload.size != 1) return null
-        val setting = Setting.entries.singleOrNull { it.group == frame.group && it.command == frame.command } ?: return null
-        return (setting to frame.payload.single()).takeIf { it.second in setting.values(model) }
+        val setting = Setting.entries.singleOrNull { it.group == frame.group && it.readCommand(model) == frame.command } ?: return null
+        val value=frame.payload.single()+if(setting==Setting.PROMPT && model==Model.I5_SOURCE)1 else 0
+        return (setting to value).takeIf { it.second in setting.values(model) }
     }
     /** Response always uses the common four-bit representation; ZT219 writes use three bits. */
     fun noise(frame: Frame): Int? {

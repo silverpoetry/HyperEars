@@ -121,6 +121,7 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(RoseLegacyControlRequest.SetTouch::class, RoseLegacyControlRequest.SetTouch.serializer())
                 subclass(RoseLegacyControlRequest.SetValue::class, RoseLegacyControlRequest.SetValue.serializer())
                 subclass(RoseZtControlRequest.SetValue::class, RoseZtControlRequest.SetValue.serializer())
                 subclass(RoseCeramicsXControlRequest.SetValue::class, RoseCeramicsXControlRequest.SetValue.serializer())
@@ -166,6 +167,7 @@ object ControlRequestTransport {
                 subclass(BoseDailyControlRequest.SetAnr::class, BoseDailyControlRequest.SetAnr.serializer())
                 subclass(NiceHckControlRequest.SetValue::class, NiceHckControlRequest.SetValue.serializer())
                 subclass(RoseRfcommControlRequest.SetValue::class, RoseRfcommControlRequest.SetValue.serializer())
+                subclass(SonyControlRequest.SetWearingPlayback::class, SonyControlRequest.SetWearingPlayback.serializer())
                 subclass(SonyControlRequest.SetAssignableAction::class, SonyControlRequest.SetAssignableAction.serializer())
                 subclass(SonyControlRequest.SetAssignablePreset::class, SonyControlRequest.SetAssignablePreset.serializer())
                 subclass(SonyControlRequest.SetEqPreset::class, SonyControlRequest.SetEqPreset.serializer())

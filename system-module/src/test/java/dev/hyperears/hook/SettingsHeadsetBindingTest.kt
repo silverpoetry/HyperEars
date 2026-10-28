@@ -25,6 +25,19 @@ class SettingsHeadsetBindingTest {
             protocolHandshake = ProtocolHandshakeState.CONFIRMED))
         .withFeature(NoiseModeFeatureState(NoiseMode.ANC))
         .withFeature(HonorAncDepthFeatureState(HonorAncDepth.SMART, HonorAncDepth.entries.toSet()))
+    @Test fun explicitCurrentSummaryReplacesThemeProviderAndWaitsForReports() {
+        val f=Fixture()
+        val host=SettingsPreferenceHost(javaClass.classLoader!!, f.screen.context, f.screen)
+        val row=host.choice("summary-test","选择",listOf("低","高"),listOf("1","5"),"1",true) {} as ListPreference
+        assertEquals("低",row.summary.toString())
+        row.callChangeListener("5")
+        assertEquals("低",row.summary.toString())
+        row.summaryProvider=ListPreference.SimpleSummaryProvider.getInstance()
+        host.summary(row,"当前：无功能（耳机回报）")
+        assertEquals("当前：无功能（耳机回报）",row.summary.toString())
+        f.binding.close()
+    }
+
     @Test fun ceramicsXNativeAudioWaitsForConfirmationAndDoesNotChangeReportedValue() {
         val f = Fixture()
         val adapter = RoseLuliXAdapter()
@@ -64,6 +77,7 @@ class SettingsHeadsetBindingTest {
         assertFalse(noise.isPersistent)
         assertFalse(noise.callChangeListener("OFF"))
         assertEquals("ANC", noise.value)
+        assertEquals("降噪", noise.summary.toString())
         assertEquals(StandardControlRequest.SetNoiseMode(NoiseMode.OFF), f.sent.single())
         val depth = f.row("hyperears.honor.depth") as ListPreference
         assertFalse(depth.callChangeListener("DEEP"))

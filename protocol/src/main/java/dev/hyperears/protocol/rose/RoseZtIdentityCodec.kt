@@ -4,6 +4,6 @@ package dev.hyperears.protocol.rose
 object RoseZtIdentityCodec {
     fun identify(data: Map<Int, List<Int>>): RoseZtWireCodec.Model? = RoseZtWireCodec.identify(data)
     fun named(name: String): RoseZtWireCodec.Model? = RoseZtWireCodec.Model.entries.singleOrNull {
-        it.display.filter(Char::isLetterOrDigit).equals(name.filter(Char::isLetterOrDigit), true)
+        it.existingAdapterId == null && it.display.filter(Char::isLetterOrDigit).equals(name.filter(Char::isLetterOrDigit), true)
     }
 }

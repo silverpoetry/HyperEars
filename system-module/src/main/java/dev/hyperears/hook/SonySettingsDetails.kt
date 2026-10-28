@@ -143,6 +143,7 @@ internal class SonySettingsDetails private constructor(
             is SonyControlRequest.SetMultipoint -> multipoint?.let { it.definition == request.expected && it.enabled == request.enabled && it.alert == null && it.pendingTransaction == null } == true
             is SonyControlRequest.ReplyMultipointAlert -> multipoint?.let { it.definition == request.expected && it.alert == null &&
                 it.enabled == (if (request.confirm) request.expectedAlert.target else !request.expectedAlert.target) } == true
+            is SonyControlRequest.SetWearingPlayback -> audio?.let {it.wearingDefinition==request.expected && it.wearingPlayback==request.enabled} == true
             is SonyControlRequest.SetDsee -> audio?.let { it.dseeDefinition == request.expected && it.dsee == request.enabled } == true
             is SonyControlRequest.SetConnectionQuality -> audio?.let { it.qualityDefinition == request.expected && it.quality == request.mode } == true
             is SonyControlRequest.SetSpeakToChat -> audio?.let { it.speakDefinition == request.expected && it.speak == request.enabled } == true
@@ -259,6 +260,7 @@ internal class SonySettingsDetails private constructor(
             }
         }
         toggle("DSEE", { it.dsee }) { state, value -> state.dseeDefinition?.let { SonyControlRequest.SetDsee(it, value) } }
+        toggle("摘下耳机时暂停播放", {it.wearingPlayback}) {state,value -> state.wearingDefinition?.let {definition->state.wearingPlayback?.let {SonyControlRequest.SetWearingPlayback(definition,it,value)}}}
         toggle("Speak-to-Chat", { it.speak }) { state, value -> state.speakDefinition?.let { SonyControlRequest.SetSpeakToChat(it, value) } }
         val row = column(); val caption = text("连接质量", 17f); row.addView(caption); parent.addView(row)
         val options = listOf("音质优先", "连接稳定优先").mapIndexed { mode, label ->

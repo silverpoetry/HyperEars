@@ -80,7 +80,7 @@ internal class RoseZtProtocolSession(private val model: Wire.Model) : ProtocolSe
     override fun readback(request: ControlRequest): List<ByteArray> = when(request) {
         is StandardControlRequest.SetNoiseMode -> listOf(Wire.command(6, 2))
         is RoseZtControlRequest.SetValue -> Wire.Setting.entries.singleOrNull { it.name == request.setting }?.let {
-            listOf(Wire.command(it.group, it.command)) }.orEmpty()
+            listOf(Wire.command(it.group, it.readCommand(model))) }.orEmpty()
         else -> emptyList()
     }
     override fun offer(bytes: ByteArray): List<ProtocolEvent> = buildList {
@@ -99,7 +99,7 @@ internal class RoseZtProtocolSession(private val model: Wire.Model) : ProtocolSe
                 val data = frame.payload
                 val battery = if (model == Wire.Model.HEADFEEL && frame.command == 3 && data.size == 1 && data[0] in 0..100)
                     EarbudBattery(overall = BatteryReading(data[0], false))
-                else if (model == Wire.Model.I3 && frame.command == 1 && data.size == 7 && data[4] in 0..1 && data[5] in 0..1 &&
+                else if (model != Wire.Model.HEADFEEL && frame.command == 1 && data.size == 7 && data[4] in 0..1 && data[5] in 0..1 &&
                     listOf(data[2], data[3], data[6]).any { it in 0..100 })
                     EarbudBattery(left = BatteryReading(data[2].takeIf { it in 0..100 }, data[4] == 1),
                         right = BatteryReading(data[3].takeIf { it in 0..100 }, data[5] == 1),

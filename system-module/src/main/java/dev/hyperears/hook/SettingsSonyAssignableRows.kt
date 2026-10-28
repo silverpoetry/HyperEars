@@ -7,6 +7,13 @@ internal object SettingsSonyAssignableRows {
     fun functionLabel(value:Int)=when(value){0->"无功能";1->"降噪 / 环境声 / 关闭";2->"降噪 / 环境声";3->"降噪 / 关闭";4->"环境声 / 关闭";16->"快速注意";17->"降噪优化";32->"播放 / 暂停";33->"下一曲";34->"上一曲";35->"音量增加";36->"音量降低";48->"语音识别";49->"读取通知";50->"启动 Google 助理";51->"停止 Google 助理";52->"取消语音输入";53->"启动腾讯小微";54->"取消语音识别";55->"启动 Alexa 语音输入";56->"取消 Alexa";57->"取消腾讯小微";58->"下一曲并停止 Gemini Live";59->"上一曲并停止 Gemini Live";64->"启动 MLP";65->"与 MLP 对话";66->"Spotify 一触即听";67->"快速访问 1";68->"快速访问 2";69->"腾讯小微 / 取消";70->"Q MSC 一触即听";71->"Teams";72->"Teams 语音技能";80->"降噪 / NCSS / 环境声 / 关闭";81->"降噪 / NCSS / 环境声";82->"降噪 / NCSS / 关闭";83->"NCSS / 环境声 / 关闭";84->"降噪 / NCSS";85->"NCSS / 环境声";86->"NCSS / 关闭";87->"环境声设置";88->"标准人声";89->"聆听模式";112->"麦克风静音";113->"提高游戏音量";114->"提高聊天音量";else->"耳机功能 $value"}
     fun add(host:SettingsPreferenceHost,state:EarbudState,address:String,add:(Any)->Unit,latest:()->EarbudState?,send:(ControlRequest)->Unit) {
         if(!SonyCardPolicy.available(state,address))return
+        state.features.get<SonyAudioSettingsFeatureState>()?.let { audio ->
+            val definition=audio.wearingDefinition
+            val value=audio.wearingPlayback
+            if(definition!=null&&value!=null) add(host.toggle("hyperears.sony.wearing_playback","摘下耳机时暂停播放",value,audio.wearingAvailable==true) { next -> runCatching {
+                latest()?.let {SonyCardPolicy.request(it,address,SonyControlRequest.SetWearingPlayback(definition,value,next))}?.let(send)
+            } })
+        }
         val feature=state.features.get<SonyAssignableFeatureState>()?.takeIf{it.hasSettings}?:return
         val definition=feature.definition?:return
         val values=feature.current?:return

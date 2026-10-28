@@ -114,3 +114,40 @@ private battery are not inferred from the broader shared sender. All new control
 the existing typed feature/request and native card/Settings details, reset lifecycle,
 per-field readbacks and audio confirmation. These four profiles remain source-qualified,
 without new hardware validation; OTA and incomplete gesture mappings use vendor handoff.
+
+## RS Common six-gesture mapping
+
+The seven RS Common configurations now expose report-qualified left/right single,
+double and triple tap editing. F8 remains separate: its different receiver offsets
+and model-specific handler overrides do not establish the same contract.
+
+ROSELINK 3.8.2 `rs_common_receiver.dart`, `_handleKeyData` at `0xefe094`,
+extracts six decimal low-nibble characters at hex-string offsets11/15/19/31/35/39.
+These correspond to complete-frame byte offsets5/7/9/15/17/19, or direct type01
+data offsets1/3/5/11/13/15 (data starts at complete-frame byte4). The decoder admits checksum-valid direct type01 frames
+only when all six positions exist. Remaining bytes are retained as opaque evidence;
+no slot tags, padding constants or aggregate LTV structure are invented. Source
+allows a variable-length body; tests use constructed source-layout fixtures, not
+claimed hardware captures. Only the selected low nibble is interpreted, exactly like the source one-character
+substring; upper nibbles remain unchanged in the expected raw snapshot. Each selected
+low nibble must represent a known decimal action.
+
+The seven configs use `RTouchInfoModel.typeOTT` / pool8a80 (one/two/three).
+Their RS sender methods at0xc37000/0xc34ba0/0xc348dc and
+0xc341ec/0xc34020/0xc33a60 write `01 slot action` with source slots01/02/03 and
+11/12/13. Editing sends only that slot, preserving all others on the device, then
+uses the existing query containing FA01 for actual readback. Hold setters exist but
+have no corresponding six-slot state evidence and are not exposed.
+
+Pool8a88 supplies actions0=None,1=play/pause,2=previous,3=next,4=volume up,
+5=volume down. BudsFree pool8b28 instead uses5=volume up,6=volume down.
+OpenFeel's second source list1d708 omits None; without a firmware discriminator,
+write choices use the intersection1..5 while reported0 remains valid state.
+
+Requests bind the expected model and the entire direct report data snapshot,
+including opaque siblings. Session and adapter both reject stale snapshots; writes
+never optimistically mutate state. Mapping-only reports enable the existing native
+settings entry, with six finite choices and current owner/address/session checks.
+Reset clears the mapping. Source-derived tests cover truncated/invalid reports,
+F8 isolation, variant action domains, sibling changes and stale native callbacks.
+Device validation remains pending.

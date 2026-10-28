@@ -12,12 +12,19 @@ internal object RoseLegacySettingsPolicy {
     fun available(state: EarbudState, address: String) = state.address.equals(address, true) &&
         state.modelId == state.features.get<RoseLegacySettingsFeatureState>()?.profile?.id && state.sessionActive && state.privateChannelConnected &&
         state.handshakeAccepted && state.lifecycle.controlOwnership == ControlOwnership.MODULE &&
-        state.features.get<RoseLegacySettingsFeatureState>()?.values?.isNotEmpty() == true
+        state.features.get<RoseLegacySettingsFeatureState>()?.hasSettings == true
     fun request(state: EarbudState, address: String, request: RoseLegacyControlRequest.SetValue): RoseLegacyControlRequest.SetValue? {
         if (!available(state, address)) return null
         val feature = state.features.get<RoseLegacySettingsFeatureState>() ?: return null
         return request.takeIf { feature.supports(it, state.noiseMode) &&
             feature.values[it.setting] != it.value }
+    }
+    fun request(state:EarbudState,address:String,request:RoseLegacyControlRequest.SetTouch):RoseLegacyControlRequest.SetTouch? =
+        request.takeIf { available(state,address) && state.features.get<RoseLegacySettingsFeatureState>()?.supports(it)==true }
+    fun touchTitle(slot:Int)= (if(slot<16)"左耳" else "右耳")+when(slot and 15){1->"单击";2->"双击";else->"三击"}
+    fun touchLabel(model:String,action:Int):String = when(action){
+        0->"无功能";1->"播放 / 暂停";2->"上一曲";3->"下一曲"
+        4->"音量增加";5->if(model=="BUDSFREE")"音量增加"else"音量降低";else->"音量降低"
     }
     fun title(setting:RoseLegacySetting)=when(setting){
         RoseLegacySetting.EQ->"音效";RoseLegacySetting.GAME->"游戏模式";RoseLegacySetting.AUDIO->"音频与双设备模式";RoseLegacySetting.TOUCH->"触控开关"
@@ -44,7 +51,7 @@ internal object RoseLegacyDetailsSpec : MiLinkToggleDetailsSpec {
     override val label = "高级设置"
     override fun render(state: EarbudState) = MiLinkToggleState(false,
         state.address?.let { RoseLegacySettingsPolicy.available(state, it) } == true,
-        state.features.get<RoseLegacySettingsFeatureState>()?.values?.isNotEmpty() == true)
+        state.features.get<RoseLegacySettingsFeatureState>()?.hasSettings == true)
     override fun request(state: EarbudState, checked: Boolean): ControlRequest? = null
     override fun openDetails(anchor: View, address: String, environment: MiLinkCardEnvironment) =
         RoseLegacySettingsDetails.open(anchor, address, environment)
@@ -94,10 +101,14 @@ internal class RoseLegacySettingsDetails private constructor(
     private fun guarded(action: () -> Unit) { if (!closed) runCatching(action).onFailure { dismiss() } }
     private fun valid(state: EarbudState) = token != null && token == environment.sessionTokenProvider(address) &&
         RoseLegacySettingsPolicy.available(state, address) && state.features.get<RoseLegacySettingsFeatureState>()?.model == model
-    private fun send(request: RoseLegacyControlRequest.SetValue): Unit = guarded {
+    private fun send(request: RoseLegacyControlRequest): Unit = guarded {
         val state = environment.stateProvider(address)
         if (!valid(state)) { dismiss(); return@guarded }
-        RoseLegacySettingsPolicy.request(state, address, request)?.let { environment.controlSender(address, it) }
+        val accepted=when(request){
+            is RoseLegacyControlRequest.SetValue->RoseLegacySettingsPolicy.request(state,address,request)
+            is RoseLegacyControlRequest.SetTouch->RoseLegacySettingsPolicy.request(state,address,request)
+        }
+        accepted?.let { environment.controlSender(address, it) }
         render(environment.stateProvider(address))
     }
     override fun render(state: EarbudState): Unit = guarded {
@@ -126,6 +137,24 @@ internal class RoseLegacySettingsDetails private constructor(
                     })
                 }
             })
+        }
+        val feature=state.features.get<RoseLegacySettingsFeatureState>()!!
+        feature.touch?.let { snapshot ->
+            RoseLegacyTouch.SLOTS.forEachIndexed { index,slot ->
+                controls.addView(text(RoseLegacySettingsPolicy.touchTitle(slot)))
+                if(RoseLegacyTouch.action(snapshot,index) !in RoseLegacyTouch.choices(feature.profile))
+                    controls.addView(text("当前：无功能（耳机回报）"))
+                controls.addView(RadioGroup(context).apply {
+                    RoseLegacyTouch.choices(feature.profile).forEach { action ->
+                        addView(RadioButton(context).apply {
+                            id=View.generateViewId();text=RoseLegacySettingsPolicy.touchLabel(feature.model,action)
+                            contentDescription="rose.legacy.touch.$slot.$action"
+                            isSaveEnabled=false;isChecked=RoseLegacyTouch.action(snapshot,index)==action
+                            setOnClickListener { send(RoseLegacyControlRequest.SetTouch(feature.model,snapshot,slot,action)) }
+                        })
+                    }
+                })
+            }
         }
         pendingAudio?.takeIf { it.first != it.second }?.let { draft ->
             controls.addView(text("更改音频与双设备模式可能中断播放或需要重新连接。"))

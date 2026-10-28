@@ -9,6 +9,31 @@ class RoseZtAdapterTest {
         val body = listOf(9, 255, 0, 0, 1, group, command, 10 + payload.size, 0) + payload.toList()
         return (body + (body.sum() and 255)).map(Int::toByte).toByteArray()
     }
+    @Test fun sourceI5RetainsExistingClassEndpointAndNeedsOwnDailyReports() {
+        val identity=EarbudIdentity("renamed",true,manufacturerData=mapOf(0x5352 to listOf(0,1,0,1)))
+        val a=EarbudAdapterRegistry.resolve(identity)!!
+        assertTrue(a is RoseEarfreeI5Adapter);assertEquals(RoseEarfreeI5Adapter.ID,a.id)
+        assertEquals(RoseEarfreeI5Adapter().transports,a.transports)
+        val request=RoseZtControlRequest.SetValue("I5_SOURCE","PROMPT",5)
+        assertFalse(a.executeControl(request).accepted)
+        a.receive(report(14,3,0));val write=a.executeControl(request)
+        assertArrayEquals(Wire.command(14,0x83,listOf(4)),write.commands.single())
+        assertArrayEquals(Wire.command(14,3),write.readback.single())
+        assertEquals(1,a.runtimeState().features.get<RoseZtSettingsFeatureState>()!!.values["PROMPT"])
+        assertFalse(a.executeControl(request.copy(expectedModel="HEADFEEL")).accepted)
+        a.receive(report(12,1,0));assertTrue(a.executeControl(RoseZtControlRequest.SetValue("I5_SOURCE","WEAR_DETECTION",1)).accepted)
+        a.resetProtocolSession();assertFalse(a.executeControl(request).accepted)
+        val old=RoseEarfreeI5Adapter();old.receive(report(14,3,0));assertFalse(old.executeControl(request).accepted)
+        assertNull(old.runtimeState().features.get<RoseZtSettingsFeatureState>())
+    }
+    @Test fun headfeelPromptReportDoesNotBorrowI5ReadCommandOrOptimisticWrite() {
+        val a=RoseZtAdapter(Wire.Model.HEADFEEL);val request=RoseZtControlRequest.SetValue("HEADFEEL","PROMPT",2)
+        a.receive(report(14,3,0));assertFalse(a.executeControl(request).accepted)
+        a.receive(report(14,6,5));val write=a.executeControl(request)
+        assertArrayEquals(Wire.command(14,3,listOf(2)),write.commands.single())
+        assertArrayEquals(Wire.command(14,6),write.readback.single())
+        assertEquals(5,a.runtimeState().features.get<RoseZtSettingsFeatureState>()!!.values["PROMPT"])
+    }
     @Test fun distinctProfilesGateReportsAndKeepIndependentAudioMultipoint() {
         for (model in Wire.Model.entries) {
             val adapter = RoseZtAdapter(model)

@@ -311,6 +311,24 @@ class SonySettingsDetailsTest {
         details.dismiss();buttons().single().performClick();assertEquals(1,fixture.sent.size)
     }
 
+    @Test fun wearingPlaybackRequiresAvailabilityAndReportConfirmation() {
+        val fixture=Fixture()
+        val feature=SonyAudioSettingsFeatureState(wearingDefinition=SonyAudioDefinition(1,3),wearingPlayback=false)
+        fixture.current=fixture.current.withFeature(feature)
+        val details=fixture.open()
+        val toggle=descendants(popup(details).contentView).filterIsInstance<CompoundButton>().single{it.contentDescription=="摘下耳机时暂停播放"}
+        assertFalse(toggle.isEnabled)
+        toggle.isChecked=true;assertTrue(fixture.sent.isEmpty())
+        fixture.current=fixture.current.withFeature(feature.copy(wearingAvailable=true));fixture.observer!!(fixture.current)
+        assertTrue(toggle.isEnabled);assertFalse(toggle.isChecked)
+        toggle.isChecked=true
+        assertEquals(SonyControlRequest.SetWearingPlayback(SonyAudioDefinition(1,3),false,true),fixture.sent.single())
+        assertFalse(toggle.isChecked)
+        fixture.current=fixture.current.withFeature(feature.copy(wearingAvailable=true,wearingPlayback=true));fixture.observer!!(fixture.current)
+        assertTrue(toggle.isChecked)
+        fixture.token="new";toggle.isChecked=false;assertEquals(1,fixture.sent.size);assertEquals(1,fixture.unsubscribed)
+    }
+
     private fun attachListenerCount(view: View): Int {
         val info = org.robolectric.util.ReflectionHelpers.getField<Any?>(view, "mListenerInfo") ?: return 0
         return org.robolectric.util.ReflectionHelpers.getField<List<*>?>(info, "mOnAttachStateChangeListeners")?.size ?: 0

@@ -109,5 +109,24 @@ class SonyAudioSettingsTest {
         assertNull(adapter.runtimeState().features.get<SonyAudioSettingsFeatureState>())
         assertFalse(adapter.supportsControl(request))
     }
+    @Test fun wearingNeedsFunctionParameterAndAvailabilityAndNeverUpdatesOptimistically() {
+        val session=SonyDailyControlsSession(false)
+        assertNull(session.accept(b(0xF7,3,0,0)))
+        session.accept(b(7,0,1,0xF3))
+        session.accept(b(0xF7,3,0,0))
+        val request=SonyControlRequest.SetWearingPlayback(SonyAudioDefinition(1,3),false,true)
+        assertTrue(session.encode(request).isEmpty())
+        session.accept(b(0xF3,3,0))
+        assertEquals(request,ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+        assertEquals(listOf(0xF8,3,0,1),session.encode(request).first().u())
+        assertEquals(listOf(0xF6,3),session.encode(request)[1].u())
+        assertEquals(false,session.audioState().wearingPlayback)
+        session.accept(b(0xF9,3,0,1));assertTrue(session.encode(request).isEmpty())
+        session.accept(b(0xF5,3,1));assertTrue(session.encode(request.copy(expectedCurrent=true,enabled=false)).isEmpty())
+        session.accept(b(7,0,0));assertNull(session.audioState().wearingDefinition);assertNull(session.audioState().wearingPlayback)
+        val v2=SonyDailyControlsSession(true)
+        v2.accept(b(7,0,1,0xF1,0));v2.accept(b(0xF7,3,0,0));v2.accept(b(0xF3,3,0))
+        assertTrue(v2.encode(request).isEmpty())
+    }
     private fun ByteArray.u() = map { it.toInt() and 255 }
 }

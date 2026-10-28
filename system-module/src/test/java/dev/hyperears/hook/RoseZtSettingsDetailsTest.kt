@@ -32,6 +32,16 @@ class RoseZtSettingsDetailsTest {
             { _, callback -> observer = callback; { observer = null; released++ } }, { token })
         fun open() = RoseZtSettingsDetails.open(anchor, address, environment).also { shadowOf(Looper.getMainLooper()).idle() }
     }
+    @Test fun promptOnlyHeadfeelPanelUsesReportedLevelAndBlocksOldOwnerCallback() {
+        val f=Fixture();f.adapter.receive(report(14,6,5))
+        f.state=f.state.copy(features=f.adapter.runtimeState().features)
+        val d=f.open();val body=popup(d).contentView
+        val level=descendants(body).filterIsInstance<RadioButton>().single {it.text=="级别 2"}
+        level.performClick()
+        assertEquals(RoseZtControlRequest.SetValue("HEADFEEL","PROMPT",2),f.sent.single())
+        assertEquals(5,f.state.features.get<RoseZtSettingsFeatureState>()!!.values["PROMPT"])
+        f.token="changed";level.performClick();assertEquals(1,f.sent.size);d.dismiss()
+    }
     @Test fun audioRequiresConfirmationAndRepeatedOldButtonCannotSendAgain() {
         val f = Fixture(); val popup = popup(f.open())
         descendants(popup.contentView).filterIsInstance<RadioButton>().single { it.text == "LHDC" }.performClick()

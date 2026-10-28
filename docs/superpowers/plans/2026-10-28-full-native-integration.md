@@ -428,24 +428,23 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The qualified-Rose/Sony-V2 checkpoint passes 1,323 tests (341 protocol, 516 integration,
-466 system-module), Release lint/assembly and protocol-test Debug assembly. Four original
-Rose classes and IDs now admit immutable RSv2 profiles only after exact, globally unique
-manufacturer identity; name-only behavior retains the old protocol. The same-ID refinement
-regression verifies a new session token, preventing old controls from crossing dialects.
-Legacy Ceramics U field07 language and source RSv2 field07 touch/31 language remain isolated.
+The RS Common touch/ZT daily/Sony wearing checkpoint passes 1,340 tests (344 protocol,
+524 integration, 472 system-module), Release lint/assembly and protocol-test Debug assembly.
+Seven RS Common profiles now expose six source-defined gestures with independent full-frame
+fixtures, exact low-nibble offsets, model action domains and full-report stale guards.
+OpenFeel's reported zero remains visible but not writable without its missing firmware evidence.
 
-Sony V2 assignment adds complete preset/action mapping reports and writes, with capability,
-current-vector and sibling-action guards. V1, other inquiries and Table2 remain separate.
-Vendor-app return leases now survive dispatch failure for explicit retry without consuming
-a newer lease. These changes received independent review and code-level regression checks.
-No new phone installation or hardware validation is claimed.
+HeadFeel prompt volume and the existing i5 class's exact-source daily profile preserve distinct
+query/write/normalization rules. Sony V1 wearing playback requires function, availability and
+parameter reports; unresolved V2 wearing/power schemas remain documented rather than guessed.
+Native selection rows now show report-derived summaries and preserve them until readback,
+including hosts whose theme installs a SummaryProvider. Independent review preceded validation.
+No new phone installation or hardware acceptance is claimed.
 
-The RoseLink coverage inventory at comparison commit3029c98 accounts for all48 source
-configurations:45 named headset configurations have adapter paths; two generic configs and
-AURAMIC are explicitly excluded. That inventory is a baseline, not full-feature certification;
-the four qualified-profile additions above are a later delta. Next work uses its per-profile
-daily gaps to prioritize touch mappings, bounded find/ring and remaining small controls,
-while continuing the other brand and Android-experience requirements. Apple rename still
-awaits authoritative readback. Complex firmware/calibration workflows use vendor-app handoff.
-Other open requirements remain in scope; this checkpoint does not complete the comprehensive goal.
+The RoseLink baseline inventory still separates routing from complete feature coverage.
+Next priorities are source-qualified F8 touch mapping, remaining finite protocol gaps and the
+planned Android-side battery widget experience. AndPods' manifest and widget providers confirm
+that widgets are a reference feature; implementation should reuse authenticated state delivery,
+coalesce battery-only updates, avoid periodic private I/O, and route user actions to existing
+native Settings. Other open family and release requirements remain in scope; this checkpoint
+does not complete the comprehensive goal.

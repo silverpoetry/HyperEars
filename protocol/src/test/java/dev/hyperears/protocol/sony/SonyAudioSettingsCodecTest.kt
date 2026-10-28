@@ -24,4 +24,17 @@ class SonyAudioSettingsCodecTest {
         assertEquals(SonyAudioSettingsCodec.Selection(null, null, 5), SonyAudioSettingsCodec.functions(false, b(7, 0, 3, 0xE1, 0xE2, 0xF5)))
         assertNull(SonyAudioSettingsCodec.functions(true, b(7, 0, 2, 0xE2, 0)))
     }
+    @Test fun v1WearingSettingIsNotV2TelemetryOrEcho() {
+        fun bytes(vararg p:Int)=p.map(Int::toByte).toByteArray()
+        assertEquals(3,SonyAudioSettingsCodec.functions(false,bytes(7,0,1,0xF3))!!.wearing)
+        assertNull(SonyAudioSettingsCodec.functions(true,bytes(7,0,1,0xF1,0))!!.wearing)
+        assertEquals(1,SonyAudioSettingsCodec.wearing(false,bytes(0xF7,3,0,1))!!.value)
+        assertEquals(0,SonyAudioSettingsCodec.wearing(false,bytes(0xF5,3,0))!!.value)
+        assertNull(SonyAudioSettingsCodec.wearing(true,bytes(0xF7,3,0,1)))
+        assertNull(SonyAudioSettingsCodec.wearing(false,bytes(0xF8,3,0,1)))
+        assertNull(SonyAudioSettingsCodec.wearing(false,bytes(0xF7,3,1,1)))
+        assertNull(SonyAudioSettingsCodec.wearing(false,bytes(0xF7,3,0,1,0)))
+        assertNull(SonyAudioSettingsCodec.wearing(false,bytes(0xF3,3,2)))
+    }
+
 }

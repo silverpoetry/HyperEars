@@ -9,7 +9,9 @@ object RoseSourceQualifiedAdapters {
         if(!identity.standardHeadset || identity.nativeSystemEarbud || identity.manufacturerData.isEmpty()) return adapter
         val id=RoseManufacturerIdentityCodec.modelId(identity.manufacturerData) ?: return adapter
         if(id != adapter.id || (adapter as? RoseBudsFeelProtocolFamilyAdapter)?.sourceProfile != null) return adapter
+        if(adapter is RoseEarfreeI5Adapter && adapter.sourceZtProfile != null) return adapter
         return when(adapter) {
+            is RoseEarfreeI5Adapter -> RoseEarfreeI5Adapter(sourceQualified=true)
             is RoseBudsFeelMk2Adapter -> RoseBudsFeelMk2Adapter(sourceQualified=true)
             is RoseEarfeelI7Adapter -> RoseEarfeelI7Adapter(sourceQualified=true)
             is RoseCeramicsUAdapter -> RoseCeramicsUAdapter(sourceQualified=true)
@@ -18,6 +20,7 @@ object RoseSourceQualifiedAdapters {
         }
     }
     fun needsDiscovery(adapter: EarbudAdapter): Boolean =
+        (adapter is RoseEarfreeI5Adapter && adapter.sourceZtProfile == null) ||
         adapter is RoseBudsFeelProtocolFamilyAdapter && adapter.sourceProfile == null &&
             Model.entries.any { it.existingAdapterId == adapter.id }
 }

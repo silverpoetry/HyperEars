@@ -10,6 +10,25 @@ class RoseZtWireCodecTest {
         val body = listOf(9, 255, 0, 0, 1, group, command, 10 + payload.size, 0) + payload.toList()
         return (body + (body.sum() and 255)).map(Int::toByte).toByteArray()
     }
+    @Test fun promptDialectsUseDifferentReadWriteCommandsAndOrigins() {
+        val head=RoseZtWireCodec.Model.HEADFEEL;val i5=RoseZtWireCodec.Model.I5_SOURCE
+        val setting=RoseZtWireCodec.Setting.PROMPT
+        assertArrayEquals(wire.command(14,3,listOf(5)),wire.write(head,setting,5))
+        assertArrayEquals(wire.command(14,0x83,listOf(4)),wire.write(i5,setting,5))
+        assertTrue(wire.query(head).any {it.contentEquals(wire.command(14,6))})
+        assertTrue(wire.query(i5).any {it.contentEquals(wire.command(14,3))})
+        assertTrue(wire.query(i5).any {it.contentEquals(wire.command(1,1))})
+        for((model,command,raw) in listOf(Triple(head,6,5),Triple(i5,3,4))) {
+            val frame=RoseZtWireCodec.Decoder().offer(response(14,command,raw)).single()
+            assertEquals(setting to 5,wire.readSetting(model,frame))
+            assertNull(wire.readSetting(model,RoseZtWireCodec.Decoder().offer(response(14,command,raw+1)).single()))
+            assertNull(wire.readSetting(model,RoseZtWireCodec.Decoder().offer(response(14,command,raw,0)).single()))
+        }
+        assertNull(wire.readSetting(head,RoseZtWireCodec.Decoder().offer(response(14,3,3)).single()))
+        assertNull(wire.write(RoseZtWireCodec.Model.I3,setting,3))
+        assertArrayEquals(wire.command(12,0x81,listOf(0)),wire.write(i5,RoseZtWireCodec.Setting.WEAR_DETECTION,0))
+        assertNull(wire.write(head,RoseZtWireCodec.Setting.WEAR_DETECTION,0))
+    }
     @Test fun exactSourceWritesKeepModelVariantsAndInvertedGame() {
         assertArrayEquals(hex("08 EE 00 00 00 06 82 0D 00 00 01 00 8C"), wire.writeNoise(RoseZtWireCodec.Model.I3, 3))
         assertArrayEquals(hex("08 EE 00 00 00 06 82 0E 00 00 00 00 01 8D"), wire.writeNoise(RoseZtWireCodec.Model.HEADFEEL, 3))

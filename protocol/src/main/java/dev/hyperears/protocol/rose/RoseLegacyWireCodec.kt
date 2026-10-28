@@ -6,6 +6,7 @@ object RoseLegacyWireCodec {
     fun rsQuery(sequence:Int)=RoseBudsFeelMk2WireCodec.command(sequence,15,
         byteArrayOf(0xfa.toByte(),1,7,8,9,12,13,14,18,42,43,44,45,46,51))
     fun rsWrite(sequence:Int,type:Int,value:Int)=RoseBudsFeelMk2WireCodec.command(sequence,2,byteArrayOf(type.toByte(),value.toByte()))
+    fun rsTouchWrite(sequence:Int,slot:Int,action:Int)=RoseBudsFeelMk2WireCodec.command(sequence,3,byteArrayOf(1,slot.toByte(),action.toByte()))
     fun f8Query(type:Int)=byteArrayOf(0,0x27,1,0,1,type.toByte())
     fun f8Write(command:Int,value:Int,eq:Boolean=false):ByteArray =
         byteArrayOf(0,command.toByte(),1,0,if(eq) 2 else 1)+(if(eq) byteArrayOf(0,value.toByte()) else byteArrayOf(value.toByte()))
@@ -30,7 +31,7 @@ object RoseLegacyWireCodec {
                 } else {
                     if(frame.last().u()!=0xaa || (frame.dropLast(2).sumOf { it.u() } and 255) != frame[frame.size-2].u()) continue
                     val payload=frame.sliceArray(3 until frame.size-2)
-                    if(payload.size==2 || (payload.size==4 && payload[0].u()==12)) {
+                    if(payload.size==2 || (payload.size==4 && payload[0].u()==12) || (payload.size>=17 && payload[0].u()==1)) {
                         result+=Field(payload[0].u(),payload.drop(1).map { it.u() });continue
                     }
                     // RS Common dispatches the direct type byte; no aggregate LTV dialect is proven.

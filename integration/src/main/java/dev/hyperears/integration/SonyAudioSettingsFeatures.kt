@@ -21,12 +21,17 @@ data class SonyAudioSettingsFeatureState(
     val speak: Boolean? = null,
     val speakAvailable: Boolean? = null,
     val speakActive: Boolean? = null,
+    val wearingDefinition: SonyAudioDefinition? = null,
+    val wearingPlayback: Boolean? = null,
+    val wearingAvailable: Boolean? = null,
 ) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
-    val hasSettings get() = dsee != null || quality != null || speak != null
+    val hasSettings get() = dsee != null || quality != null || speak != null || wearingPlayback != null
     val dseeWritable get() = dsee != null && dseeDefinition != null &&
         (dseeDefinition.inquiredType == 1 || dseeAvailable == true)
     fun supports(request: SonyControlRequest): Boolean = when (request) {
+        is SonyControlRequest.SetWearingPlayback -> wearingDefinition == SonyAudioDefinition(1,3) && wearingPlayback != null && wearingAvailable == true &&
+            request.expected == wearingDefinition && request.expectedCurrent == wearingPlayback && request.enabled != wearingPlayback
         is SonyControlRequest.SetDsee -> dseeWritable && request.expected == dseeDefinition
         is SonyControlRequest.SetConnectionQuality -> quality != null && qualityAvailable == true &&
             request.expected == qualityDefinition && request.mode in 0..1
