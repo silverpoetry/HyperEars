@@ -276,6 +276,18 @@ class NativeWindowRequestTest {
         )
     }
 
+    @Test fun pairedDiscoveryTicketKeepsInactiveLifecycleAndRejectsNewOwner() {
+        val ended = request(80).let { it.copy(state = it.state.copy(lifecycle = DeviceLifecycle()), pairedDiscovery = true) }
+        assertFalse(ended.state.sessionActive)
+        assertSame(ended, ended.forBinding(null, producer, false))
+        assertEquals("80", ended.stateArray()[0])
+        assertNull(ended.forBinding(ended.copy(metadata = metadata.copy(admission = NativeAdmission.SYSTEM)), producer, true))
+        assertNull(ended.forBinding(ended.copy(session = "replacement"), producer, true))
+        assertNull(ended.forBinding(ended.copy(metadata = metadata.copy(connection = HeadsetConnection("new", 300))), producer, true))
+        assertNull(ended.forBinding(request(90), producer, true))
+        assertNull(ended.forBinding(null, binder(), false))
+    }
+
     private fun binder(): IBinder =
         Proxy.newProxyInstance(
             IBinder::class.java.classLoader,

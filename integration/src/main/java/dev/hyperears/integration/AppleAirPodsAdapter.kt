@@ -1,9 +1,16 @@
 package dev.hyperears.integration
 
 import dev.hyperears.protocol.apple.AppleAapWireCodec
+import dev.hyperears.protocol.apple.AppleProximityKeys
+import dev.hyperears.protocol.apple.AppleProximityReport
 
 /** Apple AAP family selected by its published SDP service UUID, never by the display name alone. */
 open class AppleAirPodsAdapter : StandardEarbudAdapter() {
+    private var proximityBatteryConfirmed = false
+    private var aacpBattery: EarbudBattery? = null
+    override val batterySource: BatterySource
+        get() = if (proximityBatteryConfirmed) BatterySource.PRIVATE_PROTOCOL else BatterySource.SYSTEM_AGGREGATE
+
     override val id: String = ID
     override val displayName: String = "Apple AirPods"
     override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
@@ -25,20 +32,40 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
             AAP_SERVICE_UUIDS.any { it.equals(uuid, ignoreCase = true) }
         }
 
-    override fun createProtocolSession(): ProtocolSession = AppleAapProtocolSession()
+    /** Host-local callback only; install after paired/native ownership admission and raw-log redaction. */
+    var privateKeyReceiver: ((AppleProximityKeys) -> Unit)? = null
+
+    var privateMotionReceiver: ((ByteArray) -> Unit)? = null
+
+    override fun createProtocolSession(): ProtocolSession = AppleAapProtocolSession(
+        onPrivateKeys = { keys -> privateKeyReceiver?.invoke(keys) ?: keys.close() },
+        onPrivateMotion = { frame -> privateMotionReceiver?.invoke(frame) },
+    )
+
+    /** Only the current admitted host session publishes renderer readback here. */
+    fun publishSpatialHostState(state: AppleSpatialFeatureState): Boolean {
+        if (privateMotionReceiver == null) return false
+        val current = runtimeState()
+        return adoptRuntimeState(current.copy(features = current.features.update(state)))
+    }
+
+    /** Host calls only while this admitted session owns the private transport. */
+    fun proximityBootstrapCommands(): List<ByteArray> = if (privateKeyReceiver == null) emptyList()
+        else listOf(AppleProximityKeys.request(1), AppleProximityKeys.request(4))
 
     override val featureStateContract: DeviceFeatureStateContract =
         StandardDeviceFeatureStateContract.extending { _, state ->
             state is AppleListeningModeFeatureState || state is AppleSettingsFeatureState ||
                 state is AppleWearFeatureState || state is AppleConversationFeatureState ||
                 state is AppleStemFeatureState || state is AppleGestureSettingsFeatureState ||
-                state is AppleEqualizerFeatureState
+                state is AppleEqualizerFeatureState || state is AppleCaseFeatureState || state is AppleSpatialFeatureState
         }
 
     override val controlRequestContract: ControlRequestContract =
         StandardControlRequestContract.extending { adapter, request ->
             val features = adapter.runtimeState().features
             when (request) {
+                is AppleHostLongPressLeaseRequest -> features.get<AppleGestureSettingsFeatureState>()?.interceptionMask != null
                 is AppleControlRequest.SetListeningMode ->
                     features.get<AppleListeningModeFeatureState>()?.supportedModes?.contains(request.mode) == true
                 is AppleControlRequest.SetLongPress, is AppleControlRequest.SetListeningCycle ->
@@ -46,6 +73,15 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
                         request,
                         features.get<AppleListeningModeFeatureState>()?.supportedModes.orEmpty(),
                     ) == true
+                is AppleSpatialControlRequest -> features.get<AppleSpatialFeatureState>()?.let { spatial ->
+                    when (request) {
+                        is AppleSpatialControlRequest.SetMode -> request.mode == AppleSpatialMode.OFF ||
+                            spatial.rendererAvailable && (request.mode == AppleSpatialMode.FIXED || spatial.trackerAvailable && spatial.calibrated)
+                        AppleSpatialControlRequest.BeginCalibration -> spatial.trackerAvailable
+                        AppleSpatialControlRequest.CalibrationStep -> spatial.calibrationStep in 0..2
+                        AppleSpatialControlRequest.Recenter -> spatial.mode == AppleSpatialMode.TRACKING
+                    }
+                } == true
                 is AppleControlRequest.SetEqualizer -> features.get<AppleEqualizerFeatureState>() != null && request.valid()
                 is AppleControlRequest -> features.get<AppleSettingsFeatureState>()?.supports(
                     request, features.get<AppleListeningModeFeatureState>()?.mode,
@@ -61,7 +97,7 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
                 state is AppleSettingsFeatureState || state is AppleWearFeatureState ||
                     state is AppleConversationFeatureState || (state is AppleGestureSettingsFeatureState &&
                     (state.leftLongPress != null || state.rightLongPress != null || state.listeningCycleMask in 1..15)) ||
-                    state is AppleEqualizerFeatureState
+                    state is AppleEqualizerFeatureState || (state is AppleSpatialFeatureState && state.rendererAvailable)
             } -> AppleMiLinkPresentationIds.SETTINGS
             else -> null
         }
@@ -73,8 +109,44 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
         else -> super.controlPolicy(request)
     }
 
+    override fun onFeatureReported(state: DeviceFeatureState, scope: AdapterEventScope): FeatureReportDecision {
+        if (state is BatteryFeatureState) aacpBattery = state.battery
+        return super.onFeatureReported(state, scope)
+    }
+
+    /** Called only after host identity/ownership authentication. Approximate nibbles never masquerade as precise values. */
+    fun acceptProximityReport(report: AppleProximityReport): Boolean {
+        val current = runtimeState()
+        val sequence = current.features.get<AppleCaseFeatureState>()?.sequence ?: 0
+        var features = current.features.update(AppleCaseFeatureState(report.lidOpen, sequence))
+        if (report.precise) {
+            fun merge(component: AppleAapWireCodec.Component, authoritative: BatteryReading?): BatteryReading =
+                authoritative?.takeIf { it.available } ?: BatteryReading(component.percent, component.charging)
+            val battery = EarbudBattery(
+                left = merge(report.left, aacpBattery?.left),
+                right = merge(report.right, aacpBattery?.right),
+                case = merge(report.case, aacpBattery?.case),
+            )
+            features = features.update(BatteryFeatureState(battery))
+            proximityBatteryConfirmed = true
+        }
+        return adoptRuntimeState(current.copy(features = features))
+    }
+
+    /** Confirmation happens after the complete BLE batch and settle interval, never from the raw lid bit. */
+    fun acceptProximityCaseOpen(): Boolean {
+        val current = runtimeState()
+        val lid = current.features.get<AppleCaseFeatureState>() ?: return false
+        if (!lid.isOpen) return false
+        return adoptRuntimeState(current.copy(features = current.features.update(lid.copy(sequence = lid.sequence + 1))))
+    }
+
     override fun onProtocolReset() {
         super.onProtocolReset()
+        proximityBatteryConfirmed = false
+        aacpBattery = null
+        removeFeatureState(AppleCaseFeatureState.FEATURE_ID)
+        removeFeatureState(AppleSpatialFeatureState.FEATURE_ID)
         removeFeatureState(AppleListeningModeFeatureState.FEATURE_ID)
         removeFeatureState(AppleSettingsFeatureState.FEATURE_ID)
         removeFeatureState(AppleWearFeatureState.FEATURE_ID)
@@ -122,8 +194,11 @@ class AppleAirPodsMaxAdapter : AppleAirPodsAdapter() {
     companion object { const val ID = "apple-airpods-max" }
 }
 
-private class AppleAapProtocolSession : ProtocolSession {
-    private val decoder = AppleAapWireCodec.Decoder()
+private class AppleAapProtocolSession(
+    onPrivateKeys: (AppleProximityKeys) -> Unit,
+    onPrivateMotion: (ByteArray) -> Unit,
+) : ProtocolSession {
+    private val decoder = AppleAapWireCodec.Decoder(onPrivateKeys, onPrivateMotion)
     private var handshakePublished = false
     private var adaptiveReported = false
     private var adaptiveModel = false
@@ -133,6 +208,7 @@ private class AppleAapProtocolSession : ProtocolSession {
     private var equalizer: AppleEqualizerFeatureState? = null
     private var stemSequence = 0L
     private val settingPayloads = mutableMapOf<Int, List<Int>>()
+    private val hostLongPressLease = AppleHostLongPressWireLease()
 
     override fun initialReadCommands(): List<ByteArray> = listOf(
         AppleAapWireCodec.handshake,
@@ -141,6 +217,8 @@ private class AppleAapProtocolSession : ProtocolSession {
     )
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
+        request is AppleHostLongPressLeaseRequest -> hostLongPressLease.change(request, settingPayloads[0x39])
+            ?.let { listOf(AppleAapWireCodec.setControl(0x39, it)) }.orEmpty()
         request === StandardControlRequest.Refresh -> listOf(AppleAapWireCodec.requestNotifications)
         request is StandardControlRequest.SetNoiseMode -> listOf(
             AppleAapWireCodec.setNoiseMode(request.mode.toWireMode()),
@@ -182,6 +260,7 @@ private class AppleAapProtocolSession : ProtocolSession {
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> = when (request) {
+        is AppleHostLongPressLeaseRequest,
         is AppleControlRequest,
         is StandardControlRequest.SetNoiseMode,
         -> listOf(AppleAapWireCodec.requestNotifications)
@@ -270,6 +349,7 @@ private class AppleAapProtocolSession : ProtocolSession {
         equalizer = null
         stemSequence = 0L
         settingPayloads.clear()
+        hostLongPressLease.clear()
     }
 
     private fun listeningEvent(mode: AppleAapWireCodec.NoiseMode): ProtocolEvent =

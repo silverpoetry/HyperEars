@@ -6,6 +6,39 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NativePresentationModelTest {
+    @Test fun pairedDiscoveryProjectionNeverChangesConnectionLifecycle() {
+        val ended = state(EarbudBattery(case = BatteryReading(76, true)), true)
+            .copy(lifecycle = DeviceLifecycle())
+        assertFalse(ended.sessionActive)
+        assertNull(NativeHeadsetProjection.from(ended))
+        val projected = requireNotNull(NativeHeadsetProjection.fromPairedDiscovery(ended))
+        assertEquals(76, projected.chargingCase.percent)
+        assertFalse(ended.sessionActive)
+    }
+
+    @Test fun coralPrivateBatteryFeedsNativeConnectionPopupWithoutDuplicatePresentation() {
+        val adapter = RoseCoralAdapter()
+        val body = byteArrayOf(0xdd.toByte(), 0, 4, 12, 80, 60, 0x80.toByte())
+        adapter.receive(body + byteArrayOf(body.sumOf { it.toInt() and 255 }.toByte(), 0xaa.toByte()))
+        val connected = EarbudState(adapter = adapter.snapshot(), address = "02:00:00:00:00:01",
+            lifecycle = DeviceLifecycle(systemProfile = SystemProfileState.CONNECTED),
+            features = adapter.runtimeState().features)
+        val projection = requireNotNull(NativeHeadsetProjection.from(connected))
+        assertFalse(projection.singleBattery)
+        assertTrue(projection.showCaseInPopup)
+        assertEquals(80, projection.left.percent)
+        assertEquals(60, projection.right.percent)
+        assertEquals(0, projection.chargingCase.percent)
+        assertTrue(projection.chargingCase.charging)
+        val metadata = NativePresentationMetadata(HeadsetConnection("coral-connection", 0), NativeAdmission.HYPEREARS)
+        val gate = ConnectionPresentationGate()
+        var shown = 0
+        assertTrue(gate.tryPresent(metadata, 100) { shown++; true })
+        assertFalse(gate.tryPresent(metadata, 101) { shown++; true })
+        assertEquals(1, shown)
+        assertFalse(gate.tryPresent(metadata.copy(connection = HeadsetConnection("system", 0),
+            admission = NativeAdmission.SYSTEM), 102) { shown++; true })
+    }
     private fun state(battery: EarbudBattery, privateBattery: Boolean = false) = EarbudState(
         adapter = StandardEarbudAdapter().snapshot().copy(
             batterySource = if (privateBattery) BatterySource.PRIVATE_PROTOCOL else BatterySource.SYSTEM_AGGREGATE,

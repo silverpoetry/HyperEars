@@ -9,9 +9,20 @@ attenuation beside those controls. Missing or false configuration, lost module o
 system admission, private-channel loss and module pause disable the behavior. Enabling a switch
 still waits for the device's report; it does not assert that media manipulation succeeded.
 
-Wear and conversation host paths are now implemented and undergoing combined verification.
-Long-press, listening-cycle and device EQ controls are also wired through existing MiLink details.
-BLE key/bootstrap and case events, host gesture interception and spatial audio remain outstanding.
+Wear/conversation automation, long-press phone actions, listening-cycle/device EQ controls,
+connected and disconnected case discovery, native popups and native spatial/head tracking are now
+wired through the existing session and host boundaries. Apple keys remain process-local; raw
+stream logs redact all Apple chunks. Long-press and motion ownership use reported acknowledgments
+and restore only their owned fields. Closing sessions flush bounded restoration before physical
+close, and replacement sessions wait for predecessor cleanup. Temporary route/call/wear loss
+releases native spatial resources without permanently losing the endpoint.
+
+Combined code validation passed: 233 protocol + 349 integration + 267 system-module tests (849),
+protocol-test Debug assembly, Release lint and unsigned assembly. Independent proximity review
+found no blocker; host review findings on route recovery, readback, Binder callback reentry and
+unowned-byte preservation were fixed. No hardware acceptance has occurred. Real native scanner
+coverage, assistant launching, acoustic behavior, pose axes and reconnect/display behavior still
+require the user's two devices; successful compilation or a fake-host test is not that evidence.
 The original source audit below describes research findings, not the current implementation status.
 
 Audit date: 2026-10-28. Source inspection and specification only; no device,

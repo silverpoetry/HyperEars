@@ -104,7 +104,8 @@ internal class AirPodsWindowBridge(
             }
             val device = activity.intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
             if (device == null || device.address != request.state.address ||
-                BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) {
+                !dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device) ||
+                (!request.pairedDiscovery && BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true)) {
                 activity.finish()
                 return@intercept null
             }
@@ -339,7 +340,7 @@ internal class AirPodsWindowBridge(
         return binder
     }
 
-    private fun projection(binding: Binding) = requireNotNull(NativeHeadsetProjection.from(binding.state))
+    private fun projection(binding: Binding) = requireNotNull(binding.request.projection())
 
     private fun charging(p: NativeHeadsetProjection): Int =
         (if (p.left.charging) 1 else 0) or (if (p.right.charging) 2 else 0) or

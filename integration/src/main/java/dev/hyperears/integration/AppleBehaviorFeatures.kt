@@ -65,6 +65,8 @@ data class AppleGestureSettingsFeatureState(
     val listeningCycleMask: Int? = null,
     /** Observation only. Writing disables firmware handling and requires a separate host lease. */
     val interceptionMask: Int? = null,
+    /** Counts actual routing reports so a cached snapshot cannot acknowledge a new lease. */
+    val interceptionSequence: Long = 0,
 ) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
     companion object { const val FEATURE_ID = "apple.gesture_settings" }
@@ -87,7 +89,7 @@ internal fun AppleGestureSettingsFeatureState.acceptReport(report: AppleAapWireC
             copy(rightLongPress = right, leftLongPress = left)
         }
         0x1a -> if (v[0] in 1..15) copy(listeningCycleMask = v[0]) else null
-        0x39 -> copy(interceptionMask = v[0] and 15)
+        0x39 -> copy(interceptionMask = v[0] and 15, interceptionSequence = interceptionSequence + 1)
         else -> null
     }
 }

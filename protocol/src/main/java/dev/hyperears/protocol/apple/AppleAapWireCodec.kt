@@ -63,7 +63,10 @@ object AppleAapWireCodec {
             byteArrayOf(state.toByte(), low.toByte(), mid.toByte(), high.toByte())
     }
 
-    class Decoder {
+    class Decoder(
+        private val onPrivateKeys: (AppleProximityKeys) -> Unit = { it.close() },
+        private val onPrivateMotion: (ByteArray) -> Unit = {},
+    ) {
         private var pending = ByteArray(0)
 
         fun offer(bytes: ByteArray): List<State> {
@@ -94,6 +97,12 @@ object AppleAapWireCodec {
                 val frameSize = packet.frameSize(pending)
                 if (frameSize == FRAME_INCOMPLETE) break
                 if (frameSize == FRAME_INVALID) {
+                    // Key and motion bodies are opaque: never interpret embedded bytes as control frames.
+                    if (packet.prefix.contentEquals(KEY_PREFIX) || packet.prefix.contentEquals(MOTION_PREFIX)) {
+                        pending.fill(0)
+                        pending = ByteArray(0)
+                        break
+                    }
                     pending = pending.copyOfRange(1, pending.size)
                     continue
                 }
@@ -101,11 +110,20 @@ object AppleAapWireCodec {
 
                 val frame = pending.copyOfRange(0, frameSize)
                 pending = pending.copyOfRange(frameSize, pending.size)
-                packet.parse(frame)?.let(result::add)
+                if (packet.prefix.contentEquals(KEY_PREFIX)) {
+                    try { AppleProximityKeys.parse(frame)?.let(onPrivateKeys) } finally { frame.fill(0) }
+                } else {
+                    if (packet.prefix.contentEquals(MOTION_PREFIX) ||
+                        (packet.prefix.contentEquals(CONTROL_PREFIX) && frame[6].unsigned() == 6)) {
+                        onPrivateMotion(frame.copyOf())
+                    }
+                    packet.parse(frame)?.let(result::add)
+                }
             }
         }
 
         fun reset() {
+            pending.fill(0)
             pending = ByteArray(0)
         }
     }
@@ -230,7 +248,11 @@ object AppleAapWireCodec {
     private val BATTERY_PREFIX = hex("04 00 04 00 04 00")
     private val CONTROL_PREFIX = hex("04 00 04 00 09 00")
     private val NOISE_PREFIX = CONTROL_PREFIX + byteArrayOf(0x0d)
+    private val MOTION_PREFIX = hex("04 00 04 00 17 00")
+    private val KEY_PREFIX = hex("04 00 04 00 31 00")
     private val PACKETS = listOf(
+        PacketSpec(MOTION_PREFIX, { AppleMotionCodec.frameLength(it) ?: FRAME_INCOMPLETE }) { null },
+        PacketSpec(KEY_PREFIX, AppleProximityKeys::frameSize) { null },
         PacketSpec(
             prefix = BATTERY_PREFIX,
             frameSize = { bytes ->

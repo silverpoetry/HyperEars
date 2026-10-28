@@ -54,6 +54,12 @@ Apple 四态聆听、设备信息与高级设置扩展还核对了以下互操�
   VolumeShaper 框架接口；相应生命周期和媒体控制独立实现。没有移入其应用连接管理器、
   Glasmio 界面、SF 字体或 Apple 图片。
 
+`AppleMotionCodec.kt` 的有界 protobuf 读取、四元数与校准代码由上述 HyperPods-X 固定
+提交中的 `Motion.kt`／`IoSerial.kt` 适配，保留 GPL-3.0-or-later 声明，并在本项目组合发布时
+采用 GNU GPL 第 3 版。原代码注明 RTBuddy 布局研究来自 FIocker/aap-head-tracker 与
+Untrosss/HeadTracker；此处保留其来源说明。设备运动数据的接收、跨进程宿主边界和资源
+生命周期另按 HyperEars 现有会话结构接入，不引入上游应用界面或字体素材。
+
 设备信息的长度与字段顺序以 AndPods 4.3.8 的实际 DEX 行为交叉确认；自适应型号候选
 另参考 LibrePods 固定提交 `89356c08cea3db0b6b54792d9329d09a87cc85fa` 的
 `android/app/src/main/java/me/kavishdevar/librepods/data/AirPods.kt`。

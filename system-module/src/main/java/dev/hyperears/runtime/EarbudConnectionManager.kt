@@ -5,6 +5,12 @@ import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.os.Binder
 import android.os.SystemClock
+import dev.hyperears.bridge.AppleCaseDiscoveryContract
+import dev.hyperears.bridge.NativePresentationContract
+import dev.hyperears.integration.BatteryFeatureState
+import dev.hyperears.integration.BatteryReading
+import dev.hyperears.integration.EarbudBattery
+import dev.hyperears.integration.ControlAppCatalog
 import dev.hyperears.bridge.AppleNativeAdmissionContract
 import dev.hyperears.bridge.BroadcastIdentity
 import dev.hyperears.integration.PlatformReservedHeadsetPolicy
@@ -78,6 +84,7 @@ internal class EarbudConnectionManager(
 
     private val appContext = context.applicationContext ?: context
     private val lifecycleLock = Any()
+    private val closingSessions = mutableMapOf<String, kotlinx.coroutines.Deferred<Unit>>()
     private val sessions = linkedMapOf<String, SessionRecord>()
     private val observedDevices = linkedMapOf<String, ObservedDevice>()
     private val knownDevices = linkedMapOf<String, Snapshot>()
@@ -86,6 +93,45 @@ internal class EarbudConnectionManager(
     private val connectionCoordinator = ConnectionAttemptCoordinator()
     val presentationProducer = Binder()
     private val producerStartedAt = SystemClock.elapsedRealtime()
+    private val appleRetention by lazy { AppleProximityRetention(appContext, presentationProducer,
+        allowed = { address, adapter -> synchronized(lifecycleLock) {
+            !closed && !modulePaused && normalizeAddress(address) !in systemOwnedAddresses &&
+                adapter.id !in disabledAdapterIds &&
+                appleNativeDecisions[normalizeAddress(address)] != true &&
+                (!externalControlEnabled || ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages) == null)
+        } }, onCase = ::publishDisconnectedAppleCase)
+    }
+
+    fun observeAppleDiscovery(results: List<android.bluetooth.le.ScanResult>) = appleRetention.observe(results)
+    fun announceAppleDiscovery() = appleRetention.refresh(forceAnnouncement = true)
+
+    private fun publishDisconnectedAppleCase(address: String,
+        report: dev.hyperears.protocol.apple.AppleProximityReport, sequence: Long) {
+        val snapshot = synchronized(lifecycleLock) {
+            val key = normalizeAddress(address)
+            if (closed || modulePaused || key in physicalConnections || key in systemOwnedAddresses) return
+            knownDevices[key]?.takeIf { !it.state.sessionActive && it.presentation?.admission == NativeAdmission.HYPEREARS }
+        } ?: return
+        val battery = if (report.precise) EarbudBattery(
+            left = BatteryReading(report.left.percent, report.left.charging),
+            right = BatteryReading(report.right.percent, report.right.charging),
+            case = BatteryReading(report.case.percent, report.case.charging),
+        ) else EarbudBattery()
+        val state = snapshot.state.copy(
+            adapter = snapshot.state.adapter?.let {
+                if (report.precise) it.copy(batterySource = dev.hyperears.integration.BatterySource.PRIVATE_PROTOCOL) else it
+            },
+            features = snapshot.state.features.update(BatteryFeatureState(battery)),
+        )
+        val event = NativePresentationContract.attach(
+            dev.hyperears.bridge.ModuleContract.stateChanged(state, snapshot.sessionToken,
+                dev.hyperears.bridge.ModuleContract.NATIVE_HEADSET_PACKAGE),
+            snapshot.presentation!!, presentationProducer,
+        ).setAction(AppleCaseDiscoveryContract.CASE)
+            .putExtra(AppleCaseDiscoveryContract.CAPTURED, SystemClock.elapsedRealtime())
+            .putExtra(AppleCaseDiscoveryContract.SEQUENCE, sequence)
+        BroadcastIdentity.send(appContext, event)
+    }
     private val physicalConnections = mutableMapOf<String, HeadsetConnection>()
     private val appleSdpRequested = mutableSetOf<String>()
     private val appleDecisionRevisions = mutableMapOf<String, Long>()
@@ -117,6 +163,7 @@ internal class EarbudConnectionManager(
             removals = if (accepted != false) removeLocked(key) else emptyList()
         }
         finishRemovals(removals)
+        appleRetention.refresh()
         if (accepted == false) observeDevice(observed!!.device, observed.identity)
     }
 
@@ -235,6 +282,7 @@ internal class EarbudConnectionManager(
                     ?: EarbudState(
                         revision = lastRevisions[key] ?: 0,
                     )
+                val sessionToken = UUID.randomUUID().toString()
                 val session = EarbudDeviceSession(
                     context = appContext,
                     device = device,
@@ -245,6 +293,10 @@ internal class EarbudConnectionManager(
                     listener = ::onSessionEvent,
                     initialActiveControlApps = activeControlAppPackages,
                     initialExternalControlEnabled = externalControlEnabled,
+                    appleRetention = appleRetention,
+                    sessionIdentity = sessionToken,
+                    presentationProducer = presentationProducer,
+                    previousClosure = closingSessions.remove(key),
                 )
                 val runtime = session.snapshot()
                 val state = initialState.copy(
@@ -258,7 +310,7 @@ internal class EarbudConnectionManager(
                 val record = SessionRecord(
                     session = session,
                     identity = identity,
-                    token = UUID.randomUUID().toString(),
+                    token = sessionToken,
                     state = state,
                 )
                 sessions[key] = record
@@ -357,6 +409,7 @@ internal class EarbudConnectionManager(
             }
         }
         finishRemovals(removals)
+        appleRetention.disconnected(address)
         return removals.isNotEmpty()
     }
 
@@ -379,6 +432,7 @@ internal class EarbudConnectionManager(
             newlyClaimed to removeLocked(address)
         }
         finishRemovals(result.second)
+        appleRetention.refresh()
         if (result.first) {
             ModuleLog.debug(
                 COMPONENT,
@@ -409,6 +463,7 @@ internal class EarbudConnectionManager(
             activeControlAppPackages = activePackages.toSet()
             sessions.values.toList()
         }
+        appleRetention.refresh()
         records.forEach { record ->
             record.session.updateControlAppPresence(activePackages)
         }
@@ -421,6 +476,7 @@ internal class EarbudConnectionManager(
             externalControlEnabled = enabled
             sessions.values.toList()
         }
+        appleRetention.refresh()
         records.forEach { record ->
             record.session.updateExternalControlEnabled(enabled)
         }
@@ -460,6 +516,7 @@ internal class EarbudConnectionManager(
             decisions
         }
 
+        appleRetention.refresh()
         finishRemovals(changes.mapNotNull(AdapterReconfiguration::removal))
         changes.forEach { change ->
             change.replacement?.let { replacement ->
@@ -476,6 +533,7 @@ internal class EarbudConnectionManager(
             if (paused) removeLocked(address = null) else emptyList()
         }
         finishRemovals(removals)
+        appleRetention.refresh()
         if (!paused) {
             val observed = synchronized(lifecycleLock) { observedDevices.values.toList() }
             observed.forEach { observeDevice(it.device, it.identity) }
@@ -511,6 +569,7 @@ internal class EarbudConnectionManager(
     }
 
     override fun close() {
+        appleRetention.close()
         val removals = synchronized(lifecycleLock) {
             if (closed) return
             closed = true
@@ -577,6 +636,7 @@ internal class EarbudConnectionManager(
             lastRevisions[key] = ended.revision
             val finalSnapshot = snapshotLocked(ended, record.token)
             knownDevices[key] = finalSnapshot
+            closingSessions[key] = record.session.closedCompletion
             Removal(record, finalSnapshot)
         }
     }

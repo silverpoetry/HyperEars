@@ -68,7 +68,7 @@ internal object AppleSettingsCardPolicy {
                 state.features.get<AppleConversationFeatureState>() != null ||
                 state.features.get<AppleGestureSettingsFeatureState>()?.let {
                     it.leftLongPress != null || it.rightLongPress != null || it.listeningCycleMask in 1..15
-                } == true || equalizer(state) != null)
+                } == true || equalizer(state) != null || state.features.get<AppleSpatialFeatureState>()?.rendererAvailable == true)
 
     fun equalizer(state: EarbudState): AppleEqualizerFeatureState? =
         state.features.get<AppleEqualizerFeatureState>()?.takeIf {

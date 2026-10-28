@@ -189,10 +189,76 @@ internal class AppleSettingsDetails private constructor(
             rows += Row(setting, row, render)
             controls.addView(row)
         }
+        addSpatialControls(controls)
         addBehaviorControls(controls)
         body.addView(ScrollView(context).apply { addView(controls) },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         return body
+    }
+
+    private fun sendSpatial(request: AppleSpatialControlRequest) {
+        if (rendering || closed) return
+        val state = environment.stateProvider(address)
+        if (!valid(state)) { dismiss(); return }
+        val feature = state.features.get<AppleSpatialFeatureState>() ?: return
+        if (!feature.rendererAvailable) return
+        runCatching { environment.controlSender(address, request) }
+            .onFailure { ModuleLog.warn("MiLinkUi", "Spatial control failed", it) }
+        render(environment.stateProvider(address))
+    }
+
+    private fun addSpatialControls(controls: LinearLayout) {
+        val row = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        row.addView(text("空间音频", 17f))
+        val status = text("", 13f); row.addView(status)
+        val group = LinearLayout(context)
+        val modes = listOf("关闭", "固定", "头部追踪").mapIndexed { index, label ->
+            text(label, 15f).apply {
+                gravity = Gravity.CENTER; setPadding(0, dp(12), 0, dp(12))
+                setOnClickListener { sendSpatial(AppleSpatialControlRequest.SetMode(AppleSpatialMode.entries[index])) }
+                group.addView(this, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            }
+        }
+        row.addView(group)
+        val calibrate = text("校准头部方向", 15f).apply {
+            setPadding(0, dp(12), 0, dp(12))
+            setOnClickListener { sendSpatial(AppleSpatialControlRequest.BeginCalibration) }
+        }
+        val step = text("开始记录", 15f).apply {
+            setPadding(0, dp(12), 0, dp(12))
+            setOnClickListener { sendSpatial(AppleSpatialControlRequest.CalibrationStep) }
+        }
+        val recenter = text("以当前方向回中", 15f).apply {
+            setPadding(0, dp(12), 0, dp(12))
+            setOnClickListener { sendSpatial(AppleSpatialControlRequest.Recenter) }
+        }
+        row.addView(calibrate); row.addView(step); row.addView(recenter); controls.addView(row)
+        behaviorRows += { state ->
+            val feature = state.features.get<AppleSpatialFeatureState>()
+            row.visibility = if (feature?.rendererAvailable == true) View.VISIBLE else View.GONE
+            if (feature != null) {
+                modes.forEachIndexed { index, view ->
+                    val mode = AppleSpatialMode.entries[index]
+                    view.isEnabled = mode == AppleSpatialMode.OFF || !feature.pending &&
+                        (mode == AppleSpatialMode.FIXED || feature.trackerAvailable && feature.calibrated)
+                    view.alpha = if (view.isEnabled) 1f else 0.4f
+                    view.isSelected = feature.mode == mode
+                }
+                calibrate.visibility = if (feature.trackerAvailable && feature.calibrationStep < 0) View.VISIBLE else View.GONE
+                calibrate.isEnabled = !feature.pending
+                step.visibility = if (feature.calibrationStep in 0..2) View.VISIBLE else View.GONE
+                step.text = if (feature.collecting) "完成本步" else "开始记录"
+                recenter.visibility = if (feature.mode == AppleSpatialMode.TRACKING) View.VISIBLE else View.GONE
+                status.text = when {
+                    feature.calibrationStep in 0..2 -> "保持手机不动，" + listOf("头向右转", "抬头", "头向右倾斜")[feature.calibrationStep] + "，记录后完成本步。"
+                    feature.pending -> "等待耳机与系统确认…"
+                    feature.mode == AppleSpatialMode.TRACKING -> "系统头部追踪已接入；可回中。"
+                    feature.mode == AppleSpatialMode.FIXED -> "系统固定空间音频已启用。"
+                    feature.trackerAvailable && !feature.calibrated -> "使用头部追踪前，请完成三轴方向校准。"
+                    else -> "系统空间音频已关闭。"
+                }
+            }
+        }
     }
 
     private fun addBehaviorControls(controls: LinearLayout) {

@@ -46,10 +46,16 @@ data class NativeHeadsetProjection(
             !(singleBattery && form == HeadsetFormFactor.TWS)
 
     companion object {
-        fun from(state: EarbudState): NativeHeadsetProjection? {
+        fun from(state: EarbudState): NativeHeadsetProjection? =
+            if (state.sessionActive) project(state) else null
+
+        /** Only the authenticated paired-discovery presentation path may use this projection. */
+        fun fromPairedDiscovery(state: EarbudState): NativeHeadsetProjection? =
+            if (!state.sessionActive) project(state) else null
+
+        private fun project(state: EarbudState): NativeHeadsetProjection? {
             val adapter = state.adapter ?: return null
             val address = state.address ?: return null
-            if (!state.sessionActive) return null
             val battery = state.battery
             val single = adapter.batterySource == BatterySource.SYSTEM_AGGREGATE ||
                 battery.overall.available || adapter.formFactor == HeadsetFormFactor.HEADPHONES

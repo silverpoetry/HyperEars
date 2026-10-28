@@ -16,16 +16,19 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.os.UserManager
 import android.provider.Settings
+import dev.hyperears.bridge.AppleCaseDiscoveryContract
 import dev.hyperears.bridge.BroadcastIdentity
 import dev.hyperears.bridge.DeviceStateRegistry
 import dev.hyperears.bridge.HeadsetSettingsNavigator
 import dev.hyperears.bridge.VendorHandoffLauncher
 import dev.hyperears.bridge.ModuleContract
 import dev.hyperears.bridge.NativePresentationContract
+import dev.hyperears.hook.AppleSpatialBridgeServer
 import dev.hyperears.hook.HookContext
 import dev.hyperears.hook.ModuleLog
 import dev.hyperears.hook.maskBluetoothAddress
 import dev.hyperears.integration.EarbudState
+import dev.hyperears.integration.AppleCaseFeatureState
 import dev.hyperears.integration.StandardControlRequest
 import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.settings.ModuleSettingsRuntime
@@ -43,10 +46,15 @@ internal class NativePresentationRuntime(
     private val handler = Handler(Looper.getMainLooper())
     private val wearRuntime = if (uiProcess) null else runCatching { AppleWearRuntime(context, handler) }.getOrNull()
     private val conversationRuntime = if (uiProcess) null else runCatching { AppleConversationRuntime(context, handler) }.getOrNull()
+    private val spatialBridge = if (uiProcess) null else runCatching { AppleSpatialBridgeServer(context, handler) }.getOrNull()
     private val registry = DeviceStateRegistry()
     private val handoffObservers = linkedMapOf<Any, Pair<String, (EarbudState) -> Unit>>()
     private val records = linkedMapOf<String, Record>()
+    private val lastPresentationRecords = linkedMapOf<String, Record>()
+    private val pairedCaseHistory = linkedMapOf<String, Record>()
+    private val pairedCaseSequences = mutableMapOf<String, Long>()
     private val gate = ConnectionPresentationGate()
+    private val caseGate = AppleCasePresentationGate()
     private var producer: IBinder? = null
     private var producerDeath: IBinder.DeathRecipient? = null
     private val retiredProducers = ArrayDeque<IBinder>()
@@ -73,6 +81,9 @@ internal class NativePresentationRuntime(
             override fun onReceive(context: Context, intent: Intent) {
                 runCatching {
                     when (intent.action) {
+                        AppleCaseDiscoveryContract.CASE -> if (!uiProcess &&
+                            BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
+                                ModuleContract.BLUETOOTH_PACKAGE)) acceptPairedCase(intent)
                         ModuleContract.ACTION_STATE_CHANGED -> {
                             if (BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
                                     ModuleContract.BLUETOOTH_PACKAGE)) accept(intent)
@@ -84,6 +95,13 @@ internal class NativePresentationRuntime(
                             BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
                                 ModuleContract.NATIVE_HEADSET_PACKAGE)) windowChanged(intent)
                         Intent.ACTION_SCREEN_OFF -> windowBridge?.closeAll("screen off")
+                        BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                            val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                            if (device != null && !dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device)) {
+                                pairedCaseHistory.remove(device.address)
+                                windowBridge?.closeAll("device unpaired")
+                            }
+                        }
                         BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                             val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
                             device?.address?.let { wearRuntime?.remove(it); conversationRuntime?.remove(it) }
@@ -93,10 +111,12 @@ internal class NativePresentationRuntime(
                 }.onFailure { ModuleLog.warn(TAG, "native presentation event failed", it) }
             }
         }, IntentFilter().apply {
+            addAction(AppleCaseDiscoveryContract.CASE)
             addAction(ModuleContract.ACTION_STATE_CHANGED)
             addAction(NativePresentationContract.ACTION_PREVIEW)
             addAction(NativePresentationContract.ACTION_WINDOW)
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
             addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
         }, Context.RECEIVER_EXPORTED)
         ModuleSettingsRuntime.observe { updated -> handler.post {
@@ -124,6 +144,7 @@ internal class NativePresentationRuntime(
     // A feature-plugin class in the explicitly scoped Xiaomi host, not an Android framework API.
     @SuppressLint("PrivateApi")
     fun pluginReady(loader: ClassLoader) {
+        spatialBridge?.pluginReady(loader)
         if (windowAttempted) return
         if (runCatching { Class.forName(AirPodsWindowBridge.CONTROLLER, false, loader) }.isFailure) return
         windowAttempted = true
@@ -145,7 +166,7 @@ internal class NativePresentationRuntime(
             AirPodsWindowBridge(context,
                 forBinding = { request ->
                     val address = request.state.address
-                    val record = address?.let(records::get)
+                    val record = address?.let { if (request.pairedDiscovery) lastPresentationRecords[it] else records[it] }
                     request.forBinding(
                         latest = record?.let {
                             NativeWindowRequest(request.id, it.state, it.session, it.metadata, it.producer)
@@ -212,12 +233,22 @@ internal class NativePresentationRuntime(
         }
         val accepted = registry.accept(state, token) ?: return
         val address = accepted.address ?: return
+        lastPresentationRecords[address] = Record(accepted, token, metadata, nextProducer)
+        while (lastPresentationRecords.size > 128) lastPresentationRecords.remove(lastPresentationRecords.keys.first())
         handoffObservers.values.toList().forEach { (target, observer) ->
             if (address.equals(target, ignoreCase = true)) runCatching { observer(accepted) }
         }
+        spatialBridge?.update(accepted, token, nextProducer, !settings.modulePaused && metadata.admission == NativeAdmission.HYPEREARS && metadata.connectionScopedOwnership)
         wearRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
         conversationRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
         windowBridge?.update(accepted, token, metadata, nextProducer)
+        if (metadata.admission == NativeAdmission.SYSTEM) pairedCaseHistory.remove(address)
+        if (accepted.sessionActive && metadata.admission == NativeAdmission.HYPEREARS &&
+            metadata.connectionScopedOwnership) {
+            pairedCaseSequences.keys.removeAll { it.startsWith("$address/") && it != "$address/$token" }
+            pairedCaseHistory[address] = Record(accepted, token, metadata, nextProducer)
+            while (pairedCaseHistory.size > 8) pairedCaseHistory.remove(pairedCaseHistory.keys.first())
+        }
         if (!accepted.sessionActive || metadata.admission == NativeAdmission.SYSTEM) {
             records.remove(address)
             details?.remove(address, metadata.admission == NativeAdmission.SYSTEM)
@@ -230,17 +261,23 @@ internal class NativePresentationRuntime(
     }
 
     private fun clear(reason: String) {
+        spatialBridge?.clear()
         wearRuntime?.clear()
         conversationRuntime?.clear()
         windowBridge?.closeAll(reason)
         details?.clear()
         records.clear()
+        lastPresentationRecords.clear()
+        pairedCaseHistory.clear()
+        pairedCaseSequences.clear()
         registry.clear()
         gate.clear()
+        caseGate.clear()
         releaseWindow()
     }
 
     private fun updateAutomation(record: Record) {
+        spatialBridge?.update(record.state, record.session, record.producer, !settings.modulePaused && record.metadata.admission == NativeAdmission.HYPEREARS && record.metadata.connectionScopedOwnership)
         wearRuntime?.update(record.state, record.session, record.metadata.admission, !settings.modulePaused)
         conversationRuntime?.update(record.state, record.session, record.metadata.admission, !settings.modulePaused)
     }
@@ -305,10 +342,15 @@ internal class NativePresentationRuntime(
             runCatching { details?.update(p, device, record.metadata.connection.id) }
                 .onFailure { ModuleLog.warn(TAG, "detail notification update failed", it) }
         }
+        val now = SystemClock.elapsedRealtime()
+        val caseOpen = record.state.features.get<AppleCaseFeatureState>()?.let {
+            caseGate.accept(p.address, record.session, it.sequence, it.isOpen, record.metadata, now)
+        } == true
         if (!allowTransient || settings.headsetConnectionPresentation == HeadsetConnectionPresentation.OFF) return
-        gate.tryPresent(record.metadata, SystemClock.elapsedRealtime()) {
+        val connectionShown = gate.tryPresent(record.metadata, now) {
             present(record, settings.headsetConnectionPresentation)
         }
+        if (!connectionShown && caseOpen) present(record, settings.headsetConnectionPresentation)
     }
 
     private fun preview(kind: String?) {
@@ -325,9 +367,30 @@ internal class NativePresentationRuntime(
     }
 
     @SuppressLint("MissingPermission")
-    private fun present(record: Record, mode: HeadsetConnectionPresentation): Boolean {
+    private fun acceptPairedCase(intent: Intent) {
+        val nextProducer = NativePresentationContract.producer(intent) ?: return
+        if (producer != nextProducer || !nextProducer.isBinderAlive || settings.modulePaused) return
+        val captured = intent.getLongExtra(AppleCaseDiscoveryContract.CAPTURED, -1)
+        if (SystemClock.elapsedRealtime() - captured !in 0..3000) return
+        val state = with(ModuleContract) { intent.readState() } ?: return
+        val token = with(ModuleContract) { intent.readSessionToken() } ?: return
+        val metadata = NativePresentationContract.metadata(intent) ?: return
+        val address = state.address ?: return
+        val previous = pairedCaseHistory[address] ?: return
+        if (state.sessionActive || previous.session != token || previous.producer != nextProducer ||
+            previous.metadata.connection != metadata.connection || metadata.admission != NativeAdmission.HYPEREARS ||
+            state.adapter?.id != previous.state.adapter?.id || records[address]?.state?.sessionActive == true) return
+        val sequence = intent.getLongExtra(AppleCaseDiscoveryContract.SEQUENCE, 0)
+        val key = "$address/$token"
+        if (sequence <= (pairedCaseSequences[key] ?: 0)) return
+        pairedCaseSequences[key] = sequence
+        present(Record(state, token, metadata, nextProducer), settings.headsetConnectionPresentation, pairedDiscovery = true)
+    }
+
+    private fun present(record: Record, mode: HeadsetConnectionPresentation, pairedDiscovery: Boolean = false): Boolean {
         if (settings.modulePaused || mode == HeadsetConnectionPresentation.OFF) return false
-        val p = NativeHeadsetProjection.from(record.state) ?: return false
+        val p = (if (pairedDiscovery) NativeHeadsetProjection.fromPairedDiscovery(record.state)
+            else NativeHeadsetProjection.from(record.state)) ?: return false
         val power = context.getSystemService(PowerManager::class.java)
         val keyguard = context.getSystemService(KeyguardManager::class.java)
         val user = context.getSystemService(UserManager::class.java)
@@ -346,7 +409,8 @@ internal class NativePresentationRuntime(
             return false
         }
         val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(p.address) ?: return false
-        if (BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) return false
+        if (!dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device)) return false
+        if (!pairedDiscovery && BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) return false
         if (hint?.flowOwnsPresentation(device) != false) {
             ModuleLog.debug(TAG, "presentation skipped: native circulation owns display")
             return false
@@ -372,13 +436,13 @@ internal class NativePresentationRuntime(
                 windowDeadline = Runnable { if (activeWindow == id && windowLifetime == null) releaseWindow() }
                     .also { handler.postDelayed(it, 5_000) }
                 runCatching { NativeWindowRequest.launch(context,
-                    NativeWindowRequest(id, record.state, record.session, record.metadata, record.producer), device)
+                    NativeWindowRequest(id, record.state, record.session, record.metadata, record.producer, pairedDiscovery), device)
                 }.getOrElse {
                     releaseWindow()
                     ModuleLog.warn(TAG, "popup launch failed", it)
                     return false
                 }
-                BroadcastIdentity.send(context,
+                if (!pairedDiscovery) BroadcastIdentity.send(context,
                     ModuleContract.control(StandardControlRequest.Refresh, p.address, record.session))
                 ModuleLog.debug(TAG, "popup submitted address=${maskBluetoothAddress(p.address)}")
                 true

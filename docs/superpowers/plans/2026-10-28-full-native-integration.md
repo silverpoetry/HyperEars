@@ -341,3 +341,16 @@ No phone settings or installed application state change is implied by this devel
 Current sequencing: finish the already-started Coral workflow without interruption. The user
 explicitly authorized parallel Apple work; keep separate file ownership and serialized Gradle
 verification. Coral is not abandoned or restarted while Apple work progresses independently.
+
+The user explicitly requires Xiaomi-style connection popups for adapted headphones, in addition
+to native settings cards. Existing SMART/native connection presentation remains the shared path.
+A new regression verifies Coral's real decoded L/R/case battery projection and once-per-connection
+presentation; Apple confirmed case edges also use the native path. Physical rendering still needs
+hardware verification; a passing projection/gate test is not an actual displayed popup.
+
+Apple/Coral code-scope checkpoint: connected and disconnected Apple case discovery, phone
+long-press actions and native spatial/head tracking are wired. Shared cleanup flushes bounded
+ownership restoration before close; per-address predecessor completion prevents overlap with a
+new connection. Full suites pass 849 tests; protocol-test Debug and module Release lint/assembly
+pass. No install/phone modification/physical acceptance. Other brand/model migration remains
+outstanding; this checkpoint does not complete the comprehensive goal.

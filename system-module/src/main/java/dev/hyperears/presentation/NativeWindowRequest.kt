@@ -18,16 +18,22 @@ internal data class NativeWindowRequest(
     val session: String,
     val metadata: NativePresentationMetadata,
     val producer: IBinder,
+    val pairedDiscovery: Boolean = false,
 ) {
     fun forBinding(
         latest: NativeWindowRequest?,
         currentProducer: IBinder?,
         hasAcceptedState: Boolean,
     ): NativeWindowRequest? {
-        if (!state.sessionActive || metadata.admission != NativeAdmission.HYPEREARS ||
+        if ((!state.sessionActive && !pairedDiscovery) || metadata.admission != NativeAdmission.HYPEREARS ||
             (currentProducer != null && currentProducer != producer)
         ) {
             return null
+        }
+        if (pairedDiscovery) return takeIf {
+            !state.sessionActive && producer.isBinderAlive && (latest == null ||
+                (!latest.state.sessionActive && latest.producer == producer && latest.session == session &&
+                    latest.metadata.connection == metadata.connection && latest.metadata.admission == NativeAdmission.HYPEREARS))
         }
         // A known lifecycle without an eligible record has ended or ceded native ownership.
         if (latest == null) return takeUnless { hasAcceptedState }
@@ -49,8 +55,11 @@ internal data class NativeWindowRequest(
         return if (state.revision > this.state.revision) copy(state = state, metadata = metadata) else this
     }
 
+    fun projection(): NativeHeadsetProjection? = if (pairedDiscovery)
+        NativeHeadsetProjection.fromPairedDiscovery(state) else NativeHeadsetProjection.from(state)
+
     fun stateArray(): Array<String> {
-        val p = requireNotNull(NativeHeadsetProjection.from(state))
+        val p = requireNotNull(projection())
         return arrayOf(
             p.left.percent?.toString() ?: "-",
             p.right.percent?.toString() ?: "-",
@@ -72,7 +81,7 @@ internal data class NativeWindowRequest(
         private const val DEADLINE = "dev.hyperears.native_deadline"
 
         fun launch(context: Context, request: NativeWindowRequest, device: android.bluetooth.BluetoothDevice) {
-            val projection = requireNotNull(NativeHeadsetProjection.from(request.state))
+            val projection = requireNotNull(request.projection())
             val payload = NativePresentationContract.attach(
                 ModuleContract.stateChanged(request.state, request.session, ModuleContract.NATIVE_HEADSET_PACKAGE),
                 request.metadata, request.producer,
@@ -82,6 +91,7 @@ internal data class NativeWindowRequest(
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 .putExtra(NativePresentationContract.EXTRA_WINDOW, request.id)
                 .putExtra(PAYLOAD, payload)
+                .putExtra("dev.hyperears.paired_discovery", request.pairedDiscovery)
                 .putExtra(DEADLINE, SystemClock.elapsedRealtime() + 5_000)
                 .putExtra("android.bluetooth.device.extra.DEVICE", device)
                 .putExtra("headset_addresses", projection.address)
@@ -103,9 +113,10 @@ internal data class NativeWindowRequest(
             val session = with(ModuleContract) { payload.readSessionToken() } ?: return null
             val metadata = NativePresentationContract.metadata(payload) ?: return null
             val producer = NativePresentationContract.producer(payload)?.takeIf { it.isBinderAlive } ?: return null
-            if (!state.sessionActive || metadata.admission != NativeAdmission.HYPEREARS ||
+            val discovery = intent.getBooleanExtra("dev.hyperears.paired_discovery", false)
+            if ((discovery && state.sessionActive) || (!discovery && !state.sessionActive) || metadata.admission != NativeAdmission.HYPEREARS ||
                 state.address != intent.getStringExtra("headset_addresses")) return null
-            return NativeWindowRequest(id, state, session, metadata, producer)
+            return NativeWindowRequest(id, state, session, metadata, producer, discovery)
         }
     }
 }

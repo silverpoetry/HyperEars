@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import dev.hyperears.bridge.AppleCaseDiscoveryContract
 import dev.hyperears.bridge.AppleNativeAdmissionContract
 import dev.hyperears.bridge.ModuleContract
 import dev.hyperears.bridge.StateBroadcaster
@@ -87,6 +88,12 @@ internal object EarbudSessionService {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (context == null || intent == null) return
                 when (intent.action) {
+                    AppleCaseDiscoveryContract.SCANS, AppleCaseDiscoveryContract.READY -> {
+                        if (!BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
+                                ModuleContract.NATIVE_HEADSET_PACKAGE)) return
+                        if (intent.action == AppleCaseDiscoveryContract.READY) connectionManager.announceAppleDiscovery()
+                        else connectionManager.observeAppleDiscovery(AppleCaseDiscoveryContract.readScans(intent))
+                    }
                     AppleNativeAdmissionContract.READY, AppleNativeAdmissionContract.DECISION -> {
                         if (!BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
                                 ModuleContract.NATIVE_HEADSET_PACKAGE)) return
@@ -224,6 +231,8 @@ internal object EarbudSessionService {
 
         init {
             val filter = IntentFilter().apply {
+                addAction(AppleCaseDiscoveryContract.SCANS)
+                addAction(AppleCaseDiscoveryContract.READY)
                 addAction(AppleNativeAdmissionContract.READY)
                 addAction(AppleNativeAdmissionContract.DECISION)
                 addAction(BluetoothDevice.ACTION_UUID)

@@ -121,6 +121,11 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(AppleHostLongPressLeaseRequest::class, AppleHostLongPressLeaseRequest.serializer())
+                subclass(AppleSpatialControlRequest.SetMode::class, AppleSpatialControlRequest.SetMode.serializer())
+                subclass(AppleSpatialControlRequest.BeginCalibration::class, AppleSpatialControlRequest.BeginCalibration.serializer())
+                subclass(AppleSpatialControlRequest.CalibrationStep::class, AppleSpatialControlRequest.CalibrationStep.serializer())
+                subclass(AppleSpatialControlRequest.Recenter::class, AppleSpatialControlRequest.Recenter.serializer())
                 subclass(AppleControlRequest.SetLongPress::class, AppleControlRequest.SetLongPress.serializer())
                 subclass(AppleControlRequest.SetListeningCycle::class, AppleControlRequest.SetListeningCycle.serializer())
                 subclass(AppleControlRequest.SetEqualizer::class, AppleControlRequest.SetEqualizer.serializer())
