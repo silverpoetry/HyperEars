@@ -22,6 +22,9 @@ object AppleAapWireCodec {
 
         data class Noise(val mode: NoiseMode) : State
 
+        /** Opcode 0x09: unsigned identifier and exactly four unsigned payload bytes. */
+        data class Control(val identifier: Int, val values: List<Int>) : State
+
         /** Only non-private fields with a defined protocol consumer; never retain raw identity data. */
         data class DeviceInformation(val modelIdentifier: String, val firmwareActive: String) : State
     }
@@ -38,6 +41,13 @@ object AppleAapWireCodec {
 
     fun setNoiseMode(mode: NoiseMode): ByteArray =
         NOISE_PREFIX + byteArrayOf(mode.value.toByte(), 0, 0, 0)
+
+    /** Fixed-width AACP control write; unowned bytes must be supplied by the session. */
+    fun setControl(identifier: Int, values: List<Int>): ByteArray {
+        require(identifier in 0..255)
+        require(values.size == 4 && values.all { it in 0..255 })
+        return CONTROL_PREFIX + byteArrayOf(identifier.toByte()) + values.map(Int::toByte).toByteArray()
+    }
 
     class Decoder {
         private var pending = ByteArray(0)
@@ -156,6 +166,12 @@ object AppleAapWireCodec {
         )
     }
 
+    private fun parseControl(frame: ByteArray): State? {
+        if (frame.size != 11) return null
+        if (frame[6].unsigned() == 0x0d) return parseNoise(frame)
+        return State.Control(frame[6].unsigned(), frame.slice(7..10).map { it.unsigned() })
+    }
+
     private fun parseNoise(frame: ByteArray): State.Noise? =
         NoiseMode.entries
             .firstOrNull { it.value == frame[7].unsigned() }
@@ -198,7 +214,8 @@ object AppleAapWireCodec {
     private const val FRAME_INVALID = -1
     private val unavailableComponent = Component(null, false)
     private val BATTERY_PREFIX = hex("04 00 04 00 04 00")
-    private val NOISE_PREFIX = hex("04 00 04 00 09 00 0D")
+    private val CONTROL_PREFIX = hex("04 00 04 00 09 00")
+    private val NOISE_PREFIX = CONTROL_PREFIX + byteArrayOf(0x0d)
     private val PACKETS = listOf(
         PacketSpec(
             prefix = BATTERY_PREFIX,
@@ -216,7 +233,7 @@ object AppleAapWireCodec {
             },
             parse = ::parseBattery,
         ),
-        PacketSpec(NOISE_PREFIX, { 11 }, ::parseNoise),
+        PacketSpec(CONTROL_PREFIX, { 11 }, ::parseControl),
         PacketSpec(
             prefix = hex("04 00 04 00 1D 00"),
             frameSize = { bytes ->

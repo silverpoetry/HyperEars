@@ -167,3 +167,14 @@ lifecycle wholesale into the native service.
    multi-byte preservation, and ATT/AACP namespace separation. Tests and builds
    would still leave device confirmation, UI workflow, timing labels and audio
    side effects awaiting actual revalidation.
+
+## Additional active settings checked during implementation
+
+The parent checked pinned HyperPods-X `Controls.kt` and `IosSettingsPages.kt` directly.
+Allow-off `0x34` uses 1/2 and is rendered through `AvailableControls` in the accessibility
+noise group. Chime volume `0x1f` uses 15..100 and is rendered by that page's `ControlGroup`.
+Sleep pause `0x35` uses 1/2 and is rendered by the audio page's `ControlGroup`.
+`ControlSetting` dispatches scalar/toggle writes through `PodsService.setControl`; these
+are active UI paths, not unused definitions. As with other corroborated settings, a valid
+current-session report is required. These controls are included in the next backend slice,
+without claiming independent physical validation or importing the upstream UI.

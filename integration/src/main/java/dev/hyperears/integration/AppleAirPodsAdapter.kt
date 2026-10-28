@@ -29,14 +29,20 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
 
     override val featureStateContract: DeviceFeatureStateContract =
         StandardDeviceFeatureStateContract.extending { _, state ->
-            state is AppleListeningModeFeatureState
+            state is AppleListeningModeFeatureState || state is AppleSettingsFeatureState
         }
 
     override val controlRequestContract: ControlRequestContract =
         StandardControlRequestContract.extending { adapter, request ->
-            request is AppleControlRequest.SetListeningMode &&
-                adapter.runtimeState().features.get<AppleListeningModeFeatureState>()
-                    ?.supportedModes?.contains(request.mode) == true
+            val features = adapter.runtimeState().features
+            when (request) {
+                is AppleControlRequest.SetListeningMode ->
+                    features.get<AppleListeningModeFeatureState>()?.supportedModes?.contains(request.mode) == true
+                is AppleControlRequest -> features.get<AppleSettingsFeatureState>()?.supports(
+                    request, features.get<AppleListeningModeFeatureState>()?.mode,
+                ) == true
+                else -> false
+            }
         }
 
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
@@ -45,7 +51,7 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
         }
 
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy = when (request) {
-        is AppleControlRequest.SetListeningMode,
+        is AppleControlRequest,
         is StandardControlRequest.SetNoiseMode,
         -> ControlExecutionPolicy(confirmation = ControlConfirmationPolicy.DEVICE_REPORT)
         else -> super.controlPolicy(request)
@@ -54,6 +60,7 @@ open class AppleAirPodsAdapter : StandardEarbudAdapter() {
     override fun onProtocolReset() {
         super.onProtocolReset()
         removeFeatureState(AppleListeningModeFeatureState.FEATURE_ID)
+        removeFeatureState(AppleSettingsFeatureState.FEATURE_ID)
     }
 
     companion object {
@@ -100,6 +107,8 @@ private class AppleAapProtocolSession : ProtocolSession {
     private var adaptiveReported = false
     private var adaptiveModel = false
     private var lastNoiseReport: AppleAapWireCodec.NoiseMode? = null
+    private var settings = AppleSettingsFeatureState()
+    private val settingPayloads = mutableMapOf<Int, List<Int>>()
 
     override fun initialReadCommands(): List<ByteArray> = listOf(
         AppleAapWireCodec.handshake,
@@ -117,11 +126,22 @@ private class AppleAapProtocolSession : ProtocolSession {
             AppleAapWireCodec.setNoiseMode(request.mode.toWireMode()),
         )
 
+        request is AppleControlRequest -> encodeSetting(request)
         else -> emptyList()
     }
 
+    private fun encodeSetting(request: AppleControlRequest): List<ByteArray> {
+        if (!settings.supports(request, lastNoiseReport?.toListeningMode())) return emptyList()
+        val write = request.settingWrite() ?: return emptyList()
+        val previous = settingPayloads[write.identifier] ?: return emptyList()
+        // Adaptive strength is deliberately zero padded in the corroborating active source.
+        val payload = if (write.identifier == 0x2e) listOf(write.value, 0, 0, 0)
+            else previous.toMutableList().also { it[write.index] = write.value }
+        return listOf(AppleAapWireCodec.setControl(write.identifier, payload))
+    }
+
     override fun readback(request: ControlRequest): List<ByteArray> = when (request) {
-        is AppleControlRequest.SetListeningMode,
+        is AppleControlRequest,
         is StandardControlRequest.SetNoiseMode,
         -> listOf(AppleAapWireCodec.requestNotifications)
         else -> emptyList()
@@ -130,6 +150,15 @@ private class AppleAapProtocolSession : ProtocolSession {
     override fun offer(bytes: ByteArray): List<ProtocolEvent> =
         decoder.offer(bytes).flatMap { state ->
             when (state) {
+                is AppleAapWireCodec.State.Control -> buildList<ProtocolEvent> {
+                    settings.acceptReport(state)?.let { accepted ->
+                        settings = accepted
+                        settingPayloads[state.identifier] = state.values.toList()
+                        add(ProtocolEvent.FeatureStateChanged(accepted))
+                        publishHandshakeIfNeeded()
+                    }
+                }
+
                 is AppleAapWireCodec.State.Battery -> buildList<ProtocolEvent> {
                     add(ProtocolEvent.CapabilitiesIdentified(battery = true))
                     add(
@@ -172,6 +201,8 @@ private class AppleAapProtocolSession : ProtocolSession {
         adaptiveReported = false
         adaptiveModel = false
         lastNoiseReport = null
+        settings = AppleSettingsFeatureState()
+        settingPayloads.clear()
     }
 
     private fun listeningEvent(mode: AppleAapWireCodec.NoiseMode): ProtocolEvent =

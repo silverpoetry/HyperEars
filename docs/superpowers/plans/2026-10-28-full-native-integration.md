@@ -258,3 +258,13 @@ does not treat every source command as universally supported. All items below re
   [the settings audit](../../research/source-audits/apple-settings-followup.md): preserve four-byte
   AACP values, distinguish actual reports from optimistic UI state, and keep ATT loud-sound controls
   separate from AACP one-bud ANC. Advanced settings and native Settings presentation remain pending.
+- Apple advanced-settings backend milestone: fourteen typed controls now require their own
+  valid session reports, preserve unowned payload bytes, confirm via device reports and reset
+  session evidence. Valid settings-only reports establish protocol readiness without listening
+  or private battery admission. Full verification passed 676 tests (198 protocol, 319 integration,
+  159 system-module), protocol-test Debug build, Release lint and unsigned assembly; independent
+  spec/quality reviews approved. See [backend plan](2026-10-28-apple-advanced-controls.md).
+  Actual native advanced Settings presentation remains outstanding. Captured plugin research
+  identified JavaActivity/MiuiAirpodsFragment entry and official connect side effects; the outer
+  Settings activity/plugin-loading contract is under read-only investigation. No device install,
+  scope change, restart or UI action has been performed.
