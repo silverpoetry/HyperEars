@@ -73,6 +73,23 @@ class SettingsHeadsetBindingTest {
         f.binding.close()
     }
 
+
+    @Test fun detectedSonyOptimizerAnnotatesOneExistingHandoffRowAndRevokesOnNewReport() {
+        val f=Fixture()
+        f.current=f.current.copy(adapter=f.current.adapter!!.copy(controlApps=listOf(ControlAppCatalog.sonySoundConnect)))
+            .withFeature(SonyVendorToolsFeatureState(1,true))
+        f.binding.render()
+        val row=f.row("hyperears.controller.open")!!
+        assertEquals("降噪优化 · 打开 Sony App 并让出控制",row.title.toString())
+        assertNull(f.row("hyperears.optimizer"));assertTrue(f.sent.isEmpty())
+        val old=row.onPreferenceClickListener!!
+        f.current=f.current.withFeature(SonyVendorToolsFeatureState(1,false))
+        old.onPreferenceClick(row);assertTrue(f.sent.isEmpty())
+        f.binding.render()
+        assertEquals("打开控制 App 并让出控制",f.row("hyperears.controller.open")!!.title.toString())
+        f.binding.close()
+    }
+
     @Test fun controllerRowsRequireModuleForLaunchAndExplicitLocalLeaseForReturn() {
         val f = Fixture(); f.current = f.current.copy(adapter = f.current.adapter!!.copy(controlApps = listOf(ControlAppCatalog.huaweiSmartAudio)))
         f.binding.render()

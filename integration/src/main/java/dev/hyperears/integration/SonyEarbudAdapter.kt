@@ -86,7 +86,7 @@ open class SonyProtocolFamilyAdapter internal constructor(
             else -> configuration.miLinkPresentationId.takeIf { effectiveCapabilities().noiseControl }
         }
     override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
-        state is SonyVirtualSoundFeatureState || state is SonyVoiceGuidanceFeatureState || state is SonyAssignableFeatureState || state is SonyEqFeatureState || state is SonyAmbientFeatureState || state is SonyAudioSettingsFeatureState || state is SonyMultipointFeatureState
+        state is SonyVendorToolsFeatureState || state is SonyVirtualSoundFeatureState || state is SonyVoiceGuidanceFeatureState || state is SonyAssignableFeatureState || state is SonyEqFeatureState || state is SonyAmbientFeatureState || state is SonyAudioSettingsFeatureState || state is SonyMultipointFeatureState
     }
     override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
         when (request) {
@@ -101,6 +101,7 @@ open class SonyProtocolFamilyAdapter internal constructor(
         }
     }
     override fun onProtocolReset() {
+        removeFeatureState(SonyVendorToolsFeatureState.FEATURE_ID)
         removeFeatureState(SonyVirtualSoundFeatureState.FEATURE_ID)
         removeFeatureState(SonyVoiceGuidanceFeatureState.FEATURE_ID)
         removeFeatureState(SonyEqFeatureState.FEATURE_ID)
@@ -424,6 +425,8 @@ private class SonyHeadphonesProtocolSession(
         }
 
         val activeVersion = version ?: return emptyList()
+        val vendorTools=if(activeVersion==Version.V1)
+            dev.hyperears.protocol.sony.SonyVendorToolsCodec.optimizerFunction(payload)?.let{SonyVendorToolsFeatureState(1,it)} else null
         val virtualUpdate=virtual?.accept(payload)
         virtualUpdate?.queries?.forEach(::enqueueDaily)
         if(virtualUpdate?.queries?.isNotEmpty()==true)scheduleNextRequest()
@@ -433,7 +436,7 @@ private class SonyHeadphonesProtocolSession(
         val dailyUpdate = daily?.accept(payload)
         dailyUpdate?.queries?.forEach(::enqueueDaily)
         if (dailyUpdate?.queries?.isNotEmpty() == true) scheduleNextRequest()
-        val dailyEvents = dailyUpdate?.states.orEmpty().map { ProtocolEvent.FeatureStateChanged(it) } + voiceEvents + virtualUpdate?.states.orEmpty().map{ProtocolEvent.FeatureStateChanged(it)}
+        val dailyEvents = dailyUpdate?.states.orEmpty().map { ProtocolEvent.FeatureStateChanged(it) } + listOfNotNull(vendorTools?.let{ProtocolEvent.FeatureStateChanged(it)}) + voiceEvents + virtualUpdate?.states.orEmpty().map{ProtocolEvent.FeatureStateChanged(it)}
         parseBattery(activeVersion, payload)?.let { updated ->
             battery = updated
             return listOf(
@@ -450,7 +453,7 @@ private class SonyHeadphonesProtocolSession(
                 ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode)),
             ) + dailyEvents
         }
-        if (dailyUpdate != null || voiceChanged || virtualUpdate!=null) return dailyEvents
+        if (dailyUpdate != null || voiceChanged || virtualUpdate!=null || vendorTools!=null) return dailyEvents
         return listOf(
             ProtocolEvent.UnknownFrame(
                 version = if (activeVersion == Version.V1) 1 else 2,

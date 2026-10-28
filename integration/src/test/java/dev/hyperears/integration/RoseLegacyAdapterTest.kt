@@ -39,7 +39,11 @@ class RoseLegacyAdapterTest {
         assertArrayEquals(byteArrayOf(0,0x2c,1,0,1,0),adapter.protocolSession.encode(StandardControlRequest.SetNoiseMode(NoiseMode.OFF)).single())
         assertTrue(adapter.protocolSession.encode(StandardControlRequest.SetNoiseMode(NoiseMode.WIND)).isEmpty())
         adapter.receive(byteArrayOf(0,0x27,2,0,4,4,2,1,2))
-        assertNull(adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>())
+        val afterMalformedEq=adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>()!!
+        assertTrue(afterMalformedEq.values.isEmpty())
+        assertNull(afterMalformedEq.touch)
+        assertTrue(afterMalformedEq.findAvailable) // Prior legitimate noise report qualifies only the source find action.
+        assertEquals(NoiseMode.ANC,adapter.runtimeState().noiseMode)
         adapter.receive(byteArrayOf(0,0x27,2,0,4,4,2,0,2))
         assertEquals(2,adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>()!!.values[RoseLegacySetting.EQ])
     }

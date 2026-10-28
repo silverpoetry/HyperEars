@@ -9,9 +9,9 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
     private var pendingPairedQuery=false
     private fun pairedQuery():ByteArray {paired.reset();return dev.hyperears.protocol.huawei.HuaweiPairedDevicesCodec.query()}
     fun drainCommands():List<ByteArray> {if(!pendingPairedQuery)return emptyList();pendingPairedQuery=false;return listOf(pairedQuery())}
-    var state = HuaweiDailySettingsFeatureState()
+    var state = HuaweiDailySettingsFeatureState(eqManaged=profile.equalizerModel!=null)
         private set
-    fun reset() { state = HuaweiDailySettingsFeatureState();paired.reset();pendingPairedQuery=false }
+    fun reset() { state = HuaweiDailySettingsFeatureState(eqManaged=profile.equalizerModel!=null);paired.reset();pendingPairedQuery=false }
     fun lowLatencyQuery(): List<ByteArray> = if (profile.lowLatency) listOf(Wire.query(Wire.LOW_LATENCY, 2)) else emptyList()
     fun queries(): List<ByteArray> = buildList {
         if(profile.multipoint)add(pairedQuery())
@@ -30,13 +30,14 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
         is HuaweiDailyControlRequest.SetSoundQualityPreference -> Wire.query(Wire.SOUND_QUALITY_READ, 1)
         is HuaweiDailyControlRequest.SetWearDetection -> Wire.query(Wire.WEAR_READ, 1)
         is HuaweiDailyControlRequest.SetMultipoint -> Wire.query(Wire.MULTIPOINT_READ, 1)
-        is HuaweiDailyControlRequest.SetEqualizer, is HuaweiDailyControlRequest.SetCustomEqualizer -> Wire.queryEqualizer()
+        is HuaweiDailyControlRequest.ManageEqualizer, is HuaweiDailyControlRequest.SetEqualizer, is HuaweiDailyControlRequest.SetCustomEqualizer -> Wire.queryEqualizer()
         is HuaweiDailyControlRequest.SetGesture -> Wire.queryGesture(request.kind.wire())
     })
     }
     fun encode(request: HuaweiDailyControlRequest): ByteArray? {
         if (!state.supports(request) || request is HuaweiDailyControlRequest.ManageDevice && (!profile.multipoint || !paired.complete)) return null
         return when (request) {
+            is HuaweiDailyControlRequest.ManageEqualizer -> request.packet()
             is HuaweiDailyControlRequest.ManageDevice -> dev.hyperears.protocol.huawei.HuaweiPairedDevicesCodec.write(request.target,request.action.wire)
             is HuaweiDailyControlRequest.SetLowLatency -> Wire.setBoolean(Wire.LOW_LATENCY, request.enabled)
             is HuaweiDailyControlRequest.SetSoundQualityPreference -> Wire.setBoolean(Wire.SOUND_QUALITY_WRITE, request.preferQuality)
@@ -56,7 +57,25 @@ internal class HuaweiDailySettingsSession(private val profile: HuaweiDailyProfil
                 independentSwipe = profile.gestures[request.kind]?.independentModel != null)
         }
     }
+    fun written(request:HuaweiDailyControlRequest.ManageEqualizer):HuaweiDailySettingsFeatureState? {
+        if(!state.supports(request))return null
+        state=state.copy(eqPending=true)
+        return state
+    }
     fun offer(frame: HuaweiFreebudsSppCodec.Frame): HuaweiDailySettingsFeatureState? {
+        if(profile.equalizerModel!=null && frame.command==Wire.EQ_READ) {
+            val report=dev.hyperears.protocol.huawei.HuaweiEqualizerInventoryCodec.report(frame)?:run {
+                // A CRC-valid inventory we cannot interpret is not proof of a free slot.
+                if(8 !in frame.params || 127 in frame.params)return null
+                state=state.copy(eqInventory=null);return state
+            }
+            val slots=report.slots.map{HuaweiCustomEqualizer(it.id,it.name,it.gains)}
+            val inventory=if(report.complete)HuaweiEqSnapshot(profile.equalizerModel,HuaweiEqRevisions.next(),report.raw,
+                requireNotNull(report.selected),report.builtIns,slots)else null
+            state=state.copy(eqInventory=inventory,eqPending=if(inventory!=null)false else state.eqPending,
+                equalizer=report.selected?.let{HuaweiEqualizerState(it,report.builtIns+slots.map{slot->slot.id},slots,inventory!=null)} ?:state.equalizer)
+            return state
+        }
         if(profile.multipoint) {
             if(dev.hyperears.protocol.huawei.HuaweiPairedDevicesCodec.change(frame)) {
                 paired.reset();pendingPairedQuery=true;state=state.copy(pairedDevices=null);return state

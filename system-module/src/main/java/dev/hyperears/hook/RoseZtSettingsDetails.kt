@@ -31,6 +31,7 @@ internal class RoseZtSettingsDetails private constructor(
 ) : MiLinkToggleDetails {
     private val anchor = WeakReference(anchor)
     private val token = environment.sessionTokenProvider(address)
+    private val model = environment.stateProvider(address).features.get<RoseZtSettingsFeatureState>()?.model
     private val context = anchor.context
     private val popup = PopupWindow(context)
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -38,6 +39,21 @@ internal class RoseZtSettingsDetails private constructor(
     private data class Draft(val model: String, val setting: String, val source: Int, val target: Int)
     private var pendingAudio: Draft? = null
     private var unsubscribe: (() -> Unit)? = null
+    private fun findSnapshot(state:EarbudState):RoseFindUiSnapshot? {
+        if(!valid(state))return null
+        val feature=state.features.get<RoseZtSettingsFeatureState>()?:return null
+        return RoseFindUiSnapshot(feature.model,feature.findAvailable,feature.profile?.findTargets().orEmpty(),feature.findIntent)
+    }
+    private val findDetails=RoseFindDetails(context,
+        {findSnapshot(environment.stateProvider(address))},
+        { expected,lease,target ->
+            val current=environment.stateProvider(address)
+            val request=RoseZtControlRequest.Find(expected,lease,target)
+            if(valid(current) && current.features.get<RoseZtSettingsFeatureState>()?.supports(request)==true)
+                environment.controlSender(address,request)
+        },
+        {render(environment.stateProvider(address))},::text)
+
     private val detach = object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(v: View) = Unit
         override fun onViewDetachedFromWindow(v: View) = dismiss()
@@ -69,7 +85,7 @@ internal class RoseZtSettingsDetails private constructor(
     }
     private fun guarded(action: () -> Unit) { if (!closed) runCatching(action).onFailure { dismiss() } }
     private fun valid(state: EarbudState) = token != null && token == environment.sessionTokenProvider(address) &&
-        RoseZtSettingsPolicy.available(state, address) && state.features.get<RoseZtSettingsFeatureState>()?.hasSettings == true
+        RoseZtSettingsPolicy.available(state, address) && state.features.get<RoseZtSettingsFeatureState>()?.hasSettings == true && state.features.get<RoseZtSettingsFeatureState>()?.model == model
     private fun send(request: RoseZtControlRequest.SetValue): Unit = guarded {
         val state = environment.stateProvider(address)
         if (!valid(state)) { dismiss(); return@guarded }
@@ -79,6 +95,7 @@ internal class RoseZtSettingsDetails private constructor(
     override fun render(state: EarbudState): Unit = guarded {
         if (!valid(state)) { dismiss(); return@guarded }
         controls.removeAllViews()
+        findSnapshot(state)?.let{findDetails.render(controls,it)}
         val settings = state.features.get<RoseZtSettingsFeatureState>()!!
         val values = settings.values
         val profile = settings.profile ?: return@guarded
@@ -120,6 +137,7 @@ internal class RoseZtSettingsDetails private constructor(
     }
     override fun dismiss() {
         if (closed) return
+        findDetails.close()
         closed = true; pendingAudio = null
         anchor.get()?.removeOnAttachStateChangeListener(detach)
         val release = unsubscribe; unsubscribe = null

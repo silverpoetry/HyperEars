@@ -122,8 +122,10 @@ object ControlRequestTransport {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
                 subclass(RoseLegacyControlRequest.SetTouch::class, RoseLegacyControlRequest.SetTouch.serializer())
+                subclass(RoseLegacyControlRequest.Find::class, RoseLegacyControlRequest.Find.serializer())
                 subclass(RoseLegacyControlRequest.SetValue::class, RoseLegacyControlRequest.SetValue.serializer())
                 subclass(RoseZtControlRequest.SetValue::class, RoseZtControlRequest.SetValue.serializer())
+                subclass(RoseZtControlRequest.Find::class, RoseZtControlRequest.Find.serializer())
                 subclass(RoseCeramicsXControlRequest.SetValue::class, RoseCeramicsXControlRequest.SetValue.serializer())
                 subclass(RoseRsV2ControlRequest.SetNoiseLevel::class, RoseRsV2ControlRequest.SetNoiseLevel.serializer())
                 subclass(RoseRsV2ControlRequest.SetLanguage::class, RoseRsV2ControlRequest.SetLanguage.serializer())
@@ -190,6 +192,7 @@ object ControlRequestTransport {
                 subclass(HuaweiDailyControlRequest.SetSoundQualityPreference::class, HuaweiDailyControlRequest.SetSoundQualityPreference.serializer())
                 subclass(HuaweiDailyControlRequest.SetEqualizer::class, HuaweiDailyControlRequest.SetEqualizer.serializer())
                 subclass(HuaweiDailyControlRequest.SetCustomEqualizer::class, HuaweiDailyControlRequest.SetCustomEqualizer.serializer())
+                subclass(HuaweiDailyControlRequest.ManageEqualizer::class, HuaweiDailyControlRequest.ManageEqualizer.serializer())
                 subclass(HuaweiDailyControlRequest.SetGesture::class, HuaweiDailyControlRequest.SetGesture.serializer())
                 subclass(OppoControlRequest.SetToggle::class, OppoControlRequest.SetToggle.serializer())
                 subclass(OppoControlRequest.SelectNoiseOption::class, OppoControlRequest.SelectNoiseOption.serializer())

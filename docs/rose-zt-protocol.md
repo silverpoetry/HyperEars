@@ -108,12 +108,11 @@ keep selection unchanged until readback, reject cross-model/stale session/owner/
 and reset removes every setting. Existing native ZT Settings rows and details display
 source labels and prompt levels; audio changes continue to require confirmation.
 
-### Bounded find remains a separate contract
+### Bounded source find actions
 
-ZT source has explicit find/stop setters and0E02 receive handling, including distinct
-HeadFeel0E02 versus Zt2290E82 writes. However, the inspected ZtSender query surface
-contains no independent read-only find query/getter establishing an initial state.
-The receiver passes the find body to model handlers; it is not sufficient to invent
-an empty0E02 read or start ringing to establish capability. This slice sends no find
-or stop at initialization and does not introduce speculative ring controls. Touch
-remapping, ANC tuning and firmware-specific custom EQ likewise remain separate.
+HeadFeel and the immutable source-qualified i5 profile now expose their source START/STOP actions
+through the existing typed settings/editor path after a valid ordinary protocol report. There is
+still no invented empty0E02 GET and no optimistic ringing boolean. The full source trace, exact
+0E02 versus0E82 writes, i5 terminal00,00 notification, per-UI lease and Bluetooth-owned30second
+cleanup are documented in [legacy find action contracts](rose-legacy-find-actions.md).
+Name-only old i5 and i3 do not gain this action. No physical find/stop validation is claimed.

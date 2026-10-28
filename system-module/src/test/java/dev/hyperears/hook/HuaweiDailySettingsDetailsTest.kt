@@ -194,6 +194,56 @@ class HuaweiDailySettingsDetailsTest {
         descendants(popup.contentView).filterIsInstance<RadioButton>().single { it.text=="开启" }.performClick()
         assertEquals(1,fixture.sent.size);assertFalse(popup.isShowing)
     }
+    @Test fun managedEqualizerCreatesExplicitlyAndDeleteConfirmationPinsWholeInventory() {
+        val fixture=Fixture()
+        val empty=HuaweiEqSnapshot("huawei-freebuds-6i",1,listOf(8,0),1,listOf(1,2),emptyList())
+        fun feature(snapshot:HuaweiEqSnapshot)=HuaweiDailySettingsFeatureState(eqManaged=true,eqInventory=snapshot,
+            equalizer=HuaweiEqualizerState(snapshot.selected,snapshot.builtIns+snapshot.slots.map{it.id},snapshot.slots,true))
+        fixture.state=fixture.state.withFeature(feature(empty))
+        val details=fixture.open();val popup=popup(details)
+        fun button(description:String)=descendants(popup.contentView).filterIsInstance<Button>().single{it.contentDescription==description}
+        assertTrue(fixture.sent.isEmpty())
+        button("huawei.eq.create").performClick()
+        val input=descendants(popup.contentView).filterIsInstance<android.widget.EditText>().single()
+        input.setText("Created")
+        descendants(popup.contentView).filterIsInstance<SeekBar>().first().let { bar ->
+            val listener=ReflectionHelpers.getField<SeekBar.OnSeekBarChangeListener>(bar,"mOnSeekBarChangeListener")
+            listener.onProgressChanged(bar,70,true)
+        }
+        descendants(popup.contentView).filterIsInstance<Button>().single{it.text=="保存自定义音效"}.performClick()
+        val create=fixture.sent.single() as HuaweiDailyControlRequest.ManageEqualizer
+        assertEquals(HuaweiEqAction.CREATE,create.action);assertEquals(0x64,create.id);assertEquals("Created",create.name)
+        assertEquals(10,create.gains.first());assertTrue(fixture.state.features.get<HuaweiDailySettingsFeatureState>()!!.eqInventory!!.slots.isEmpty())
+        val filled=empty.copy(revision=2,selected=0x64,slots=listOf(HuaweiCustomEqualizer(0x64,"Created",List(10){0})))
+        fixture.state=fixture.state.withFeature(feature(filled));details.render(fixture.state)
+        button("huawei.eq.delete").performClick()
+        val staleConfirm=button("huawei.eq.delete.confirm")
+        fixture.state=fixture.state.withFeature(feature(filled.copy(revision=3)))
+        staleConfirm.performClick();assertEquals(1,fixture.sent.size)
+        button("huawei.eq.delete").performClick();button("huawei.eq.delete.confirm").performClick()
+        assertEquals(HuaweiEqAction.DELETE,(fixture.sent.last() as HuaweiDailyControlRequest.ManageEqualizer).action)
+        assertEquals(2,fixture.sent.size)
+        fixture.token="another-session"
+        button("huawei.eq.create").performClick()
+        assertEquals(2,fixture.sent.size)
+        details.dismiss()
+    }
+
+    @Test fun deleteCancelProviderFailureDismissesAndUnsubscribesOnce() {
+        val fixture=Fixture()
+        val slot=HuaweiCustomEqualizer(0x64,"Saved",List(10){0})
+        val inventory=HuaweiEqSnapshot("huawei-freebuds-6i",1,listOf(8,36),0x64,listOf(1),listOf(slot))
+        fixture.state=fixture.state.withFeature(HuaweiDailySettingsFeatureState(eqManaged=true,eqInventory=inventory,
+            equalizer=HuaweiEqualizerState(0x64,listOf(1,0x64),listOf(slot),true)))
+        val details=fixture.open();val popup=popup(details)
+        descendants(popup.contentView).filterIsInstance<Button>().single{it.contentDescription=="huawei.eq.delete"}.performClick()
+        val cancel=descendants(popup.contentView).filterIsInstance<Button>().single{it.text=="取消"}
+        fixture.providerFails=true
+        cancel.performClick()
+        assertTrue(fixture.sent.isEmpty());assertFalse(popup.isShowing);assertEquals(1,fixture.released)
+        cancel.performClick();details.dismiss();assertEquals(1,fixture.released)
+    }
+
     private fun popup(details: MiLinkToggleDetails) = details.javaClass.getDeclaredField("popup").apply { isAccessible = true }.get(details) as PopupWindow
     private fun descendants(view: View): Sequence<View> = sequence {
         yield(view)

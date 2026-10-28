@@ -505,3 +505,70 @@ Tests use upstream literal `5A000E002B1F01010002010003030001FF24DF`, source quer
 raw-sibling staleness, opaque fields, valid partial revocation, malformed preservation,
 old mirrored behavior, reset, native unknown-value labels and delayed callbacks.
 This is source-level validation; none of these additions claim device revalidation.
+
+### Full custom EQ inventory and CRUD (four explicit OpenFreebuds profiles)
+
+OpenFreebuds `0b4f14c0b500d491f0fb4ea38f2984ec334e3649`,
+`openfreebuds/driver/huawei/handler/config_equalizer.py`, supplies the executable
+create/select/update/delete workflow. Its `driver/per_model/buds_6i.py`,
+`buds_pro_3.py`, `buds_pro_5.py`, and `lace_pro_2.py` explicitly instantiate
+`OfbHuaweiEqualizerPresetHandler(w_custom=True)`. Only those four exact profiles
+receive this workflow; Pro4/FreeClip alias-driver membership does not enable CRUD.
+
+The three custom IDs are **0x64, 0x65, 0x66 (decimal 100, 101, 102)**. Full query is
+`2B4A` fields 1–8. The inventory gate requires selected ID, built-in
+list, and explicitly present field 8 containing zero to three unique
+36-byte records. Each record carries ID, count 10, ten signed gains, and 24 bytes of
+UTF-8 name/padding. Support flag 1 and band count 5 are optional in the OpenFreebuds
+response; when present they must not indicate unsupported or a non-ten-band layout.
+Names decode strictly up to the first NUL, matching `_parse_custom_mode`; remaining
+bytes are opaque and retained in the expected raw snapshot, not required to be zero.
+Every record must be understood; duplicate IDs, unknown IDs,
+invalid names/curves or truncated records never establish a free slot. An explicit
+zero-length field 8 is an empty inventory: the source `HuaweiSppPackage` supports
+zero-length TLVs and `on_package` treats an empty custom field as no custom modes.
+Absent field 8 is only partial evidence and cannot authorize creation.
+
+Source `_set_current_mode` allocates the lowest unused custom ID, or selects an
+existing custom record by sending its complete data. `_change_current_mode` updates
+the selected record. `_delete_current_mode` deletes the selected record, then invokes
+the full read. The native implementation keeps those boundaries:
+
+- CREATE: explicit user action/name/ten-band curve, lowest free ID, operation 1.
+- SELECT: full existing custom record with operation 1, or source built-in ID alone.
+- UPDATE: selected custom record, preserving ID/name, operation 1.
+- DELETE: selected custom record only, full record plus operation 2, with confirmation.
+
+Custom writes use `2B49` TLVs 1 ID, 2 count, 3 gains, 4 UTF-8 name, 5 operation.
+The writable name is bounded to the known 24-byte record capacity; gains remain
+-60..60. There is no guessed slot overwrite when all three IDs are occupied and no
+rename/firmware/automatic creation path. Existing ten-band UI is reused for creation
+and update; the Settings entry also works with a confirmed empty inventory.
+
+Every request pins exact model, a monotonically increasing local revision and the
+whole raw inventory including opaque TLVs. The device exposes no revision field;
+this local token prevents an old same-content/ABA callback from becoming current.
+Partial valid snapshots revoke mutation controls. A CRC-valid inventory that cannot
+be interpreted also revokes the prior inventory rather than retaining presumed free
+IDs; corrupt CRC frames are ignored. Old SetEqualizer/SetCustomEqualizer mutation
+requests are rejected on these four profiles, including during pending readback.
+
+Encoding is side-effect-free. Successful transport write marks the workflow pending,
+without optimistic selection/curve/removal, and sends a full readback. Refresh can
+request another full read but never clears pending. Only a complete valid report or
+reset ends the pending interval. Native editor and deletion confirmation retain their
+original snapshot and pass fresh session/owner checks at submission.
+
+HuaweiPods `dc5b9d14` separately confirms the record format and operation-1 curve
+writes for 6i/Pro5, but its 7i writer uses operation 0. It provides no direct SPP delete
+workflow for 7i/7/SE4/FreeArc; these routes do not inherit operation 2. FreeClip2's
+multi-slot/add UI calls `SmartAudioEqualizerClient` via the vendor app, while its
+direct custom operation is null. That bridge is not evidence for a direct SPP CRUD
+port. These remain explicit source qualification gaps, not permanent impossibility.
+
+Tests include independently encoded source-shaped literal empty/full inventories,
+operation-1 select/create and operation-2 delete frames, all three occupied slots,
+unknown/duplicate inventory revocation, signed and UTF-8 limits, full raw snapshot
+and revision staleness, post-write pending, partial/read/reset behavior, and native
+explicit creation/deletion with stale confirmation rejection. No device validation
+is claimed by these fixtures.

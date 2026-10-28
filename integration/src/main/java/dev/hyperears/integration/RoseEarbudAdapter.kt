@@ -82,11 +82,35 @@ open class RoseEarfreeProtocolFamilyAdapter(
         sourceZtProfile != null && state is RoseZtSettingsFeatureState && state.model == sourceZtProfile.name
     }
     override val controlRequestContract = StandardControlRequestContract.extending { adapter,request ->
-        sourceZtProfile != null && request is RoseZtControlRequest.SetValue &&
-            adapter.runtimeState().features.get<RoseZtSettingsFeatureState>()?.supports(request) == true
+        sourceZtProfile != null && when(request) {
+            is RoseZtControlRequest.SetValue -> adapter.runtimeState().features.get<RoseZtSettingsFeatureState>()?.supports(request) == true
+            is RoseZtControlRequest.Find -> adapter.runtimeState().features.get<RoseZtSettingsFeatureState>()?.supports(request) == true
+            else -> false
+        }
     }
     override fun controlPolicy(request:ControlRequest) = if(request is RoseZtControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
-    override fun onProtocolReset() { removeFeatureState(RoseZtSettingsFeatureState.FEATURE_ID) }
+    private val findCleanup=OwnedProtocolCleanup("rose.zt.find") { releaseZtFind() }
+    private fun releaseZtFind():List<ByteArray> {
+        val session=protocolSession as? RoseZtProtocolSession?:return emptyList()
+        val commands=session.releaseFind()
+        adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(session.settingsState())))
+        return commands
+    }
+    override fun onControlWritten(request:ControlRequest,scope:AdapterEventScope) {
+        if(request is RoseZtControlRequest.Find) {
+            val written=(protocolSession as? RoseZtProtocolSession)?.findWritten(request)?:return
+            adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(written)))
+            findCleanup.written(request.target!=RoseFindTarget.STOP,scope)
+        }
+    }
+    override fun onFeatureReported(state:DeviceFeatureState,scope:AdapterEventScope):FeatureReportDecision {
+        if(state is RoseZtSettingsFeatureState && state.findIntent==null && runtimeState().features.get<RoseZtSettingsFeatureState>()?.findIntent!=null)
+            findCleanup.reportedStopped(scope)
+        return super.onFeatureReported(state,scope)
+    }
+    override fun prepareProtocolRelease()=findCleanup.release()
+    override fun expireProtocolWorkflow(key:String,lease:Long)=findCleanup.expire(key,lease)
+    override fun onProtocolReset() { findCleanup.reset();removeFeatureState(RoseZtSettingsFeatureState.FEATURE_ID) }
     override fun createProtocolSession(): ProtocolSession = sourceZtProfile?.let(::RoseZtProtocolSession) ?: RoseEarfreeProtocolSession()
 
     override fun onInitialProtocolUnavailable(): InitialProtocolFailureResolution =

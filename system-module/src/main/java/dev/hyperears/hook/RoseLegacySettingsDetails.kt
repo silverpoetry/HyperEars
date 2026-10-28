@@ -72,6 +72,21 @@ internal class RoseLegacySettingsDetails private constructor(
     private var closed = false
     private var pendingAudio: Pair<Int, Int>? = null
     private var unsubscribe: (() -> Unit)? = null
+    private fun findSnapshot(state:EarbudState):RoseFindUiSnapshot? {
+        if(!valid(state))return null
+        val feature=state.features.get<RoseLegacySettingsFeatureState>()?:return null
+        return RoseFindUiSnapshot(feature.model,feature.findAvailable,feature.profile?.findTargets().orEmpty(),feature.findIntent)
+    }
+    private val findDetails=RoseFindDetails(context,
+        {findSnapshot(environment.stateProvider(address))},
+        { expected,lease,target ->
+            val current=environment.stateProvider(address)
+            val request=RoseLegacyControlRequest.Find(expected,lease,target)
+            if(valid(current) && current.features.get<RoseLegacySettingsFeatureState>()?.supports(request)==true)
+                environment.controlSender(address,request)
+        },
+        {render(environment.stateProvider(address))},::text)
+
     private val detach = object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(v: View) = Unit
         override fun onViewDetachedFromWindow(v: View) = dismiss()
@@ -110,6 +125,7 @@ internal class RoseLegacySettingsDetails private constructor(
         val accepted=when(request){
             is RoseLegacyControlRequest.SetValue->RoseLegacySettingsPolicy.request(state,address,request)
             is RoseLegacyControlRequest.SetTouch->RoseLegacySettingsPolicy.request(state,address,request)
+            is RoseLegacyControlRequest.Find->request.takeIf{state.features.get<RoseLegacySettingsFeatureState>()?.supports(it)==true}
         }
         accepted?.let { environment.controlSender(address, it) }
         render(environment.stateProvider(address))
@@ -117,6 +133,7 @@ internal class RoseLegacySettingsDetails private constructor(
     override fun render(state: EarbudState): Unit = guarded {
         if (!valid(state)) { dismiss(); return@guarded }
         controls.removeAllViews()
+        findSnapshot(state)?.let{findDetails.render(controls,it)}
         val values = state.features.get<RoseLegacySettingsFeatureState>()!!.values
         if (pendingAudio?.first != values[RoseLegacySetting.AUDIO]) pendingAudio = null
         for ((setting, selected) in values) {
@@ -176,6 +193,7 @@ internal class RoseLegacySettingsDetails private constructor(
     }
     override fun dismiss() {
         if (closed) return
+        findDetails.close()
         closed = true; pendingAudio = null
         anchor.get()?.removeOnAttachStateChangeListener(detach)
         val release = unsubscribe; unsubscribe = null

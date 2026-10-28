@@ -195,6 +195,8 @@ does not treat every source command as universally supported. All items below re
   call-only. The shared level extension preserves Pro3 bytes and qualifies each model's levels.
   HuaweiPods 4E/5/6/7/7i/FreeArc/Eyewear routes are also implemented. FreeArc, 6i and
   FreeClip 2 now use source-qualified independent left/right swipe snapshots and single-side writes.
+  Complete source-qualified custom EQ create/select/update/delete is implemented for6i/Pro3/Pro5/
+  FreeLace Pro2; other custom dialects remain separate.
 - [ ] C4 Sony: SPP/GATT, V1/V2, Table1/Table2 capability discovery; environment levels/voice,
   EQ/ClearBass, DSEE, LEA/quality, Speak-to-Chat, multipoint/source, gestures/QuickAccess,
   wearing/power-off, legacy VPT/position/optimizer, voice/assistant and bounded safe-listening.
@@ -205,7 +207,8 @@ does not treat every source command as universally supported. All items below re
   unique GS semantic slot and serializes local confirmation transactions; native alerts expire
   through a single guarded refresh. V1 voice guidance and VPT/sound-position controls now use
   discovered functions and exact Table1/Table2 reports with native editors. Hardware acceptance
-  and remaining functions stay open.
+  and remaining functions stay open. V1 optimizer discovery now annotates the existing acknowledged
+  vendor-app handoff, following the approved rare-calibration strategy; no inline optimizer claim.
 - [ ] C5 ROSE: include RoseLink model/feature differences, prioritizing the user's ROSE Coral ANC
   earclip and its independently verified configuration/transport/control semantics; shared UUID
   does not establish compatibility with BudsFeel. Also cover i7/Ceramics U identities distinct from existing Ultra; model-qualified six-mode,
@@ -216,6 +219,8 @@ does not treat every source command as universally supported. All items below re
   Twenty-four RS Common v2 configurations now have exact manufacturer-prefix refinement, bounded
   same-address discovery, connection-scoped identity retention, model-qualified daily controls
   and native cards/details. Bluetooth address correspondence still requires device validation.
+  The eight remaining legacy F8/RS Common/ZT find configurations now have bounded source-specific
+  actions and truthful local-write intent; the earlier twelve-row find backlog is reconciled.
 - [ ] C6 NiceHCK: OriG six ANC/seven EQ, independent wind toggle, game/latency, dual/wearing,
   codec and firmware-qualified mappings, readback and native UI.
   Daily controls and native details implemented, including exact firmware gating; codec writes
@@ -270,6 +275,9 @@ does not treat every source command as universally supported. All items below re
   per-widget selection and native Settings navigation. Connection-volume presets and bounded
   connection/low-battery speech are also implemented; remaining D1 features stay open.
 - [ ] D2 Distinguish phone AudioEffect from on-earbud EQ; add session-aware audio controls.
+  The [phone-DSP design](../specs/2026-10-29-phone-audio-effects-design.md) records actual AndPods
+  session0 behavior, Android anonymization and constructor-time engine configuration. Implementation
+  remains open; this source/design audit does not count as a working audio effect.
 - [ ] D3 Last-seen location/RSSI proximity/media ringing and actual device find commands with
   precise capability labels; do not imply cloud offline finding or UWB from approximate RSSI.
 - [ ] D4 Head tracking/advanced editors/calibration use explicit bounded sessions, cleanup,
@@ -438,38 +446,34 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The independent-swipe / virtual-sound / Bose / RSv2-find checkpoint passes 1,478 tests
-(355 protocol, 578 integration, 545 system-module), with zero failures, errors or skips.
-Release lint/assembly and protocol-test Debug assembly pass. Verification log:
-`.analysis/verification/swipe-virtual-bose-find-final.log`. No device operations occurred.
+The Huawei EQ CRUD / legacy ROSE find / Sony optimizer handoff checkpoint passes 1,501 tests
+(359 protocol, 588 integration, 554 system-module), zero failures/errors/skips, Release lint and
+assembly, and protocol-test Debug assembly. Log: `.analysis/verification/eq-crud-legacy-find-final.log`.
+Documentation validation covers94 Markdown files and34 control applications; Markdown lint covers93.
+No device operations occurred.
 
-FreeArc, FreeBuds 6i and FreeClip 2 now expose independent left/right swipe actions using
-actual source queries and single-side writes. Requests pin model and ordered raw TLVs;
-partial reports revoke editing, stale siblings/opaque fields reject old requests, and unknown
-current values are visible without being invented as valid actions. Eyewear 2's distinct raw
-writer still lacks a qualified query chain and is explicitly documented, not borrowed.
+Huawei6i/Pro3/Pro5/FreeLace Pro2 reuse the existing editor for explicit creation, full-record
+selection, curve edits and confirmed deletion of the current custom slot. A full inventory and
+monotonic revision pin every request; partial/invalid inventory revokes edits, old request classes
+cannot bypass the managed path, and only successful writes arm pending state. Full readback alone
+clears it. Source review removed unjustified mandatory optional fields and zero-only name padding.
+A provider exception on delete-cancel is now guarded and regression-tested.
 
-Sony V1 VPT and sound-position use actual discovered functions41/42 hex, Table1 reports and
-whole-pair snapshots. Encoding is side-effect free; only an actual write arms full readback
-serialization. Neither an ACK nor one sibling report clears that gate. Native choices and
-explicit read-only refresh preserve the existing queue and session/ownership policies.
-The optimizer source contract and ACK-aware cancellation gap are recorded separately.
+Eight exact older ROSE configurations now have source-specific find actions, including source-
+qualified i5 without name-only promotion. F8/RS Common lack a state query; the UI distinguishes
+submission, successful local write and unconfirmed device behavior. ZT i5 has one proven stopped
+notification but no fabricated whole-state report. Local request leases and internal deadline
+generations remain separate; current UI/model/token/ownership is checked before stop. Bluetooth-
+owned thirty-second cleanup covers host UI death. Family literals, all-model qualification and
+old/no-longer-owned leases have tests. Two old tests were updated for the additional valid find
+availability projection while retaining their noise/touch/malformed-report assertions.
 
-Bose now accepts the literal captured three-byte sidetone and seven-byte prompt STATUS shapes,
-without interpreting opaque tails. QC Ultra Earbuds second generation4062 explicitly inherits
-source sidetone/auto-answer/buttons/audio-settings handlers; these fields now reuse existing
-report-gated editors and whole-block stale guards. Spatial/wind writes preserve all five bytes
-except the selected setting; button actions still intersect device-reported masks. Unsupported
-product exclusions remain intact. Captured payloads and reconstructed headers are distinguished.
+Sony V1 actual function81 hex annotates the single existing controller row for optimizer use in
+the official app. No start/calibration/status frames are invented. The original handoff waits for
+fresh matching ownership confirmation before launch; removed functionality invalidates old
+annotated callbacks. V2/Table2/decimal81 and reset are covered by adapter and native-policy tests.
 
-All27 qualified RSv2 find profiles, including four manufacturer-qualified old adapter IDs,
-reuse the thirty-second Bluetooth-owned deadline. Moka and name-only old paths stay excluded.
-Only actual written starts own cleanup; cached stopped values in unrelated merged settings
-cannot cancel it. Tests cover real routing, owned versus observed ringing, stop transitions,
-replacement, reset, stale expiry and one-shot graceful release. The dated RoseLink backlog now
-explicitly distinguishes the four completed find rows from eight independent legacy evidence gaps.
-
-Independent source/code reviews covered all slices. A missing RadioButton import in a new Sony
-UI test was corrected before the successful full run. Existing larger goals remain active:
-family-specific source gaps, remaining Android experience items, final matrix reconciliation,
-owned-device feedback and Draft-PR delivery. No build result is counted as device acceptance.
+Phone-side audio effects remain explicitly unimplemented after source audit. Other open family
+features, Android experience tasks, final capability reconciliation, current owned-device feedback
+and Draft-PR delivery remain in the full goal. Source and unit checks do not replace hardware
+acceptance or authorize unrequested device operations.

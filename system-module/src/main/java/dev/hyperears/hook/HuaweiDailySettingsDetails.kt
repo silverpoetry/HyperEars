@@ -24,6 +24,10 @@ internal class HuaweiDailySettingsDetails private constructor(
     private var unsubscribe: (() -> Unit)? = null
     private var draftSource: HuaweiCustomEqualizer? = null
     private var draft: MutableList<Int>? = null
+    private var eqDraftSnapshot:HuaweiEqSnapshot?=null
+    private var creatingEq=false
+    private var draftName=""
+    private var pendingEqDelete:HuaweiDailyControlRequest.ManageEqualizer?=null
     private val detach = object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(v: View) = Unit
         override fun onViewDetachedFromWindow(v: View) = dismiss()
@@ -147,10 +151,57 @@ internal class HuaweiDailySettingsDetails private constructor(
         controls.addView(group)
     }
     private fun renderCustom(state: EarbudState) {
-        val eq = state.features.get<HuaweiDailySettingsFeatureState>()?.equalizer
-        val original = eq?.custom?.singleOrNull { it.id == eq.selected }?.takeIf { eq.customWritable }
+        val feature=state.features.get<HuaweiDailySettingsFeatureState>()?:return
+        val eq = feature.equalizer
+        val inventory=feature.eqInventory
+        if(feature.eqManaged) {
+            if(eqDraftSnapshot!=inventory) {
+                eqDraftSnapshot=inventory;creatingEq=false;draftSource=null;draft=null;pendingEqDelete=null
+            }
+            if(feature.eqPending || inventory==null) {
+                controls.addView(text(if(feature.eqPending)"等待耳机确认音效变更" else "等待完整音效列表",15f))
+                controls.addView(Button(context).apply {text="重新读取音效";setOnClickListener{guarded {
+                    if(valid(environment.stateProvider(address)))environment.controlSender(address,StandardControlRequest.Refresh)
+                }}})
+                return
+            }
+            if(!creatingEq && inventory.nextId!=null)controls.addView(Button(context).apply {
+                text="新建自定义音效";contentDescription="huawei.eq.create"
+                setOnClickListener {guarded {
+                    val fresh=environment.stateProvider(address)
+                    if(!valid(fresh) || fresh.features.get<HuaweiDailySettingsFeatureState>()?.eqInventory!=inventory)return@guarded
+                    creatingEq=true;draftSource=null;draft=null;draftName="自定义音效"
+                    render(fresh)
+                }}
+            })
+            if(!creatingEq && inventory.slots.any{it.id==inventory.selected})controls.addView(Button(context).apply {
+                text="删除当前自定义音效";contentDescription="huawei.eq.delete"
+                setOnClickListener{guarded {
+                    pendingEqDelete=HuaweiDailyControlRequest.ManageEqualizer(inventory,HuaweiEqAction.DELETE,inventory.selected)
+                    render(environment.stateProvider(address))
+                }}
+            })
+            pendingEqDelete?.let { request ->
+                controls.addView(text("确认删除当前自定义音效？",16f))
+                controls.addView(Button(context).apply {text="确认删除";contentDescription="huawei.eq.delete.confirm"
+                    setOnClickListener{guarded{if(pendingEqDelete!=request)return@guarded;pendingEqDelete=null;send(request)}}})
+                controls.addView(Button(context).apply {text="取消";setOnClickListener{guarded{pendingEqDelete=null;render(environment.stateProvider(address))}}})
+            }
+        }
+        val original = if(feature.eqManaged && creatingEq && inventory?.nextId!=null)
+            HuaweiCustomEqualizer(inventory.nextId!!,"",List(10){0})
+            else eq?.custom?.singleOrNull { it.id == eq.selected }?.takeIf { eq.customWritable }
         if (original == null) { draftSource = null; draft = null; return }
         if (draftSource != original) { draftSource = original; draft = original.gains.toMutableList() }
+        val nameInput=if(feature.eqManaged && creatingEq)EditText(context).apply {
+            hint="音效名称（最多 24 字节）";contentDescription="huawei.eq.name";isSingleLine=true;setText(draftName)
+            addTextChangedListener(object:android.text.TextWatcher {
+                override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int)=Unit
+                override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){draftName=s?.toString().orEmpty()}
+                override fun afterTextChanged(s:android.text.Editable?)=Unit
+            })
+            controls.addView(this)
+        } else null
         controls.addView(text("自定义音效：${original.name}", 17f))
         controls.addView(text("调整后点击保存；选择状态以耳机回读为准。", 13f))
         repeat(10) { index ->
@@ -175,13 +226,20 @@ internal class HuaweiDailySettingsDetails private constructor(
         controls.addView(Button(context).apply { text = "保存自定义音效"; setOnClickListener { guarded {
             if (draftSource != original) return@guarded
             val gains = draft?.toList() ?: return@guarded
-            send(HuaweiDailyControlRequest.SetCustomEqualizer(original.id, gains, original))
+            if(feature.eqManaged && inventory!=null) {
+                if(creatingEq && !dev.hyperears.protocol.huawei.HuaweiEqualizerInventoryCodec.validName(draftName)) {
+                    nameInput?.error="名称不能为空，且 UTF-8 长度不能超过 24 字节";return@guarded
+                }
+                send(HuaweiDailyControlRequest.ManageEqualizer(inventory,
+                    if(creatingEq)HuaweiEqAction.CREATE else HuaweiEqAction.UPDATE,original.id,
+                    name=if(creatingEq)draftName else "",gains=gains))
+            } else send(HuaweiDailyControlRequest.SetCustomEqualizer(original.id, gains, original))
         } } })
     }
     private fun gainLabel(index: Int, gain: Int) = "频段 ${index + 1}: " + String.format(Locale.ROOT, "%.1f dB", gain / 10.0)
     override fun dismiss() {
         if (closed) return
-        closed = true; draft = null; draftSource = null
+        closed = true; draft = null; draftSource = null; eqDraftSnapshot=null;pendingEqDelete=null;creatingEq=false
         anchor.get()?.removeOnAttachStateChangeListener(detach)
         val release = unsubscribe; unsubscribe = null
         runCatching { release?.invoke() }; runCatching { if (popup.isShowing) popup.dismiss() }

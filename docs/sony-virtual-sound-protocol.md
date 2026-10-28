@@ -48,32 +48,28 @@ callbacks are rejected. Tests use literal source payloads and a manually checksu
 SPP frame, actual adapter table isolation/queue/readback/reset, and native lifecycle
 regressions. Build evidence remains separate from device validation.
 
-## Separate optimizer workflow to complete later
+## Optimizer: implemented through acknowledged vendor-app handoff
 
-Gadgetbridge V1 exposes function81 NC_OPTIMIZER, start/stop `84 01 00 01/00`,
-status85 with exact4byte payload and progress values00 stopped,01 wearing-condition,
-02 atmospheric-pressure,10 analyzing,11 finished. Parameter GET86 and RET87/NOTIFY89
-supply a separate6byte pressure result. These are not VPT selections and do not prove
-that starting optimization is harmless initialization. A later complete workflow needs
-explicit start, current report qualification, owned bounded stop/release, result/lease
-correlation, cancellation and native progress UI. This slice neither starts optimization
-nor adds power-off commands; optimizer remains an identified source-backed next task.
+The source-backed rare calibration workflow is delegated to Sony Sound Connect as
+approved by the maintainer. SonyPods3f701ff8 `SonyFunctionType.kt:324` identifies
+the V1 function; Gadgetbridge `SonyHeadphonesDeviceSettings.kt:84–160` supplies the
+explicit calibration workflow used to establish the feature semantics. V1 Table1 support function **0x81 (129 decimal)** annotates
+the existing native controller row as “降噪优化 · 打开 Sony App 并让出控制”. No duplicate
+app launcher is added. A valid function removal or reset revokes the annotation;
+V2 and Table2 function-looking bytes never grant it. This discovery-only typed feature
+does not enable private ANC, an extra card, an optimizer progress state or wire actions.
 
-### Optimizer follow-up contract (not implemented here)
+The existing VendorHandoffLauncher/Coordinator checks the installed Sony app, requests
+BeginVendorHandoff and waits for a newer same-address/same-token state acknowledging
+Sony external ownership before launching. Failure/timeout cleans up the handoff lease.
+The existing explicit return action resumes normal module ownership policy. No scope,
+automatic-yield preference or app configuration is changed. An old annotated callback
+rechecks the current optimizer feature; the ordinary generic app row remains available
+when the annotation is absent. The user completes calibration inside Sony's app; this
+entry does not claim a deep link directly to its calibration screen or report success.
 
-Pinned Gadgetbridge V1 sources additionally expose function `81` (hex), Table1 only:
-GET `86 01`, START `84 01 00 01`, STOP `84 01 00 00`. The four-byte `85` status ends
-in `00` idle/stopped, `01` wearing condition, `02` atmospheric pressure, `10` analyzing,
-or `11` finished. There is no proven failure code or running-state GET. Six-byte `87/89`
-parameters end in pressure1..10 (0.1..1.0atm); the source example is `89 01 01 01 01 0A`.
-Intermediate bytes are not independently understood. V2 getters/start are unimplemented upstream.
-Source locations: `SonyProtocolImplV1.java:214–224,643–654,910–949` and
-`SonyHeadphonesDeviceSettings.kt:84–160` at the already pinned Gadgetbridge revision.
-
-The remaining engineering decision is ACK-aware cancellation: an ordinary write is rejected
-while another command awaits ACK; closing cannot silently discard that transaction or reset
-sequence numbers to claim a guaranteed stop. Any deadline would be host policy, not a proven
-source completion duration. A future owned workflow must distinguish completion from local
-cancel/timeout and document uncorrelated late status frames. The user's approved vendor-app
-handoff for complex infrequent calibration remains an option using the existing channel yield
-path. This document does not claim that detecting a function implements the optimizer workflow.
+Reference facts retained for audit: Gadgetbridge V1 exposes start/stop84 01 00 01/00,
+status85 and parameter86/87/89. V2 implementations are absent; the source has no
+proven device-running query, explicit failure enum or completion-time guarantee.
+Accordingly HyperEars sends none of these optimizer commands. The native entry plus
+acknowledged handoff implements access to the capability, not native wire calibration.

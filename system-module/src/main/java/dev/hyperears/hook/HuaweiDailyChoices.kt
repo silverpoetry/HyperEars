@@ -19,9 +19,17 @@ internal object HuaweiDailyChoices {
                 listOf(false, true).map { Choice(if (it) 1 else 0, if (it) "开启" else "关闭", HuaweiDailyControlRequest.SetWearDetection(it)) })) }
             feature.multipoint?.let { value -> add(Row("multipoint", "双设备连接", if (value) 1 else 0,
                 listOf(false, true).map { Choice(if (it) 1 else 0, if (it) "开启" else "关闭", HuaweiDailyControlRequest.SetMultipoint(it)) })) }
-            feature.equalizer?.let { eq -> add(Row("eq", "音效", eq.selected, eq.presets.map { id ->
-                Choice(id, eq.custom.singleOrNull { it.id == id }?.name ?: presetLabel(state.modelId, id), HuaweiDailyControlRequest.SetEqualizer(id))
-            })) }
+            feature.equalizer?.let { eq ->
+                val inventory=feature.eqInventory
+                val choices=if(feature.eqManaged) {
+                    if(inventory==null || feature.eqPending)emptyList()else
+                        (inventory.builtIns+inventory.slots.map{it.id}).map { id -> Choice(id,
+                            inventory.slots.singleOrNull{it.id==id}?.name?:presetLabel(state.modelId,id),
+                            HuaweiDailyControlRequest.ManageEqualizer(inventory,HuaweiEqAction.SELECT,id)) }
+                } else eq.presets.map { id -> Choice(id,eq.custom.singleOrNull{it.id==id}?.name?:presetLabel(state.modelId,id),HuaweiDailyControlRequest.SetEqualizer(id)) }
+                add(Row("eq","音效",eq.selected,choices,currentLabel=if(feature.eqManaged)
+                    eq.custom.singleOrNull{it.id==eq.selected}?.name?:presetLabel(state.modelId,eq.selected) else null))
+            }
             feature.gestures.forEach { gesture ->
                 HuaweiGestureSide.entries.forEach sideLoop@ { side ->
                     val current = gesture.value(side) ?: return@sideLoop

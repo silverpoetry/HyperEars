@@ -8,13 +8,15 @@ import kotlinx.serialization.Transient
 
 @Serializable enum class RoseLegacySetting { EQ,GAME,AUDIO,TOUCH,PROMPT,LANGUAGE,WEAR,SPATIAL,ANC_LEVEL,TRANSPARENCY_LEVEL }
 @Serializable @SerialName("rose.legacy.settings")
-data class RoseLegacySettingsFeatureState(val model:String,val values:Map<RoseLegacySetting,Int> = emptyMap(),val touch:List<Int>?=null):DeviceFeatureState {
+data class RoseLegacySettingsFeatureState(val model:String,val values:Map<RoseLegacySetting,Int> = emptyMap(),val touch:List<Int>?=null,val findAvailable:Boolean=false,val findIntent:RoseFindWrittenIntent?=null):DeviceFeatureState {
     @Transient override val featureId=FEATURE_ID
-    val hasSettings get()=values.isNotEmpty() || touch!=null
+    val hasSettings get()=values.isNotEmpty() || touch!=null || findAvailable
     fun supports(request:RoseLegacyControlRequest.SetTouch)=request.expectedModel==model && touch!=null && request.expectedMapping==touch &&
         request.slot in RoseLegacyTouch.slots(profile) && request.action in RoseLegacyTouch.choices(profile) &&
         RoseLegacyTouch.action(touch,RoseLegacyTouch.slots(profile).indexOf(request.slot),profile)!=request.action
     val profile get()=Identity.Model.entries.singleOrNull { it.name==model }
+    fun supports(request:RoseLegacyControlRequest.Find)=supportsRoseFind(findAvailable,model,request.expectedModel,
+        profile?.findTargets().orEmpty(),findIntent,request.lease,request.target)
     fun supports(request:RoseLegacyControlRequest.SetValue,noise:NoiseMode?=null)=request.expectedModel==model && request.setting in values && request.value in profile?.allowed(request.setting).orEmpty() && when(request.setting) {
         RoseLegacySetting.ANC_LEVEL -> noise == NoiseMode.ANC
         RoseLegacySetting.TRANSPARENCY_LEVEL -> noise == NoiseMode.TRANSPARENCY
@@ -23,6 +25,8 @@ data class RoseLegacySettingsFeatureState(val model:String,val values:Map<RoseLe
     companion object {const val FEATURE_ID="rose.legacy.settings"}
 }
 @Serializable sealed interface RoseLegacyControlRequest:ControlRequest {
+    @Serializable @SerialName("rose.legacy.find")
+    data class Find(val expectedModel:String,val lease:Long,val target:RoseFindTarget):RoseLegacyControlRequest
     @Serializable @SerialName("rose.legacy.set_touch")
     data class SetTouch(val expectedModel:String,val expectedMapping:List<Int>,val slot:Int,val action:Int):RoseLegacyControlRequest
     @Serializable @SerialName("rose.legacy.set_value")
@@ -65,16 +69,45 @@ class RoseLegacyAdapter(val model:Identity.Model):StandardEarbudAdapter() {
     override fun matches(identity:EarbudIdentity)=identity.standardHeadset && !identity.nativeSystemEarbud && dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData)==model.id
     override val featureStateContract=StandardDeviceFeatureStateContract.extending { _,state->state is RoseLegacySettingsFeatureState && state.model==model.name }
     override val controlRequestContract=StandardControlRequestContract.extending { adapter,request->when(request){
+        is RoseLegacyControlRequest.Find -> adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>()?.supports(request)==true
         is RoseLegacyControlRequest.SetValue -> adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>()?.supports(request,adapter.runtimeState().noiseMode)==true
         is RoseLegacyControlRequest.SetTouch -> adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>()?.supports(request)==true
         else -> false
     } }
     override val miLinkCardPresentationId get()=if(runtimeState().noiseMode!=null) PRESENTATION else SETTINGS_ONLY.takeIf {runtimeState().features.get<RoseLegacySettingsFeatureState>()?.hasSettings==true}
-    override fun onProtocolReset(){removeFeatureState(RoseLegacySettingsFeatureState.FEATURE_ID)}
+    private val findCleanup=OwnedProtocolCleanup("rose.legacy.find") { releaseFind() }
+    private fun releaseFind():List<ByteArray> {
+        val session=protocolSession as? RoseLegacySession?:return emptyList()
+        val commands=session.releaseFind()
+        adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(session.settingsState())))
+        return commands
+    }
+    override fun onControlWritten(request:ControlRequest,scope:AdapterEventScope) {
+        if(request is RoseLegacyControlRequest.Find) {
+            val written=(protocolSession as? RoseLegacySession)?.findWritten(request)?:return
+            adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(written)))
+            findCleanup.written(request.target!=RoseFindTarget.STOP,scope)
+        }
+    }
+    override fun prepareProtocolRelease()=findCleanup.release()
+    override fun expireProtocolWorkflow(key:String,lease:Long)=findCleanup.expire(key,lease)
+    override fun onProtocolReset(){findCleanup.reset();removeFeatureState(RoseLegacySettingsFeatureState.FEATURE_ID)}
     override fun createProtocolSession():ProtocolSession=RoseLegacySession(model)
     companion object {val PRESENTATION=MiLinkCardPresentationId("rose-legacy-settings");val SETTINGS_ONLY=MiLinkCardPresentationId("rose-legacy-settings-only")}
 }
 internal class RoseLegacySession(private val model:Identity.Model):ProtocolSession {
+    fun settingsState()=state
+    fun findWritten(request:RoseLegacyControlRequest.Find):RoseLegacySettingsFeatureState? {
+        if(!state.supports(request))return null
+        state=state.copy(findIntent=if(request.target==RoseFindTarget.STOP)null else RoseFindWrittenIntent(request.lease,request.target))
+        return state
+    }
+    fun releaseFind():List<ByteArray> {
+        val owned=state.findIntent?:return emptyList()
+        val commands=encode(RoseLegacyControlRequest.Find(model.name,owned.lease,RoseFindTarget.STOP))
+        state=state.copy(findIntent=null)
+        return commands
+    }
     private val f8=model.f8
     private val decoder=Wire.Decoder(f8)
     private var state=RoseLegacySettingsFeatureState(model.name)
@@ -88,6 +121,10 @@ internal class RoseLegacySession(private val model:Identity.Model):ProtocolSessi
     override fun readback(request:ControlRequest)=when(request){is RoseLegacyControlRequest.SetTouch->if(!f8)query()else if(RoseLegacyTouch.f8Supported(model))listOf(Wire.f8TouchQuery())else emptyList();is RoseLegacyControlRequest.SetValue->if(f8)listOf(Wire.f8Query(fields.getValue(request.setting)))else query();is StandardControlRequest.SetNoiseMode->if(f8)listOf(Wire.f8Query(12))else query();else->emptyList()}
     override fun encode(request:ControlRequest):List<ByteArray> = when(request){
         StandardControlRequest.Refresh->query()
+        is RoseLegacyControlRequest.Find->if(!state.supports(request))emptyList()else {
+            val value=when(request.target){RoseFindTarget.LEFT->1;RoseFindTarget.RIGHT->2;RoseFindTarget.BOTH,RoseFindTarget.HEADSET->3;RoseFindTarget.STOP->if(f8)0 else 4}
+            listOf(if(f8)Wire.f8Find(value)else Wire.rsFind(sequence++ and 255,value))
+        }
         is RoseLegacyControlRequest.SetTouch->if(!state.supports(request))emptyList()else if(f8)listOf(Wire.f8TouchWrite((request.slot and 15)*2-(if(request.slot<16)1 else 0),request.action))else listOf(Wire.rsTouchWrite(sequence++ and 255,request.slot,request.action))
         is RoseLegacyControlRequest.SetValue->if(!state.supports(request,noise))emptyList()else if(f8){
             val command=mapOf(RoseLegacySetting.EQ to 0x20,RoseLegacySetting.GAME to 0x25,RoseLegacySetting.AUDIO to 0x2b,RoseLegacySetting.TOUCH to 0x33,RoseLegacySetting.PROMPT to 0x32,RoseLegacySetting.LANGUAGE to 0x29,RoseLegacySetting.WEAR to 0x26,RoseLegacySetting.ANC_LEVEL to 0x30,RoseLegacySetting.TRANSPARENCY_LEVEL to 0x31).getValue(request.setting)
@@ -132,6 +169,9 @@ internal class RoseLegacySession(private val model:Identity.Model):ProtocolSessi
             }
         }
         if(isNotEmpty() && !handshake){handshake=true;add(0,ProtocolEvent.HandshakeAccepted)}
+        if(isNotEmpty() && !state.findAvailable && model.findTargets().isNotEmpty()) {
+            state=state.copy(findAvailable=true);add(ProtocolEvent.FeatureStateChanged(state))
+        }
     }
     override fun reset(){decoder.reset();state=RoseLegacySettingsFeatureState(model.name);noise=null;handshake=false;sequence=0}
 }

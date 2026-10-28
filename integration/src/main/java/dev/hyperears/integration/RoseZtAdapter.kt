@@ -8,19 +8,23 @@ import kotlinx.serialization.Transient
 
 @Serializable
 @SerialName("rose.zt.settings")
-data class RoseZtSettingsFeatureState(val model: String, val values: Map<String, Int> = emptyMap()) : DeviceFeatureState {
+data class RoseZtSettingsFeatureState(val model: String, val values: Map<String, Int> = emptyMap(),val findAvailable:Boolean=false,val findIntent:RoseFindWrittenIntent?=null) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
-    val hasSettings: Boolean get() = values.isNotEmpty()
+    val hasSettings: Boolean get() = values.isNotEmpty() || findAvailable
     val profile: Wire.Model? get() = Wire.Model.entries.singleOrNull { it.name == model }
     fun supports(request: RoseZtControlRequest.SetValue): Boolean {
         val p = profile ?: return false
         val setting = Wire.Setting.entries.singleOrNull { it.name == request.setting } ?: return false
         return request.expectedModel == model && request.setting in values && request.value in setting.values(p)
     }
+    fun supports(request:RoseZtControlRequest.Find)=supportsRoseFind(findAvailable,model,request.expectedModel,
+        profile?.findTargets().orEmpty(),findIntent,request.lease,request.target)
     companion object { const val FEATURE_ID = "rose.zt.settings" }
 }
 @Serializable
 sealed interface RoseZtControlRequest : ControlRequest {
+    @Serializable @SerialName("rose.zt.find")
+    data class Find(val expectedModel:String,val lease:Long,val target:RoseFindTarget):RoseZtControlRequest
     @Serializable @SerialName("rose.zt.set_value")
     data class SetValue(val expectedModel: String, val setting: String, val value: Int) : RoseZtControlRequest
 }
@@ -52,17 +56,54 @@ class RoseZtAdapter(private val model: Wire.Model) : StandardEarbudAdapter() {
         state is RoseZtSettingsFeatureState && state.model == model.name
     }
     override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
-        request is RoseZtControlRequest.SetValue && adapter.runtimeState().features.get<RoseZtSettingsFeatureState>()?.supports(request) == true
+        when(request) {
+            is RoseZtControlRequest.SetValue -> adapter.runtimeState().features.get<RoseZtSettingsFeatureState>()?.supports(request) == true
+            is RoseZtControlRequest.Find -> adapter.runtimeState().features.get<RoseZtSettingsFeatureState>()?.supports(request) == true
+            else -> false
+        }
     }
     override fun controlPolicy(request: ControlRequest) = if (request is RoseZtControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
     override val miLinkCardPresentationId: MiLinkCardPresentationId? get() = PRESENTATION_ID.takeIf {
-        runtimeState().features.get<RoseZtSettingsFeatureState>()?.values?.isNotEmpty() == true || effectiveCapabilities().noiseControl
+        runtimeState().features.get<RoseZtSettingsFeatureState>()?.hasSettings == true || effectiveCapabilities().noiseControl
     }
     override fun createProtocolSession(): ProtocolSession = RoseZtProtocolSession(model)
-    override fun onProtocolReset() { removeFeatureState(RoseZtSettingsFeatureState.FEATURE_ID) }
+    private val findCleanup=OwnedProtocolCleanup("rose.zt.find") { releaseZtFind() }
+    private fun releaseZtFind():List<ByteArray> {
+        val session=protocolSession as? RoseZtProtocolSession?:return emptyList()
+        val commands=session.releaseFind()
+        adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(session.settingsState())))
+        return commands
+    }
+    override fun onControlWritten(request:ControlRequest,scope:AdapterEventScope) {
+        if(request is RoseZtControlRequest.Find) {
+            val written=(protocolSession as? RoseZtProtocolSession)?.findWritten(request)?:return
+            adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(written)))
+            findCleanup.written(request.target!=RoseFindTarget.STOP,scope)
+        }
+    }
+    override fun onFeatureReported(state:DeviceFeatureState,scope:AdapterEventScope):FeatureReportDecision {
+        if(state is RoseZtSettingsFeatureState && state.findIntent==null && runtimeState().features.get<RoseZtSettingsFeatureState>()?.findIntent!=null)
+            findCleanup.reportedStopped(scope)
+        return super.onFeatureReported(state,scope)
+    }
+    override fun prepareProtocolRelease()=findCleanup.release()
+    override fun expireProtocolWorkflow(key:String,lease:Long)=findCleanup.expire(key,lease)
+    override fun onProtocolReset() { findCleanup.reset();removeFeatureState(RoseZtSettingsFeatureState.FEATURE_ID) }
     companion object { val PRESENTATION_ID = MiLinkCardPresentationId("rose-zt-settings") }
 }
 internal class RoseZtProtocolSession(private val model: Wire.Model) : ProtocolSession {
+    fun settingsState()=settings
+    fun findWritten(request:RoseZtControlRequest.Find):RoseZtSettingsFeatureState? {
+        if(!settings.supports(request))return null
+        settings=settings.copy(findIntent=if(request.target==RoseFindTarget.STOP)null else RoseFindWrittenIntent(request.lease,request.target))
+        return settings
+    }
+    fun releaseFind():List<ByteArray> {
+        val owned=settings.findIntent?:return emptyList()
+        val commands=encode(RoseZtControlRequest.Find(model.name,owned.lease,RoseFindTarget.STOP))
+        settings=settings.copy(findIntent=null)
+        return commands
+    }
     private val decoder = Wire.Decoder()
     private var settings = RoseZtSettingsFeatureState(model.name)
     private var handshake = false
@@ -71,6 +112,8 @@ internal class RoseZtProtocolSession(private val model: Wire.Model) : ProtocolSe
     override fun initialReadCommands() = Wire.query(model)
     override fun encode(request: ControlRequest): List<ByteArray> = when(request) {
         StandardControlRequest.Refresh -> initialReadCommands()
+        is RoseZtControlRequest.Find -> if(!settings.supports(request))emptyList()else listOfNotNull(Wire.find(model,
+            when(request.target){RoseFindTarget.LEFT,RoseFindTarget.HEADSET->0;RoseFindTarget.RIGHT->1;else->3},request.target!=RoseFindTarget.STOP))
         is StandardControlRequest.SetNoiseMode -> if (noise != null && request.mode in modes)
             listOfNotNull(Wire.writeNoise(model, noiseIndex(request.mode))) else emptyList()
         is RoseZtControlRequest.SetValue -> if (settings.supports(request)) listOfNotNull(
@@ -106,7 +149,13 @@ internal class RoseZtProtocolSession(private val model: Wire.Model) : ProtocolSe
                         case = BatteryReading(data[6].takeIf { it in 0..100 }, false)) else null
                 battery?.let { events += ProtocolEvent.CapabilitiesIdentified(battery = true); events += ProtocolEvent.FeatureStateChanged(BatteryFeatureState(it)) }
             }
+            if(Wire.findStopped(model,frame) && settings.findAvailable && settings.findIntent!=null) {
+                settings=settings.copy(findIntent=null);events+=ProtocolEvent.FeatureStateChanged(settings)
+            }
             if (events.isNotEmpty()) {
+                if(!settings.findAvailable && model.findTargets().isNotEmpty()) {
+                    settings=settings.copy(findAvailable=true);events+=ProtocolEvent.FeatureStateChanged(settings)
+                }
                 if (!handshake) { handshake = true; add(ProtocolEvent.HandshakeAccepted) }
                 addAll(events)
             }

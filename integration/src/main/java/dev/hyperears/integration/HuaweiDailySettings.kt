@@ -32,6 +32,7 @@ data class HuaweiDailySettingsFeatureState(
     val pairedDevices:HuaweiPairedSnapshot?=null,
     val wearDetection: Boolean? = null, val multipoint: Boolean? = null,
     val lowLatency: Boolean? = null, val preferSoundQuality: Boolean? = null,
+    val eqManaged: Boolean = false, val eqPending: Boolean = false, val eqInventory: HuaweiEqSnapshot? = null,
     val equalizer: HuaweiEqualizerState? = null, val gestures: List<HuaweiGestureState> = emptyList(),
 ) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
@@ -43,9 +44,10 @@ data class HuaweiDailySettingsFeatureState(
         is HuaweiDailyControlRequest.SetSoundQualityPreference -> preferSoundQuality != null
         is HuaweiDailyControlRequest.SetWearDetection -> wearDetection != null
         is HuaweiDailyControlRequest.SetMultipoint -> multipoint != null
-        is HuaweiDailyControlRequest.SetEqualizer -> request.preset in equalizer?.presets.orEmpty()
+        is HuaweiDailyControlRequest.ManageEqualizer -> eqManaged && !eqPending && eqInventory?.supports(request)==true
+        is HuaweiDailyControlRequest.SetEqualizer -> !eqManaged && request.preset in equalizer?.presets.orEmpty()
         is HuaweiDailyControlRequest.SetCustomEqualizer -> equalizer?.let { eq ->
-            eq.customWritable && eq.custom.any { it.id == request.id && it == request.expectedSlot } &&
+            !eqManaged && eq.customWritable && eq.custom.any { it.id == request.id && it == request.expectedSlot } &&
                 request.gains.size == 10 && request.gains.all { it in -60..60 }
         } == true
         is HuaweiDailyControlRequest.SetGesture -> gestures.singleOrNull { it.kind == request.kind }?.let {
@@ -58,6 +60,9 @@ data class HuaweiDailySettingsFeatureState(
 }
 @Serializable
 sealed interface HuaweiDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("huawei.manage_equalizer")
+    data class ManageEqualizer(val expected:HuaweiEqSnapshot,val action:HuaweiEqAction,val id:Int,
+        val name:String="",val gains:List<Int> = emptyList()):HuaweiDailyControlRequest
     @Serializable @SerialName("huawei.manage_device")
     data class ManageDevice(val expected:HuaweiPairedSnapshot,val target:String,val action:HuaweiPairedAction):HuaweiDailyControlRequest
     @Serializable @SerialName("huawei.set_low_latency")

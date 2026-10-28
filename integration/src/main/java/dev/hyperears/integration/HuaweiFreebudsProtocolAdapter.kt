@@ -77,7 +77,11 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
                 runtimeState().features.get<HuaweiAncLevelFeatureState>()?.hasCurrentControls(runtimeState().noiseMode) == true
         }
     override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
-        if (request is HuaweiDailyControlRequest.SetLowLatency && profile.daily?.lowLatency == true)
+        if(request is HuaweiDailyControlRequest.ManageEqualizer) {
+            (protocolSession as? HuaweiFreebudsProtocolSession)?.equalizerWritten(request)?.let {
+                adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(it)))
+            }
+        } else if (request is HuaweiDailyControlRequest.SetLowLatency && profile.daily?.lowLatency == true)
             scope.requestState(HuaweiDailySettingsFeatureState.LOW_LATENCY_QUERY, 1_000L)
         else super.onControlWritten(request, scope)
     }
@@ -172,6 +176,7 @@ private class HuaweiFreebudsProtocolSession(
     private var pendingNoiseRefresh = false
     private val daily = profile.daily?.let(::HuaweiDailySettingsSession)
 
+    fun equalizerWritten(request:HuaweiDailyControlRequest.ManageEqualizer)=daily?.written(request)
     override fun initialReadCommands(): List<ByteArray> = telemetryQueries()
 
     override fun encode(request: ControlRequest): List<ByteArray> = when (request) {

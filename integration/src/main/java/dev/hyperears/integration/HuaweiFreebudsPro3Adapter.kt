@@ -84,5 +84,5 @@ internal class HuaweiLevelProtocolExtension(
 private val PRO3_PROFILE = HuaweiProtocolProfile(
     noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
     extension = HuaweiLevelProtocolExtension(HuaweiAncLevel.entries.toSet()),
-    daily = HuaweiDailyProfile.PRO3,
+    daily = HuaweiDailyProfile.PRO3.copy(equalizerModel="huawei-freebuds-pro3"),
 )

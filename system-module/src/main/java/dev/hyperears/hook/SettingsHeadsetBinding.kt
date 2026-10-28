@@ -143,10 +143,11 @@ internal class SettingsHeadsetBinding(
         }
     }
     private fun addControllerRow(group: Any, accepted: SettingsHeadsetState.Record, returning: Boolean) {
+        val annotation = if (returning) null else SonyVendorToolsPolicy.annotation(accepted.state)
         val row = host.row(if (returning) "hyperears.controller.return" else "hyperears.controller.open",
-            if (returning) "返回 HyperEars 控制" else "打开控制 App 并让出控制")
+            if (returning) "返回 HyperEars 控制" else annotation?.title ?: "打开控制 App 并让出控制")
         host.summary(row, if (returning) "结束本次交接；仍遵循运行时退避设置" else
-            accepted.state.adapter?.controlApps.orEmpty().joinToString(" / ") { it.displayName })
+            annotation?.summary ?: accepted.state.adapter?.controlApps.orEmpty().joinToString(" / ") { it.displayName })
         host.enable(row, if (returning) canReturn(accepted) else writable(accepted.state))
         host.onClick(row) { guarded {
             val latest = currentFor(accepted.token) ?: return@guarded
@@ -155,7 +156,7 @@ internal class SettingsHeadsetBinding(
                 dev.hyperears.bridge.VendorHandoffLauncher.returnControl(address,
                     environment.sessionTokenProvider, environment.controlSender)
             } else {
-                if (!writable(latest.state)) return@guarded
+                if (!writable(latest.state) || !SonyVendorToolsPolicy.current(latest.state, annotation)) return@guarded
                 dev.hyperears.bridge.VendorHandoffLauncher.open(anchor.context, address,
                     latest.state.adapter?.controlApps.orEmpty(), environment.stateProvider,
                     environment.sessionTokenProvider, environment.observeState, environment.controlSender)

@@ -35,6 +35,14 @@ object RoseZtWireCodec {
         val bytes = listOf(8, 0xEE, 0, 0, 0, group, command, 10 + payload.size, 0) + payload
         return (bytes + (bytes.sum() and 255)).map(Int::toByte).toByteArray()
     }
+    /** Sender's both getter aliases left; no independent dual-bud start is inferred. */
+    fun find(model: Model, selector: Int, start: Boolean): ByteArray? {
+        if(model == Model.I3 || selector !in (if(start) 0..1 else 3..3) || (model == Model.HEADFEEL && start && selector != 0)) return null
+        return command(14,if(model == Model.HEADFEEL)2 else 0x82,listOf(selector,if(start)1 else 0))
+    }
+    /** I5 handler explicitly clears both local flags for this exact reported terminal tuple. */
+    fun findStopped(model: Model, frame: Frame) = model == Model.I5_SOURCE && frame.group == 14 &&
+        frame.command == 2 && frame.payload == listOf(0,0)
     fun query(model: Model): List<ByteArray> = listOf(command(1, if (model != Model.HEADFEEL) 1 else 3), command(6, 2)) +
         Setting.entries.filter { !it.values(model).isEmpty() }.map { command(it.group, it.readCommand(model)) }
     fun write(model: Model, setting: Setting, value: Int): ByteArray? =

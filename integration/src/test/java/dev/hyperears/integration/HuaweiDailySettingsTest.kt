@@ -112,8 +112,8 @@ class HuaweiDailySettingsTest {
     @Test fun customEditingRequiresReportedSlotAndTypedIpcRoundTrips() {
         val adapter = HuaweiDailyModelAdapter(HuaweiDailyModelCatalog.models.single { it.id == "huawei-freebuds-6i" })
         val record = byteArrayOf(100, 10) + ByteArray(10) + "Daily".toByteArray().copyOf(24)
-        adapter.receive(report(0x2B4A, 1 to field(1), 2 to field(100), 3 to byteArrayOf(1, 2, 3, 9), 8 to record))
-        val request = HuaweiDailyControlRequest.SetCustomEqualizer(100, List(10) { 20 }, HuaweiCustomEqualizer(100, "Daily", List(10) { 0 }))
+        adapter.receive(report(0x2B4A, 1 to field(1), 2 to field(100), 3 to byteArrayOf(1, 2, 3, 9), 5 to field(10), 8 to record))
+        val request = HuaweiDailyControlRequest.ManageEqualizer(adapter.runtimeState().features.get<HuaweiDailySettingsFeatureState>()!!.eqInventory!!, HuaweiEqAction.UPDATE, 100, gains = List(10) { 20 })
         assertTrue(adapter.supportsControl(request))
         assertFalse(adapter.supportsControl(request.copy(id = 101)))
         assertFalse(adapter.supportsControl(request.copy(gains = List(10) { 61 })))
@@ -128,11 +128,11 @@ class HuaweiDailySettingsTest {
     }
     @Test fun staleCustomSlotSnapshotIsRejectedByAdapterSessionAndIpc() {
         val adapter = HuaweiFreebudsPro3Adapter()
-        fun eq(name: String, gain: Int = 0) = report(0x2B4A, 1 to field(1), 2 to field(100),
+        fun eq(name: String, gain: Int = 0) = report(0x2B4A, 1 to field(1), 2 to field(100), 3 to field(1), 5 to field(10),
             8 to (byteArrayOf(100, 10) + ByteArray(10) { gain.toByte() } + name.toByteArray().copyOf(24)))
         adapter.receive(eq("Original"))
         val slot = adapter.runtimeState().features.get<HuaweiDailySettingsFeatureState>()!!.equalizer!!.custom.single()
-        val request = HuaweiDailyControlRequest.SetCustomEqualizer(100, List(10) { 20 }, slot)
+        val request = HuaweiDailyControlRequest.ManageEqualizer(adapter.runtimeState().features.get<HuaweiDailySettingsFeatureState>()!!.eqInventory!!, HuaweiEqAction.UPDATE, 100, gains = List(10) { 20 })
         assertTrue(adapter.supportsControl(request))
         val restored = ControlRequestTransport.decode(ControlRequestTransport.encode(request))!!
         adapter.receive(eq("Replacement"))
@@ -143,16 +143,16 @@ class HuaweiDailySettingsTest {
     }
     @Test fun validUnsupportedEqSnapshotRevokesOldControlsButMalformedDoesNot() {
         val adapter = HuaweiFreebudsPro3Adapter()
-        adapter.receive(report(0x2B4A, 1 to field(1), 2 to field(5), 3 to field(5)))
-        val old = HuaweiDailyControlRequest.SetEqualizer(5)
+        adapter.receive(report(0x2B4A, 1 to field(1), 2 to field(5), 3 to field(5), 5 to field(10), 8 to byteArrayOf()))
+        val old = HuaweiDailyControlRequest.ManageEqualizer(adapter.runtimeState().features.get<HuaweiDailySettingsFeatureState>()!!.eqInventory!!, HuaweiEqAction.SELECT, 5)
         assertTrue(adapter.supportsControl(old))
         adapter.receive(report(0x2B4A, 1 to field(1), 2 to byteArrayOf(6, 7), 3 to field(6)))
         assertTrue(adapter.supportsControl(old))
-        adapter.receive(report(0x2B4A, 1 to field(1), 2 to field(6), 3 to field(6), 8 to byteArrayOf()))
+        adapter.receive(report(0x2B4A, 1 to field(1), 2 to field(6), 3 to field(6), 5 to field(10), 8 to byteArrayOf()))
         assertFalse(adapter.supportsControl(old))
         assertTrue(adapter.protocolSession.encode(old).isEmpty())
         val eq = adapter.runtimeState().features.get<HuaweiDailySettingsFeatureState>()!!.equalizer!!
-        assertEquals(6, eq.selected); assertTrue(eq.presets.isEmpty())
+        assertEquals(6, eq.selected); assertEquals(listOf(6), eq.presets)
     }
     @Test fun aggregateComponentOnlyReportsKeepWorkingSystemBattery() {
         HuaweiDailyModelCatalog.models.filter { it.aggregate }.forEach { model ->

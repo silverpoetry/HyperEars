@@ -82,7 +82,10 @@ Agate/Agate X/Ceramics six-value-to-hold association remains an exact documented
 The baseline's twelve missing find rows are historical. Four of them (RSv2 BudsFeel MK2,
 i7, Ceramics U and Furina) now use their source-qualified RSv2 find implementation, with
 Bluetooth-owned bounded cleanup shared with the other 23 supported RSv2 profiles. Moka is
-excluded. The independent eight F8 / RS Common / ZT rows still require their own query,
-report and stop evidence; sharing a UI widget is insufficient to borrow RSv2 commands.
+excluded. The independent eight F8 / RS Common / ZT rows are now ported as source-proven bounded
+write-only actions, not invented query/report controls. Their actual source page uses local intent;
+family START/STOP encoders and ordinary-report qualification remain separate from RSv2.
+See [legacy find action contracts](../../rose-legacy-find-actions.md) for the eight exact profiles,
+i5 terminal-notification exception, successful-write leases, and device-confirmation limits.
 This correction does not rewrite the dated JSON as if its old feature counts were current.
 See `RoseRsV2FindCleanupTest` and the RSv2 protocol document for the current ownership boundary.

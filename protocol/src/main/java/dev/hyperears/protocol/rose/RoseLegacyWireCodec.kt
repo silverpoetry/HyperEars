@@ -2,6 +2,8 @@ package dev.hyperears.protocol.rose
 
 /** Separate F8 and RS Common frame boundaries; reports never accept outgoing markers/operators. */
 object RoseLegacyWireCodec {
+    fun f8Find(target: Int): ByteArray { require(target in 0..3); return byteArrayOf(0,0x2a,1,0,1,target.toByte()) }
+    fun rsFind(sequence: Int, target: Int): ByteArray { require(target in 1..4); return rsWrite(sequence,0x2f,target) }
     data class Field(val type:Int,val data:List<Int>)
     fun rsQuery(sequence:Int)=RoseBudsFeelMk2WireCodec.command(sequence,15,
         byteArrayOf(0xfa.toByte(),1,7,8,9,12,13,14,18,42,43,44,45,46,51))
