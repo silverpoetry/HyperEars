@@ -12,8 +12,12 @@ internal class HeadsetSettingsNavigator(
     private val openSystemSettings: (String) -> Boolean,
     private val openVendorApp: (List<ControlAppSpec>) -> Boolean,
     private val openHyperEars: () -> Boolean,
+    private val handoffVendorApp: ((String, List<ControlAppSpec>) -> Boolean)? = null,
 ) {
-    constructor(context: Context) : this(
+    constructor(
+        context: Context,
+        handoffVendorApp: ((String, List<ControlAppSpec>) -> Boolean)? = null,
+    ) : this(
         openSystemSettings = { address -> BluetoothDeviceSettings.open(context, address) },
         openVendorApp = { candidates -> launchVendorApp(context, candidates) },
         openHyperEars = {
@@ -21,6 +25,7 @@ internal class HeadsetSettingsNavigator(
                 .setClassName(ModuleContract.MODULE_PACKAGE, "dev.hyperears.MainActivity")
                 .addCategory(Intent.CATEGORY_LAUNCHER), ModuleContract.MODULE_PACKAGE)
         },
+        handoffVendorApp = handoffVendorApp,
     )
 
     /** Callers supply the current preference and accepted state at the time of the click. */
@@ -32,7 +37,8 @@ internal class HeadsetSettingsNavigator(
                 current?.lifecycle?.externalControlApp?.let(::add)
                 current?.adapter?.controlApps?.let(::addAll)
             }.distinctBy(ControlAppSpec::packageName)
-            (candidates.isNotEmpty() && openVendorApp(candidates)) || openSystemSettings(address)
+            (candidates.isNotEmpty() &&
+                (handoffVendorApp?.invoke(address, candidates) ?: openVendorApp(candidates))) || openSystemSettings(address)
         }
         MoreSettingsTarget.HYPEREARS -> openHyperEars() || openSystemSettings(address)
     }

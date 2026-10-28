@@ -1,5 +1,15 @@
 # Coral AB OTA static specification
 
+Product decision: the user prefers update detection plus explicit RoseLink control handoff for
+this infrequent workflow. The protocol engine below remains research; no firmware flashing UI or
+runtime executor is enabled. The metadata checker and vendor handoff are the delivery path.
+
+The metadata origin is `https://api-internal.rosetechnic.com`: ApiClient at `0x74fd54` loads
+`pp+0xb798`, passing it as `baseUrl` to BaseOptions at `0x74fd98`. `clientVersion` is the build-number
+string `5409`, not version name `3.8.2`: SystemService `0xb1db40` reads PackageInfo field `0x13`,
+parses it as an integer, stores field `0x1f`; the API reads it at `0xb47c40` and stringifies it.
+PackageInfo `toString` at `0xcc338c` identifies that field as `buildNumber`.
+
 Source: ROSELINK3.8.2/code5409 APK and existing Dart AOT output described in
 [Coral audit](rose-coral-followup.md). No phone changes, server requests or
 firmware downloads were performed. This is a reconstructed specification;
@@ -120,8 +130,9 @@ Remaining gaps: parameter sentinel semantics,
 RX stream coalescing boundaries, exact same-device reconnect, and API-wide
 headers/signing behavior. token:false proves this call omits the account token,
 not that the whole HTTP wrapper adds no app headers. No credentials have been
-extracted. OTA remains an explicit unfinished feature, not replaced by firmware
-version display or silently removed from the goal.
+extracted. These remain research gaps for a future independent flasher. The user explicitly
+selected metadata checking plus RoseLink handoff for current delivery; version display alone
+does not satisfy that revised workflow.
 
 ## Additional receive and HTTP wrapper findings
 

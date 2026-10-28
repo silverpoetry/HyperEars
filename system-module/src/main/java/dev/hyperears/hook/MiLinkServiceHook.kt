@@ -15,6 +15,7 @@ import dev.hyperears.presentation.NativeAdmission
 import android.view.View
 import dev.hyperears.bridge.BridgeStage
 import dev.hyperears.bridge.HeadsetSettingsNavigator
+import dev.hyperears.bridge.VendorHandoffLauncher
 import dev.hyperears.bridge.ModuleContract
 import dev.hyperears.bridge.ModuleRuntimeGate
 import dev.hyperears.bridge.BroadcastIdentity
@@ -269,7 +270,11 @@ internal class MiLinkServiceHook : HookContext() {
         val appContext = context ?: return false
         val current = ModuleSettingsRuntime.current
         if (current.modulePaused) return false
-        return HeadsetSettingsNavigator(appContext).open(address, stateForAddress(address), current.moreSettingsTarget)
+        return HeadsetSettingsNavigator(appContext, handoffVendorApp = { target, apps ->
+            VendorHandoffLauncher.open(appContext, target, apps, ::stateForAddress,
+                ProcessStateStore::sessionToken, ProcessStateStore::observe,
+                { targetAddress, request -> sendControl(request, targetAddress) })
+        }).open(address, stateForAddress(address), current.moreSettingsTarget)
     }
 
     /**

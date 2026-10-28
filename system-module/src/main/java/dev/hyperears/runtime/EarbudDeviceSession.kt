@@ -76,11 +76,15 @@ internal class EarbudDeviceSession(
         val adapter: AdapterSnapshot,
         val runtime: AdapterRuntimeState,
         val lifecycle: DeviceLifecycle,
+        val forceRevision: Boolean = false,
     )
 
     private val sessionJob = SupervisorJob()
     private val scope = CoroutineScope(sessionJob + Dispatchers.IO)
     private val closed = AtomicBoolean()
+    private val handoffLock = Any()
+    private val handoffLease = VendorHandoffLease()
+    private var handoffGraceJob: Job? = null
     private val connectionJobLock = Any()
     private val transportLock = Any()
     private val transactionMutex = Mutex()
@@ -192,7 +196,7 @@ internal class EarbudDeviceSession(
     }
 
     /** Applies one process-wide control-app presence snapshot to this device session. */
-    fun updateControlAppPresence(activePackages: Set<String>) {
+    fun updateControlAppPresence(activePackages: Set<String>): Unit = synchronized(handoffLock) {
         if (closed.get()) return
         activeControlAppPackages = activePackages.toSet()
         ModuleLog.debug(
@@ -200,10 +204,12 @@ internal class EarbudDeviceSession(
             "controller presence address=${maskBluetoothAddress(address)} active=$activeControlAppPackages " +
                 "candidates=${adapter.controlApps.map(ControlAppSpec::packageName)}",
         )
+        handoffLease.presence(activeControlAppPackages)
+        if (handoffLease.current?.presenceSeen != false) handoffGraceJob?.cancel()
         reconcileExternalControlOwner()
     }
 
-    fun updateExternalControlEnabled(enabled: Boolean) {
+    fun updateExternalControlEnabled(enabled: Boolean): Unit = synchronized(handoffLock) {
         if (closed.get() || externalControlEnabled == enabled) return
         externalControlEnabled = enabled
         reconcileExternalControlOwner()
@@ -216,11 +222,7 @@ internal class EarbudDeviceSession(
     }
 
     private fun reconcileExternalControlOwner() {
-        val nextOwner = if (externalControlEnabled) {
-            ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages)
-        } else {
-            null
-        }
+        val nextOwner = handoffLease.owner(adapter.controlApps, activeControlAppPackages, externalControlEnabled)
         val previousOwner = externalControlApp
         if (nextOwner == previousOwner) return
         if (nextOwner != null) {
@@ -276,8 +278,44 @@ internal class EarbudDeviceSession(
         return true
     }
 
+    private fun executeHandoff(request: StandardControlRequest): Boolean = synchronized(handoffLock) {
+        if (closed.get()) return false
+        when (request) {
+            is StandardControlRequest.BeginVendorHandoff -> {
+                if (request.leaseId.isBlank() || request.leaseId.length > 128 ||
+                    adapter.controlApps.none { it.packageName == request.packageName }) return false
+                handoffGraceJob?.cancel()
+                handoffLease.begin(request.packageName, request.leaseId, activeControlAppPackages)
+                reconcileExternalControlOwner()
+                // Even an unchanged external owner must acknowledge this request with a fresh revision.
+                listener.onSnapshotChanged(this, snapshot().copy(forceRevision = true))
+                if (handoffLease.current?.presenceSeen == false) {
+                    handoffGraceJob = scope.launch {
+                        delay(30_000L)
+                        synchronized(handoffLock) {
+                            if (handoffLease.expire(request.leaseId)) reconcileExternalControlOwner()
+                        }
+                    }
+                }
+                true
+            }
+            is StandardControlRequest.EndVendorHandoff -> {
+                if (!handoffLease.end(request.leaseId)) return false
+                handoffGraceJob?.cancel()
+                handoffGraceJob = null
+                reconcileExternalControlOwner()
+                true
+            }
+            else -> false
+        }
+    }
+
     fun execute(request: ControlRequest): Boolean {
         if (closed.get()) return false
+        if (request is StandardControlRequest.BeginVendorHandoff ||
+            request is StandardControlRequest.EndVendorHandoff) {
+            return executeHandoff(request)
+        }
         if (request === StandardControlRequest.Refresh && !refreshRequestGate.tryAcquire()) {
             ModuleLog.debug(
                 COMPONENT,
@@ -350,6 +388,11 @@ internal class EarbudDeviceSession(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        synchronized(handoffLock) {
+            handoffGraceJob?.cancel()
+            handoffGraceJob = null
+            handoffLease.clear()
+        }
         stateRequests.cancelAll("device session closed")
         val activeChannel = synchronized(transportLock) {
             channel.also {

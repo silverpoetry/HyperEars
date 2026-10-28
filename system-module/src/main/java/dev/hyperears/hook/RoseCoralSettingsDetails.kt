@@ -12,6 +12,13 @@ import android.view.ViewGroup
 import android.widget.*
 import dev.hyperears.integration.*
 import java.lang.ref.WeakReference
+import android.os.Handler
+import android.os.Looper
+import dev.hyperears.firmware.CoralFirmwareCheckFlow
+import dev.hyperears.firmware.CoralFirmwareRepository
+import dev.hyperears.bridge.VendorHandoffLauncher
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /** Second-level panel hosted entirely by MiLink, with accepted reports as the only UI truth. */
 internal class RoseCoralSettingsDetails private constructor(
@@ -27,6 +34,8 @@ internal class RoseCoralSettingsDetails private constructor(
     private var closed = false
     private var rendering = false
     private var unsubscribe: (() -> Unit)? = null
+    private var firmwareWorker: ExecutorService? = null
+    private var firmwareFlow: CoralFirmwareCheckFlow? = null
     private val popup = PopupWindow(context)
     private val detachListener = object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(view: View) = Unit
@@ -86,6 +95,8 @@ internal class RoseCoralSettingsDetails private constructor(
     override fun dismiss() {
         if (closed) return
         closed = true
+        firmwareFlow?.close()
+        firmwareWorker?.shutdownNow()
         anchor.get()?.removeOnAttachStateChangeListener(detachListener)
         val release = unsubscribe
         unsubscribe = null
@@ -165,6 +176,7 @@ internal class RoseCoralSettingsDetails private constructor(
     private fun addInfoAndAudio(controls: LinearLayout) {
         val firmware = text("固件版本", 17f).apply { setPadding(0, dp(12), 0, dp(12)) }
         controls.addView(firmware)
+        addFirmwareCheck(controls)
         val audio = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         audio.addView(text("音频模式", 17f))
         var pending: RoseCoralAudioMode? = null
@@ -221,6 +233,67 @@ internal class RoseCoralSettingsDetails private constructor(
             }
             confirmation.visibility = if (pending == null) View.GONE else View.VISIBLE
             prompt.text = pending?.let { "切换到 ${labels.getValue(it)}？切换可能影响音频连接。" }.orEmpty()
+        }
+    }
+
+    private fun addFirmwareCheck(controls: LinearLayout) {
+        val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        val message = text("升级由 RoseLink 完成，HyperEars 可检查新版本。", 14f)
+        val check = text("检查固件更新", 16f).apply {
+            contentDescription = "检查固件更新"
+            setPadding(0, dp(12), 0, dp(12))
+        }
+        group.addView(message)
+        group.addView(check)
+        group.addView(text("打开 RoseLink 并让出控制", 16f).apply {
+            contentDescription = "打开 RoseLink 并让出控制"
+            setPadding(0, dp(12), 0, dp(12))
+            setOnClickListener {
+                val state = environment.stateProvider(address)
+                if (!valid(state)) { dismiss(); return@setOnClickListener }
+                val started = VendorHandoffLauncher.open(context, address, state.adapter?.controlApps.orEmpty(),
+                    environment.stateProvider, environment.sessionTokenProvider,
+                    environment.observeState, environment.controlSender)
+                if (!started) message.text = String.format(Locale.getDefault(), "未能打开 %s，请确认已安装该应用。", "RoseLink")
+            }
+        })
+        controls.addView(group)
+        check.setOnClickListener {
+            val state = environment.stateProvider(address)
+            if (!valid(state)) { dismiss(); return@setOnClickListener }
+            val version = state.features.get<RoseCoralInfoFeatureState>()?.firmwareVersion?.toIntOrNull()
+                ?.takeIf { it in 1..65535 } ?: return@setOnClickListener
+            val flow = firmwareFlow ?: run {
+                val executor = Executors.newSingleThreadExecutor { runnable ->
+                    Thread(runnable, "HyperEars-firmware-check").apply { isDaemon = true }
+                }.also { firmwareWorker = it }
+                val handler = Handler(Looper.getMainLooper())
+                CoralFirmwareCheckFlow({ task -> executor.execute { task() } },
+                    { task -> handler.post { task() } }, CoralFirmwareRepository()::check)
+                    .also { firmwareFlow = it }
+            }
+            message.text = "正在检查更新…"
+            flow.start(version, if (Locale.getDefault().language == "zh") "zh" else "en", {
+                check.isEnabled = true
+                val current = environment.stateProvider(address)
+                val unchanged = valid(current) && current.features.get<RoseCoralInfoFeatureState>()?.firmwareVersion?.toIntOrNull() == version
+                if (!unchanged) message.text = "耳机状态已变化，请重新检查。"
+                unchanged
+            }) { result ->
+                message.text = result.fold({ update ->
+                    if (update.updateAvailable) String.format(Locale.getDefault(),
+                        "发现新固件 %d，请在 RoseLink 中升级。\n%s", update.latest.version,
+                        update.latest.versionDescribe.take(4000))
+                    else "未发现比当前版本更新的固件。"
+                }, { "检查未完成，可打开 RoseLink 查看更新。" })
+                render(environment.stateProvider(address))
+            }
+            render(state)
+        }
+        extraRows += { state ->
+            val version = state.features.get<RoseCoralInfoFeatureState>()?.firmwareVersion?.toIntOrNull()
+            check.isVisible = version != null && version in 1..65535
+            check.isEnabled = firmwareFlow?.busy != true
         }
     }
 

@@ -318,3 +318,26 @@ does not treat every source command as universally supported. All items below re
   execution, metadata retrieval, upgrade UI and device reconnect verification remain to connect.
   Apple BLE/bootstrap/case, host gesture interception and spatial audio remain outstanding;
   the broader source-port and model-expansion inventory remains in scope.
+
+## Revised delivery priorities: user clarification on rare features
+
+The user clarified that comprehensive integration does not require implementing every rare
+vendor workflow. Complex firmware updating used only occasionally may use detection, explicit
+vendor-app navigation and private-channel handoff. This supersedes earlier full-OTA expectations.
+
+- P0: reliable daily Coral/Apple use: identity/native admission, cards, battery/charging,
+  noise/listening controls, wear/media behavior, common settings and control-app coexistence.
+- P1: Apple case-open/authenticated BLE behavior, gestures and spatial/audio features; extend
+  source-backed model families and reviewed open-source ports without requiring unavailable hardware.
+- P2: lower-frequency fine tuning and convenience features, using existing UI/adapter patterns.
+- P3: firmware updating and similarly complex maintenance tasks: detect availability, guide the
+  user to the vendor app and explicitly yield the private channel. Do not build a parallel flashing
+  workflow merely to satisfy a feature-count target. Reconsider only if inexpensive or nearly done.
+
+Coral transfer engine is preserved as protocol research. The uncommitted exclusive-flash
+executor and Binder/UI workflow are being withdrawn; update metadata checking remains useful.
+No phone settings or installed application state change is implied by this development decision.
+
+Current sequencing: finish the already-started Coral workflow without interruption. The user
+explicitly authorized parallel Apple work; keep separate file ownership and serialized Gradle
+verification. Coral is not abandoned or restarted while Apple work progresses independently.

@@ -497,6 +497,9 @@ internal class EarbudConnectionManager(
         } ?: return false
         val (record, connected) = target
 
+        if (request is StandardControlRequest.BeginVendorHandoff ||
+            request is StandardControlRequest.EndVendorHandoff) return record.session.execute(request)
+
         if (!record.session.adapter.supportsControl(request)) {
             return false
         }
@@ -531,7 +534,7 @@ internal class EarbudConnectionManager(
                 lifecycle = update.lifecycle,
                 features = update.runtime.features,
             )
-            if (projected == previous) return
+            if (projected == previous && !update.forceRevision) return
             val next = projected.copy(revision = previous.revision + 1)
             record.state = next
             lastRevisions[key] = next.revision

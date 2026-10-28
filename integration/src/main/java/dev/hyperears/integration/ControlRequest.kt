@@ -28,6 +28,14 @@ sealed interface ControlRequest
 @Serializable
 sealed interface StandardControlRequest : ControlRequest {
     @Serializable
+    @SerialName("standard.begin_vendor_handoff")
+    data class BeginVendorHandoff(val packageName: String, val leaseId: String) : StandardControlRequest
+
+    @Serializable
+    @SerialName("standard.end_vendor_handoff")
+    data class EndVendorHandoff(val leaseId: String) : StandardControlRequest
+
+    @Serializable
     @SerialName("standard.refresh")
     data object Refresh : StandardControlRequest
 
@@ -74,6 +82,9 @@ fun interface ControlRequestContract {
 /** Baseline request contract inherited by all adapters. */
 object StandardControlRequestContract : ControlRequestContract {
     override fun supports(adapter: EarbudAdapter, request: ControlRequest): Boolean = when {
+        request is StandardControlRequest.BeginVendorHandoff ->
+            request.leaseId.isNotBlank() && adapter.controlApps.any { it.packageName == request.packageName }
+        request is StandardControlRequest.EndVendorHandoff -> request.leaseId.isNotBlank()
         request === StandardControlRequest.Refresh -> true
         request is StandardControlRequest.SetNoiseMode ->
             adapter.effectiveCapabilities().noiseControl &&

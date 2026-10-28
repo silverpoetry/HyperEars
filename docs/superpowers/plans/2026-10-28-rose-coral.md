@@ -32,18 +32,28 @@ installation, mode changes, diagnostics settings or restart.
 - [x] Cover all typed settings, eight gesture selectors and find actions with current address,
   session, ownership, handshake and feature checks. Render accepted readback, clean up on every
   detach/rebind/disconnect/ownership loss, and retain stale-dialog rejection.
-- [ ] Complete independent specification and quality reviews; run full tests, protocol-test
+- [x] Complete independent specification and quality reviews; run full tests, protocol-test
   Debug assembly, Release lint/assembly, documentation checks and commit the reviewable change.
 - [ ] Later authorized physical acceptance must verify actual card layout, controls/readbacks,
   charging/unknown components, reconnect and vendor-app coexistence on the final changed version.
 
 ## Remaining full-scope work
 
-Audio selection now has exact Coral configuration/callback/encoder evidence and is implemented
-with report gating and inline confirmation; firmware display is also implemented. AB OTA remains
-an explicit remaining Coral feature: its image/transfer engine now has 12 passing protocol tests,
-while exclusive transport execution, metadata retrieval, upgrade UI and reconnect verification
-remain to connect. The combined code checkpoint passes 778 unit tests and Release lint/assembly.
-Firmware flashing is a separate explicit workflow, not initialization/discovery. Other RoseLink
-model/configuration differences stay in the full inventory. This milestone is not completion of
-all Coral behavior, all Rose models or the comprehensive HyperEars goal.
+Audio selection has exact Coral configuration/callback/encoder evidence and is implemented with
+report gating and inline confirmation; firmware display is also implemented. The user explicitly
+revised low-frequency firmware work: detect updates and hand control to RoseLink instead of
+implementing a complete independent flasher. The protocol research engine is retained but has no
+runtime flashing entry point.
+
+The details panel now checks official metadata only after a click, cancels on dismissal, rejects
+stale session/version results and opens RoseLink only after acknowledged private-channel release.
+Explicit handoff does not change the global automatic-yield setting. A failed launch cancels its
+own lease; missing App registration expires after 30 seconds; observed process exit restores normal
+ownership policy. Process lifetime is not inferred from an Activity leaving the foreground.
+
+Combined verification now passes 802 unit tests (219 protocol, 341 integration, 242 system-module),
+Release lint and unsigned assembly. Final handoff review found no concrete code blocker;
+outdated full-flasher scope wording was corrected. There is no explicit reclaim button in this
+panel; the backend matching-lease release is used by failed launches and bounded recovery.
+Physical acceptance remains outstanding; other RoseLink model differences stay in the inventory.
+Coral code completion does not mean completion of all Rose models or the comprehensive goal.

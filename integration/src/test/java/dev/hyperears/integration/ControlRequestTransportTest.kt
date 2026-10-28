@@ -22,6 +22,8 @@ class ControlRequestTransportTest {
     fun standardRequestsRoundTripWithStableDiscriminators() {
         val requests = listOf(
             StandardControlRequest.Refresh,
+            StandardControlRequest.BeginVendorHandoff(ControlAppCatalog.roseLink.packageName, "lease"),
+            StandardControlRequest.EndVendorHandoff("lease"),
             StandardControlRequest.SetNoiseMode(NoiseMode.ANC),
             StandardControlRequest.SetNoiseMode(NoiseMode.OFF),
             StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY),
@@ -77,6 +79,16 @@ class ControlRequestTransportTest {
         )
         assertNull(ControlRequestTransport.decode("not-json"))
         assertNull(ControlRequestTransport.decode("x".repeat(4 * 1024 + 1)))
+    }
+
+    @Test
+    fun handoffContractOnlyAcceptsDeclaredVendorApps() {
+        val adapter = VivoTwsAir3ProAdapter()
+        val app = adapter.controlApps.first()
+        assertTrue(adapter.supportsControl(StandardControlRequest.BeginVendorHandoff(app.packageName, "lease")))
+        assertFalse(adapter.supportsControl(StandardControlRequest.BeginVendorHandoff("unrelated.package", "lease")))
+        assertFalse(adapter.supportsControl(StandardControlRequest.BeginVendorHandoff(app.packageName, "")))
+        assertTrue(adapter.supportsControl(StandardControlRequest.EndVendorHandoff("lease")))
     }
 
     @Test

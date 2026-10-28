@@ -19,6 +19,7 @@ import android.provider.Settings
 import dev.hyperears.bridge.BroadcastIdentity
 import dev.hyperears.bridge.DeviceStateRegistry
 import dev.hyperears.bridge.HeadsetSettingsNavigator
+import dev.hyperears.bridge.VendorHandoffLauncher
 import dev.hyperears.bridge.ModuleContract
 import dev.hyperears.bridge.NativePresentationContract
 import dev.hyperears.hook.HookContext
@@ -43,6 +44,7 @@ internal class NativePresentationRuntime(
     private val wearRuntime = if (uiProcess) null else runCatching { AppleWearRuntime(context, handler) }.getOrNull()
     private val conversationRuntime = if (uiProcess) null else runCatching { AppleConversationRuntime(context, handler) }.getOrNull()
     private val registry = DeviceStateRegistry()
+    private val handoffObservers = linkedMapOf<Any, Pair<String, (EarbudState) -> Unit>>()
     private val records = linkedMapOf<String, Record>()
     private val gate = ConnectionPresentationGate()
     private var producer: IBinder? = null
@@ -210,6 +212,9 @@ internal class NativePresentationRuntime(
         }
         val accepted = registry.accept(state, token) ?: return
         val address = accepted.address ?: return
+        handoffObservers.values.toList().forEach { (target, observer) ->
+            if (address.equals(target, ignoreCase = true)) runCatching { observer(accepted) }
+        }
         wearRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
         conversationRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
         windowBridge?.update(accepted, token, metadata, nextProducer)
@@ -272,7 +277,21 @@ internal class NativePresentationRuntime(
         val current = ModuleSettingsRuntime.current
         val address = state.address ?: return false
         if (current.modulePaused || !state.sessionActive) return false
-        return HeadsetSettingsNavigator(launchContext).open(address, state, current.moreSettingsTarget)
+        return HeadsetSettingsNavigator(launchContext, handoffVendorApp = { target, apps ->
+            VendorHandoffLauncher.open(launchContext, target, apps,
+                { registry.state(it) ?: EarbudState() }, registry::token,
+                { watchedAddress, observer ->
+                    val key = Any()
+                    handoffObservers[key] = watchedAddress to observer
+                    val unsubscribe: () -> Unit = { handoffObservers.remove(key); Unit }
+                    unsubscribe
+                },
+                { targetAddress, request ->
+                    registry.token(targetAddress)?.let { session ->
+                        BroadcastIdentity.send(context, ModuleContract.control(request, targetAddress, session))
+                    }
+                })
+        }).open(address, state, current.moreSettingsTarget)
     }
 
     @SuppressLint("MissingPermission")
