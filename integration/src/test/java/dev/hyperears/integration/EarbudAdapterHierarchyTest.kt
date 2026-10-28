@@ -1215,7 +1215,8 @@ class EarbudAdapterHierarchyTest {
     @Test
     fun huaweiFreebuds5iMatchingDoesNotCaptureNeighboringModels() {
         assertTrue(resolve("HUAWEI FreeBuds 5i", standard = true) is HuaweiFreebuds5iAdapter)
-        assertTrue(resolve("FreeBuds 5", standard = true) is HuaweiFreebudsFamilyAdapter)
+        assertEquals("huawei-freebuds-5", resolve("FreeBuds 5", standard = true)?.id)
+        assertFalse(resolve("FreeBuds 5", standard = true) is HuaweiFreebuds5iAdapter)
         assertTrue(resolve("FreeBuds 5i Pro", standard = true) is HuaweiFreebudsFamilyAdapter)
         assertFalse(resolve("HONOR FreeBuds 5i", standard = true) is HuaweiFreebuds5iAdapter)
     }
@@ -1434,6 +1435,13 @@ class EarbudAdapterHierarchyTest {
             listOf(
                 HuaweiFreebudsSppCodec.queryBattery.toList(),
                 HuaweiFreebudsSppCodec.queryNoiseState.toList(),
+                dev.hyperears.protocol.huawei.HuaweiDailySettingsCodec.query(
+                    dev.hyperears.protocol.huawei.HuaweiDailySettingsCodec.WEAR_READ, 1).toList(),
+                dev.hyperears.protocol.huawei.HuaweiDailySettingsCodec.queryEqualizer().toList(),
+                dev.hyperears.protocol.huawei.HuaweiDailySettingsCodec.queryGesture(
+                    dev.hyperears.protocol.huawei.HuaweiDailySettingsCodec.Gesture.DOUBLE).toList(),
+                dev.hyperears.protocol.huawei.HuaweiDailySettingsCodec.queryGesture(
+                    dev.hyperears.protocol.huawei.HuaweiDailySettingsCodec.Gesture.HOLD).toList(),
             ),
             adapter.beginHandshake().commands.map(ByteArray::toList),
         )

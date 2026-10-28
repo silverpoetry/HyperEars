@@ -30,6 +30,8 @@ import dev.hyperears.integration.EarbudAdapterGroup
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
 import dev.hyperears.settings.ModuleSettings
+import dev.hyperears.settings.BatterySpeechMode
+import dev.hyperears.settings.BatterySpeechVolume
 import dev.hyperears.settings.ConnectionVolumePreset
 import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.bridge.BroadcastIdentity
@@ -130,6 +132,28 @@ fun MiuixSettingsScreen(
                                 onSettingsChanged(settings.copy(connectionVolume = it))
                             }
                         },
+                    )
+                    WindowSpinnerPreference(
+                        items = BatterySpeechMode.entries.map { DropdownItem(text = it.title) },
+                        selectedIndex = settings.speechMode.ordinal,
+                        title = "耳机语音播报", summary = "仅向当前耳机播报；遵循静音、勿扰和通话状态。",
+                        onSelectedIndexChange = { index -> BatterySpeechMode.entries.getOrNull(index)?.let {
+                            onSettingsChanged(settings.copy(speechMode = it))
+                        } },
+                    )
+                    MiuixSwitchPreference(title = "连接播报", summary = "新连接时播报一次“耳机已连接”；需开启语音播报。",
+                        checked = settings.speechOnConnection,
+                        onCheckedChange = { onSettingsChanged(settings.copy(speechOnConnection = it)) })
+                    MiuixSwitchPreference(title = "低电量播报", summary = "耳机电量低于 20% 时每次连接最多播报一次；不含充电盒。",
+                        checked = settings.speechLowBattery,
+                        onCheckedChange = { onSettingsChanged(settings.copy(speechLowBattery = it)) })
+                    WindowSpinnerPreference(
+                        items = BatterySpeechVolume.entries.map { DropdownItem(text = it.title) },
+                        selectedIndex = settings.speechVolume.ordinal,
+                        title = "播报音量", summary = "相对当前媒体音量，不改变系统音量。",
+                        onSelectedIndexChange = { index -> BatterySpeechVolume.entries.getOrNull(index)?.let {
+                            onSettingsChanged(settings.copy(speechVolume = it))
+                        } },
                     )
                     MiuixSwitchPreference(
                         title = "耳机电量通知",

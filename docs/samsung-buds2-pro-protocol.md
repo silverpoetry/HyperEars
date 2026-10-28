@@ -193,3 +193,12 @@ Writes use `7B [0|1|2]`; confirmation comes from a strict `42 [7B,value]` acknow
 subsequent `61` extended status, never from outbound echoes or optimistic state. This source path
 has no dedicated duration GET, so no speculative query is added. The current session and lifecycle
 checks remain in force. Automated fixtures do not constitute new hardware acceptance.
+
+## 查找响铃的传输侧截止期限
+
+已成功写入且由本模块发起的查找响铃，会注册蓝牙进程持有的 30 秒停止期限。
+界面计时器仍可提前停止；界面进程消失也不丢失传输侧期限。新请求替换旧期限，
+停止回报或显式停止取消期限，正常控制权交接在旧通道关闭前停止一次。
+仅观察到耳机正在响铃不会取得停止权；编码但未成功写入也不会注册期限。
+突然断连只清理本地记录，不在下一连接补发停止。发出停止帧不等同于收到停止回报，
+已确认状态仍按真实报告更新。此项为代码级生命周期增强，未新增实机验证。

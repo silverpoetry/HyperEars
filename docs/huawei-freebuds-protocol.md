@@ -408,3 +408,57 @@ backend. For example query is `5a0005002b310100f1ec` and forgetting001122334455 
 `5a000b002b330306001122334455bfc9`. Tests use these literal CRC-bearing frames,
 including a two-row enumeration, and do not derive goldens from the Kotlin encoder.
 Source/fixture verification does not establish physical device validation.
+
+### HuaweiPods exact-profile completion (dc5b9d14)
+
+Source: `HuaweiPods` commit `dc5b9d14e9030be95b178699d674d1a3217e1e6d`,
+`app/src/main/java/moe/chenxy/huaweipods/pods/`. This slice adds eight exact catalog
+routes: FreeBuds 4E / 5 / 6 / 7 / 7i, FreeArc, Eyewear (including the source Eyewear 3
+alias), and Eyewear 2. Existing FreeBuds 4 keeps its adapter ID and tested channel;
+its new daily queries and two ANC levels come from the same source handlers as 4E.
+These are source-tested candidates, **not hardware-validated integrations**.
+
+`HuaweiL2capAncController.kt` builds secure standard SPP UUID `00001101-0000-1000-8000-00805f9b34fb`
+first, then further candidates including channels 1–8. New routes use that secure
+UUID first and the source's secure channel fallbacks. They do not assert one fixed
+channel. The source's insecure UUID/SDP variants are not introduced into the shared
+transport model by this slice.
+
+`HuaweiAncLevelProfile.kt` proves 4/4E light=1, balanced=0; 5/6/7 adaptive=3,
+light=1, balanced=0; and **7i adaptive=1, light=0, balanced=2, deep=3**.
+The per-profile map is used for both readback and writes. Existing Pro 3 and 5i
+behavior remains unchanged where references disagree. Existing 6i now gains the
+report-gated 0/1/2/3 ANC and 1/2 transparency level extension. FreeBuds 7 independently
+supports transparency with entry/submode 02; 7i enters with FF and has no guessed
+transparency level selector. FreeBuds 5/6 have no transparency control.
+`HuaweiRfcommResponseParser.parseAncState` reads `[submode, mode]`, matching the
+existing codec; the write remains `[mode, submode]`. Source literal parser fixtures
+such as `5A0007002B2A010203015043` prevent an accidental symmetric-byte test.
+
+Actual executable memberships, rather than `DeviceCapabilities` flags alone,
+qualify daily queries: `HuaweiWearDetectionController` for 4/4E/5/6/7/7i;
+`HuaweiEqualizerCodec.buildBuiltInPresetPacket` and the 5/6/7/7i controllers for
+model-specific presets; `HuaweiGestureController` for double/triple/hold actions.
+4/4E hold uses **03 noise, 0E song recognition, FF none**, not the other models' 0A.
+FreeArc hold is assistant/none; Eyewear 2 double tap is play/assistant/none.
+Every control still requires its own valid report, including valid false values;
+queries, model names and static profile tables never grant controls.
+
+FreeArc and Eyewear have no ANC query, state acceptance or ANC control.
+`HuaweiRfcommResponseParser.parseBattery` explicitly reads left/right indices 0/1;
+Eyewear's `hasChargingCase=false` suppresses case projection and permits a two-byte
+component report. It does not turn the first ear into an aggregate headset battery.
+Other profiles retain the existing strict three-component parser behavior.
+
+Remaining bounded differences are explicit: independent left/right swipe on FreeArc
+and Eyewear 2 is not routed through the existing mirrored swipe writer; custom EQ
+creation/deletion and 7i's distinct custom operation byte are not borrowed from a
+neighboring profile. Special classical EQ packets on 6/7, modern spatial/head-motion
+and route-specific quality/multipoint payloads remain vendor-app controls pending
+their own full readback/state contracts. FreeArc preset 0A uses the sport label from `ui/components/FreeArcControls.kt`. No firmware/calibration workflow
+is added here.
+
+The existing FreeBuds 5i level candidate has a documented failed device test above.
+Its standard modes remain unchanged; opening new level controls requires a firmware-qualified
+identity and captured readback that resolves that evidence conflict, not merely another source
+project's four-value table.

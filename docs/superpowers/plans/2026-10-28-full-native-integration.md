@@ -260,7 +260,8 @@ does not treat every source command as universally supported. All items below re
 - [ ] D1 Notifications/lockscreen/widgets, connection presentation duration/theme/layout,
   battery speech, connection-volume presets, wearing playback behavior and action remapping.
   Desktop widgets implemented with authenticated event-driven battery projection, historical timestamps,
-  per-widget selection and native Settings navigation; remaining D1 features stay open.
+  per-widget selection and native Settings navigation. Connection-volume presets and bounded
+  connection/low-battery speech are also implemented; remaining D1 features stay open.
 - [ ] D2 Distinguish phone AudioEffect from on-earbud EQ; add session-aware audio controls.
 - [ ] D3 Last-seen location/RSSI proximity/media ringing and actual device find commands with
   precise capability labels; do not imply cloud offline finding or UWB from approximate RSSI.
@@ -430,36 +431,39 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The explicit fit-test/connection-volume checkpoint passes 1,424 tests (350 protocol,
-554 integration, 520 system-module), Release lint/assembly and protocol-test Debug assembly.
-Verification log: `.analysis/verification/fit-volume-final.log`. No device operations occurred.
+The Huawei/Sony/speech/owned-find checkpoint passes 1,454 tests (351 protocol,
+565 integration, 538 system-module), with zero failures, errors or skips. Release lint/assembly
+and protocol-test Debug assembly also pass. Verification log:
+`.analysis/verification/huawei-sony-speech-final.log`. No device operations occurred.
 
-OPPO fit detection requires one of 31 source-qualified SPP product IDs, live identity, advertised
-fit-result event support and both-ear wearing reports. Samsung fit testing requires one of nine
-explicit source profiles and a valid current extended-status report. Native Settings entries open
-existing themed workflow details; neither entry starts a test automatically. Local leases represent
-request ownership, not device success. Results, explicit stops, wear/support loss and resets are
-handled independently from ACKs. Result frames lack transaction IDs, so rapid-stop/restart late
-result ambiguity is documented rather than hidden behind invented wire correlation.
+HuaweiPods contributes eight exact model profiles: FreeBuds 4E/5/6/7/7i, FreeArc,
+Eyewear (including the source Eyewear 3 alias) and Eyewear 2. Existing FreeBuds 4 and 6i
+receive source-qualified level domains. 7i uses its own bidirectional level map; 7 enters
+transparency at 02, while 5/6 have no transparency. Per-field reports still gate controls.
+Paired Eyewear battery components remain distinct and have no case. Existing 5i failed-level
+hardware evidence is retained; no neighboring table overrides it. Independent swipe/custom-EQ
+operations and other unported per-model features remain explicit in the Huawei protocol document.
 
-A minimal adapter cleanup extension was necessary because telemetry reads must not encode stop
-writes and UI timers do not survive host process death. Successful starts schedule one Bluetooth-
-owned 16/30-second deadline, scoped to exact adapter/channel/lease and current ownership. Graceful
-release drains an owned STOP on the old channel before physical close/handoff; abrupt disconnect
-only resets. Local post-write ownership changes publish without claiming device result confirmation.
-Independent review caught and fixed missing post-write publication; regression execution caught
-and fixed a View-handler shadowing bug in the OPPO button callback.
+Sony V1 voice guidance requires discovered function 0x39 and an exact Table2 parameter report.
+GET 46/01/01, SET 48/01/01/value and report 47/49 use the existing ACK queue; function removal,
+reset and stale UI requests revoke control. Native Settings and existing details expose confirmed
+state only. V2 and unknown availability/language semantics are not inferred.
 
-Optional connection media-volume presets are default-off and apply at most once per fresh physical
-connection within ten seconds, only to an exactly matching active media route. Replays, calls,
-manual volume changes, settings/owner/session changes cancel; callbacks are bounded and removed.
-There is no disconnect restoration, focus request, playback or route change. Both settings UIs use
-the same stored preset. This is phone behavior, not a private headphone capability.
+Optional phone connection/low-battery speech defaults off in both settings UIs. It uses actual
+speech and media routes, current ownership, call/mute/DND checks and one ten-second engine/focus
+lifetime. Replay, settings changes and producer/session replacement do not replay old alerts.
+Independent review and regression tests cover low-battery recovery/charging during initialization,
+synchronous init, stale callbacks and reentrant cancellation. This is distinct from Sony's on-earbud
+voice-guidance setting; successful TTS queuing is not audible-device acceptance.
 
-Remaining work still includes family-specific source gaps, battery speech and other D1/D2/D3/D4
-features, final capability-matrix reconciliation, owned-device feedback and Draft-PR delivery.
-Root's fresh source inspection also found unabsorbed HuaweiPods exact routes/level domains (4E,
-5/6/7/7i and accessory variants) that must be checked against existing adapters rather than marked
-complete from the earlier OpenFreebuds catalog. Technics adaptive/A800 evidence remains distinct
-from its implemented TWS levels; no unproven transport or aggregate battery route was fabricated.
-The comprehensive goal remains active; current checks are not new physical-device acceptance.
+Coral and Samsung find requests now reuse the Bluetooth-owned cleanup deadline introduced for
+fit tests. Only successfully written local starts own a thirty-second lease. Matching stop reports,
+explicit stop, graceful old-channel release and abrupt reset consume/clear it; unrelated observed
+ringing grants no ownership. State still requires device readback. Independent review covered both
+find cleanup and all three port slices. Two old Huawei hierarchy assertions were updated to the
+new exact FreeBuds 5 route and complete FreeBuds 4 query list, retaining unknown-neighbor checks.
+
+Remaining work includes family-specific source gaps, remaining D1/D2/D3/D4 features, final
+capability-matrix reconciliation, owned-device feedback and Draft-PR delivery. Technics adaptive/A800
+evidence remains distinct from implemented TWS levels. The comprehensive goal remains active;
+current checks are code/build verification, not new physical-device acceptance.

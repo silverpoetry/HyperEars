@@ -7,6 +7,8 @@ internal data class HuaweiProtocolProfile(
     val extension: HuaweiProtocolExtension? = null,
     val daily: HuaweiDailyProfile? = null,
     val aggregateBattery: Boolean = false,
+    val hasCase: Boolean = true,
+    val transparencyEntryLevel: Int? = null,
 ) {
     val noiseTelemetryEnabled: Boolean get() = noiseModes.isNotEmpty()
 
@@ -42,10 +44,13 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
     channelNumbers: List<Int>,
     private val profile: HuaweiProtocolProfile,
     connectDelayMs: Long = 0L,
+    preferServiceUuid: Boolean = false,
 ) : StandardEarbudAdapter() {
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
-    override val transports: List<EarbudTransportSpec> = channelNumbers.map { channel ->
+    override val transports: List<EarbudTransportSpec> = (if (preferServiceUuid) listOf(RfcommEndpointSpec.ServiceUuid(
+        "00001101-0000-1000-8000-00805f9b34fb", "$endpointPrefix-spp",
+    )) else emptyList()) + channelNumbers.map { channel ->
         RfcommEndpointSpec.Channel(
             number = channel,
             id = "$endpointPrefix-channel-$channel",
@@ -174,7 +179,9 @@ private class HuaweiFreebudsProtocolSession(
         is StandardControlRequest.SetNoiseMode ->
             request.mode
                 .takeIf(profile.noiseModes::contains)
-                ?.let { listOf(HuaweiFreebudsSppCodec.noiseModeCommand(it.toHuaweiWireMode())) }
+                ?.let { mode -> listOf(if (mode == NoiseMode.TRANSPARENCY && profile.transparencyEntryLevel != null)
+                    HuaweiFreebudsSppCodec.noiseLevelCommand(mode.toHuaweiWireMode(), profile.transparencyEntryLevel)
+                    else HuaweiFreebudsSppCodec.noiseModeCommand(mode.toHuaweiWireMode())) }
                 .orEmpty()
 
         is HuaweiDailyControlRequest -> daily?.encode(request)?.let(::listOf).orEmpty()
@@ -229,7 +236,7 @@ private class HuaweiFreebudsProtocolSession(
                 return@forEach
             }
 
-            HuaweiFreebudsSppCodec.parseBatteryFrame(frameBytes)?.let { battery ->
+            HuaweiFreebudsSppCodec.parseBatteryFrame(frameBytes, allowPairedComponents = !profile.hasCase)?.let { battery ->
                 if (profile.aggregateBattery && battery.globalPercent == null) return@forEach
                 add(
                     ProtocolEvent.FeatureStateChanged(
@@ -237,7 +244,7 @@ private class HuaweiFreebudsProtocolSession(
                             EarbudBattery(
                                 left = BatteryReading(battery.leftPercent.takeUnless { profile.aggregateBattery }, charging = false),
                                 right = BatteryReading(battery.rightPercent.takeUnless { profile.aggregateBattery }, charging = false),
-                                case = BatteryReading(battery.casePercent.takeUnless { profile.aggregateBattery }, charging = false),
+                                case = BatteryReading(battery.casePercent.takeUnless { profile.aggregateBattery || !profile.hasCase }, charging = false),
                                 overall = BatteryReading(
                                     battery.globalPercent,
                                     charging = battery.isCharging,
@@ -307,6 +314,8 @@ internal fun NoiseMode.toHuaweiWireMode(): HuaweiFreebudsSppCodec.NoiseMode = wh
 
 private val FREEBUDS_4_PROFILE = HuaweiProtocolProfile(
     noiseModes = setOf(NoiseMode.ANC, NoiseMode.OFF),
+    extension = HuaweiLevelProtocolExtension(setOf(HuaweiAncLevel.NORMAL, HuaweiAncLevel.COMFORT)),
+    daily = HuaweiDailyProfile.BUDS4E,
 )
 
 private val HUAWEI_FAMILY_PROFILE = HuaweiProtocolProfile(

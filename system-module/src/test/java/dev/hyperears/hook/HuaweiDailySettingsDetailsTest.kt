@@ -22,6 +22,23 @@ import org.robolectric.util.ReflectionHelpers
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], manifest = Config.NONE)
 class HuaweiDailySettingsDetailsTest {
+    @Test fun newHuaweiPodsProfilesUseTheirOwnLabelsAndReportGates() {
+        fun rows(name: String, command: Int, fields: List<Pair<Int, ByteArray>>): List<HuaweiDailyChoices.Row> {
+            val adapter = EarbudAdapterRegistry.resolve(EarbudIdentity(name, true))!!
+            assertTrue(HuaweiDailyChoices.rows(EarbudState(adapter = adapter.snapshot(), features = adapter.runtimeState().features)).isEmpty())
+            adapter.receive(HuaweiFreebudsSppCodec.packet(command, fields))
+            return HuaweiDailyChoices.rows(EarbudState(adapter = adapter.snapshot(), features = adapter.runtimeState().features))
+        }
+        val four = rows("HUAWEI FreeBuds 4E", 0x2B17, listOf(1 to byteArrayOf(3)))
+        assertEquals("听歌识曲", four.single().choices.single { it.value == 14 }.label)
+        assertFalse(four.single().choices.any { it.value == 10 })
+        val seven = rows("HUAWEI FreeBuds 7", 0x2B4A, listOf(2 to byteArrayOf(5)))
+        assertEquals("均衡", seven.single().choices.single { it.value == 5 }.label)
+        assertEquals("播客", seven.single().choices.single { it.value == 15 }.label)
+        val glasses = rows("HUAWEI Eyewear 2", 0x0120, listOf(1 to byteArrayOf(1)))
+        assertEquals(setOf(1, 0, -1), glasses.single().choices.map { it.value }.toSet())
+    }
+
     @Test fun freeLaceButtonsUsePhysicalLabelsAndNoSeparateRightControl() {
         val adapter = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity("HUAWEI FreeLace Pro", true)))
         adapter.receive(HuaweiFreebudsSppCodec.packet(0x0120, listOf(1 to byteArrayOf(12), 2 to byteArrayOf(12))))

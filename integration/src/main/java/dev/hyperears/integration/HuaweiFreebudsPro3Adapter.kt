@@ -22,7 +22,10 @@ internal class HuaweiFreebudsPro3Adapter : HuaweiFreebudsProtocolAdapter(
     }
 }
 
-internal class HuaweiLevelProtocolExtension(private val levels: Set<HuaweiAncLevel>) : HuaweiProtocolExtension {
+internal class HuaweiLevelProtocolExtension(
+    private val levels: Set<HuaweiAncLevel>,
+    private val ancWireLevels: Map<HuaweiAncLevel, Int> = levels.filter { it.domainNoiseMode() == NoiseMode.ANC }.associateWith { it.toWireLevel() },
+) : HuaweiProtocolExtension {
     override val featureIds: Set<String> = setOf(HuaweiAncLevelFeatureState.FEATURE_ID)
 
     override fun acceptsState(state: DeviceFeatureState): Boolean =
@@ -40,7 +43,7 @@ internal class HuaweiLevelProtocolExtension(private val levels: Set<HuaweiAncLev
         (request as? HuaweiControlRequest.SetAncLevel)?.let {
             HuaweiFreebudsSppCodec.noiseLevelCommand(
                 it.level.domainNoiseMode().toHuaweiWireMode(),
-                it.level.toWireLevel(),
+                if (it.level.domainNoiseMode() == NoiseMode.ANC) ancWireLevels[it.level] ?: return@let null else it.level.toWireLevel(),
             )
         }
 
@@ -68,13 +71,7 @@ internal class HuaweiLevelProtocolExtension(private val levels: Set<HuaweiAncLev
 
     private fun Int.toPro3Level(mode: HuaweiFreebudsSppCodec.NoiseMode): HuaweiAncLevel? =
         when (mode) {
-            HuaweiFreebudsSppCodec.NoiseMode.ANC -> when (this) {
-                0 -> HuaweiAncLevel.NORMAL
-                1 -> HuaweiAncLevel.COMFORT
-                2 -> HuaweiAncLevel.ULTRA
-                3 -> HuaweiAncLevel.DYNAMIC
-                else -> null
-            }
+            HuaweiFreebudsSppCodec.NoiseMode.ANC -> ancWireLevels.entries.singleOrNull { it.value == this }?.key
             HuaweiFreebudsSppCodec.NoiseMode.TRANSPARENCY -> when (this) {
                 1 -> HuaweiAncLevel.VOICE_BOOST
                 2 -> HuaweiAncLevel.TRANS_NORMAL

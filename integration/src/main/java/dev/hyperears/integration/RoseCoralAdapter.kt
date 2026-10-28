@@ -4,6 +4,18 @@ import dev.hyperears.protocol.rose.RoseCoralWireCodec
 
 /** Exact name/config candidate. Source reconstruction does not replace device revalidation. */
 class RoseCoralAdapter : RoseEarbudAdapter() {
+    private val findCleanup = OwnedProtocolCleanup("rose.coral.find") {
+        protocolSession.encode(RoseCoralControlRequest.SetFind(RoseCoralFindTarget.STOP))
+    }
+    override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
+        if (request is RoseCoralControlRequest.SetFind) findCleanup.written(request.target != RoseCoralFindTarget.STOP, scope)
+    }
+    override fun onFeatureReported(state: DeviceFeatureState, scope: AdapterEventScope): FeatureReportDecision {
+        if (state is RoseCoralFindFeatureState && state.left == false && state.right == false) findCleanup.reportedStopped(scope)
+        return super.onFeatureReported(state, scope)
+    }
+    override fun prepareProtocolRelease() = findCleanup.release()
+    override fun expireProtocolWorkflow(key: String, lease: Long) = findCleanup.expire(key, lease)
     override val id = ID
     override val displayName = "ROSE Coral"
     override val resolution = AdapterResolution.EXACT_MATCH
@@ -49,6 +61,7 @@ class RoseCoralAdapter : RoseEarbudAdapter() {
     override fun createProtocolSession(): ProtocolSession = RoseCoralProtocolSession()
     override fun controlPolicy(request: ControlRequest) = ControlExecutionPolicy()
     override fun onProtocolReset() {
+        findCleanup.reset()
         removeFeatureState(RoseCoralSettingsFeatureState.FEATURE_ID)
         removeFeatureState(RoseCoralTouchFeatureState.FEATURE_ID)
         removeFeatureState(RoseCoralFindFeatureState.FEATURE_ID)

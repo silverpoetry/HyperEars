@@ -9,6 +9,9 @@ import kotlinx.serialization.Transient
 class SamsungBuds2ProAdapter(
     private val model: SamsungBudsCodec.Model = SamsungBudsCodec.Model.BUDS2_PRO,
 ) : StandardEarbudAdapter() {
+    private val findCleanup = OwnedProtocolCleanup("samsung.find") {
+        protocolSession.encode(SamsungDailyControlRequest.Find(false))
+    }
     override val id: String = when (model) {
         SamsungBudsCodec.Model.BUDS -> "samsung-galaxy-buds"
         SamsungBudsCodec.Model.BUDS_PLUS -> "samsung-galaxy-buds-plus"
@@ -149,8 +152,9 @@ class SamsungBuds2ProAdapter(
             else -> super.controlPolicy(request)
         }
     }
-    override fun prepareProtocolRelease():List<ByteArray> = (protocolSession as? SamsungBuds2ProProtocolSession)?.releaseFit().orEmpty()
+    override fun prepareProtocolRelease():List<ByteArray> = findCleanup.release() + (protocolSession as? SamsungBuds2ProProtocolSession)?.releaseFit().orEmpty()
     override fun expireProtocolWorkflow(key:String,lease:Long):List<ByteArray> {
+        if(key=="samsung.find")return findCleanup.expire(key,lease)
         if(key!="samsung.fit")return emptyList()
         val session=protocolSession as? SamsungBuds2ProProtocolSession?:return emptyList()
         val commands=session.expireFit(lease)
@@ -158,10 +162,12 @@ class SamsungBuds2ProAdapter(
         return commands
     }
     override fun onFeatureReported(state:DeviceFeatureState,scope:AdapterEventScope):FeatureReportDecision {
+        if(state is SamsungDailySettingsFeatureState && state.findStopped==true)findCleanup.reportedStopped(scope)
         if(state is SamsungDailySettingsFeatureState && state.fitLease==null)scope.cancelProtocolCleanup("samsung.fit")
         return super.onFeatureReported(state,scope)
     }
     override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
+        if(request is SamsungDailyControlRequest.Find)findCleanup.written(request.start,scope)
         val runtime = runtimeState()
         if(request is SamsungDailyControlRequest.FitTest) {
             if(request.start)scope.scheduleProtocolCleanup("samsung.fit",request.lease,30_000L)else scope.cancelProtocolCleanup("samsung.fit")
@@ -203,6 +209,7 @@ class SamsungBuds2ProAdapter(
     override fun createProtocolSession(): ProtocolSession = SamsungBuds2ProProtocolSession(model = model)
 
     override fun onProtocolReset() {
+        findCleanup.reset()
         removeFeatureState(SamsungBudsSettingsFeatureState.FEATURE_ID)
         removeFeatureState(SamsungDailySettingsFeatureState.FEATURE_ID)
         removeFeatureState(SamsungDailyIntentFeatureState.FEATURE_ID)

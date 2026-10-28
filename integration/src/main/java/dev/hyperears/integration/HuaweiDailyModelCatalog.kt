@@ -17,6 +17,21 @@ internal data class HuaweiDailyProfile(
         private val hold = GestureProfile(listOf(-1, 10))
         private val cycle = GestureProfile(listOf(1, 2, 3, 4))
         private val swipe = GestureProfile(listOf(-1, 0), right = false)
+        // HuaweiPods dc5b9d14: actual controller routes and preset/gesture wire values.
+        val BUDS4E = HuaweiDailyProfile(wear = true, presets = listOf(1, 2, 3), gestures = mapOf(
+            HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.HOLD to GestureProfile(listOf(3, 14, -1))))
+        val BUDS5 = HuaweiDailyProfile(wear = true, presets = listOf(1, 2, 3, 9), lowLatency = true)
+        val BUDS6 = BUDS5.copy(presets = listOf(0, 2, 3, 9))
+        val BUDS7 = BUDS5.copy(presets = listOf(2, 5, 9, 13, 14, 15, 16), gestures = mapOf(
+            HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1))))
+        val BUDS7I = BUDS5.copy(gestures = mapOf(HuaweiGestureKind.DOUBLE to tap,
+            HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1)),
+            HuaweiGestureKind.HOLD to GestureProfile(listOf(0, 10, -1))))
+        val FREEARC = HuaweiDailyProfile(presets = listOf(1, 10, 2, 3, 9), gestures = mapOf(
+            HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.TRIPLE to GestureProfile(listOf(2, 7, -1)),
+            HuaweiGestureKind.HOLD to GestureProfile(listOf(0, -1))))
+        val EYEWEAR2 = HuaweiDailyProfile(lowLatency = true, gestures = mapOf(
+            HuaweiGestureKind.DOUBLE to GestureProfile(listOf(1, 0, -1))))
         val PRO3 = HuaweiDailyProfile(true, true, listOf(5, 1, 2, 9), custom = true, lowLatency = true, soundQuality = true,
             gestures = mapOf(HuaweiGestureKind.DOUBLE to tap, HuaweiGestureKind.HOLD to hold,
                 HuaweiGestureKind.CYCLE to cycle, HuaweiGestureKind.SWIPE to swipe))
@@ -69,10 +84,31 @@ internal object HuaweiDailyModelCatalog {
         val daily: HuaweiDailyProfile, val aggregate: Boolean = false,
         val noiseModes: Set<NoiseMode> = setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
         val levels: Set<HuaweiAncLevel> = emptySet(), val connectDelayMs: Long = 0L,
+        val serviceDiscovery: Boolean = false, val hasCase: Boolean = true,
+        val extraAliases: Set<String> = emptySet(),
+        val ancWireLevels: Map<HuaweiAncLevel, Int>? = null,
+        val transparencyEntryLevel: Int? = null,
         val formFactor: HeadsetFormFactor = if (aggregate) HeadsetFormFactor.HEADPHONES else HeadsetFormFactor.TWS) {
-        val aliases get() = setOf(name, name.removePrefix("HUAWEI "))
+        val aliases get() = setOf(name, name.removePrefix("HUAWEI ")) + extraAliases
     }
+    private val semiOpenLevels = setOf(HuaweiAncLevel.NORMAL, HuaweiAncLevel.COMFORT, HuaweiAncLevel.DYNAMIC)
+    private fun sourceModel(suffix: String, label: String, daily: HuaweiDailyProfile,
+        levels: Set<HuaweiAncLevel> = emptySet(), noise: Set<NoiseMode> = emptySet(), hasCase: Boolean = true,
+        aliases: Set<String> = emptySet(), mapping: Map<HuaweiAncLevel, Int>? = null, transparencyEntryLevel: Int? = null) =
+        Model("huawei-$suffix", "HUAWEI $label", 1, daily, noiseModes = noise, levels = levels,
+            serviceDiscovery = true, hasCase = hasCase, extraAliases = aliases, ancWireLevels = mapping, transparencyEntryLevel = transparencyEntryLevel)
     val models = listOf(
+        sourceModel("freebuds-4e", "FreeBuds 4E", HuaweiDailyProfile.BUDS4E,
+            setOf(HuaweiAncLevel.NORMAL, HuaweiAncLevel.COMFORT), setOf(NoiseMode.ANC, NoiseMode.OFF)),
+        sourceModel("freebuds-5", "FreeBuds 5", HuaweiDailyProfile.BUDS5, semiOpenLevels, setOf(NoiseMode.ANC, NoiseMode.OFF)),
+        sourceModel("freebuds-6", "FreeBuds 6", HuaweiDailyProfile.BUDS6, semiOpenLevels, setOf(NoiseMode.ANC, NoiseMode.OFF)),
+        sourceModel("freebuds-7", "FreeBuds 7", HuaweiDailyProfile.BUDS7, semiOpenLevels + HuaweiAncLevel.TRANS_NORMAL, setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY), transparencyEntryLevel = 2),
+        sourceModel("freebuds-7i", "FreeBuds 7i", HuaweiDailyProfile.BUDS7I,
+            semiOpenLevels + HuaweiAncLevel.ULTRA, setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
+            mapping = mapOf(HuaweiAncLevel.DYNAMIC to 1, HuaweiAncLevel.COMFORT to 0, HuaweiAncLevel.NORMAL to 2, HuaweiAncLevel.ULTRA to 3)),
+        sourceModel("freearc", "FreeArc", HuaweiDailyProfile.FREEARC),
+        sourceModel("eyewear", "Eyewear", HuaweiDailyProfile(), hasCase = false, aliases = setOf("HUAWEI Eyewear 3", "Eyewear 3")),
+        sourceModel("eyewear-2", "Eyewear 2", HuaweiDailyProfile.EYEWEAR2, hasCase = false),
         Model("huawei-freelace-pro", "HUAWEI FreeLace Pro", 16, HuaweiDailyProfile.LACE_PRO,
             levels = setOf(HuaweiAncLevel.NORMAL, HuaweiAncLevel.COMFORT, HuaweiAncLevel.ULTRA), connectDelayMs = 2_000L, formFactor = HeadsetFormFactor.HEADPHONES),
         Model("huawei-freebuds-pro4", "HUAWEI FreeBuds Pro 4", 1, HuaweiDailyProfile.PRO4,
@@ -89,7 +125,7 @@ internal object HuaweiDailyModelCatalog {
         Model("honor-earbuds-2", "HONOR Earbuds 2", 16, HuaweiDailyProfile.BUDS4I),
         Model("honor-earbuds-2-se", "HONOR Earbuds 2 SE", 16, HuaweiDailyProfile.BUDS4I),
         Model("honor-earbuds-2-lite", "HONOR Earbuds 2 Lite", 16, HuaweiDailyProfile.BUDS4I),
-        Model("huawei-freebuds-6i", "HUAWEI FreeBuds 6i", 1, HuaweiDailyProfile.BUDS6I),
+        Model("huawei-freebuds-6i", "HUAWEI FreeBuds 6i", 1, HuaweiDailyProfile.BUDS6I, levels = HuaweiAncLevel.entries.toSet()),
         Model("huawei-freebuds-pro", "HUAWEI FreeBuds Pro", 1, HuaweiDailyProfile.PRO),
         Model("huawei-freebuds-pro2", "HUAWEI FreeBuds Pro 2", 1, HuaweiDailyProfile.PRO2),
         Model("huawei-freebuds-studio", "HUAWEI FreeBuds Studio", 1, HuaweiDailyProfile.STUDIO, true),
@@ -98,10 +134,11 @@ internal object HuaweiDailyModelCatalog {
 }
 
 internal class HuaweiDailyModelAdapter(private val model: HuaweiDailyModelCatalog.Model) : HuaweiFreebudsProtocolAdapter(
-    endpointPrefix = model.id, channelNumbers = listOf(model.channel), connectDelayMs = model.connectDelayMs,
+    endpointPrefix = model.id, channelNumbers = if (model.serviceDiscovery) (1..8).toList() else listOf(model.channel), connectDelayMs = model.connectDelayMs,
+    preferServiceUuid = model.serviceDiscovery,
     profile = HuaweiProtocolProfile(model.noiseModes,
-        extension = model.levels.takeIf { it.isNotEmpty() }?.let(::HuaweiLevelProtocolExtension),
-        daily = model.daily, aggregateBattery = model.aggregate),
+        extension = model.levels.takeIf { it.isNotEmpty() }?.let { HuaweiLevelProtocolExtension(it, model.ancWireLevels ?: it.filter { level -> level.domainNoiseMode() == NoiseMode.ANC }.associateWith { level -> level.toWireLevel() }) },
+        daily = model.daily, aggregateBattery = model.aggregate, hasCase = model.hasCase, transparencyEntryLevel = model.transparencyEntryLevel),
 ) {
     override val id = model.id
     override val displayName = model.name

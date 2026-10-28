@@ -173,14 +173,14 @@ object HuaweiFreebudsSppCodec {
      * percent, parameter 2 the `[left, right, case]` components, parameter 3 the charging flag.
      * Returns null when no level could be read.
      */
-    fun parseBatteryFrame(bytes: ByteArray): BatteryState? {
+    fun parseBatteryFrame(bytes: ByteArray, allowPairedComponents: Boolean = false): BatteryState? {
         val frame = parseFrame(bytes) ?: return null
         if (frame.command != CMD_BATTERY_READ && frame.command != CMD_BATTERY_NOTIFY) return null
         val global = frame.params[1]?.singleOrNull()?.unsigned()?.percentOrNull()
-        val components = frame.params[2]?.takeIf { it.size == 3 }
+        val components = frame.params[2]?.takeIf { it.size == 3 || allowPairedComponents && it.size == 2 }
         val left = components?.get(0)?.unsigned()?.percentOrNull()
         val right = components?.get(1)?.unsigned()?.percentOrNull()
-        val case = components?.get(2)?.unsigned()?.percentOrNull()
+        val case = components?.getOrNull(2)?.unsigned()?.percentOrNull()
         if (global == null && left == null && right == null && case == null) return null
         val isCharging = frame.params[3]?.contains(0x01.toByte()) == true
         return BatteryState(global, left, right, case, isCharging)

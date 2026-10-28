@@ -329,6 +329,26 @@ class SonySettingsDetailsTest {
         fixture.token="new";toggle.isChecked=false;assertEquals(1,fixture.sent.size);assertEquals(1,fixture.unsubscribed)
     }
 
+
+    @Test fun voiceGuidancePinsDisplayedValueAndWaitsForReportThenRejectsOldSession() {
+        val fixture=Fixture()
+        val feature=SonyVoiceGuidanceFeatureState(SonyVoiceGuidanceDefinition(),false)
+        fixture.current=fixture.current.withFeature(feature)
+        val details=fixture.open()
+        val toggle=descendants(popup(details).contentView).filterIsInstance<CompoundButton>().single{it.contentDescription=="耳机语音提示"}
+        assertFalse(toggle.isChecked);assertTrue(toggle.isEnabled)
+        toggle.isChecked=true
+        assertEquals(SonyControlRequest.SetVoiceGuidance(SonyVoiceGuidanceDefinition(),false,true),fixture.sent.single())
+        assertFalse(toggle.isChecked)
+        fixture.current=fixture.current.withFeature(feature.copy(enabled=true));fixture.observer!!(fixture.current)
+        assertTrue(toggle.isChecked)
+        fixture.current=fixture.current.withFeature(SonyVoiceGuidanceFeatureState())
+        toggle.isChecked=false;assertEquals(1,fixture.sent.size)
+        fixture.observer!!(fixture.current);assertFalse(toggle.isEnabled)
+        fixture.current=fixture.current.withFeature(feature);fixture.observer!!(fixture.current)
+        fixture.token="new";toggle.isChecked=true;assertEquals(1,fixture.sent.size);assertEquals(1,fixture.unsubscribed)
+    }
+
     private fun attachListenerCount(view: View): Int {
         val info = org.robolectric.util.ReflectionHelpers.getField<Any?>(view, "mListenerInfo") ?: return 0
         return org.robolectric.util.ReflectionHelpers.getField<List<*>?>(info, "mOnAttachStateChangeListeners")?.size ?: 0

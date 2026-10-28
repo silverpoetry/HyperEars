@@ -269,6 +269,12 @@ FreeClip 2 的 EQ 与手势取其明确捕获映射。按现有架构独立实�
 
 ## SonyPods daily controls
 
+V1 耳机语音提示开关还独立核对 Gadgetbridge
+`86703c8006fc701a81505a28c48e399d1428e0c1` 的 `SonyProtocolImplV1.java`
+596–618／1404–1427 与 `PayloadTypeV1.java`96–99：Table2 查询、写入、报告字节事实。
+Gadgetbridge 为 AGPL-3.0；此处未复制其程序代码。来源边界和会话限制见
+[语音提示协议](docs/sony-voice-guidance-protocol.md)。
+
 同一固定提交的 Table1 AUDIO/SYSTEM 编码与测试还用于核对 DSEE、连接质量和
 Speak-to-Chat；V1/V2 各自的开关值、可用状态及 inquired type 独立保留，未从
 功能枚举推导尚无写入实现的 V1 音质控制。

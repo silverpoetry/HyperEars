@@ -42,6 +42,10 @@ data class ModuleSettings(
     val headsetConnectionPresentation: HeadsetConnectionPresentation = HeadsetConnectionPresentation.SMART,
     val headsetDetailNotification: Boolean = false,
     val connectionVolume: ConnectionVolumePreset = ConnectionVolumePreset.OFF,
+    val speechMode: BatterySpeechMode = BatterySpeechMode.OFF,
+    val speechOnConnection: Boolean = false,
+    val speechLowBattery: Boolean = false,
+    val speechVolume: BatterySpeechVolume = BatterySpeechVolume.P50,
 )
 
 /**
@@ -63,6 +67,10 @@ object ModuleSettingsStore {
     private const val HEADSET_CONNECTION_PRESENTATION = "headset_connection_presentation"
     private const val HEADSET_DETAIL_NOTIFICATION = "headset_detail_notification"
     private const val CONNECTION_VOLUME = "connection_volume"
+    private const val SPEECH_MODE = "speech_mode"
+    private const val SPEECH_CONNECTION = "speech_connection"
+    private const val SPEECH_LOW_BATTERY = "speech_low_battery"
+    private const val SPEECH_VOLUME = "speech_volume"
     private const val REMOTE_MIGRATION_COMPLETE = "remote_migration_complete"
     private const val REMOTE_WRITE_PENDING = "remote_write_pending"
 
@@ -76,6 +84,10 @@ object ModuleSettingsStore {
         ),
         headsetDetailNotification = preferences.getBoolean(HEADSET_DETAIL_NOTIFICATION, false),
         connectionVolume = ConnectionVolumePreset.fromStoredValue(preferences.getString(CONNECTION_VOLUME, null)),
+        speechMode = BatterySpeechMode.fromStoredValue(preferences.getString(SPEECH_MODE, null)),
+        speechOnConnection = preferences.getBoolean(SPEECH_CONNECTION, false),
+        speechLowBattery = preferences.getBoolean(SPEECH_LOW_BATTERY, false),
+        speechVolume = BatterySpeechVolume.fromStoredValue(preferences.getString(SPEECH_VOLUME, null)),
         disabledAdapterIds = preferences
             .getStringSet(DISABLED_ADAPTER_IDS, emptySet())
             .orEmpty()
@@ -97,6 +109,10 @@ object ModuleSettingsStore {
             .putString(HEADSET_CONNECTION_PRESENTATION, settings.headsetConnectionPresentation.name)
             .putBoolean(HEADSET_DETAIL_NOTIFICATION, settings.headsetDetailNotification)
             .putString(CONNECTION_VOLUME, settings.connectionVolume.name)
+            .putString(SPEECH_MODE, settings.speechMode.name)
+            .putBoolean(SPEECH_CONNECTION, settings.speechOnConnection)
+            .putBoolean(SPEECH_LOW_BATTERY, settings.speechLowBattery)
+            .putString(SPEECH_VOLUME, settings.speechVolume.name)
             .putStringSet(DISABLED_ADAPTER_IDS, settings.disabledAdapterIds.toRemotePreferencesSet())
             .commit()
 
@@ -164,6 +180,7 @@ object ModuleSettingsStore {
         HEADSET_CONNECTION_PRESENTATION,
         HEADSET_DETAIL_NOTIFICATION,
         CONNECTION_VOLUME,
+        SPEECH_MODE, SPEECH_CONNECTION, SPEECH_LOW_BATTERY, SPEECH_VOLUME,
     )
 }
 

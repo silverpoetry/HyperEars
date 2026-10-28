@@ -51,6 +51,10 @@ internal class NativePresentationRuntime(
         ConnectionVolumeRuntime(AndroidConnectionVolumeHost(context, handler),
             producerAlive = { (it as? IBinder)?.isBinderAlive == true }) { ModuleSettingsRuntime.current }
     }.getOrNull()
+    private val batterySpeech = if (uiProcess) null else runCatching {
+        BatterySpeechRuntime(androidBatterySpeechHost(context, handler),
+            producerAlive = { (it as? IBinder)?.isBinderAlive == true }) { ModuleSettingsRuntime.current }
+    }.getOrNull()
     private val registry = DeviceStateRegistry()
     private val handoffObservers = linkedMapOf<Any, Pair<String, (EarbudState) -> Unit>>()
     private val records = linkedMapOf<String, Record>()
@@ -102,6 +106,7 @@ internal class NativePresentationRuntime(
                         BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
                             val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
                             if (device != null && !dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device)) {
+                                batterySpeech?.remove(device.address)
                                 connectionVolume?.remove(device.address)
                                 pairedCaseHistory.remove(device.address)
                                 windowBridge?.closeAll("device unpaired")
@@ -109,7 +114,7 @@ internal class NativePresentationRuntime(
                         }
                         BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                             val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                            device?.address?.let { wearRuntime?.remove(it); conversationRuntime?.remove(it); connectionVolume?.remove(it) }
+                            device?.address?.let { wearRuntime?.remove(it); conversationRuntime?.remove(it); connectionVolume?.remove(it); batterySpeech?.remove(it) }
                             if (device?.address in records) windowBridge?.closeAll("Bluetooth disconnected")
                         }
                     }
@@ -127,6 +132,9 @@ internal class NativePresentationRuntime(
         ModuleSettingsRuntime.observe { updated -> handler.post {
             val old = settings
             settings = updated
+            if (old.speechMode != updated.speechMode || old.speechOnConnection != updated.speechOnConnection ||
+                old.speechLowBattery != updated.speechLowBattery || old.speechVolume != updated.speechVolume ||
+                old.modulePaused != updated.modulePaused || old.disabledAdapterIds != updated.disabledAdapterIds) batterySpeech?.settingsChanged()
             if (old.connectionVolume != updated.connectionVolume || old.modulePaused != updated.modulePaused ||
                 old.disabledAdapterIds != updated.disabledAdapterIds) connectionVolume?.settingsChanged()
             if (old.modulePaused != updated.modulePaused) { wearRuntime?.clear(); conversationRuntime?.clear() }
@@ -247,6 +255,7 @@ internal class NativePresentationRuntime(
         }
         spatialBridge?.update(accepted, token, nextProducer, !settings.modulePaused && metadata.admission == NativeAdmission.HYPEREARS && metadata.connectionScopedOwnership)
         connectionVolume?.update(accepted, token, metadata, nextProducer)
+        batterySpeech?.update(accepted, token, metadata, nextProducer)
         wearRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
         conversationRuntime?.update(accepted, token, metadata.admission, !settings.modulePaused)
         windowBridge?.update(accepted, token, metadata, nextProducer)
@@ -269,6 +278,7 @@ internal class NativePresentationRuntime(
     }
 
     private fun clear(reason: String) {
+        batterySpeech?.clear()
         connectionVolume?.clear()
         spatialBridge?.clear()
         wearRuntime?.clear()

@@ -43,6 +43,10 @@ internal object HuaweiDailyChoices {
         if (model in setOf("huawei-freebuds-pro3", "huawei-freebuds-pro4", "huawei-freebuds-pro5", "huawei-freeclip")) return when (value) {
             5 -> "默认"; 1 -> "低音增强"; 2 -> "高音增强"; 9 -> "人声"; else -> "预设 $value"
         }
+        if (model == "huawei-freebuds-6" && value == 0) return "默认"
+        if (model == "huawei-freebuds-7") return when (value) {
+            5 -> "均衡"; 9 -> "人声"; 2 -> "低音"; 13 -> "电影"; 14 -> "游戏"; 15 -> "播客"; 16 -> "运动"; else -> "预设 $value"
+        }
         if (model == "huawei-freelace-pro2") return "预设 $value"
         return when (value) { 1 -> "默认"; 2 -> "低音增强"; 3 -> "高音增强"; 9 -> "人声"; 10 -> "运动增强"; else -> "预设 $value" }
     }
@@ -57,6 +61,9 @@ internal object HuaweiDailyChoices {
         }
         if (model == "huawei-freebuds-3" && kind == HuaweiGestureKind.DOUBLE) return when (value) {
             -1 -> "关闭"; 0 -> "语音助手"; 1 -> "播放 / 暂停"; 3 -> "切换降噪"; 4 -> "下一首"; else -> "未知"
+        }
+        if (model in setOf("huawei-freebuds-4", "huawei-freebuds-4e") && kind == HuaweiGestureKind.HOLD) return when (value) {
+            3 -> "切换降噪"; 14 -> "听歌识曲"; -1 -> "关闭"; else -> "未知"
         }
         if (model == "huawei-freeclip-2" && kind == HuaweiGestureKind.DOUBLE && value == 7) return "切换空间音频"
         if (side == HuaweiGestureSide.CALL) return if (value == -1) "关闭" else "接听电话"

@@ -53,6 +53,8 @@ import dev.hyperears.integration.EarbudAdapterKind
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
 import dev.hyperears.settings.ModuleSettings
+import dev.hyperears.settings.BatterySpeechMode
+import dev.hyperears.settings.BatterySpeechVolume
 import dev.hyperears.settings.ConnectionVolumePreset
 import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.bridge.BroadcastIdentity
@@ -132,6 +134,22 @@ fun SettingsScreen(
                     PreferenceDivider()
                     ConnectionVolumePreference(settings.connectionVolume) {
                         onSettingsChanged(settings.copy(connectionVolume = it))
+                    }
+                    PreferenceDivider()
+                    SpeechChoicePreference("耳机语音播报", "仅向当前耳机播报；遵循静音、勿扰和通话状态。",
+                        BatterySpeechMode.entries.map { it.title }, settings.speechMode.ordinal) {
+                        onSettingsChanged(settings.copy(speechMode = BatterySpeechMode.entries[it]))
+                    }
+                    PreferenceDivider()
+                    TogglePreference("连接播报", "新连接时播报一次“耳机已连接”；需开启语音播报。",
+                        settings.speechOnConnection, { onSettingsChanged(settings.copy(speechOnConnection = it)) })
+                    PreferenceDivider()
+                    TogglePreference("低电量播报", "耳机电量低于 20% 时每次连接最多播报一次；不含充电盒。",
+                        settings.speechLowBattery, { onSettingsChanged(settings.copy(speechLowBattery = it)) })
+                    PreferenceDivider()
+                    SpeechChoicePreference("播报音量", "相对当前媒体音量，不改变系统音量。",
+                        BatterySpeechVolume.entries.map { it.title }, settings.speechVolume.ordinal) {
+                        onSettingsChanged(settings.copy(speechVolume = BatterySpeechVolume.entries[it]))
                     }
                     PreferenceDivider()
                     TogglePreference(
@@ -284,6 +302,24 @@ private fun ConnectionVolumePreference(
                     onSelected(choice)
                 })
             }
+        }
+    }
+}
+
+@Composable
+private fun SpeechChoicePreference(title: String, detail: String, choices: List<String>, selected: Int, onSelected: (Int) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        ListItem(headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
+            supportingContent = { Text(detail) }, trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(choices[selected]); Icon(Icons.Default.ArrowDropDown, contentDescription = title)
+                }
+            }, modifier = Modifier.clickable { expanded = true })
+        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            choices.forEachIndexed { index, choice -> DropdownMenuItem(text = { Text(choice) }, onClick = {
+                expanded = false; onSelected(index)
+            }) }
         }
     }
 }

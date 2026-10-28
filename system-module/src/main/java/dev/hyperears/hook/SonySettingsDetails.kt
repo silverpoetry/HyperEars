@@ -143,6 +143,7 @@ internal class SonySettingsDetails private constructor(
             is SonyControlRequest.SetMultipoint -> multipoint?.let { it.definition == request.expected && it.enabled == request.enabled && it.alert == null && it.pendingTransaction == null } == true
             is SonyControlRequest.ReplyMultipointAlert -> multipoint?.let { it.definition == request.expected && it.alert == null &&
                 it.enabled == (if (request.confirm) request.expectedAlert.target else !request.expectedAlert.target) } == true
+            is SonyControlRequest.SetVoiceGuidance -> state.features.get<SonyVoiceGuidanceFeatureState>()?.let {it.definition==request.expected && it.enabled==request.enabled} == true
             is SonyControlRequest.SetWearingPlayback -> audio?.let {it.wearingDefinition==request.expected && it.wearingPlayback==request.enabled} == true
             is SonyControlRequest.SetDsee -> audio?.let { it.dseeDefinition == request.expected && it.dsee == request.enabled } == true
             is SonyControlRequest.SetConnectionQuality -> audio?.let { it.qualityDefinition == request.expected && it.quality == request.mode } == true
@@ -237,6 +238,27 @@ internal class SonySettingsDetails private constructor(
             }
         }
     }
+    private fun addVoiceGuidance(parent:LinearLayout) {
+        val row=column();row.addView(text("耳机语音提示",17f))
+        var displayed:SonyVoiceGuidanceFeatureState?=null
+        val control=createToggle().apply {
+            contentDescription="耳机语音提示";isSaveEnabled=false
+            setOnCheckedChangeListener {_,checked -> if(!rendering)withCurrent {
+                val expected=displayed
+                val definition=expected?.definition
+                val value=expected?.enabled
+                if(definition!=null && value!=null)
+                    send(SonyControlRequest.SetVoiceGuidance(definition,value,checked))
+            }}
+        }
+        row.addView(control);parent.addView(row)
+        renders += { current ->
+            displayed=current.features.get<SonyVoiceGuidanceFeatureState>()
+            row.visibility=if(displayed?.hasSettings==true)View.VISIBLE else View.GONE
+            control.isChecked=displayed?.enabled==true
+            control.isEnabled=displayed?.hasSettings==true
+        }
+    }
     private fun addAudioSettings(parent: LinearLayout) {
         fun toggle(label: String, value: (SonyAudioSettingsFeatureState) -> Boolean?,
             request: (SonyAudioSettingsFeatureState, Boolean) -> SonyControlRequest?) {
@@ -296,6 +318,7 @@ internal class SonySettingsDetails private constructor(
         body.addView(status)
         val controls = column()
         addAssignable(controls)
+        addVoiceGuidance(controls)
         addAudioSettings(controls)
         addMultipoint(controls)
         val ambientRow = column()
