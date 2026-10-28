@@ -125,3 +125,51 @@ FF 04 00 00 00 1D 40 03
 与 MOONDROP Robin 公开协议同构的握手与帧格式见
 [`moondrop-robin-protocol.md`](moondrop-robin-protocol.md)。HyperEars 根据可互操作的协议
 事实独立实现，不分发厂商 App、固件、图片或上游程序。
+
+## PuddingPods 3.47 application-length dialect
+
+The executable reference is `lingbai-rong/PuddingPods` release v3.47,
+`default.apk` SHA256 `EBE7C11AB40E988BB24AE765F736E1FDD4F9B929E8CBF4EFC64D57D83EEB4AE0`.
+The published README declares GPL-3.0; the pinned repository contains no application source.
+The adaptation reconstructs the executable wire contract, not its replacement Settings activity.
+Detailed source locations and artifact provenance are in
+[the APK audit](research/source-audits/oppo-pudding-findings.md).
+
+This dialect counts the complete application payload. Handshake is
+`FF 01 00 04 00 0A 03 00`; scalar writes use `FF 04 00 05` followed by
+`00 1D sub opcode value`. Existing captured parameter-length packets remain unchanged.
+A single session-owned delayed state request sends the APK handshake and read queries if
+legacy negotiation has not selected a dialect. There is no permanent poll or new global timer.
+The normal transport owner cancels pending requests on candidate failure, replacement and close.
+
+Neither a name, endpoint, generic negotiation response nor a battery report selects this dialect.
+A legacy six-parameter battery response has a valid APK one-pair prefix, so using battery as
+selection evidence would be incorrect. Only an exact five-byte known noise/gain/LED application
+report selects APK framing. The existing exact captured handshake selects legacy framing.
+Conflicting positive evidence in one receive batch leaves negotiation unselected. Selection lasts
+until protocol reset; later contradictory packets do not change the selected write grammar.
+
+Only flags-zero frames are admitted as control evidence. APK `lc1` understands optional trailer
+and extended-length flags but does not validate the trailer. No checksum algorithm is inferred.
+Oversized lengths and unsupported flags cannot grant settings capabilities.
+
+- Noise: query `00 1D 40 03`, write `00 1D 40 04 value`, report
+  `00 1D 41 [03|04] value`. Values are off=0, adaptive ANC=1, transparency=2,
+  wind=3, basic ANC=4. The typed state keeps adaptive and basic ANC distinct.
+- Gain: query `00 1D 1E 01`, write `00 1D 1E 02 value`, report
+  `00 1D 1F [01|02] value`. The APK enum proves low=2, medium=1, high=0;
+  the adaptation document's reversed low/high mapping is not used.
+- LED: query `00 1D 26 01`, write `00 1D 26 02 value`, report
+  `00 1D 27 [01|02] value`, with exact boolean values 0/1.
+
+Each field requires its own valid device report before writes become available. Noise readback is
+scheduled 180 ms after a successful write; gain and LED use 140 ms. Submitted values do not become
+confirmed state. The native noise card adds a session-owned details entry for five-mode selection,
+gain and LED; a settings-only carrier is used when only gain/LED reports exist. Controls recheck
+address, session token, private-channel state and module ownership at interaction time.
+
+APK battery pairs are accepted only after dialect selection, require unique keys 1/2/3 and valid
+0..100 percentages, and merge only reported components. This does not change captured legacy
+zero/unavailable handling, bootstrap or stabilization, nor Robin/Mirage codecs. Extended controls
+on the legacy dialect remain unclaimed. Validation is source fixtures and automated tests;
+no new hardware acceptance is asserted.

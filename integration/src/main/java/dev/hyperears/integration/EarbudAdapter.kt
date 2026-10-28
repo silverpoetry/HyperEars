@@ -7,6 +7,7 @@ data class EarbudIdentity(
     val deviceAddress: String? = null,
     val bluetoothDeviceClass: Int? = null,
     val serviceUuids: Set<String> = emptySet(),
+    val manufacturerData: Map<Int, List<Int>> = emptyMap(),
 )
 
 /**
@@ -145,8 +146,13 @@ abstract class EarbudAdapter(
         } else {
             HandshakeResult.Ready
         }
-        return AdapterIoResult(commands = commands, handshake = handshake)
+        val scope = RecordingAdapterEventScope()
+        onHandshakeStarted(scope)
+        return AdapterIoResult(commands = commands, handshake = handshake, effects = scope.effects())
     }
+
+    /** Optional bounded model reads; transport owns scheduling and cancellation. */
+    protected open fun onHandshakeStarted(scope: AdapterEventScope) = Unit
 
     /**
      * Consumes one transport read. Protocol events remain private to the adapter aggregate.
@@ -642,6 +648,9 @@ object EarbudAdapterRegistry {
         add(Registration(edifierGroup, ::EdifierHeadphonesAdapter))
         add(Registration(edifierGroup, ::EdifierEarbudAdapter))
         add(Registration(roseGroup, ::RoseCoralAdapter))
+        dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.entries.forEach { model ->
+            add(Registration(roseGroup) { RoseRsV2Adapter(model) })
+        }
         add(Registration(roseGroup, ::FurinaEndlessAdapter))
         add(Registration(roseGroup, ::RoseLuliXAdapter))
         add(Registration(roseGroup, ::RoseLuliUltraAdapter))

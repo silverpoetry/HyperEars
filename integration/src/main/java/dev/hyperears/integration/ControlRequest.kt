@@ -121,6 +121,20 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(RoseRsV2ControlRequest.SetEqualizer::class, RoseRsV2ControlRequest.SetEqualizer.serializer())
+                subclass(RoseRsV2ControlRequest.SetBass::class, RoseRsV2ControlRequest.SetBass.serializer())
+                subclass(RoseRsV2ControlRequest.SetGame::class, RoseRsV2ControlRequest.SetGame.serializer())
+                subclass(RoseRsV2ControlRequest.SetMultipoint::class, RoseRsV2ControlRequest.SetMultipoint.serializer())
+                subclass(RoseRsV2ControlRequest.SetAudio::class, RoseRsV2ControlRequest.SetAudio.serializer())
+                subclass(RoseRsV2ControlRequest.SetTouchEnabled::class, RoseRsV2ControlRequest.SetTouchEnabled.serializer())
+                subclass(RoseRsV2ControlRequest.SetTouch::class, RoseRsV2ControlRequest.SetTouch.serializer())
+                subclass(RoseRsV2ControlRequest.SetPrompt::class, RoseRsV2ControlRequest.SetPrompt.serializer())
+                subclass(RoseRsV2ControlRequest.Find::class, RoseRsV2ControlRequest.Find.serializer())
+                subclass(PuddingControlRequest.SetValue::class, PuddingControlRequest.SetValue.serializer())
+                subclass(TechnicsControlRequest.SetLevel::class, TechnicsControlRequest.SetLevel.serializer())
+                subclass(SonyControlRequest.SetDsee::class, SonyControlRequest.SetDsee.serializer())
+                subclass(SonyControlRequest.SetConnectionQuality::class, SonyControlRequest.SetConnectionQuality.serializer())
+                subclass(SonyControlRequest.SetSpeakToChat::class, SonyControlRequest.SetSpeakToChat.serializer())
                 subclass(SamsungDailyControlRequest.SetEqualizer::class, SamsungDailyControlRequest.SetEqualizer.serializer())
                 subclass(SamsungDailyControlRequest.SetAmbientVolume::class, SamsungDailyControlRequest.SetAmbientVolume.serializer())
                 subclass(SamsungDailyControlRequest.SetAncLevel::class, SamsungDailyControlRequest.SetAncLevel.serializer())

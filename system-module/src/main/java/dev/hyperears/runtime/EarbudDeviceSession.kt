@@ -616,6 +616,7 @@ internal class EarbudDeviceSession(
                     gapMs = INITIAL_COMMAND_GAP_MS,
                     description = "adapter handshake",
                 )
+                applyAdapterEffects(candidate, adapter, initial.effects)
                 when (val handshake = initial.handshake) {
                     HandshakeResult.Ready, null -> return ConnectedTransport(candidate)
                     HandshakeResult.AwaitingEvidence -> awaitAcceptedHandshake(candidate)
@@ -624,6 +625,7 @@ internal class EarbudDeviceSession(
                 }
                 return ConnectedTransport(candidate)
             } catch (error: Throwable) {
+                stateRequests.cancelAll("handshake candidate failed")
                 adapter.resetProtocolSession()
                 candidate.close()
                 synchronized(transportLock) {
@@ -729,6 +731,7 @@ internal class EarbudDeviceSession(
                             INITIAL_COMMAND_GAP_MS,
                             "replacement handshake",
                         )
+                        applyAdapterEffects(activeChannel, adapter, restart.effects)
                         when (restart.handshake) {
                             HandshakeResult.Ready, null -> {
                                 publishRequired = setLifecycle(

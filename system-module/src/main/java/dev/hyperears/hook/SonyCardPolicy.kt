@@ -7,12 +7,14 @@ internal object SonyCardPolicy {
         state.privateChannelConnected && state.handshakeAccepted && state.lifecycle.controlOwnership == ControlOwnership.MODULE
     fun available(state: EarbudState, address: String) = ready(state, address) && (
         state.features.get<SonyEqFeatureState>()?.let { it.writablePreset || it.writableBands || it.writableBass } == true ||
-            state.features.get<SonyAmbientFeatureState>()?.level in 1..20)
+            state.features.get<SonyAmbientFeatureState>()?.level in 1..20 ||
+            state.features.get<SonyAudioSettingsFeatureState>()?.hasSettings == true)
     fun request(state: EarbudState, address: String, request: SonyControlRequest): SonyControlRequest? {
         if (!ready(state, address)) return null
         val supported = when (request) {
             is SonyControlRequest.SetAmbient -> state.features.get<SonyAmbientFeatureState>()?.supports(request) == true
-            else -> state.features.get<SonyEqFeatureState>()?.supports(request) == true
+            else -> state.features.get<SonyEqFeatureState>()?.supports(request) == true ||
+                state.features.get<SonyAudioSettingsFeatureState>()?.supports(request) == true
         }
         return request.takeIf { supported }
     }

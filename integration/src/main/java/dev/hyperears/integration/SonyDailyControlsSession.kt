@@ -4,6 +4,8 @@ import dev.hyperears.protocol.sony.SonyDailyControlsCodec as Wire
 
 /** Session-only capability evidence. No model names, Android dependencies or timers. */
 internal class SonyDailyControlsSession(private val v2: Boolean) {
+    private val audio = SonyAudioSettingsSession(v2)
+    fun audioState() = audio.state
     private var functionsKnown = false
     private var functions = Wire.Functions(emptySet(), emptySet())
     private val geometry = mutableMapOf<Int, List<Wire.Band>>()
@@ -16,8 +18,9 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     private val ebbType get() = if (v2) 1 else 2
     data class Update(val states: List<DeviceFeatureState>, val queries: List<ByteArray>)
     fun accept(payload: ByteArray): Update? {
+        val audioUpdate = audio.accept(payload)
         Wire.functions(v2, payload)?.let { next ->
-            if (functionsKnown && next == functions) return Update(emptyList(), emptyList())
+            if (functionsKnown && next == functions) return audioUpdate?.let { it.copy(queries = audio.reads()) } ?: Update(emptyList(), emptyList())
             functionsKnown = true
             functions = next
             geometry.keys.retainAll(next.eqTypes); reports.keys.retainAll(next.eqTypes)
@@ -25,8 +28,9 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
             statuses.keys.retainAll(next.eqTypes); ambientReports.keys.retainAll(next.ambientTypes)
             positiveAmbientLevels.keys.retainAll(next.ambientTypes)
             ambientReport = chooseAmbient()
-            return Update(listOf(eqState(), ambientState() ?: SonyAmbientFeatureState(0, false, false, true)), reads(includeCapabilities = true))
+            return Update(listOf(eqState(), ambientState() ?: SonyAmbientFeatureState(0, false, false, true)) + audioUpdate?.states.orEmpty(), reads(includeCapabilities = true))
         }
+        if (audioUpdate != null) return audioUpdate
         var changed = false
         val queries = mutableListOf<ByteArray>()
         Wire.geometry(payload)?.let { (type, bands) -> if (type in functions.eqTypes) {
@@ -70,6 +74,7 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     }
     fun ambientState(): SonyAmbientFeatureState? = ambientReport?.let { SonyAmbientFeatureState(it.level, it.voice, it.voiceWritable, it.adaptive) }
     fun reads(includeCapabilities: Boolean = false): List<ByteArray> = buildList {
+        addAll(audio.reads())
         functions.eqTypes.forEach { type ->
             if (includeCapabilities) add(Wire.bytes(0x50, type, 0))
             add(Wire.bytes(0x52, type)); add(Wire.bytes(0x56, type))
@@ -111,6 +116,8 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     }
     /** Return write followed by readbacks, which the owner places on its existing ACK queue. */
     fun encode(request: SonyControlRequest): List<ByteArray> {
+        if (request is SonyControlRequest.SetDsee || request is SonyControlRequest.SetConnectionQuality || request is SonyControlRequest.SetSpeakToChat)
+            return audio.encode(request)
         val state = eqState()
         if (request is SonyControlRequest.SetAmbient) {
             val ambient = ambientReport ?: return emptyList()

@@ -264,6 +264,10 @@ FreeClip 2 的 EQ 与手势取其明确捕获映射。按现有架构独立实�
 
 ## SonyPods daily controls
 
+同一固定提交的 Table1 AUDIO/SYSTEM 编码与测试还用于核对 DSEE、连接质量和
+Speak-to-Chat；V1/V2 各自的开关值、可用状态及 inquired type 独立保留，未从
+功能枚举推导尚无写入实现的 V1 音质控制。
+
 - [Mercury000/SonyPods](https://github.com/Mercury000/SonyPods/tree/3f701ff8f9b30c6909b9dbe8d99248f20d55560e)
 - License: GNU GPL v3（固定提交包含 LICENSE）。
 
@@ -315,7 +319,17 @@ Core / Buds3 FE 的参考布局仍有 TODO，不把家族外推记为实测，�
 环境声与手势，以及用户主动查找。现代九段自定义 EQ 的发送值与设备确认的 EQ 模式
 分别记录；来源明确部分固件读回平坦曲线，本实现不将已发送草稿伪装成设备确认曲线。
 
-## Android and LSPosed APIs
+## PuddingPods release interoperability
+
+- [lingbai-rong/PuddingPods](https://github.com/lingbai-rong/PuddingPods)，发布包 v3.47；
+  仓库 README 声明 GPL-3.0，所检仓库未包含应用源码。
+- APK SHA-256：`EBE7C11AB40E988BB24AE765F736E1FDD4F9B929E8CBF4EFC64D57D83EEB4AE0`。
+
+依据发布 APK 的执行路径独立整理完整载荷长度方言、五态噪声、反向增益枚举及 LED
+读写，不把文档枚举当作实际字节，不复制 APK 的 Settings 重定向、界面或厂商资源。
+原有捕获验证路径继续保留，新的控制须在本次会话取得无歧义的对应方言回报。
+
+## Android platform APIs
 
 - Android Open Source Project: <https://source.android.com/>
 - libxposed API: <https://github.com/libxposed/api>
@@ -395,3 +409,7 @@ Conastin 在 [PR #90](https://github.com/silverpoetry/HyperEars/pull/90) 提供�
 不分发厂商应用、固件、反编译产物或厂商图片。伴侣 App 的名称、包名和版本待补充核对。
 
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
+
+### Additional ROSELINK RS Common v2 profiles (2026-10-28)
+
+ROSELINK 3.8.2 (5409), matching Dart 3.11.4 ARM64 AOT, is a behavioral protocol reference for nine additional manufacturer-prefix-qualified profiles. Independently reconstructed facts cover model IDs, transport framing, report fields and bounded host integration. No vendor implementation, assets, APK or firmware is distributed. Exact source offsets and qualifications: `docs/rose-rsv2-protocol.md`; existing Coral attribution remains unchanged.

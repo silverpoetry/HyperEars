@@ -25,6 +25,30 @@ class SonySettingsDetailsTest {
         protocolHandshake = ProtocolHandshakeState.CONFIRMED,
     )).withFeature(SonyAmbientFeatureState(10, false, true, false))
 
+    @Test fun audioControlsNeedFreshAvailabilityAndWaitForConfirmation() {
+        val fixture = Fixture()
+        val definition = SonyAudioDefinition(2, 11)
+        val audio = SonyAudioSettingsFeatureState(dseeDefinition = definition, dsee = false, dseeAvailable = true,
+            qualityDefinition = SonyAudioDefinition(2, 5), quality = 2, qualityAvailable = false)
+        fixture.current = fixture.current.withFeature(audio)
+        val details = fixture.open()
+        val views = descendants(popup(details).contentView)
+        val toggle = views.filterIsInstance<CompoundButton>().first { it.contentDescription == "DSEE" }
+        toggle.isChecked = true
+        assertEquals(listOf(SonyControlRequest.SetDsee(definition, true)), fixture.sent)
+        assertFalse(toggle.isChecked)
+        val quality = views.first { it.contentDescription == "音质优先" }
+        assertFalse(quality.isEnabled)
+        fixture.current = fixture.current.withFeature(audio.copy(dsee = true, dseeAvailable = false, qualityAvailable = true))
+        fixture.observer!!(fixture.current)
+        assertTrue(toggle.isChecked); assertFalse(toggle.isEnabled); assertTrue(quality.isEnabled)
+        quality.performClick()
+        assertEquals(SonyControlRequest.SetConnectionQuality(SonyAudioDefinition(2, 5), 0), fixture.sent.last())
+        fixture.token = "replacement"; quality.performClick()
+        assertEquals(2, fixture.sent.size)
+        assertEquals(1, fixture.unsubscribed)
+        assertFalse(popup(details).isShowing)
+    }
     @Test fun gesturesWaitForReadbackAndUseFreshStateAndSession() {
         val fixture = Fixture()
         val details = fixture.open()
@@ -147,7 +171,7 @@ class SonySettingsDetailsTest {
         fixture.current = fixture.current.withFeature(SonyAmbientFeatureState(10, false, true, true))
         val details = fixture.open()
         val views = descendants(popup(details).contentView)
-        val voice = views.filterIsInstance<CompoundButton>().single()
+        val voice = views.filterIsInstance<CompoundButton>().single { it.contentDescription == "关注语音" }
         assertFalse(voice.isEnabled)
         voice.isChecked = true
         assertTrue(fixture.sent.isEmpty())

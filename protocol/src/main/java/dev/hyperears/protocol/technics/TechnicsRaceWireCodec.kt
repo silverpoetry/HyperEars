@@ -209,14 +209,16 @@ object TechnicsRaceWireCodec {
         }
     }
 
-    private fun setOutsideControl(
+    fun setOutsideControl(
         mode: OutsideControlMode,
         noiseCancelLevel: Int,
         ambientLevel: Int,
-    ): ByteArray = encode(
-        RACE_ID_SET_OUTSIDE_CTRL,
-        byteArrayOf(mode.value.toByte(), noiseCancelLevel.toByte(), ambientLevel.toByte()),
-    )
+    ): ByteArray {
+        requireLevel(noiseCancelLevel)
+        requireLevel(ambientLevel)
+        return encode(RACE_ID_SET_OUTSIDE_CTRL,
+            byteArrayOf(mode.value.toByte(), noiseCancelLevel.toByte(), ambientLevel.toByte()))
+    }
 
     private fun disableAdaptiveAnc(): ByteArray = encode(
         RACE_ID_SET_ADAPTIVE_ANC,

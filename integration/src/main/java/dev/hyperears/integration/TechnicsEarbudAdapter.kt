@@ -7,6 +7,13 @@ class TechnicsEarbudAdapter : StandardEarbudAdapter() {
     override val id: String = ID
     override val displayName: String = "Technics EAH-AZ series"
     override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state -> state is TechnicsLevelsFeatureState }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is TechnicsControlRequest.SetLevel && adapter.runtimeState().features.get<TechnicsLevelsFeatureState>()?.supports(request) == true
+    }
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = PRESENTATION_ID.takeIf { runtimeState().features.get<TechnicsLevelsFeatureState>() != null && effectiveCapabilities().noiseControl }
+    override fun onProtocolReset() { removeFeatureState(TechnicsLevelsFeatureState.FEATURE_ID) }
     override val privateProtocolRequired: Boolean = true
     override val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
     override val controlApps: List<ControlAppSpec> =
@@ -34,6 +41,7 @@ class TechnicsEarbudAdapter : StandardEarbudAdapter() {
 
     companion object {
         const val ID = "technics-eah-az"
+        val PRESENTATION_ID = MiLinkCardPresentationId("technics-levels")
         const val TECHNICS_SPP_UUID = "00000000-0000-0000-0099-AABBCCDDEEFF"
         const val STANDARD_SPP_UUID = "00001101-0000-1000-8000-00805F9B34FB"
 
@@ -53,10 +61,18 @@ private class TechnicsRaceProtocolSession : ProtocolSession {
     private var noiseCancelLevel = DEFAULT_NOISE_CANCEL_LEVEL
     private var transparencyLevel = DEFAULT_TRANSPARENCY_LEVEL
     private var handshakePublished = false
+    private var levels: TechnicsLevelsFeatureState? = null
 
     override fun initialReadCommands(): List<ByteArray> = telemetryQueries()
 
     override fun encode(request: ControlRequest): List<ByteArray> = when (request) {
+        is TechnicsControlRequest.SetLevel -> if (levels?.supports(request) == true) listOf(
+            TechnicsRaceWireCodec.setOutsideControl(
+                if (request.ambient) TechnicsRaceWireCodec.OutsideControlMode.TRANSPARENCY else TechnicsRaceWireCodec.OutsideControlMode.ANC,
+                if (request.ambient) noiseCancelLevel else request.value,
+                if (request.ambient) request.value else transparencyLevel,
+            ),
+        ) else emptyList()
         StandardControlRequest.Refresh -> telemetryQueries()
         is StandardControlRequest.SetNoiseMode -> request.mode
             .toWireMode()
@@ -81,6 +97,7 @@ private class TechnicsRaceProtocolSession : ProtocolSession {
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> = when (request) {
+        is TechnicsControlRequest.SetLevel -> noiseQueries()
         is StandardControlRequest.SetNoiseMode -> noiseQueries()
         else -> emptyList()
     }
@@ -99,7 +116,9 @@ private class TechnicsRaceProtocolSession : ProtocolSession {
                 noiseCancelLevel = outsideControl.noiseCancelLevel
                 transparencyLevel = outsideControl.ambientLevel
                 val mode = outsideControl.mode.toDomainMode()
+                levels = TechnicsLevelsFeatureState(mode, noiseCancelLevel, transparencyLevel)
                 return@flatMap buildList<ProtocolEvent> {
+                    add(ProtocolEvent.FeatureStateChanged(levels!!))
                     add(
                         ProtocolEvent.CapabilitiesIdentified(
                             battery = false,
@@ -130,6 +149,7 @@ private class TechnicsRaceProtocolSession : ProtocolSession {
         noiseCancelLevel = DEFAULT_NOISE_CANCEL_LEVEL
         transparencyLevel = DEFAULT_TRANSPARENCY_LEVEL
         handshakePublished = false
+        levels = null
     }
 
     private fun telemetryQueries(): List<ByteArray> = batteryQueries() + noiseQueries()

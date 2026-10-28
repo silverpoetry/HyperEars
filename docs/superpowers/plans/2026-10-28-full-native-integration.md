@@ -172,6 +172,8 @@ does not treat every source command as universally supported. All items below re
   wearing/power-off, legacy VPT/position/optimizer, voice/assistant and bounded safe-listening.
   Daily Table1 EQ/ClearBass/ambient slice implemented with capability discovery, native details,
   Table2 separation and ACK-queue rejection semantics. GATT and remaining Sony functions are open.
+  DSEE, connection quality and Speak-to-Chat now have version/inquiry-qualified reports, typed
+  requests and native details, with independent protocol review. Multipoint remains in progress.
 - [ ] C5 ROSE: include RoseLink model/feature differences, prioritizing the user's ROSE Coral ANC
   earclip and its independently verified configuration/transport/control semantics; shared UUID
   does not establish compatibility with BudsFeel. Also cover i7/Ceramics U identities distinct from existing Ultra; model-qualified six-mode,
@@ -179,6 +181,9 @@ does not treat every source command as universally supported. All items below re
   i7/U exact RFCOMM identity and model-qualified daily settings now implemented; i7/MK2 game,
   U six noise values/EQ/depth/tone settings, strict opaque-field parsing and native details.
   Other RoseLink model families and additional commands remain open.
+  Nine RS Common v2 configurations now have exact manufacturer-prefix refinement, bounded
+  same-address discovery, connection-scoped identity retention, model-qualified daily controls
+  and native cards/details. Bluetooth address correspondence still requires device validation.
 - [ ] C6 NiceHCK: OriG six ANC/seven EQ, independent wind toggle, game/latency, dual/wearing,
   codec and firmware-qualified mappings, readback and native UI.
   Daily controls and native details implemented, including exact firmware gating; codec writes
@@ -195,6 +200,9 @@ does not treat every source command as universally supported. All items below re
 - [ ] C9 MOONDROP: Pudding five modes/gain/LED and dialect-specific framing/readback; Robin and
   MIRAGE compatibility; ZZZ pure battery; investigate the 52 catalog records/aliases by protocol
   family, retaining explicit unimplemented protocol gaps until actually filled.
+  Pudding's APK dialect now has bounded framing, exact-report dialect admission, five noise
+  values, gain and LED with native details; battery alone cannot select a dialect. A one-shot
+  handshake fallback uses existing adapter effects. Catalog-family expansion remains open.
 - [ ] C10 Bose: additional product IDs/Frames candidates; CNC levels/EQ/spatial/profiles/buttons,
   sidetone/multipoint/auto-pause/answer/prompts/rename with per-product dialect and readback.
   First daily slice implemented: three-band EQ, prompts, multipoint, model-qualified auto-pause,
@@ -207,6 +215,9 @@ does not treat every source command as universally supported. All items below re
   Source TODO layouts and enum-only game commands remain unresolved, not silently inferred.
 - [ ] C12 Technics: qualified AZ/A800 candidates, ANC/ambient levels and adaptive state/readback;
   do not advertise upstream's unimplemented game method as working support.
+  AZ80 ANC/ambient levels now use confirmed 000A reports and 000B writes retaining the latest
+  other level, with mode/session guards and native detail sliders. Adaptive, A800-specific and
+  unimplemented upstream game behavior remain separate evidence gaps.
 - [ ] C13 Existing StarRing/Honor/Edifier and standard adapters: preserve all functions while
   moving to the complete native presentation architecture; retain pending final-device evidence.
 

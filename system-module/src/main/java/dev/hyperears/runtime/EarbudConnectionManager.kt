@@ -10,6 +10,8 @@ import dev.hyperears.bridge.NativePresentationContract
 import dev.hyperears.integration.BatteryFeatureState
 import dev.hyperears.integration.BatteryReading
 import dev.hyperears.integration.EarbudBattery
+import dev.hyperears.integration.ControlOwnership
+import dev.hyperears.integration.RoseRsV2Adapter
 import dev.hyperears.integration.ControlAppCatalog
 import dev.hyperears.bridge.AppleNativeAdmissionContract
 import dev.hyperears.bridge.BroadcastIdentity
@@ -84,6 +86,8 @@ internal class EarbudConnectionManager(
 
     private val appContext = context.applicationContext ?: context
     private val lifecycleLock = Any()
+    private val roseDiscovery = RoseManufacturerDiscovery(appContext)
+    private val roseEvidence = RoseIdentityEvidenceStore()
     private val closingSessions = mutableMapOf<String, kotlinx.coroutines.Deferred<Unit>>()
     private val sessions = linkedMapOf<String, SessionRecord>()
     private val observedDevices = linkedMapOf<String, ObservedDevice>()
@@ -253,10 +257,11 @@ internal class EarbudConnectionManager(
         val name = identity.deviceName
         val address = runCatching { device.address }.getOrNull() ?: return false
         val key = normalizeAddress(address)
+        val resolvedIdentity = synchronized(lifecycleLock) { roseEvidence.merge(key, physicalConnections[key], identity) }
 
         val registration = synchronized(lifecycleLock) {
             if (closed || modulePaused) return false
-            retireAddressOnlyAppleClaimLocked(key, identity)
+            retireAddressOnlyAppleClaimLocked(key, resolvedIdentity)
             if (key in systemOwnedAddresses) {
                 ModuleLog.debug(
                     COMPONENT,
@@ -264,11 +269,11 @@ internal class EarbudConnectionManager(
                 )
                 return false
             }
-            if (earbudAdapter is AppleAirPodsAdapter && !earbudAdapter.matches(identity)) return false
-            observedDevices[key] = ObservedDevice(device, identity)
-            requestAppleDecisionLocked(key, identity)
-            val apple = PlatformReservedHeadsetPolicy.isAppleCandidate(identity) || earbudAdapter is AppleAirPodsAdapter
-            if (PlatformReservedHeadsetPolicy.reserves(identity, appleNativeDecisions[key] == false) ||
+            if (earbudAdapter is AppleAirPodsAdapter && !earbudAdapter.matches(resolvedIdentity)) return false
+            observedDevices[key] = ObservedDevice(device, resolvedIdentity)
+            requestAppleDecisionLocked(key, resolvedIdentity)
+            val apple = PlatformReservedHeadsetPolicy.isAppleCandidate(resolvedIdentity) || earbudAdapter is AppleAirPodsAdapter
+            if (PlatformReservedHeadsetPolicy.reserves(resolvedIdentity, appleNativeDecisions[key] == false) ||
                 (apple && (physicalConnections[key] == null || appleNativeDecisions[key] != false))) return false
             if (earbudAdapter.id in disabledAdapterIds) return false
             earbudAdapter.configureDisabledAdapterIds(disabledAdapterIds)
@@ -309,7 +314,7 @@ internal class EarbudConnectionManager(
                 )
                 val record = SessionRecord(
                     session = session,
-                    identity = identity,
+                    identity = resolvedIdentity,
                     token = sessionToken,
                     state = state,
                 )
@@ -321,6 +326,7 @@ internal class EarbudConnectionManager(
             }
         }
 
+        observeRoseManufacturer(device, resolvedIdentity)
         return when (registration) {
             is Registration.Existing -> {
                 registration.record.session.requestConnection()
@@ -343,6 +349,33 @@ internal class EarbudConnectionManager(
         }
     }
 
+    private fun observeRoseManufacturer(device: BluetoothDevice, identity: EarbudIdentity) {
+        if (!RoseManufacturerDiscovery.candidate(identity)) return
+        if (EarbudAdapterRegistry.resolve(identity)?.resolution == dev.hyperears.integration.AdapterResolution.EXACT_MATCH) return
+        val key = normalizeAddress(runCatching { device.address }.getOrNull() ?: return)
+        val connection = synchronized(lifecycleLock) { physicalConnections[key] } ?: return
+        fun eligible() = synchronized(lifecycleLock) {
+            !closed && !modulePaused && physicalConnections[key] == connection && key !in systemOwnedAddresses &&
+                (!externalControlEnabled || ControlAppCatalog.roseLink.packageName !in activeControlAppPackages) &&
+                sessions[key]?.state?.lifecycle?.controlOwnership != ControlOwnership.EXTERNAL_APP
+        }
+        roseDiscovery.observe(device, identity, connection, ::eligible) { data ->
+            val refinement = synchronized(lifecycleLock) {
+                if (!eligible()) return@observe
+                val observed = observedDevices[key] ?: return@observe
+                roseEvidence.accept(key, connection, data)
+                val refined = observed.identity.copy(manufacturerData = data)
+                observedDevices[key] = ObservedDevice(device, refined)
+                val adapter = EarbudAdapterRegistry.forIntegration(refined, disabledAdapterIds) ?: return@observe
+                if (adapter !is RoseRsV2Adapter) return@observe
+                val removal = removeLocked(key)
+                Triple(refined, adapter, removal)
+            }
+            finishRemovals(refinement.third)
+            if (eligible()) registerDevice(device, refinement.first, refinement.second)
+        }
+    }
+
     private fun retireAddressOnlyAppleClaimLocked(key: String, identity: EarbudIdentity) {
         if (PlatformReservedHeadsetPolicy.isAppleCandidate(identity) && systemOwnedAddresses.remove(key)) {
             presentationAdmissions[key] = if (appleNativeDecisions[key] == true) NativeAdmission.SYSTEM else NativeAdmission.UNKNOWN
@@ -354,27 +387,31 @@ internal class EarbudConnectionManager(
     fun observeDevice(device: BluetoothDevice, identity: EarbudIdentity): Boolean {
         val address = runCatching { device.address }.getOrNull() ?: return false
         val key = normalizeAddress(address)
+        val resolvedIdentity = synchronized(lifecycleLock) { roseEvidence.merge(key, physicalConnections[key], identity) }
         val adapter = synchronized(lifecycleLock) {
             if (closed) return false
-            retireAddressOnlyAppleClaimLocked(key, identity)
+            retireAddressOnlyAppleClaimLocked(key, resolvedIdentity)
             if (key in systemOwnedAddresses) return false
-            if (modulePaused && !PlatformReservedHeadsetPolicy.isAppleCandidate(identity)) return false
-            observedDevices[key] = ObservedDevice(device, identity)
-            requestAppleDecisionLocked(key, identity)
-            if (PlatformReservedHeadsetPolicy.isAppleCandidate(identity) &&
-                identity.serviceUuids.none { uuid -> AppleAirPodsAdapter.AAP_SERVICE_UUIDS.any { it.equals(uuid, true) } } &&
+            if (modulePaused && !PlatformReservedHeadsetPolicy.isAppleCandidate(resolvedIdentity)) return false
+            observedDevices[key] = ObservedDevice(device, resolvedIdentity)
+            requestAppleDecisionLocked(key, resolvedIdentity)
+            if (PlatformReservedHeadsetPolicy.isAppleCandidate(resolvedIdentity) &&
+                resolvedIdentity.serviceUuids.none { uuid -> AppleAirPodsAdapter.AAP_SERVICE_UUIDS.any { it.equals(uuid, true) } } &&
                 key in physicalConnections && key !in appleSdpRequested) {
                 // One event-scoped SDP read per physical connection; its broadcast re-enters this gate.
                 runCatching { device.fetchUuidsWithSdp() }
                     .onSuccess { if (it) appleSdpRequested.add(key) }
             }
             if (modulePaused) return false
-            EarbudAdapterRegistry.forIntegration(identity, disabledAdapterIds, appleNativeDecisions[key] == false)
-        } ?: return false
-        return registerDevice(device, identity, adapter)
+            EarbudAdapterRegistry.forIntegration(resolvedIdentity, disabledAdapterIds, appleNativeDecisions[key] == false)
+        }
+        observeRoseManufacturer(device, resolvedIdentity)
+        if (adapter == null) return false
+        return registerDevice(device, resolvedIdentity, adapter)
     }
 
     fun unregisterDevice(device: BluetoothDevice?): Boolean {
+        roseDiscovery.cancel(runCatching { device?.address }.getOrNull(), forget = true)
         val address = if (device == null) {
             null
         } else {
@@ -383,6 +420,7 @@ internal class EarbudConnectionManager(
         val removals = synchronized(lifecycleLock) {
             val keys = if (address == null) physicalConnections.keys.toList() else listOf(normalizeAddress(address))
             keys.forEach { key ->
+                roseEvidence.remove(key)
                 appleRequestedConnections[key]?.let { request ->
                     runCatching { BroadcastIdentity.send(appContext,
                         AppleNativeAdmissionContract.request(request, cancel = true)) }
@@ -421,6 +459,8 @@ internal class EarbudConnectionManager(
      */
     fun claimSystemOwnership(address: String): Boolean {
         val key = normalizeAddress(address)
+        roseDiscovery.cancel(address)
+        synchronized(lifecycleLock) { roseEvidence.remove(key) }
         val result = synchronized(lifecycleLock) {
             if (closed) return false
             // Address-only MiLink claims cannot decide Apple's connection-scoped transport owner.
@@ -458,6 +498,7 @@ internal class EarbudConnectionManager(
      * their adapter declares one of those packages and atomically yield or resume their channel.
      */
     fun updateControlAppPresence(activePackages: Set<String>) {
+        if (externalControlEnabled && ControlAppCatalog.roseLink.packageName in activePackages) roseDiscovery.cancel(null)
         val records = synchronized(lifecycleLock) {
             if (closed) return
             activeControlAppPackages = activePackages.toSet()
@@ -471,6 +512,7 @@ internal class EarbudConnectionManager(
 
     /** Enables or disables voluntary handoff while retaining observed controller-process state. */
     fun updateExternalControlEnabled(enabled: Boolean) {
+        if (enabled && ControlAppCatalog.roseLink.packageName in activeControlAppPackages) roseDiscovery.cancel(null)
         val records = synchronized(lifecycleLock) {
             if (closed || externalControlEnabled == enabled) return
             externalControlEnabled = enabled
@@ -527,6 +569,7 @@ internal class EarbudConnectionManager(
 
     /** Stops all HyperEars device sessions while leaving Android's native Bluetooth profiles intact. */
     fun setModulePaused(paused: Boolean) {
+        if (paused) roseDiscovery.cancel(null)
         val removals = synchronized(lifecycleLock) {
             if (closed || modulePaused == paused) return
             modulePaused = paused
@@ -569,11 +612,13 @@ internal class EarbudConnectionManager(
     }
 
     override fun close() {
+        roseDiscovery.close()
         appleRetention.close()
         val removals = synchronized(lifecycleLock) {
             if (closed) return
             closed = true
             observedDevices.clear()
+            roseEvidence.clear()
             removeLocked(address = null)
         }
         finishRemovals(removals)
@@ -600,6 +645,9 @@ internal class EarbudConnectionManager(
             snapshotLocked(next, record.token).also {
                 knownDevices[key] = it
             }
+        }
+        if (snapshot.state.lifecycle.controlOwnership != ControlOwnership.MODULE) {
+            roseDiscovery.cancel(snapshot.state.address)
         }
         publish(snapshot)
     }

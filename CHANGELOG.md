@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+- Pudding 增加依据发布 APK 实际字节重建的独立协议分支，保留捕获验证的旧协议；
+  有界只读协商后，按有效回报开放五态噪声、增益和 LED，接入原生详情并执行延迟回读。
+  不向 Robin／MIRAGE 外推，不改变旧电量语义；新分支尚待实机复核。
+
+- Sony 新增按协议版本、功能发现和可用状态开放的 DSEE、连接质量及 Speak-to-Chat，
+  接入现有原生高级详情，保留 Table2 隔离和 ACK 队列规则；新增控制尚待实机复核。
+
+- Technics EAH-AZ 新增原生卡片等级详情，按当前模式调节降噪／通透强度，保留另一个
+  已确认等级并执行回读；旧模式请求失效，新增滑块操作尚待实机复核。
+
 - Samsung 补原版 Buds／Buds+ 协议身份，按型号与回报接入 EQ、环境声、手势和主动
   查找；现代自定义 EQ 区分已发送草稿与设备确认模式，查找限时并随自身面板退出停止。
   新增功能尚待实机复核。
@@ -1011,3 +1021,5 @@ MOONDROP Pudding 实机适配；同时更新 Android、Kotlin 与 Gradle 构建�
 [0.10.4]: https://github.com/silverpoetry/HyperEars/releases/tag/v0.10.4
 [0.10.3]: https://github.com/silverpoetry/HyperEars/releases/tag/v0.10.3
 [0.10.2]: https://github.com/silverpoetry/HyperEars/releases/tag/v0.10.2
+
+- ROSELINK：新增九个 RS Common v2 精确配置，通过同地址厂商广播证据自动细化；按型号及回报开放日常设置，新增有界身份扫描、音频切换确认与查找超时。

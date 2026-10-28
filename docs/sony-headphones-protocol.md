@@ -106,3 +106,38 @@ WH-1000XM4 的 v1 握手重发、整机电量、`0x02` 环境声方言和模式�
 accessory UUID 不参与 Sony 品牌判型；`LE_` 广播影子名称不会创建第二个设备会话。
 
 完整来源、固定提交和许可证见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
+
+## DSEE、连接质量和 Speak-to-Chat
+
+此切片依据 SonyPods 固定提交 `3f701ff8f9b30c6909b9dbe8d99248f20d55560e`，
+`SonyFunctionType.kt`、`SonyCapabilityProbe.kt`、`SonyTandemV1Table1Protocol.kt`、
+`SonyTandemV2Table1Protocol.kt` 及对应协议单元测试。它们是来源实现与固定样本证据，
+不是本切片已完成 HyperEars 实机验收的证明。
+
+- DSEE 只在 V2 Table1 开放：支持函数 `E2` 选择 AUDIO 查询类型 `01`，`ED` 选择 `0B`，
+  同时报出时优先 `01`。`E0/E1 [type,generation]` 回报 HX/DSEE/Extreme/Ultimate 的 `0..3`；
+  `E6` 查询，`E7/E9 [type,value]` 确认开关，`E8 [type,value]` 写入，`0=关闭,1=自动`。
+  `0B` 另查询 `E2`，仅 `E3/E5 [type,0=可用/1=禁用]` 开放写入；类型 `01` 由合法参数回报门控。
+- 连接质量同属 V2 Table1：函数 `E7→05` 优先，其次 `E1→00`、`E3→02`。
+  `E6/E7/E9` 参数回报支持 `[type,mode]` 或来源携带切换流状态的 `[type,mode,stream]`；
+  `E2/E3/E5` 单独查询／确认当前可用性。`E8 [type,mode]` 只提供 `00` 音质优先、`01` 连接稳定优先。
+  `05` 回报的 `02` 低延迟保留显示，不提供未经来源 UI 开放的第三个写选项。
+  DSEE 与连接质量的 availability 保留查询类型，互不覆盖；GET 回显不成为状态。
+- Speak-to-Chat 的 V1 函数 `F5→05`，V2 函数 `F2→02`、`FC→0C`，
+  后者依来源支持函数排序选择首先出现的类型。V1 `F8 [05,01,value]` 的 `1=开,0=关`；
+  V2 `F8 [type,value,01]` 的 `0=开,1=关`。`F6` 回读参数：
+  V1 `F7 [05,00,value]`／`F9 [05,01,value]`，V2 `F7/F9 [type,value,01]`。
+  `F2` 查询的 `F3/F5 [type,availability,effect]` 只表示可用性和正在触发的效果，
+  不是开关值；状态与开关都得到合法回报后才允许写入。未知极性、预览标志和长度均拒绝。
+- SonyPods 单元样本中的前导 `0E` 是它的内部 DATA_MDR 标记；此处去掉标记后进入现有
+  SPP Table1 `COMMAND_1` 外层 `0C`。SPP 外层 Table2 `COMMAND_2` 的 `0E` 不参与解析，
+  相同命令字节也不会跨表授予功能。V1 中仅存在同名函数枚举不代表已证明 DSEE／质量写入，故不开放。
+- 新请求携带精确 `(version,inquiredType)` 定义，Adapter 与会话同时验证；支持函数改变或撤销
+  会清除对应旧参数与可用性，旧 IPC 请求不能写到新类型。写入后入队一次参数／状态回读，
+  沿用现有 ACK 顺序和忙时先拒绝、不暗中排队的行为，没有周期轮询或乐观成功。
+- 已有 Sony 高级详情显示独立开关与两档质量选择；显示设备确认值，不可用时保留值并禁用。
+  会话、地址、连接、所有权、弹层和观察者清理规则与 EQ／环境声一致。断连清除新特性。
+
+多点开关属于 GS 能力标题 `MULTIPOINT_SETTING` 对应的动态槽位，并可能需要断连确认；
+Table2 的 SOURCE_SWITCH_CONTROL 是设备管理而非该开关。佩戴检测状态也不等于摘下暂停设置。
+这些流程、自动关机与动态手势映射仍需各自完整实现，不通过通用布尔值或枚举名称推测写入。

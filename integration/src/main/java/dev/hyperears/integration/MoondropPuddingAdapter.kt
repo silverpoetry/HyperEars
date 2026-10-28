@@ -13,6 +13,32 @@ import dev.hyperears.protocol.moondrop.MoondropPuddingWireCodec
 class MoondropPuddingAdapter : MoondropJieliAdapter("moondrop-pudding-spp") {
     override val id: String = ID
     override val displayName: String = "MOONDROP Pudding"
+    override fun createProtocolSession(): ProtocolSession = PuddingAdvancedSession()
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state -> state is PuddingSettingsFeatureState }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is PuddingControlRequest.SetValue && adapter.runtimeState().features.get<PuddingSettingsFeatureState>()?.supports(request) == true
+    }
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = runtimeState().features.get<PuddingSettingsFeatureState>()?.takeIf { it.values.isNotEmpty() }?.let {
+            if (it.values.containsKey(PuddingSetting.NOISE)) PuddingSettingsFeatureState.ADVANCED else PuddingSettingsFeatureState.SETTINGS_ONLY
+        } ?: super.miLinkCardPresentationId
+    override fun onHandshakeStarted(scope: AdapterEventScope) {
+        scope.requestState(PuddingSettingsFeatureState.DIALECT_QUERY, 400L)
+    }
+    override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
+        if (request is PuddingControlRequest.SetValue) {
+            scope.requestState(PuddingSettingsFeatureState.FEATURE_ID, if (request.setting == PuddingSetting.NOISE) 180L else 140L)
+        } else if (request is StandardControlRequest.SetNoiseMode && (protocolSession as PuddingAdvancedSession).isApk) {
+            scope.requestState(PuddingSettingsFeatureState.FEATURE_ID, 180L)
+        } else super.onControlWritten(request, scope)
+    }
+    override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
+        if (request is PuddingControlRequest || (protocolSession as PuddingAdvancedSession).isApk) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() {
+        super.onProtocolReset()
+        removeFeatureState(PuddingSettingsFeatureState.FEATURE_ID)
+    }
+
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false

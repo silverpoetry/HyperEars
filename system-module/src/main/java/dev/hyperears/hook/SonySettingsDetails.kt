@@ -108,13 +108,65 @@ internal class SonySettingsDetails private constructor(
     }
     private fun matches(state: EarbudState, request: SonyControlRequest): Boolean {
         val eq = state.features.get<SonyEqFeatureState>()
+        val audio = state.features.get<SonyAudioSettingsFeatureState>()
         val ambient = state.features.get<SonyAmbientFeatureState>()
         return when (request) {
+            is SonyControlRequest.SetDsee -> audio?.let { it.dseeDefinition == request.expected && it.dsee == request.enabled } == true
+            is SonyControlRequest.SetConnectionQuality -> audio?.let { it.qualityDefinition == request.expected && it.quality == request.mode } == true
+            is SonyControlRequest.SetSpeakToChat -> audio?.let { it.speakDefinition == request.expected && it.speak == request.enabled } == true
             is SonyControlRequest.SetEqPreset -> eq?.preset == request.preset
             is SonyControlRequest.SetEqBands -> eq?.let { value -> value.definition == request.expectedDefinition &&
                 value.rawSteps.map { it - value.center } == request.steps } == true
             is SonyControlRequest.SetClearBass -> eq?.clearBass == request.level
             is SonyControlRequest.SetAmbient -> ambient?.let { it.level == request.level && it.voice == request.voice } == true
+        }
+    }
+    private fun addAudioSettings(parent: LinearLayout) {
+        fun toggle(label: String, value: (SonyAudioSettingsFeatureState) -> Boolean?,
+            request: (SonyAudioSettingsFeatureState, Boolean) -> SonyControlRequest?) {
+            val row = column(); val caption = text(label, 17f); row.addView(caption)
+            val control = createToggle().apply {
+                contentDescription = label; isSaveEnabled = false
+                setOnCheckedChangeListener { _, checked -> if (!rendering) withCurrent { current ->
+                    current.features.get<SonyAudioSettingsFeatureState>()?.let { audio -> request(audio, checked)?.let(::send) }
+                } }
+            }
+            row.addView(control); parent.addView(row)
+            renders += { current ->
+                val audio = current.features.get<SonyAudioSettingsFeatureState>()
+                val reported = audio?.let(value)
+                row.visibility = if (reported == null) View.GONE else View.VISIBLE
+                control.isChecked = reported == true
+                control.isEnabled = audio != null && request(audio, !(reported ?: false))?.let(audio::supports) == true
+                if (label == "DSEE") caption.text = when (audio?.dseeGeneration) {
+                    0 -> "DSEE HX"; 1 -> "DSEE"; 2 -> "DSEE Extreme"; 3 -> "DSEE Ultimate"; else -> "DSEE"
+                }
+            }
+        }
+        toggle("DSEE", { it.dsee }) { state, value -> state.dseeDefinition?.let { SonyControlRequest.SetDsee(it, value) } }
+        toggle("Speak-to-Chat", { it.speak }) { state, value -> state.speakDefinition?.let { SonyControlRequest.SetSpeakToChat(it, value) } }
+        val row = column(); val caption = text("连接质量", 17f); row.addView(caption); parent.addView(row)
+        val options = listOf("音质优先", "连接稳定优先").mapIndexed { mode, label ->
+            text(label, 16f).apply {
+                contentDescription = label
+                setOnClickListener { withCurrent { current ->
+                    current.features.get<SonyAudioSettingsFeatureState>()?.qualityDefinition?.let {
+                        send(SonyControlRequest.SetConnectionQuality(it, mode))
+                    }
+                } }
+                row.addView(this)
+            }
+        }
+        renders += { current ->
+            val audio = current.features.get<SonyAudioSettingsFeatureState>()
+            row.visibility = if (audio?.quality == null) View.GONE else View.VISIBLE
+            caption.text = if (audio?.quality == 2) "连接质量：低延迟（耳机回报）" else "连接质量"
+            options.forEachIndexed { index, view ->
+                view.isSelected = audio?.quality == index
+                view.isEnabled = audio?.qualityDefinition?.let {
+                    audio.supports(SonyControlRequest.SetConnectionQuality(it, index))
+                } == true
+            }
         }
     }
     private fun content(): View {
@@ -126,6 +178,7 @@ internal class SonySettingsDetails private constructor(
         body.addView(text("关闭", 16f).apply { setOnClickListener { dismiss() } })
         body.addView(status)
         val controls = column()
+        addAudioSettings(controls)
         val ambientRow = column()
         val ambientCaption = text("环境声强度", 17f)
         ambientRow.addView(ambientCaption)
