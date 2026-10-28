@@ -14,6 +14,7 @@ import android.widget.Switch
 import android.widget.TextView
 import androidx.core.view.isVisible
 import dev.hyperears.integration.EarbudState
+import dev.hyperears.integration.ControlOwnership
 import dev.hyperears.integration.ControlRequest
 import dev.hyperears.integration.MiLinkCardPresentationId
 import java.lang.ref.WeakReference
@@ -324,7 +325,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
             ))
             ToggleEntry(spec, WeakReference(group), WeakReference(label), WeakReference(toggle))
         }
-        return ToggleController(entries, address, environment)
+        return ToggleController(entries, address, environment, presentationId)
     }
 
     private data class ToggleEntry(
@@ -339,26 +340,54 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         private val entries: List<ToggleEntry>,
         private val address: String,
         private val environment: MiLinkCardEnvironment,
+        private val presentationId: MiLinkCardPresentationId,
     ) {
         private var rendering = false
+        private var bound = true
+        private var token: Any? = null
+        private fun ready(state: EarbudState) = bound && state.address.equals(address, true) &&
+            state.adapter?.presentationId == presentationId && state.sessionActive &&
+            state.privateChannelConnected && state.handshakeAccepted &&
+            state.lifecycle.controlOwnership == ControlOwnership.MODULE
+        private fun isCurrent(state: EarbudState) = ready(state) && token != null && token == environment.sessionTokenProvider(address)
+        private fun disable() {
+            token = null
+            entries.forEach { entry ->
+                entry.toggle.get()?.isEnabled = false
+                entry.label.get()?.isEnabled = false
+                runCatching { entry.details?.dismiss() }; entry.details = null
+            }
+        }
+        private inline fun guarded(action: () -> Unit) {
+            try { action() } catch (_: Exception) { disable() }
+        }
 
         fun bind() {
             entries.forEach { entry ->
                 entry.toggle.get()?.setOnCheckedChangeListener { button, checked ->
-                    onToggleChanged(entry.spec, button, checked)
+                    guarded { onToggleChanged(entry.spec, button, checked) }
                 }
                 (entry.spec as? MiLinkToggleDetailsSpec)?.let { detailsSpec ->
-                    entry.label.get()?.setOnClickListener { anchor ->
+                    entry.label.get()?.setOnClickListener { anchor -> guarded {
+                        val state = environment.stateProvider(address)
+                        if (!isCurrent(state)) { disable(); return@guarded }
+                        val value = entry.spec.render(state)
+                        if (!value.available || !value.enabled) return@guarded
                         entry.details?.dismiss()
                         entry.details = detailsSpec.openDetails(anchor, address, environment).also {
                             it.render(environment.stateProvider(address))
                         }
-                    }
+                    } }
                 }
             }
         }
 
-        fun render(state: EarbudState) {
+        fun render(state: EarbudState): Unit = guarded {
+            if (!ready(state)) { disable(); return@guarded }
+            val next = environment.sessionTokenProvider(address)
+            if (token != next) disable()
+            token = next
+            if (token == null) { disable(); return@guarded }
             rendering = true
             try {
                 entries.forEach { entry ->
@@ -369,6 +398,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
                     entry.group.get()?.alpha = if (value.enabled) ENABLED_ALPHA else DISABLED_ALPHA
                     toggle.isChecked = value.checked
                     toggle.isEnabled = value.available && value.enabled
+                    entry.label.get()?.isEnabled = value.available && value.enabled
                 }
             } finally {
                 rendering = false
@@ -376,6 +406,8 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         }
 
         fun unbind() {
+            if (!bound) return
+            bound = false; disable()
             entries.forEach { entry ->
                 entry.toggle.get()?.setOnCheckedChangeListener(null)
                 entry.label.get()?.setOnClickListener(null)
@@ -385,8 +417,9 @@ internal open class NativeAncToggleMiLinkCardAdapter(
         }
 
         private fun onToggleChanged(spec: MiLinkToggleSpec, button: CompoundButton, checked: Boolean) {
-            if (rendering) return
+            if (rendering || !bound) return
             val current = environment.stateProvider(address)
+            if (!isCurrent(current)) { disable(); return }
             val currentToggleState = spec.render(current)
 
             // A UI gesture is only a request. Restore the authoritative value until the device

@@ -220,3 +220,26 @@ display uses a dash for missing readings and includes readable case telemetry.
     evidence is confirmed, HyperEars exposes WIND as a switch beside that native section. The same
     CardAdapter recognizes both the original ANC row and HyperOS 4's select-card row; the switch is
     rendered from authoritative Adapter state and keeps no duplicate UI state.
+
+## W820NB Double Gold V1 recovery from PR #50
+
+The original contribution by QNquenan (`d38eea5f8c9aa06ffc23480b3cc421113786266e`)
+is preserved in branch ancestry. Original RFCOMM captures and author testing establish the
+protocol facts; this changed maintenance version has not received device revalidation.
+The former text-matched selected-state workaround is replaced by the current shared native
+ANC host and independent game-mode toggle. PR #50 was author-closed, not a documented rejection;
+this integration does not change its status or claim a new contributor acceptance result.
+
+V1 sends `[AA][length][command][payload][sum16 big endian]`; responses use BB or CC.
+Length includes command, and sum16 adds 8217 to all preceding unsigned bytes. Despite the
+original CRC name, this is an additive checksum, without encryption. Battery D0 is one byte
+0..100 for the entire headphone; CC noise reports have one or two payload bytes, modes
+1=Off, 2=ANC, 3=Transparency. C1 writes the mode. Game query08/set09 accepts only one-byte
+0/1 reports. ANC and game writes query their existing read command afterward; no optimistic
+state is applied. Reported transparency depth is retained in the codec but not exposed without
+an evidenced range. No four-state/wind behavior is inferred from the BES v2 family.
+
+Captured examples: battery query `AA 01 D0 21 94`, battery53% `BB 02 D0 35 21 DB`,
+ANC `BB 03 CC 02 06 21 AB`, game query `AA 01 08 20 CC`. The decoder rejects zero length,
+wrong sums, invalid state values and oversized state shapes; bounded chunks prevent stream
+noise from allocating a growing buffer. Reset clears game, battery and noise evidence.

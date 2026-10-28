@@ -91,6 +91,7 @@ internal object MiLinkCardAdapterRegistry {
         BoseDailySettingsOnlyMiLinkCardAdapter,
         EdifierFourModeMiLinkCardAdapter,
         EdifierFitBudsTurboMiLinkCardAdapter,
+        EdifierW820NBDoubleGoldMiLinkCardAdapter,
         FitClipUltraGameModeMiLinkCardAdapter,
         FloS2SoundEffectMiLinkCardAdapter,
         RoseCoralMiLinkCardAdapter,

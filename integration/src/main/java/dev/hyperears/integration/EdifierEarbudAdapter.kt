@@ -218,6 +218,7 @@ class EdifierFitClipUltraAdapter : EdifierGameModeAdapter() {
 }
 
 object EdifierMiLinkPresentationIds {
+    val W820NB = MiLinkCardPresentationId("edifier-w820nb-double-gold")
     val FOUR_MODE = MiLinkCardPresentationId("edifier-four-mode")
     val GAME_MODE = MiLinkCardPresentationId("edifier-fitclip-game")
 
