@@ -30,6 +30,7 @@ import java.util.IdentityHashMap
 /** Owns only explicitly authorized native window instances, never the native Apple device service. */
 internal class AirPodsWindowBridge(
     private val context: Context,
+    private val forBinding: (NativeWindowRequest) -> NativeWindowRequest?,
     private val onOpened: (String, IBinder) -> Unit,
     private val onClosed: (String) -> Unit,
     private val openSettings: (Context, EarbudState) -> Boolean,
@@ -46,12 +47,12 @@ internal class AirPodsWindowBridge(
     private var enabled = false
 
     private class Binding(
-        val request: NativeWindowRequest,
+        var request: NativeWindowRequest,
         val controller: Any,
         val activity: Activity,
         val connection: ServiceConnection,
-        var state: EarbudState,
     ) {
+        val state: EarbudState get() = request.state
         var active = true
         var closing = false
         var bound = false
@@ -95,7 +96,7 @@ internal class AirPodsWindowBridge(
                 activity.finish()
                 return@intercept null
             }
-            val request = runCatching { NativeWindowRequest.read(activity) }.getOrNull()
+            val request = runCatching { NativeWindowRequest.read(activity)?.let(forBinding) }.getOrNull()
             if (request == null || !consumedTickets.add(request.id)) {
                 ModuleLog.warn(TAG, "rejected invalid native window authorization")
                 activity.finish()
@@ -108,7 +109,7 @@ internal class AirPodsWindowBridge(
                 return@intercept null
             }
             val binding = Binding(request, controller, activity,
-                NativeMembers.get(controller, "mFastConnectServiceConnection") as ServiceConnection, request.state)
+                NativeMembers.get(controller, "mFastConnectServiceConnection") as ServiceConnection)
             binding.binder = localService(binding)
             binding.death = IBinder.DeathRecipient { handler.post { close(binding, "producer died") } }
             runCatching { request.producer.linkToDeath(binding.death, 0) }.getOrElse {
@@ -152,7 +153,7 @@ internal class AirPodsWindowBridge(
 
         hookBefore(read) {
             val binding = controllers[instance] ?: return@hookBefore
-            if (binding.active && args[0] == binding.state.address) result = stateArray(binding)
+            if (binding.active && args[0] == binding.state.address) result = binding.request.stateArray()
         }
 
         // The Controller uses an in-process display service. Only its exact Activity/connection
@@ -273,13 +274,12 @@ internal class AirPodsWindowBridge(
     fun update(state: EarbudState, session: String, metadata: NativePresentationMetadata, producer: IBinder) {
         controllers.values.toList().filter { it.state.address == state.address }.forEach { binding ->
             if (!binding.active || binding.closing || binding.activity.isFinishing) return@forEach
-            if (producer != binding.request.producer || session != binding.request.session ||
-                metadata.connection.id != binding.request.metadata.connection.id ||
-                metadata.admission != NativeAdmission.HYPEREARS || !state.sessionActive) {
+            val updated = binding.request.updated(state, session, metadata, producer)
+            if (updated == null) {
                 close(binding, "session ended or ownership changed")
             } else if (state.revision > binding.state.revision) {
                 val previous = projection(binding)
-                binding.state = state
+                binding.request = updated
                 val p = projection(binding)
                 if (previous.singleBattery != p.singleBattery || previous.artwork != p.artwork) {
                     // PairingDialog.setCustomView only applies before the first show. Retire this
@@ -340,14 +340,6 @@ internal class AirPodsWindowBridge(
     }
 
     private fun projection(binding: Binding) = requireNotNull(NativeHeadsetProjection.from(binding.state))
-
-    private fun stateArray(binding: Binding): Array<String> {
-        val p = projection(binding)
-        return arrayOf(p.left.percent?.toString() ?: "-", p.right.percent?.toString() ?: "-",
-            p.chargingCase.percent?.toString() ?: "-", "false", "false",
-            p.left.charging.toString(), p.right.charging.toString(), p.chargingCase.charging.toString(),
-            p.address, "2", p.name)
-    }
 
     private fun charging(p: NativeHeadsetProjection): Int =
         (if (p.left.charging) 1 else 0) or (if (p.right.charging) 2 else 0) or

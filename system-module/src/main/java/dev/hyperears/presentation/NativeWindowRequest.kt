@@ -19,6 +19,53 @@ internal data class NativeWindowRequest(
     val metadata: NativePresentationMetadata,
     val producer: IBinder,
 ) {
+    fun forBinding(
+        latest: NativeWindowRequest?,
+        currentProducer: IBinder?,
+        hasAcceptedState: Boolean,
+    ): NativeWindowRequest? {
+        if (!state.sessionActive || metadata.admission != NativeAdmission.HYPEREARS ||
+            (currentProducer != null && currentProducer != producer)
+        ) {
+            return null
+        }
+        // A known lifecycle without an eligible record has ended or ceded native ownership.
+        if (latest == null) return takeUnless { hasAcceptedState }
+        return updated(latest.state, latest.session, latest.metadata, latest.producer)
+    }
+
+    fun updated(
+        state: EarbudState,
+        session: String,
+        metadata: NativePresentationMetadata,
+        producer: IBinder,
+    ): NativeWindowRequest? {
+        if (state.address != this.state.address || producer != this.producer || session != this.session ||
+            metadata.connection != this.metadata.connection ||
+            metadata.admission != NativeAdmission.HYPEREARS || !state.sessionActive
+        ) {
+            return null
+        }
+        return if (state.revision > this.state.revision) copy(state = state, metadata = metadata) else this
+    }
+
+    fun stateArray(): Array<String> {
+        val p = requireNotNull(NativeHeadsetProjection.from(state))
+        return arrayOf(
+            p.left.percent?.toString() ?: "-",
+            p.right.percent?.toString() ?: "-",
+            p.chargingCase.percent?.toString() ?: "-",
+            "false",
+            "false",
+            p.left.charging.toString(),
+            p.right.charging.toString(),
+            p.chargingCase.charging.toString(),
+            p.address,
+            "2",
+            p.name,
+        )
+    }
+
     companion object {
         const val ACTIVITY = "com.android.bluetooth.ble.app.fastconnect.MiuiFastConnectActivity"
         private const val PAYLOAD = "dev.hyperears.native_snapshot"

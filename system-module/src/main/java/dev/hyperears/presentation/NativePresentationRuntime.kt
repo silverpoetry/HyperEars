@@ -136,6 +136,17 @@ internal class NativePresentationRuntime(
         if (!popupCompatible) return
         runCatching {
             AirPodsWindowBridge(context,
+                forBinding = { request ->
+                    val address = request.state.address
+                    val record = address?.let(records::get)
+                    request.forBinding(
+                        latest = record?.let {
+                            NativeWindowRequest(request.id, it.state, it.session, it.metadata, it.producer)
+                        },
+                        currentProducer = producer,
+                        hasAcceptedState = address != null && registry.knownState(address) != null,
+                    )
+                },
                 onOpened = { id, token -> sendWindowEvent(id, token) },
                 onClosed = { id -> sendWindowEvent(id, null) },
                 openSettings = ::openHeadsetSettings,
