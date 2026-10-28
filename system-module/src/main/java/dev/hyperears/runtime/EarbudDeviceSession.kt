@@ -141,6 +141,7 @@ internal class EarbudDeviceSession(
     private val controlPacingLock = Any()
     private val refreshRequestGate = RefreshRequestGate(REFRESH_COALESCE_MS)
     private val stateRequests = StateRequestDispatcher(scope)
+    private val protocolCleanups = ProtocolCleanupDispatcher(scope)
     private var lastControlAt = Long.MIN_VALUE
 
     @Volatile
@@ -422,12 +423,13 @@ internal class EarbudDeviceSession(
                             "writeMs=${SystemClock.elapsedRealtime() - writeStartedAt} " +
                             "gapMs=${policy.commandGapMs}"
                     }
+                    val written = writtenControlEffects(adapter, request)
                     applyAdapterEffects(
                         activeChannel = activeChannel,
                         expectedAdapter = adapter,
-                        effects = adapter.controlWritten(request),
+                        effects = written.effects,
                     )
-                    if (result.stateChanged) publishSnapshot()
+                    if (result.stateChanged || written.localStateChanged) publishSnapshot()
                     val readback = result.readback
                     if (readback.isNotEmpty()) {
                         delay(policy.readbackDelayMs)
@@ -461,6 +463,7 @@ internal class EarbudDeviceSession(
             handoffLease.clear()
         }
         stateRequests.cancelAll("device session closed")
+        protocolCleanups.cancelAll()
         transportStopping = true
         synchronized(connectionJobLock) { connectionJob.also { connectionJob = null } }?.cancel()
         scope.cancel()
@@ -630,6 +633,7 @@ internal class EarbudDeviceSession(
                 return ConnectedTransport(candidate)
             } catch (error: Throwable) {
                 stateRequests.cancelAll("handshake candidate failed")
+                protocolCleanups.cancelAll()
                 adapter.resetProtocolSession()
                 candidate.close()
                 synchronized(transportLock) {
@@ -874,6 +878,7 @@ internal class EarbudDeviceSession(
     ) {
         if (channel !== activeChannel) throw CancellationException("stale adapter replacement")
         stateRequests.cancelAll("adapter replaced")
+        protocolCleanups.cancelAll()
         adapter = replacement.adapter
         ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages)
             ?.takeIf { externalControlEnabled }
@@ -999,6 +1004,25 @@ internal class EarbudDeviceSession(
     ) {
         effects.forEach { effect ->
             when (effect) {
+                is AdapterEffect.ScheduleProtocolCleanup -> protocolCleanups.schedule(
+                    effect.key, effect.delayMs,
+                    expire = {
+                        transactionMutex.withLock {
+                            currentCoroutineContext().ensureActive()
+                            if (closed.get() || transportStopping || externalControlApp != null ||
+                                channel !== activeChannel || adapter !== expectedAdapter) return@withLock
+                            val commands = expectedAdapter.expireProtocolWorkflow(effect.key, effect.lease)
+                            if (commands.isNotEmpty()) sendCommands(activeChannel, commands, COMMAND_GAP_MS,
+                                "protocol workflow cleanup ${effect.key}")
+                            publishSnapshot()
+                        }
+                    },
+                    failed = { error ->
+                        ModuleLog.warn(COMPONENT, "protocol workflow cleanup failed key=${effect.key}", error)
+                        activeChannel.close()
+                    },
+                )
+                is AdapterEffect.CancelProtocolCleanup -> protocolCleanups.cancel(effect.key)
                 is AdapterEffect.RequestState -> {
                     stateRequests.request(
                         featureId = effect.featureId,
@@ -1079,6 +1103,7 @@ internal class EarbudDeviceSession(
         appleRegistration?.close(); appleRegistration = null
         appleProximity?.close(); appleProximity = null; appleProximityChannel = null
         stateRequests.cancelAll("vendor channel cleared")
+        protocolCleanups.cancelAll()
         runCatching {
             closeOwnedChannel(oldChannel, transactionMutex, prepare = {
                 collectingHostCleanup = graceful
@@ -1092,6 +1117,7 @@ internal class EarbudDeviceSession(
                 (adapter as? AppleAirPodsAdapter)?.privateMotionReceiver = null
                 val commands = mutableListOf<ByteArray>()
                 if (graceful) {
+                    commands.addAll(adapter.prepareProtocolRelease())
                     while (true) {
                         val request = closingHostRequests.poll() ?: break
                         val result = adapter.executeControl(request)

@@ -30,6 +30,7 @@ import dev.hyperears.integration.EarbudAdapterGroup
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
 import dev.hyperears.settings.ModuleSettings
+import dev.hyperears.settings.ConnectionVolumePreset
 import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.bridge.BroadcastIdentity
 import dev.hyperears.bridge.NativePresentationContract
@@ -116,6 +117,17 @@ fun MiuixSettingsScreen(
                         onSelectedIndexChange = { index ->
                             HeadsetConnectionPresentation.entries.getOrNull(index)?.let {
                                 onSettingsChanged(settings.copy(headsetConnectionPresentation = it))
+                            }
+                        },
+                    )
+                    WindowSpinnerPreference(
+                        items = ConnectionVolumePreset.entries.map { DropdownItem(text = it.title) },
+                        selectedIndex = ConnectionVolumePreset.entries.indexOf(settings.connectionVolume),
+                        title = ConnectionVolumePreset.TITLE,
+                        summary = ConnectionVolumePreset.SUMMARY,
+                        onSelectedIndexChange = { index ->
+                            ConnectionVolumePreset.entries.getOrNull(index)?.let {
+                                onSettingsChanged(settings.copy(connectionVolume = it))
                             }
                         },
                     )

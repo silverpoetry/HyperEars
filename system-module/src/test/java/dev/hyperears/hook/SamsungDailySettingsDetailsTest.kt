@@ -195,6 +195,70 @@ class SamsungDailySettingsDetailsTest {
         details.dismiss()
     }
 
+    @Test fun fitWorkflowExplicitStartTimeoutResultAndStaleOwnership() {
+        val f=Fixture(SamsungBudsCodec.Model.BUDS2_PRO)
+        val details=f.open();val window=popup(details)
+        assertTrue(f.sent.isEmpty())
+        button(window,"开始贴合度测试").performClick()
+        val start=f.sent.single() as SamsungDailyControlRequest.FitTest
+        assertTrue(start.start)
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(fitLease=start.lease))
+        f.observer!!(f.state)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(31))
+        assertEquals(start.copy(start=false),f.sent.last())
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(fitLease=null))
+        f.observer!!(f.state)
+        button(window,"开始贴合度测试").performClick()
+        val second=f.sent.last() as SamsungDailyControlRequest.FitTest
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(fitLease=null,fitResult=listOf(0,1),fitResultLease=second.lease))
+        f.observer!!(f.state)
+        val count=f.sent.size;shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(31));assertEquals(count,f.sent.size)
+        button(window,"开始贴合度测试").performClick()
+        val third=f.sent.last() as SamsungDailyControlRequest.FitTest
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(fitLease=third.lease,fitResult=null,fitResultLease=null))
+        f.token="new";f.observer!!(f.state)
+        assertEquals(count+1,f.sent.size);assertEquals(1,f.released)
+    }
+    @Test fun fitCloseStopsOnlyOwnLeaseAndUnsupportedModelHasNoStart() {
+        val f=Fixture(SamsungBudsCodec.Model.BUDS2_PRO);val details=f.open()
+        button(popup(details),"开始贴合度测试").performClick()
+        val start=f.sent.single() as SamsungDailyControlRequest.FitTest
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(fitLease=start.lease))
+        details.dismiss();assertEquals(start.copy(start=false),f.sent.last())
+        details.dismiss();assertEquals(2,f.sent.size)
+        val other=Fixture(SamsungBudsCodec.Model.BUDS_PRO);val panel=other.open()
+        assertFalse(descendants(popup(panel).contentView).filterIsInstance<Button>().any{it.text=="开始贴合度测试"})
+        panel.dismiss()
+    }
+
+
+    @Test fun nativeFitEntryOnlyOpensAndRejectsChangedRevisionOrOwnership() {
+        val f=Fixture(SamsungBudsCodec.Model.BUDS2_PRO)
+        val screen=androidx.preference.PreferenceManager(f.activity).createPreferenceScreen(f.activity)
+        val host=SettingsPreferenceHost(javaClass.classLoader!!,f.activity,screen)
+        var opened=0
+        SettingsSamsungFitRows.add(host,f.state,f.address,{screen.addPreference(it as androidx.preference.Preference)},{f.state},{opened++})
+        val row=screen.findPreference<androidx.preference.Preference>("hyperears.samsung.fit")!!
+        row.onPreferenceClickListener!!.onPreferenceClick(row)
+        assertEquals(1,opened);assertTrue(f.sent.isEmpty())
+        val original=f.state
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(revision=14))
+        row.onPreferenceClickListener!!.onPreferenceClick(row);assertEquals(1,opened)
+        f.state=original.copy(lifecycle=original.lifecycle.copy(privateTransport=PrivateTransportState.IDLE))
+        row.onPreferenceClickListener!!.onPreferenceClick(row);assertEquals(1,opened)
+    }
+    @Test fun fitOwnershipLossClosesWithoutWritingStopIntoForeignOwner() {
+        val f=Fixture(SamsungBudsCodec.Model.BUDS2_PRO);val details=f.open()
+        button(popup(details),"开始贴合度测试").performClick()
+        val start=f.sent.single() as SamsungDailyControlRequest.FitTest
+        f.state=f.state.withFeature(f.state.features.get<SamsungDailySettingsFeatureState>()!!.copy(fitLease=start.lease))
+            .copy(lifecycle=f.state.lifecycle.copy(privateTransport=PrivateTransportState.IDLE))
+        f.observer!!(f.state)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(31))
+        assertEquals(listOf(start),f.sent);assertEquals(1,f.released)
+        details.dismiss()
+    }
+
     private fun button(popup: PopupWindow,text:String)=descendants(popup.contentView).filterIsInstance<Button>().single { it.text==text }
     private fun popup(details:MiLinkToggleDetails)=details.javaClass.getDeclaredField("popup").apply { isAccessible=true }.get(details) as PopupWindow
     private fun descendants(view:View):Sequence<View> = sequence { yield(view); if(view is ViewGroup) for(i in 0 until view.childCount) yieldAll(descendants(view.getChildAt(i))) }

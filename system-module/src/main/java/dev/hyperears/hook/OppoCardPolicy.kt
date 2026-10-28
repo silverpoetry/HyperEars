@@ -7,7 +7,7 @@ internal object OppoCardPolicy {
         state.sessionActive && state.privateChannelConnected && state.handshakeAccepted &&
         state.lifecycle.controlOwnership == ControlOwnership.MODULE
     fun available(state: EarbudState, address: String) = ready(state, address) &&
-        state.features.get<OppoSettingsFeatureState>()?.hasSettings == true
+        (state.features.get<OppoSettingsFeatureState>()?.hasSettings == true || state.features.get<OppoFitFeatureState>()?.advertised==true)
     fun request(state: EarbudState, address: String, request: OppoControlRequest): OppoControlRequest? {
         if (!ready(state, address)) return null
         val settings = state.features.get<OppoSettingsFeatureState>() ?: return null

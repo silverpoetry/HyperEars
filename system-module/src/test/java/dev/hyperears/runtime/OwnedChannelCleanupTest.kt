@@ -7,6 +7,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class OwnedChannelCleanupTest {
+    @Test fun protocolWorkflowCancellationIsDrainedOnceBeforePhysicalClose() = runBlocking {
+        val events = mutableListOf<String>()
+        val adapter = object : dev.hyperears.integration.StandardEarbudAdapter() {
+            var owned = true
+            override fun prepareProtocolRelease(): List<ByteArray> =
+                if (owned) { owned = false; listOf(byteArrayOf(0)) } else emptyList()
+        }
+        closeOwnedChannel(Channel(events), Mutex(), adapter::prepareProtocolRelease,
+            { events.add("reset"); adapter.resetProtocolSession() })
+        assertEquals(listOf("write:0", "close", "reset"), events)
+        assertTrue(adapter.prepareProtocolRelease().isEmpty())
+    }
     private class Channel(private val events: MutableList<String>) : EarbudChannel {
         override val endpointId = "fixture"
         var blocking = false

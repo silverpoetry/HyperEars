@@ -41,6 +41,7 @@ data class ModuleSettings(
     val disabledAdapterIds: Set<String> = emptySet(),
     val headsetConnectionPresentation: HeadsetConnectionPresentation = HeadsetConnectionPresentation.SMART,
     val headsetDetailNotification: Boolean = false,
+    val connectionVolume: ConnectionVolumePreset = ConnectionVolumePreset.OFF,
 )
 
 /**
@@ -61,6 +62,7 @@ object ModuleSettingsStore {
     private const val DISABLED_ADAPTER_IDS = "disabled_adapter_ids"
     private const val HEADSET_CONNECTION_PRESENTATION = "headset_connection_presentation"
     private const val HEADSET_DETAIL_NOTIFICATION = "headset_detail_notification"
+    private const val CONNECTION_VOLUME = "connection_volume"
     private const val REMOTE_MIGRATION_COMPLETE = "remote_migration_complete"
     private const val REMOTE_WRITE_PENDING = "remote_write_pending"
 
@@ -73,6 +75,7 @@ object ModuleSettingsStore {
             preferences.getString(HEADSET_CONNECTION_PRESENTATION, null),
         ),
         headsetDetailNotification = preferences.getBoolean(HEADSET_DETAIL_NOTIFICATION, false),
+        connectionVolume = ConnectionVolumePreset.fromStoredValue(preferences.getString(CONNECTION_VOLUME, null)),
         disabledAdapterIds = preferences
             .getStringSet(DISABLED_ADAPTER_IDS, emptySet())
             .orEmpty()
@@ -93,6 +96,7 @@ object ModuleSettingsStore {
             .putBoolean(DIAGNOSTIC_LOGGING, settings.diagnosticLogging)
             .putString(HEADSET_CONNECTION_PRESENTATION, settings.headsetConnectionPresentation.name)
             .putBoolean(HEADSET_DETAIL_NOTIFICATION, settings.headsetDetailNotification)
+            .putString(CONNECTION_VOLUME, settings.connectionVolume.name)
             .putStringSet(DISABLED_ADAPTER_IDS, settings.disabledAdapterIds.toRemotePreferencesSet())
             .commit()
 
@@ -159,6 +163,7 @@ object ModuleSettingsStore {
         DISABLED_ADAPTER_IDS,
         HEADSET_CONNECTION_PRESENTATION,
         HEADSET_DETAIL_NOTIFICATION,
+        CONNECTION_VOLUME,
     )
 }
 

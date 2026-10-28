@@ -430,28 +430,36 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The widget/Huawei paired-device/Bose audio-name/RSv2 touch checkpoint passes 1,394 tests
-(348 protocol, 546 integration, 500 system-module), Release lint/assembly and protocol-test
-Debug assembly. Verification log: `.analysis/verification/widgets-huawei-bose-rsv2-final.log`.
+The explicit fit-test/connection-volume checkpoint passes 1,424 tests (350 protocol,
+554 integration, 520 system-module), Release lint/assembly and protocol-test Debug assembly.
+Verification log: `.analysis/verification/fit-volume-final.log`. No device operations occurred.
 
-Desktop battery widgets use authenticated reduced state, bounded dedup, historical timestamps,
-per-widget selection and native Settings navigation without private controls or periodic work.
-Resource-aware Robolectric tests exercise actual layouts, sender and scope rejection, producer
-replacement rollback, restore-ID overlap, lifecycle and production broadcaster wiring. Six native
-rendered previews cover compact/wide/minimum dimensions and large-font/dark variants. Reviewed
-minimum size is 110 by 90 dp; labels are at least 11 sp. Launcher acceptance remains pending.
+OPPO fit detection requires one of 31 source-qualified SPP product IDs, live identity, advertised
+fit-result event support and both-ear wearing reports. Samsung fit testing requires one of nine
+explicit source profiles and a valid current extended-status report. Native Settings entries open
+existing themed workflow details; neither entry starts a test automatically. Local leases represent
+request ownership, not device success. Results, explicit stops, wear/support loss and resets are
+handled independently from ACKs. Result frames lack transaction IDs, so rapid-stop/restart late
+result ambiguity is documented rather than hidden behind invented wire correlation.
 
-Huawei paired-device management requires a complete bounded source-defined enumeration, pins
-its full snapshot and rechecks destructive confirmations. FreeBuds 6i and FreeLace Pro 2 do not
-inherit auto-connect writes. Bose 4082 gains five-byte-preserving spatial/wind controls with a
-pending-write guard and explicit refresh; 4020/4039 gain firmware rename through native text
-preferences with a 31-byte UTF-8 write limit, distinct from the larger readable name bound.
+A minimal adapter cleanup extension was necessary because telemetry reads must not encode stop
+writes and UI timers do not survive host process death. Successful starts schedule one Bluetooth-
+owned 16/30-second deadline, scoped to exact adapter/channel/lease and current ownership. Graceful
+release drains an owned STOP on the old channel before physical close/handoff; abrupt disconnect
+only resets. Local post-write ownership changes publish without claiming device result confirmation.
+Independent review caught and fixed missing post-write publication; regression execution caught
+and fixed a View-handler shadowing bug in the OPPO button callback.
 
-RSv2 already had 25 model-qualified popup touch editors; this batch adds missing native inline
-rows and full raw/model stale guards, preserves unknown current actions as read-only, and fixes
-KY01's source-declared ANC-cycle gesture independently of noise-control availability. Historical
-inventory counts are not current missing-editor counts. Independent source review preceded tests.
+Optional connection media-volume presets are default-off and apply at most once per fresh physical
+connection within ten seconds, only to an exactly matching active media route. Replays, calls,
+manual volume changes, settings/owner/session changes cancel; callbacks are bounded and removed.
+There is no disconnect restoration, focus request, playback or route change. Both settings UIs use
+the same stored preset. This is phone behavior, not a private headphone capability.
 
-These are code/build/render checks, not new hardware acceptance. No phone installation, scope
-change, restart or settings mutation occurred. Other open family and Android-experience features,
-owned-device feedback and release/Draft-PR work remain; the comprehensive goal stays active.
+Remaining work still includes family-specific source gaps, battery speech and other D1/D2/D3/D4
+features, final capability-matrix reconciliation, owned-device feedback and Draft-PR delivery.
+Root's fresh source inspection also found unabsorbed HuaweiPods exact routes/level domains (4E,
+5/6/7/7i and accessory variants) that must be checked against existing adapters rather than marked
+complete from the earlier OpenFreebuds catalog. Technics adaptive/A800 evidence remains distinct
+from its implemented TWS levels; no unproven transport or aggregate battery route was fabricated.
+The comprehensive goal remains active; current checks are not new physical-device acceptance.

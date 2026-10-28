@@ -53,6 +53,7 @@ import dev.hyperears.integration.EarbudAdapterKind
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
 import dev.hyperears.settings.ModuleSettings
+import dev.hyperears.settings.ConnectionVolumePreset
 import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.bridge.BroadcastIdentity
 import dev.hyperears.bridge.NativePresentationContract
@@ -127,6 +128,10 @@ fun SettingsScreen(
                 SettingsGroupCard {
                     HeadsetPresentationPreference(settings.headsetConnectionPresentation) {
                         onSettingsChanged(settings.copy(headsetConnectionPresentation = it))
+                    }
+                    PreferenceDivider()
+                    ConnectionVolumePreference(settings.connectionVolume) {
+                        onSettingsChanged(settings.copy(connectionVolume = it))
                     }
                     PreferenceDivider()
                     TogglePreference(
@@ -245,6 +250,35 @@ private fun HeadsetPresentationPreference(
         )
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             HeadsetConnectionPresentation.entries.forEach { choice ->
+                DropdownMenuItem(text = { Text(choice.title) }, onClick = {
+                    expanded = false
+                    onSelected(choice)
+                })
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionVolumePreference(
+    selected: ConnectionVolumePreset,
+    onSelected: (ConnectionVolumePreset) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        ListItem(
+            headlineContent = { Text(ConnectionVolumePreset.TITLE, fontWeight = FontWeight.Medium) },
+            supportingContent = { Text(ConnectionVolumePreset.SUMMARY) },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(selected.title)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = "选择连接媒体音量")
+                }
+            },
+            modifier = Modifier.clickable { expanded = true },
+        )
+        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            ConnectionVolumePreset.entries.forEach { choice ->
                 DropdownMenuItem(text = { Text(choice.title) }, onClick = {
                     expanded = false
                     onSelected(choice)

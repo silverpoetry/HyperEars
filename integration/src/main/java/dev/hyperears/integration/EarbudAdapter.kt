@@ -135,6 +135,16 @@ abstract class EarbudAdapter(
 
     protected open fun createProtocolSession(): ProtocolSession = StandardBluetoothProtocolSession()
 
+    /**
+     * Drain cancellation for a locally initiated protocol workflow before graceful channel release.
+     * Called under the old channel's transaction lock; never starts a workflow or borrows a new
+     * owner's channel. Overrides must consume their lease once. Reset handles abrupt disconnects.
+     */
+    open fun prepareProtocolRelease(): List<ByteArray> = emptyList()
+
+    /** Expire only the exact local workflow lease that requested this transport-owned deadline. */
+    open fun expireProtocolWorkflow(key: String, lease: Long): List<ByteArray> = emptyList()
+
     /** Begins the one adapter-owned protocol confirmation phase. */
     fun beginHandshake(): AdapterIoResult {
         if (!privateProtocolRequired) {
@@ -468,6 +478,13 @@ abstract class EarbudAdapter(
 
 private class RecordingAdapterEventScope : AdapterEventScope {
     private val recordedEffects = mutableListOf<AdapterEffect>()
+
+    override fun scheduleProtocolCleanup(key: String, lease: Long, delayMs: Long) {
+        recordedEffects += AdapterEffect.ScheduleProtocolCleanup(key, lease, delayMs)
+    }
+    override fun cancelProtocolCleanup(key: String) {
+        recordedEffects += AdapterEffect.CancelProtocolCleanup(key)
+    }
 
     override fun requestState(featureId: String, delayMs: Long) {
         recordedEffects += AdapterEffect.RequestState(featureId, delayMs)

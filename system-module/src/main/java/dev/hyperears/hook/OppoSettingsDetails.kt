@@ -24,6 +24,7 @@ internal class OppoSettingsDetails private constructor(
     private val handler = Handler(Looper.getMainLooper())
     private val renders = mutableListOf<(OppoSettingsFeatureState) -> Unit>()
     private var unsubscribe: (() -> Unit)? = null
+    private val fit=OppoFitWorkflow(context,address,environment,::valid)
     private var closed = false
     private var rendering = false
     private var pending: OppoControlRequest? = null
@@ -70,7 +71,8 @@ internal class OppoSettingsDetails private constructor(
     private fun renderState(state: EarbudState) {
         if (closed) return
         if (!valid(state)) { dismiss(); return }
-        val settings = state.features.get<OppoSettingsFeatureState>() ?: return
+        fit.render(state)
+        val settings = state.features.get<OppoSettingsFeatureState>() ?: OppoSettingsFeatureState()
         pending?.let {
             if (OppoCardPolicy.matches(settings, it)) {
                 pending = null; handler.removeCallbacks(timeout); status.text = "耳机已确认设置。"
@@ -99,6 +101,7 @@ internal class OppoSettingsDetails private constructor(
     }
     override fun dismiss() {
         if (closed) return
+        fit.close()
         closed = true
         handler.removeCallbacks(timeout)
         pending = null
@@ -115,6 +118,7 @@ internal class OppoSettingsDetails private constructor(
         body.addView(text("耳机高级设置", 22f))
         body.addView(text("关闭", 16f).apply { setOnClickListener { dismiss() } })
         body.addView(status)
+        body.addView(fit.view)
         val controls = column()
         val labels = mapOf(OppoToggle.AUTO_PLAY_PAUSE to "佩戴自动播放／暂停",
             OppoToggle.LOW_LATENCY to "低延迟模式", OppoToggle.MULTIPOINT to "双设备连接",

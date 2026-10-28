@@ -488,3 +488,18 @@ OPPO／OnePlus／realme 的产品索引噪声控制新增 43 个来源表、304 
 该维护路径已添加代码测试，尚待设备复核；提示语言仍通过厂家 App 处理。
 
 RS v2 另新增 HSC-2710、First Angel、Hyacinth、Jasmine、KY01、Magician、Moka、Opal、Zircon 九个精确配置的已证明普通字段；特殊 EQ、语言、录音、深度/自适应及校准仍按 [差异清单](rose-rsv2-protocol.md) 独立列示。头戴单电量按源码第三字段投影，修正此前 Swift2/SpeakFeel 系列取左耳字段的错误。
+
+### 显式佩戴贴合测试
+
+OPPO / OnePlus / realme 仅在来源目录的 `fitDetection` 与 SPP 交集（31 个产品 ID）、
+当前产品身份、设备事件支持表和双耳佩戴回报均满足后开放贴合检测。三星仅在
+GalaxyBudsClient 明确声明的 Buds2、Buds2 Pro、FE、Core、Buds3、Buds3 Pro、Buds3 FE、
+Buds4、Buds4 Pro 收到当前扩展状态后开放。进入原生设置入口不会自动开始；用户启动后，
+分别由蓝牙进程持有 16 秒／30 秒的停止期限，结果、停止、交接和断连清理本地租约。
+ACK 不代表贴合结果，当前代码级验证不替代耳机实测。协议不携带结果事务 ID，快速重测的
+迟到结果相关性限制在 [OPPO 协议](oppo-enco-protocol.md) 与
+[Samsung 贴合测试](samsung-fit-test-protocol.md) 中记录。复杂 Golden Sound 校准继续通过
+现有厂商 App 导航与私有通道退让执行。
+
+可选的 [连接媒体音量](connection-volume.md) 属手机侧功能，默认关闭；它只在新连接且
+实际媒体路由匹配时尝试一次，不作为某耳机私有协议能力或播放验证的证据。

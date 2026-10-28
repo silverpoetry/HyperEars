@@ -28,10 +28,15 @@ data class SamsungDailySettingsFeatureState(
     val findRightMuted: Boolean? = null,
     val findStopped: Boolean? = null,
     val conversationTimeoutSeconds: Int? = null,
+    /** Local workflow ownership, not a device-running report. */
+    val fitLease:Long?=null,val fitResult:List<Int>?=null,val fitResultLease:Long?=null,
 ) : DeviceFeatureState {
     @Transient override val featureId: String = FEATURE_ID
     val sourceModel: SamsungBudsCodec.Model get() = SamsungBudsCodec.Model.entries.firstOrNull { it.name == model } ?: SamsungBudsCodec.Model.UNKNOWN
     fun supports(request: SamsungDailyControlRequest): Boolean = when (request) {
+        is SamsungDailyControlRequest.FitTest -> dev.hyperears.protocol.samsung.SamsungFitTestCodec.supported(sourceModel) &&
+            request.expectedModel==model && request.lease>0 &&
+            (if(request.start)request.expectedRevision==revision && fitLease==null else fitLease==request.lease)
         is SamsungDailyControlRequest.SetConversationTimeout -> sourceModel == SamsungBudsCodec.Model.BUDS2_PRO &&
             conversationTimeoutSeconds != null && request.seconds in setOf(5,10,15)
         is SamsungDailyControlRequest.SetEqualizer -> equalizerEnabled != null && equalizerPreset != null && request.preset in 0..4
@@ -60,6 +65,7 @@ data class SamsungDailyIntentFeatureState(val submittedCurve: List<Int>? = null,
 
 @Serializable
 sealed interface SamsungDailyControlRequest : ControlRequest {
+    @Serializable @SerialName("samsung.fit_test") data class FitTest(val expectedModel:String,val expectedRevision:Int,val lease:Long,val start:Boolean):SamsungDailyControlRequest
     @Serializable @SerialName("samsung.daily_conversation_timeout") data class SetConversationTimeout(val seconds: Int) : SamsungDailyControlRequest
     @Serializable @SerialName("samsung.daily_eq") data class SetEqualizer(val enabled: Boolean, val preset: Int) : SamsungDailyControlRequest
     @Serializable @SerialName("samsung.daily_ambient") data class SetAmbientVolume(val level: Int) : SamsungDailyControlRequest

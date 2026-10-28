@@ -34,22 +34,38 @@ open class OppoEarbudAdapter(
     )
     open val wireConfig: OppoWireConfig = OppoWireConfig.STANDARD
     override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
-        state is OppoSettingsFeatureState
+        state is OppoSettingsFeatureState || state is OppoFitFeatureState
     }
     override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
-        request is OppoControlRequest &&
-            adapter.runtimeState().features.get<OppoSettingsFeatureState>()?.supports(request) == true
+        if(request is OppoFitControlRequest)(adapter as OppoEarbudAdapter).supportsFit(request) &&
+            (request !is OppoFitControlRequest.Start || adapter.runtimeState().features.get<OppoFitFeatureState>()==request.expected)
+        else request is OppoControlRequest && adapter.runtimeState().features.get<OppoSettingsFeatureState>()?.supports(request) == true
     }
+    private fun supportsFit(request:OppoFitControlRequest)=(protocolSession as? OppoProtocolSession)?.fit?.supported(request)==true
     override val miLinkCardPresentationId: MiLinkCardPresentationId?
         get() = when {
             effectiveCapabilities().noiseControl -> PRESENTATION_ID
-            runtimeState().features.get<OppoSettingsFeatureState>()?.hasSettings == true -> SETTINGS_PRESENTATION_ID
+            (runtimeState().features.get<OppoSettingsFeatureState>()?.hasSettings == true || runtimeState().features.get<OppoFitFeatureState>()?.advertised==true) -> SETTINGS_PRESENTATION_ID
             else -> null
         }
     override fun controlPolicy(request: ControlRequest): ControlExecutionPolicy =
-        if (request is OppoControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
-    override fun onProtocolReset() { removeFeatureState(OppoSettingsFeatureState.FEATURE_ID) }
+        if (request is OppoControlRequest || request is OppoFitControlRequest) ControlExecutionPolicy() else super.controlPolicy(request)
+    override fun onProtocolReset() { removeFeatureState(OppoSettingsFeatureState.FEATURE_ID);removeFeatureState(OppoFitFeatureState.FEATURE_ID) }
+    override fun prepareProtocolRelease()=(protocolSession as? OppoProtocolSession)?.fit?.release().orEmpty()
+    override fun onControlWritten(request:ControlRequest,scope:AdapterEventScope) {
+        if(request is OppoFitControlRequest.Start && (protocolSession as? OppoProtocolSession)?.fit?.activeLease==request.lease)
+            scope.scheduleProtocolCleanup(OppoFitFeatureState.FEATURE_ID,request.lease,16000L)
+        else if(request is OppoFitControlRequest.Stop)scope.cancelProtocolCleanup(OppoFitFeatureState.FEATURE_ID)
+    }
+    override fun expireProtocolWorkflow(key:String,lease:Long):List<ByteArray> {
+        val session=(protocolSession as? OppoProtocolSession)?.fit?:return emptyList()
+        if(key!=OppoFitFeatureState.FEATURE_ID || session.activeLease!=lease)return emptyList()
+        val commands=session.expire(lease)
+        session.state?.let{adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(it)))}
+        return commands
+    }
     override fun onFeatureReported(state: DeviceFeatureState, scope: AdapterEventScope): FeatureReportDecision {
+        if(state is OppoFitFeatureState && (protocolSession as? OppoProtocolSession)?.fit?.activeLease==null)scope.cancelProtocolCleanup(OppoFitFeatureState.FEATURE_ID)
         if (state is OppoSettingsFeatureState && state.noise == null &&
             (protocolSession as? OppoProtocolSession)?.indexedNoise == true) removeFeatureState(NoiseModeFeatureState.FEATURE_ID)
         return FeatureReportDecision.ACCEPT
@@ -72,6 +88,7 @@ open class OppoEarbudAdapter(
 
     override fun onProductIdentified(productId: Int): HandshakeResult? {
         val session = protocolSession as? OppoProtocolSession ?: return null
+        if(session.fit.state==null)removeFeatureState(OppoFitFeatureState.FEATURE_ID)
         val product = OppoProductCatalog.find(productId)?.takeIf { it.privateProbeCandidate }
             ?: return null
         if (!isAdapterEnabled(product.adapterId)) return null
@@ -204,6 +221,7 @@ internal class OppoProtocolSession(
         private set
     var confirmedNoiseMode: NoiseMode? = null
         private set
+    internal val fit=OppoFitSession()
     private val settings = OppoSettingsSession()
     val indexedNoise: Boolean get() = OppoNoiseCatalog.find(productId) != null
     private val noiseIdentityPending: Boolean get() = indexedIdentityRequired && productId == null
@@ -217,9 +235,10 @@ internal class OppoProtocolSession(
         OppoWireCodec.queryNotificationSupport,
         OppoWireCodec.queryBattery,
         OppoWireCodec.queryAnc,
-    ) + settings.initialQueries
+    ) + settings.initialQueries + fit.queries()
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
+        request is OppoFitControlRequest -> fit.encode(request)
         request is OppoControlRequest -> settings.encode(request)
         request === StandardControlRequest.Refresh -> initialReadCommands()
         request is StandardControlRequest.SetNoiseMode -> request.mode.toWireCommand()?.let(::listOf).orEmpty()
@@ -234,7 +253,7 @@ internal class OppoProtocolSession(
     }
 
     override fun followUpCommands(event: ProtocolEvent): List<ByteArray> {
-        if (event is ProtocolEvent.ProductIdentified) return settings.spatialQueries()
+        if (event is ProtocolEvent.ProductIdentified) return settings.spatialQueries()+fit.queries()
         if (event !== ProtocolEvent.HandshakeAccepted) return emptyList()
         return pendingNotificationRegistration
             ?.also { pendingNotificationRegistration = null }
@@ -258,11 +277,13 @@ internal class OppoProtocolSession(
                     publishHandshakeIfNeeded()
                     if (productId != identified) {
                         productId = identified
+                        fit.identify(identified)?.let{add(ProtocolEvent.FeatureStateChanged(it))}
                         settings.identify(productId)?.let { add(ProtocolEvent.FeatureStateChanged(it)) }
                         add(ProtocolEvent.ProductIdentified(identified))
                     }
                     return@buildList
                 }
+                fit.offer(frame)?.let{add(ProtocolEvent.FeatureStateChanged(it))}
                 settings.offer(frame, productId)?.let {
                     publishHandshakeIfNeeded()
                     add(ProtocolEvent.FeatureStateChanged(it))
@@ -323,7 +344,9 @@ internal class OppoProtocolSession(
             }
         }
 
+    override fun drainImmediateCommands()=fit.drain()
     override fun reset() {
+        fit.reset()
         decoder.reset()
         settings.reset()
         productId = null

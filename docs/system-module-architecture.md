@@ -498,3 +498,18 @@ libxposed `RemotePreferences`，因此修改该开关不会唤醒或重配任何
 规范化与接纳按事件顺序交替执行，因此同一次传输读取中的后续报告能看到前一报告的提交结果。
 Pudding 只在既有有界电量初始化阶段合并，提交后完整快照直接清除明确不可读分量；
 协议会话不保存该模型的重试次数或提交策略。其他 Adapter 保持默认行为。
+
+### 有界协议工作流的停止与交接
+
+佩戴贴合测试只能由用户显式开始，既有只读 `requestState` 不承担停止命令。
+Adapter 在开始命令成功写入后，通过 `scheduleProtocolCleanup(key, lease, delayMs)`
+声明一次性停止期限（最长 60 秒）；结果或用户停止用同一 key 取消期限。
+Bluetooth 进程拥有独立 `ProtocolCleanupDispatcher`，因此界面进程消失不会丢掉期限。
+到期时在原传输事务锁内重新校验 Adapter、通道与模块控制权，再调用
+`expireProtocolWorkflow(key, lease)`；型号会话只消费匹配的本地 lease，重复或旧期限无效。
+
+正常交接通过 `prepareProtocolRelease()` 一次性取得仍由本会话发起的停止帧，
+由既有 `closeOwnedChannel` 在物理关闭和交接确认之前写入。突然断连只重置，
+不向新连接或厂商 App 已取得的通道补发。所有断连、候选失败、Adapter 替换和关闭
+路径取消待执行期限；停止写入失败会关闭旧通道，不伪称耳机已经返回结果。
+此接口只清理已启动工作流，不授权延迟启动、常驻轮询或自动执行测试。

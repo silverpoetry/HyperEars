@@ -108,10 +108,7 @@ internal class SettingsHeadsetBinding(
             SettingsRoseRsV2Rows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsHuaweiPairedRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsAdvancedEditors.forState(state)?.takeIf { it.available(state, address) }?.let { editor ->
-                val row = host.row("hyperears.advanced", "高级设置")
-                host.summary(row, "均衡器、手势及耳机已确认的扩展设置")
-                host.enable(row, writable(state))
-                host.onClick(row) {
+                val openDetails: () -> Unit = {
                     guarded {
                         val latest = currentFor(accepted.token) ?: return@guarded
                         val currentEditor = SettingsAdvancedEditors.forState(latest.state) ?: return@guarded
@@ -120,6 +117,20 @@ internal class SettingsHeadsetBinding(
                         details = currentEditor.open(anchor, address, environment)
                     }
                 }
+                SettingsSamsungFitRows.add(host, state, address, { add(group, it) }, inlineCurrent, openDetails)
+                state.features.get<OppoFitFeatureState>()?.takeIf { it.advertised && OppoCardPolicy.available(state, address) }?.let { fit ->
+                    val fitRow = host.row("hyperears.oppo.fit", "耳塞贴合度检测")
+                    host.onClick(fitRow) {
+                        val latest = inlineCurrent()
+                        if (latest != null && OppoCardPolicy.available(latest, address) &&
+                            latest.features.get<OppoFitFeatureState>() == fit) openDetails()
+                    }
+                    add(group, fitRow)
+                }
+                val row = host.row("hyperears.advanced", "高级设置")
+                host.summary(row, "均衡器、手势及耳机已确认的扩展设置")
+                host.enable(row, writable(state))
+                host.onClick(row, openDetails)
                 add(group, row)
             }
             if (state.adapter?.controlApps?.isNotEmpty() == true) addControllerRow(group, accepted, returning = false)

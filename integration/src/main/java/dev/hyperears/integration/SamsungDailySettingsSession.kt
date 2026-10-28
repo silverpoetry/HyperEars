@@ -6,13 +6,27 @@ import dev.hyperears.protocol.samsung.SamsungDailySettingsCodec as Wire
 internal class SamsungDailySettingsSession(private val model: SamsungBudsCodec.Model) {
     var state: SamsungDailySettingsFeatureState? = null
         private set
-    fun reset() { state = null }
+    private var pendingFitStop=false
+    fun reset() { state = null;pendingFitStop=false }
+    fun expireFit(lease:Long):List<ByteArray> = if(state?.fitLease==lease)releaseFit()else emptyList()
+    fun releaseFit():List<ByteArray> {
+        val current=state
+        val owned=current?.fitLease!=null || pendingFitStop
+        pendingFitStop=false
+        state=current?.copy(fitLease=null)
+        return if(owned)listOf(dev.hyperears.protocol.samsung.SamsungFitTestCodec.command(model,false))else emptyList()
+    }
+    fun drainCommands():List<ByteArray> {if(!pendingFitStop)return emptyList();pendingFitStop=false;return listOf(dev.hyperears.protocol.samsung.SamsungFitTestCodec.command(model,false))}
     fun encode(request: SamsungDailyControlRequest): List<ByteArray> {
         val current = state ?: return emptyList()
         if (!current.supports(request)) return emptyList()
         fun packet(id: Int, vararg payload: Int) = listOf(SamsungBudsCodec.packet(id, payload.map(Int::toByte).toByteArray(), model))
         if (request is SamsungDailyControlRequest.Find && request.start) state = current.copy(findStopped = null)
         return when (request) {
+            is SamsungDailyControlRequest.FitTest -> {
+                state=if(request.start)current.copy(fitLease=request.lease,fitResult=null,fitResultLease=null)else current.copy(fitLease=null)
+                listOf(dev.hyperears.protocol.samsung.SamsungFitTestCodec.command(model,request.start))
+            }
             is SamsungDailyControlRequest.SetConversationTimeout -> packet(Wire.CONVERSATION_TIMEOUT,request.seconds/5-1)
             is SamsungDailyControlRequest.SetEqualizer -> listOf(Wire.equalizer(model, request.enabled, request.preset))
             is SamsungDailyControlRequest.SetAmbientVolume -> packet(0x84, request.level)
@@ -27,6 +41,14 @@ internal class SamsungDailySettingsSession(private val model: SamsungBudsCodec.M
         }
     }
     fun offer(frame: SamsungBudsCodec.Frame): SamsungDailySettingsFeatureState? {
+        dev.hyperears.protocol.samsung.SamsungFitTestCodec.result(frame)?.let { result ->
+            val current=state?:return null
+            val lease=current.fitLease?:return null
+            if(!dev.hyperears.protocol.samsung.SamsungFitTestCodec.supported(model))return null
+            pendingFitStop=true
+            state=current.copy(fitLease=null,fitResult=result,fitResultLease=lease)
+            return state
+        }
         Wire.parse(frame, model)?.let { report ->
             // Fresh complete common report replaces capabilities; absent/invalid fields revoke only those controls.
             val old = state
@@ -35,7 +57,7 @@ internal class SamsungDailySettingsSession(private val model: SamsungBudsCodec.M
                 report.customAmbient?.let { SamsungCustomAmbient(it.enabled, it.left, it.right, it.tone, it.maximum) },
                 report.locked, report.leftHold, report.rightHold, report.voiceFocus,
                 Wire.customEqSupported(model) && report.eqEnabled != null && report.eqPreset != null,
-                old?.findLeftMuted, old?.findRightMuted, old?.findStopped, report.conversationTimeoutSeconds)
+                old?.findLeftMuted, old?.findRightMuted, old?.findStopped, report.conversationTimeoutSeconds,old?.fitLease,old?.fitResult,old?.fitResultLease)
             return state
         }
         val current = state ?: return null

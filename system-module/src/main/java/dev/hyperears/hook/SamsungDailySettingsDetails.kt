@@ -19,6 +19,14 @@ internal class SamsungDailySettingsDetails private constructor(
     private val controls = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private var closed = false
     private var startedHere = false
+    private var fitOwned:SamsungDailyControlRequest.FitTest?=null
+    private val fitTimeout=Runnable {guarded{stopOwnedFit();render(environment.stateProvider(address))}}
+    private fun stopOwnedFit() {
+        val lease=fitOwned?:return
+        fitOwned=null;timer.removeCallbacks(fitTimeout)
+        val state=environment.stateProvider(address)
+        if(valid(state)) SamsungDailySettingsPolicy.request(state,address,lease.copy(start=false))?.let{environment.controlSender(address,it)}
+    }
     private val timer = android.os.Handler(android.os.Looper.getMainLooper())
     private val stopRinging: Runnable = Runnable { guarded { stopOwnedRing() } }
     private fun stopOwnedRing() {
@@ -80,6 +88,10 @@ internal class SamsungDailySettingsDetails private constructor(
         if (!valid(state)) { dismiss(); return@guarded }
         SamsungDailySettingsPolicy.request(state, address, request)?.let {
             environment.controlSender(address, it)
+            if(it is SamsungDailyControlRequest.FitTest) {
+                fitOwned=it.takeIf{it.start};timer.removeCallbacks(fitTimeout)
+                if(it.start)timer.postDelayed(fitTimeout,30_000L)
+            }
             if (it is SamsungDailyControlRequest.Find) {
                 startedHere = it.start
                 timer.removeCallbacks(stopRinging)
@@ -91,6 +103,8 @@ internal class SamsungDailySettingsDetails private constructor(
     override fun render(state: EarbudState): Unit = guarded {
         if (closed) return@guarded
         if (!valid(state)) { dismiss(); return@guarded }
+        val fitState=state.features.get<SamsungDailySettingsFeatureState>()
+        if(fitOwned?.lease!=null && fitState?.fitResultLease==fitOwned?.lease) {fitOwned=null;timer.removeCallbacks(fitTimeout)}
         touchDetails?.render(state)
         rendering = true
         try {
@@ -136,7 +150,28 @@ internal class SamsungDailySettingsDetails private constructor(
             })
         }
     }
+    private fun renderFit(state:EarbudState) {
+        val feature=state.features.get<SamsungDailySettingsFeatureState>()?:return
+        if(!dev.hyperears.protocol.samsung.SamsungFitTestCodec.supported(feature.sourceModel))return
+        controls.addView(text("耳塞贴合度测试",18f))
+        controls.addView(text("请佩戴两侧耳机。点击开始后测试；30 秒超时或关闭面板时停止。",14f))
+        if(fitOwned!=null || feature.fitLease!=null) {
+            controls.addView(text("已请求测试，等待耳机结果…",14f))
+            if(fitOwned!=null)action("停止贴合度测试"){stopOwnedFit();render(environment.stateProvider(address))}
+        } else action("开始贴合度测试") {
+            val current=environment.stateProvider(address)
+            if(!valid(current)){dismiss();return@action}
+            val fresh=current.features.get<SamsungDailySettingsFeatureState>()?:return@action
+            if(fresh.model!=feature.model||fresh.revision!=feature.revision)return@action
+            send(SamsungDailyControlRequest.FitTest(feature.model,feature.revision,java.util.concurrent.ThreadLocalRandom.current().nextLong(1,Long.MAX_VALUE),true))
+        }
+        feature.fitResult?.takeIf{it.size==2}?.let { result ->
+            val labels=listOf("贴合不佳","贴合良好","测试失败")
+            controls.addView(text("左耳："+labels[result[0]]+"；右耳："+labels[result[1]],16f))
+        }
+    }
     private fun renderRows(state: EarbudState) {
+        renderFit(state)
         val settings = state.features.get<SamsungDailySettingsFeatureState>() ?: return
         if (settings.equalizerEnabled != null && settings.equalizerPreset != null) {
             val selected = if (!settings.equalizerEnabled!!) 0 else if (settings.equalizerPreset!! <= 4) settings.equalizerPreset!! + 1 else null
@@ -261,6 +296,8 @@ internal class SamsungDailySettingsDetails private constructor(
     }
     override fun dismiss() {
         if (closed) return
+        runCatching { stopOwnedFit() }
+        timer.removeCallbacks(fitTimeout)
         runCatching { stopOwnedRing() }
         timer.removeCallbacks(stopRinging)
         closed = true; draft = null; draftSource = null

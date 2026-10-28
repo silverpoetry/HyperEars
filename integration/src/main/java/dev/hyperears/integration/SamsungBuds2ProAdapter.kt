@@ -149,8 +149,25 @@ class SamsungBuds2ProAdapter(
             else -> super.controlPolicy(request)
         }
     }
+    override fun prepareProtocolRelease():List<ByteArray> = (protocolSession as? SamsungBuds2ProProtocolSession)?.releaseFit().orEmpty()
+    override fun expireProtocolWorkflow(key:String,lease:Long):List<ByteArray> {
+        if(key!="samsung.fit")return emptyList()
+        val session=protocolSession as? SamsungBuds2ProProtocolSession?:return emptyList()
+        val commands=session.expireFit(lease)
+        session.dailyState()?.let{adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(it)))}
+        return commands
+    }
+    override fun onFeatureReported(state:DeviceFeatureState,scope:AdapterEventScope):FeatureReportDecision {
+        if(state is SamsungDailySettingsFeatureState && state.fitLease==null)scope.cancelProtocolCleanup("samsung.fit")
+        return super.onFeatureReported(state,scope)
+    }
     override fun onControlWritten(request: ControlRequest, scope: AdapterEventScope) {
         val runtime = runtimeState()
+        if(request is SamsungDailyControlRequest.FitTest) {
+            if(request.start)scope.scheduleProtocolCleanup("samsung.fit",request.lease,30_000L)else scope.cancelProtocolCleanup("samsung.fit")
+            (protocolSession as? SamsungBuds2ProProtocolSession)?.dailyState()?.let{adoptRuntimeState(runtime.copy(features=runtime.features.update(it)))}
+            return
+        }
         val intent = runtime.features.get<SamsungDailyIntentFeatureState>() ?: return
         val next = when (request) {
             is SamsungDailyControlRequest.SetCustomEqualizer -> intent.takeIf { it.submittedCurve == request.gains }?.copy(curveWritten = true)
@@ -358,6 +375,9 @@ internal class SamsungBuds2ProProtocolSession(
     private val decoder = SamsungBudsCodec.Decoder(model)
     private val daily = SamsungDailySettingsSession(model)
     fun dailyState(): SamsungDailySettingsFeatureState? = daily.state
+    fun releaseFit()=daily.releaseFit()
+    fun expireFit(lease:Long)=daily.expireFit(lease)
+    override fun drainImmediateCommands()=daily.drainCommands()
     private var handshakePublished = false
     private var managerInfoSent = false
     private var settings: SamsungBudsCodec.SettingsState? = null
