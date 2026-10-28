@@ -652,6 +652,12 @@ object EarbudAdapterRegistry {
         dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.entries.forEach { model ->
             add(Registration(roseGroup) { RoseRsV2Adapter(model) })
         }
+        dev.hyperears.protocol.rose.RoseZtWireCodec.Model.entries.forEach { model ->
+            add(Registration(roseGroup) { RoseZtAdapter(model) })
+        }
+        dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.entries.forEach { model ->
+            add(Registration(roseGroup) { RoseLegacyAdapter(model) })
+        }
         add(Registration(roseGroup, ::FurinaEndlessAdapter))
         add(Registration(roseGroup, ::RoseLuliXAdapter))
         add(Registration(roseGroup, ::RoseLuliUltraAdapter))

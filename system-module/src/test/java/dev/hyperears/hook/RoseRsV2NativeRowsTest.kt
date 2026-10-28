@@ -21,6 +21,14 @@ class RoseRsV2NativeRowsTest {
         adapter=RoseRsV2Adapter(Model.OPENFEEL_L).snapshot().copy(presentationId=RoseRsV2PresentationIds.SETTINGS),
         lifecycle=DeviceLifecycle(SystemProfileState.CONNECTED,PrivateTransportState.CONNECTED,ProtocolHandshakeState.CONFIRMED))
         .withFeature(feature)
+    @Test fun hscGainOnlyAndPerProfileEqLabelsKeepSourceOrdering() {
+        val f=Fixture();f.current=state(RoseRsV2SettingsFeatureState(Model.CERAMICS_U_HSC_2710.name,gain=1))
+        f.render();assertNotNull(f.row("gain"));assertNull(f.row("hearing"))
+        f.row("gain")!!.callChangeListener("2")
+        assertEquals(RoseRsV2ControlRequest.SetGain(Model.CERAMICS_U_HSC_2710.name,2),f.sent.single())
+        assertEquals(listOf("经典调音","流行","高保真","摇滚"),Model.CERAMICS_U_HSC_2710.eqPresets.map { RoseRsV2DailyLabels.equalizer(Model.CERAMICS_U_HSC_2710,it) })
+        assertEquals(listOf("高保真","流行"),Model.FIRST_ANGEL.eqPresets.map { RoseRsV2DailyLabels.equalizer(Model.FIRST_ANGEL,it) })
+    }
     @Test fun actualNativeChoicesUseSourceLabelsAndKeepReportedSelection() {
         val f=Fixture();f.render()
         val gain=f.row("gain")!!;val hearing=f.row("hearing")!!

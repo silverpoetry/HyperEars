@@ -20,12 +20,25 @@ object RoseRsV2IdentityCodec {
         LUMINOUS_AGUMON("0b0a34fd","ROSE Agumon",eqPresets=emptyList(),audio=false),
         LUMINOUS_GABUMON("0b0a2aed","ROSE Gabumon",eqPresets=emptyList(),audio=false),
         LUMINOUS_PATAMON("0b0ae916","ROSE Patamon",eqPresets=emptyList(),audio=false),
-        LUMINOUS_TAILMON("0b0a941f","ROSE Tailmon",eqPresets=emptyList(),audio=false);
+        LUMINOUS_TAILMON("0b0a941f","ROSE Tailmon",eqPresets=emptyList(),audio=false),
+        CERAMICS_U_HSC_2710("0b137957","ROSE Ceramics U (HSC-2710)",true,eqPresets=listOf(3,0,1,2)),
+        FIRST_ANGEL("0b0e64be","ROSE First Angel",eqPresets=listOf(1,0),audio=false),
+        HYACINTH("0b120a0b","ROSE Hyacinth"),
+        JASMINE("0b0a0a11","ROSE Jasmine",eqPresets=emptyList(),audio=false),
+        KY01("0a0b0a0d","ROSE KY01",audio=false),
+        MAGICIAN("0b0e0a0d","ROSE Magician",eqPresets=emptyList(),touch=false),
+        MOKA("68f5b8eb","ROSE Moka",touch=false),
+        OPAL("0b0a0a12","ROSE Opal",true,audio=false),
+        ZIRCON("0b110a0b","ROSE Zircon",true);
         val gainAndProtection: Boolean get() = this in setOf(OPENFEEL_L, OPENFEEL_MK2, SPEAKFEEL2, ASTRO_X)
-        val aggregateBattery: Boolean get() = this in setOf(SPEAKFEEL, SPEAKFEEL2, SWIFT2)
-        val caseBattery: Boolean get() = !aggregateBattery && this !in setOf(LUMINOUS_AGUMON,LUMINOUS_GABUMON,LUMINOUS_PATAMON,LUMINOUS_TAILMON)
+        val gainSupported: Boolean get() = gainAndProtection || this == CERAMICS_U_HSC_2710
+        val hearingProtectionSupported: Boolean get() = gainAndProtection
+        val findSupported: Boolean get() = this != MOKA
+        val noiseValues: Set<Int> get() = if (!noise) emptySet() else if (this == OPAL) setOf(1,2,3) else setOf(1,2,3,4)
+        val aggregateBattery: Boolean get() = this in setOf(SPEAKFEEL, SPEAKFEEL2, SWIFT2, FIRST_ANGEL, MAGICIAN, MOKA)
+        val caseBattery: Boolean get() = !aggregateBattery && this !in setOf(LUMINOUS_AGUMON,LUMINOUS_GABUMON,LUMINOUS_PATAMON,LUMINOUS_TAILMON,JASMINE)
         val id: String get() = "rose-rsv2-${name.lowercase().replace('_','-')}"
-        val audioModes: List<Int> get() = when(this) { OPENFEEL_L -> listOf(0,1); SPEAKFEEL2 -> listOf(0,1,2); SPEAKFEEL -> listOf(0,1,4,5,6); CERAMICS_MK2_5736 -> emptyList(); else -> listOf(0,1,2,3) }
+        val audioModes: List<Int> get() = when(this) { OPENFEEL_L, HYACINTH, MOKA -> listOf(0,1); CERAMICS_U_HSC_2710 -> listOf(0,1,2); MAGICIAN -> listOf(0,1,4,5); SPEAKFEEL2 -> listOf(0,1,2); SPEAKFEEL -> listOf(0,1,4,5,6); CERAMICS_MK2_5736 -> emptyList(); else -> listOf(0,1,2,3) }
         val touchMaster: Boolean get() = touch && this != SPEAKFEEL2
         val bassLevels: List<Int> get() = if (this == OPENFEEL_MK2) listOf(3) else if (this == SPEAKFEEL2) listOf(0,1) else emptyList()
         val touchActions: IntRange get() = if (noise || this == SPORTFEEL_8912F) 0..8 else 0..7

@@ -35,6 +35,16 @@ class RoseRsV2SettingsDetailsTest {
             {_,callback->observer=callback;{observer=null;released++}},{token})
         fun open()=RoseRsV2SettingsDetails.open(anchor,address,environment).also {shadowOf(Looper.getMainLooper()).idle()}
     }
+    @Test fun hscClassicEqSelectionUsesSemanticThreeNotListPosition() {
+        val f=Fixture()
+        f.state=f.state.withFeature(RoseRsV2SettingsFeatureState(RoseRsV2IdentityCodec.Model.CERAMICS_U_HSC_2710.name,eq=0,gain=1))
+        val details=f.open();val popup=popup(details)
+        descendants(popup.contentView).filterIsInstance<RadioButton>().single {it.text=="经典调音"}.performClick()
+        assertEquals(RoseRsV2ControlRequest.SetEqualizer(3),f.sent.single())
+        assertFalse(descendants(popup.contentView).filterIsInstance<RadioButton>().any {it.text=="75 dB"})
+        assertEquals(0,f.state.features.get<RoseRsV2SettingsFeatureState>()!!.eq)
+        details.dismiss()
+    }
     @Test fun gainAndProtectionDetailsWaitForReportsAndRejectChangedModel() {
         val f=Fixture()
         f.state=f.state.withFeature(RoseRsV2SettingsFeatureState(RoseRsV2IdentityCodec.Model.OPENFEEL_L.name,gain=0,hearingProtection=1))

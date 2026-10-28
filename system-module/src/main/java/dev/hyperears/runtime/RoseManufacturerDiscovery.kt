@@ -11,6 +11,7 @@ import android.os.SystemClock
 import androidx.core.util.size
 import dev.hyperears.integration.EarbudIdentity
 import dev.hyperears.protocol.rose.RoseRsV2IdentityCodec
+import dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec
 import java.util.Locale
 
 /** One bounded observation per physical connection; never associates different Bluetooth addresses. */
@@ -45,10 +46,11 @@ internal class RoseManufacturerDiscovery(context:Context) : AutoCloseable {
                     if(!lease.accepts(observed,result.timestampNanos,SystemClock.elapsedRealtimeNanos(),bonded,eligible())) return@post
                     val raw=result.scanRecord?.manufacturerSpecificData ?: return@post
                     if(raw.size !in 1..8) return@post
+                    if ((0 until raw.size).any { raw.valueAt(it).size !in 1..512 }) return@post
                     val data=buildMap { for(i in 0 until raw.size) {
-                        val value=raw.valueAt(i); if(value.size in 2..512) put(raw.keyAt(i),value.map { it.toInt() and 255 })
+                        val value=raw.valueAt(i); put(raw.keyAt(i),value.map { it.toInt() and 255 })
                     } }
-                    if(RoseRsV2IdentityCodec.identify(data)==null) return@post
+                    if(RoseManufacturerIdentityCodec.modelId(data)==null) return@post
                     stop()
                     if(eligible()) accepted(data.mapValues { it.value.toList() }.toMap())
                 } }

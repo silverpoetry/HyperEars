@@ -112,21 +112,17 @@ internal class RoseRsV2SettingsDetails private constructor(
         val profile = settings.profile ?: return
         controls.addView(text(profile.label, 19f))
         settings.eq?.let { selected ->
-            val labels = when (profile) {
-                dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.ASTRO_X -> listOf("低音", "均衡", "低音增强")
-                dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.OPENFEEL_L -> listOf("低音", "均衡")
-                else -> listOf("流行", "高保真", "摇滚", "轻音乐").take(profile.eqPresets.size)
-            }
+            val labels = profile.eqPresets.map { RoseRsV2DailyLabels.equalizer(profile,it) }
             choices("音效", profile.eqPresets.indexOf(selected), labels) { RoseRsV2ControlRequest.SetEqualizer(profile.eqPresets[it]) }
         }
         settings.bass?.let { selected -> choices("低音增强", profile.bassLevels.indexOf(selected),profile.bassLevels.map { "级别 $it" }) {
             RoseRsV2ControlRequest.SetBass(profile.bassLevels[it])
         } }
-        if (profile.gainAndProtection) {
-            settings.gain?.takeIf { it in 0..2 }?.let { value ->
+        if (profile.gainSupported || profile.hearingProtectionSupported) {
+            settings.gain?.takeIf { profile.gainSupported && it in 0..2 }?.let { value ->
                 choices("增益", value, RoseRsV2DailyLabels.gain) { RoseRsV2ControlRequest.SetGain(settings.model,it) }
             }
-            settings.hearingProtection?.takeIf { it in 0..6 }?.let { value ->
+            settings.hearingProtection?.takeIf { profile.hearingProtectionSupported && it in 0..6 }?.let { value ->
                 choices("听力保护", value, RoseRsV2DailyLabels.hearingProtection) { RoseRsV2ControlRequest.SetHearingProtection(settings.model,it) }
             }
         }

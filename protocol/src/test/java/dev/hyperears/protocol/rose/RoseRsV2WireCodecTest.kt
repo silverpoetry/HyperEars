@@ -5,6 +5,28 @@ import org.junit.Test
 
 class RoseRsV2WireCodecTest {
     private val models=RoseRsV2IdentityCodec.Model.entries
+    @Test fun nineFurtherProfilesKeepPrimaryEndpointAndIndependentFeatureQueries() {
+        val expected=mapOf("0b137957" to RoseRsV2IdentityCodec.Model.CERAMICS_U_HSC_2710,
+            "0b0e64be" to RoseRsV2IdentityCodec.Model.FIRST_ANGEL,"0b120a0b" to RoseRsV2IdentityCodec.Model.HYACINTH,
+            "0b0a0a11" to RoseRsV2IdentityCodec.Model.JASMINE,"0a0b0a0d" to RoseRsV2IdentityCodec.Model.KY01,
+            "0b0e0a0d" to RoseRsV2IdentityCodec.Model.MAGICIAN,"68f5b8eb" to RoseRsV2IdentityCodec.Model.MOKA,
+            "0b0a0a12" to RoseRsV2IdentityCodec.Model.OPAL,"0b110a0b" to RoseRsV2IdentityCodec.Model.ZIRCON)
+        for((prefix,m) in expected) {
+            assertEquals(prefix,m.prefix)
+            val p=RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map{it.toInt() and 255}
+            assertEquals(m.findSupported,0x2F in p)
+            assertEquals(m.touch,1 in p)
+            assertEquals(m.audio,0x2B in p)
+            assertEquals(m.gainSupported,0x45 in p)
+            assertFalse(0x46 in p)
+            assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(0x46,1)).isEmpty())
+        }
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.OPAL).offer(frame(9,4)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.MOKA).offer(frame(0x2F,1)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.FIRST_ANGEL).offer(frame(0x2A,0xA0)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.HYACINTH).offer(frame(0x2B,2)).isEmpty())
+        assertTrue(RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.MAGICIAN).offer(frame(0x2B,6)).isEmpty())
+    }
     @Test fun gainAndProtectionStreamResetCannotFinishAnOldPartialReport() {
         val model=RoseRsV2IdentityCodec.Model.OPENFEEL_L
         val report=frame(0x45,2)+frame(0x46,6)
@@ -23,10 +45,10 @@ class RoseRsV2WireCodecTest {
     @Test fun gainAndProtectionHaveExactSingleByteBoundsAndPerProfileQueries() {
         for (m in models) {
             val payload = RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map { it.toInt() and 255 }
-            assertEquals(m.gainAndProtection, 0x45 in payload)
-            assertEquals(m.gainAndProtection, 0x46 in payload)
+            assertEquals(m.gainSupported, 0x45 in payload)
+            assertEquals(m.hearingProtectionSupported, 0x46 in payload)
             for ((type, maximum) in listOf(0x45 to 2, 0x46 to 6)) {
-                for (value in 0..maximum) assertEquals(m.gainAndProtection,
+                for (value in 0..maximum) assertEquals(if(type==0x45) m.gainSupported else m.hearingProtectionSupported,
                     RoseRsV2WireCodec.Decoder(m).offer(frame(type,value)).isNotEmpty())
                 assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(type,maximum+1)).isEmpty())
                 assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(type)).isEmpty())

@@ -5,6 +5,29 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RoseRsV2AdapterTest {
+    @Test fun everyHeadProfileUsesReportedChargeSlotNotLeftAndNeverFillsBudTelemetry() {
+        for(model in Identity.Model.entries.filter { it.aggregateBattery }) {
+            val a=RoseRsV2Adapter(model)
+            a.receive(frame(12,70,60,50 or 128))
+            assertEquals(model.name,50,a.runtimeState().battery.overall.percent)
+            assertTrue(a.runtimeState().battery.overall.charging)
+            assertNull(a.runtimeState().battery.left.percent);assertNull(a.runtimeState().battery.case.percent)
+            a.receive(frame(12,70,60,255))
+            assertNull(a.runtimeState().battery.overall.percent)
+        }
+    }
+    @Test fun opalAndMokaDoNotInheritNeighborModesAndHscGainDoesNotGrantHearing() {
+        val opal=RoseRsV2Adapter(Identity.Model.OPAL);opal.receive(frame(9,1))
+        assertEquals(setOf(NoiseMode.ANC,NoiseMode.OFF,NoiseMode.TRANSPARENCY),opal.snapshot().supportedNoiseModes)
+        assertFalse(opal.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.WIND)).accepted)
+        val moka=RoseRsV2Adapter(Identity.Model.MOKA);moka.receive(frame(0x2F,1)+frame(7,1))
+        assertFalse(moka.executeControl(RoseRsV2ControlRequest.Find(1)).accepted)
+        assertFalse(moka.executeControl(RoseRsV2ControlRequest.SetTouchEnabled(true)).accepted)
+        val hsc=RoseRsV2Adapter(Identity.Model.CERAMICS_U_HSC_2710);hsc.receive(frame(0x45,0)+frame(0x46,1))
+        assertTrue(hsc.executeControl(RoseRsV2ControlRequest.SetGain(Identity.Model.CERAMICS_U_HSC_2710.name,1)).accepted)
+        assertFalse(hsc.executeControl(RoseRsV2ControlRequest.SetHearingProtection(Identity.Model.CERAMICS_U_HSC_2710.name,1)).accepted)
+        hsc.resetProtocolSession();assertFalse(hsc.executeControl(RoseRsV2ControlRequest.SetGain(Identity.Model.CERAMICS_U_HSC_2710.name,1)).accepted)
+    }
     @Test fun qualifiedGainAndProtectionUseReadbackAndResetRatherThanOptimism() {
         for (model in Identity.Model.entries) {
             val a=RoseRsV2Adapter(model)
@@ -12,8 +35,8 @@ class RoseRsV2AdapterTest {
             val protection=RoseRsV2ControlRequest.SetHearingProtection(model.name,6)
             assertFalse(a.executeControl(gain).accepted)
             a.receive(frame(0x45,0)+frame(0x46,1))
-            assertEquals(model.gainAndProtection,a.executeControl(gain).accepted)
-            assertEquals(model.gainAndProtection,a.executeControl(protection).accepted)
+            assertEquals(model.gainSupported,a.executeControl(gain).accepted)
+            assertEquals(model.hearingProtectionSupported,a.executeControl(protection).accepted)
             if(model.gainAndProtection) {
                 assertArrayEquals(byteArrayOf(0x45,2),payload(a.executeControl(gain).commands.single()))
                 assertArrayEquals(byteArrayOf(0xFA.toByte(),0x46),payload(a.executeControl(protection).readback.single()))
@@ -32,7 +55,7 @@ class RoseRsV2AdapterTest {
     @Test fun newBatteryTopologiesNeverInventCaseOrTwoBudsForSwift() {
         val swift=RoseRsV2Adapter(Identity.Model.SWIFT2)
         swift.receive(frame(12,70,60,50))
-        assertEquals(70,swift.runtimeState().battery.overall.percent)
+        assertEquals(50,swift.runtimeState().battery.overall.percent)
         assertNull(swift.runtimeState().battery.left.percent)
         assertNull(swift.runtimeState().battery.case.percent)
         assertEquals(HeadsetFormFactor.HEADPHONES,swift.formFactor)
@@ -96,4 +119,12 @@ class RoseRsV2AdapterTest {
         val p=byteArrayOf(0xDD.toByte(),0,(values.size+1).toByte(),type.toByte())+values.map(Int::toByte)
         return p+byteArrayOf(p.sumOf{it.toInt() and 255}.toByte(),0xAA.toByte())
     }
+    @Test fun conflictingOtherRoseProtocolDoesNotSelectRsV2() {
+        val identity = EarbudIdentity("ROSE unclassified", true, manufacturerData = mapOf(
+            0x0e0b to listOf(10,12), 0x02f1 to listOf(3)))
+        val model = dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.CERAMICS_MK2
+        assertFalse(RoseRsV2Adapter(model).matches(identity))
+        assertNotEquals(model.id, EarbudAdapterRegistry.resolve(identity)?.id)
+    }
+
 }

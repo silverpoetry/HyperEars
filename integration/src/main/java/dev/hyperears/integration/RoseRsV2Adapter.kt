@@ -18,8 +18,8 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
     fun supports(request: RoseRsV2ControlRequest): Boolean {
         val p=profile ?: return false
         return when(request) {
-            is RoseRsV2ControlRequest.SetGain -> p.gainAndProtection && gain != null && request.expectedModel == model && request.level in 0..2
-            is RoseRsV2ControlRequest.SetHearingProtection -> p.gainAndProtection && hearingProtection != null && request.expectedModel == model && request.level in 0..6
+            is RoseRsV2ControlRequest.SetGain -> p.gainSupported && gain != null && request.expectedModel == model && request.level in 0..2
+            is RoseRsV2ControlRequest.SetHearingProtection -> p.hearingProtectionSupported && hearingProtection != null && request.expectedModel == model && request.level in 0..6
             is RoseRsV2ControlRequest.SetEqualizer -> eq != null && request.preset in p.eqPresets
             is RoseRsV2ControlRequest.SetBass -> bass != null && request.level in p.bassLevels
             is RoseRsV2ControlRequest.SetGame -> game != null
@@ -28,7 +28,7 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
             is RoseRsV2ControlRequest.SetTouchEnabled -> p.touchMaster && touchEnabled != null
             is RoseRsV2ControlRequest.SetTouch -> touch != null && request.slot in SLOTS && request.action in p.touchActions
             is RoseRsV2ControlRequest.SetPrompt -> prompt != null && request.level in 1..5
-            is RoseRsV2ControlRequest.Find -> (findLeft != null || findRight != null) && request.target in 1..4
+            is RoseRsV2ControlRequest.Find -> p.findSupported && (findLeft != null || findRight != null) && request.target in 1..4
         }
     }
     companion object { const val FEATURE_ID="rose.rsv2_settings"; val SLOTS=listOf(1,2,3,4,17,18,19,20) }
@@ -54,14 +54,14 @@ class RoseRsV2Adapter(private val model:Identity.Model):StandardEarbudAdapter() 
     override val resolution=AdapterResolution.EXACT_MATCH
     override val privateProtocolRequired=true
     override val transportReadiness=TransportReadiness.PROTOCOL_HANDSHAKE
-    override val formFactor get() = if (model == Identity.Model.SWIFT2) HeadsetFormFactor.HEADPHONES else super.formFactor
+    override val formFactor get() = if (model.aggregateBattery) HeadsetFormFactor.HEADPHONES else super.formFactor
     override val transports=listOf(RfcommEndpointSpec.ServiceUuid(Identity.SERVICE_UUID,"rose-rsv2-rfcomm"))
     override val controlApps=listOf(ControlAppCatalog.roseLink)
     override val featureStateContract=StandardDeviceFeatureStateContract.extending { _,state -> state is RoseRsV2SettingsFeatureState && state.model==model.name }
     override val controlRequestContract=StandardControlRequestContract.extending { adapter,request ->
         request is RoseRsV2ControlRequest && adapter.runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.supports(request)==true
     }
-    override fun matches(identity:EarbudIdentity)=identity.standardHeadset && !identity.nativeSystemEarbud && Identity.identify(identity.manufacturerData)==model
+    override fun matches(identity:EarbudIdentity)=identity.standardHeadset && !identity.nativeSystemEarbud && dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData)==model.id
     override val miLinkCardPresentationId:MiLinkCardPresentationId? get()=RoseRsV2PresentationIds.SETTINGS.takeIf { runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.hasSettings == true || (effectiveCapabilities().noiseControl && runtimeState().noiseMode != null) }
     override fun createProtocolSession():ProtocolSession=RoseRsV2Session(model)
     override fun onProtocolReset() { removeFeatureState(RoseRsV2SettingsFeatureState.FEATURE_ID) }
@@ -78,7 +78,10 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
         if(request is RoseRsV2ControlRequest && !settings.supports(request)) return emptyList()
         return when(request) {
             StandardControlRequest.Refresh->initialReadCommands()
-            is StandardControlRequest.SetNoiseMode->if(model.noise && noiseConfirmed) listOf(command(9,when(request.mode){NoiseMode.ANC->1;NoiseMode.OFF->2;NoiseMode.TRANSPARENCY->3;NoiseMode.WIND->4})) else emptyList()
+            is StandardControlRequest.SetNoiseMode->{
+                val value=when(request.mode){NoiseMode.ANC->1;NoiseMode.OFF->2;NoiseMode.TRANSPARENCY->3;NoiseMode.WIND->4}
+                if(noiseConfirmed && value in model.noiseValues) listOf(command(9,value)) else emptyList()
+            }
             is RoseRsV2ControlRequest.SetGain->listOf(command(0x45,request.level))
             is RoseRsV2ControlRequest.SetHearingProtection->listOf(command(0x46,request.level))
             is RoseRsV2ControlRequest.SetEqualizer->listOf(command(0x2A,when(request.preset){0->1;1->0;else->request.preset}))
@@ -117,12 +120,12 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
                 is Wire.State.Battery->{
                     fun reading(raw:Int)=BatteryReading((raw and 127).takeIf{it<=100},(raw and 127)<=100 && (raw and 128)!=0)
                     val battery=if(model.aggregateBattery)
-                        EarbudBattery(overall=reading(report.left)) else EarbudBattery(left=reading(report.left),right=reading(report.right),case=if(model.caseBattery) reading(report.case) else BatteryReading(null,false))
+                        EarbudBattery(overall=reading(report.case)) else EarbudBattery(left=reading(report.left),right=reading(report.right),case=if(model.caseBattery) reading(report.case) else BatteryReading(null,false))
                     add(ProtocolEvent.CapabilitiesIdentified(battery=true));add(ProtocolEvent.FeatureStateChanged(BatteryFeatureState(battery)))
                 }
                 is Wire.State.Touch->{settings=settings.copy(touch=report.actions);add(ProtocolEvent.FeatureStateChanged(settings))}
                 is Wire.State.Value->{
-                    if(report.type==9){noiseConfirmed=true;add(ProtocolEvent.CapabilitiesIdentified(false,NoiseMode.entries.toSet()));add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(when(report.value){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND})))}
+                    if(report.type==9){noiseConfirmed=true;add(ProtocolEvent.CapabilitiesIdentified(false,model.noiseValues.map { when(it){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND} }.toSet()));add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(when(report.value){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND})))}
                     else {settings=when(report.type){
                         0x2A->settings.copy(eq=report.value);0x105->settings.copy(bass=report.value)
                         0x0E->settings.copy(game=report.value==1);0x32->settings.copy(multipoint=report.value==1)

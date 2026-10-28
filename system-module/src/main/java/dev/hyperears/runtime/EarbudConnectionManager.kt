@@ -11,7 +11,7 @@ import dev.hyperears.integration.BatteryFeatureState
 import dev.hyperears.integration.BatteryReading
 import dev.hyperears.integration.EarbudBattery
 import dev.hyperears.integration.ControlOwnership
-import dev.hyperears.integration.RoseRsV2Adapter
+import dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec
 import dev.hyperears.integration.ControlAppCatalog
 import dev.hyperears.bridge.AppleNativeAdmissionContract
 import dev.hyperears.bridge.BroadcastIdentity
@@ -367,7 +367,7 @@ internal class EarbudConnectionManager(
                 val refined = observed.identity.copy(manufacturerData = data)
                 observedDevices[key] = ObservedDevice(device, refined)
                 val adapter = EarbudAdapterRegistry.forIntegration(refined, disabledAdapterIds) ?: return@observe
-                if (adapter !is RoseRsV2Adapter) return@observe
+                if (adapter.id != RoseManufacturerIdentityCodec.modelId(data)) return@observe
                 val removal = removeLocked(key)
                 Triple(refined, adapter, removal)
             }

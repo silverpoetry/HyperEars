@@ -268,6 +268,21 @@ class SettingsHeadsetBindingTest {
         assertTrue(f.sent.isEmpty())
         f.binding.close()
     }
+    @Test fun legacyExplorerAudioRequiresConfirmationAndDifferentProfileCannotReuseChoice() {
+        val f=Fixture()
+        val model=dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.EXPLORER
+        f.current=f.current.copy(adapter=RoseLegacyAdapter(model).snapshot().copy(presentationId=RoseLegacyAdapter.SETTINGS_ONLY))
+            .withFeature(RoseLegacySettingsFeatureState(model.name,mapOf(RoseLegacySetting.AUDIO to 2,RoseLegacySetting.GAME to 0)))
+        f.binding.render()
+        val audio=f.row("hyperears.legacy.audio") as ListPreference
+        audio.callChangeListener("1")
+        assertTrue(f.sent.isEmpty())
+        val dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog()
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(RoseLegacyControlRequest.SetValue(model.name,RoseLegacySetting.AUDIO,1),f.sent.single())
+        f.binding.close()
+    }
     private inner class Fixture {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity).also(activity::setContentView)

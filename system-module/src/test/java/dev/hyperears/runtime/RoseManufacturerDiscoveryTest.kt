@@ -72,6 +72,34 @@ class RoseManufacturerDiscoveryTest {
             assertFalse(manager.snapshots().single().state.sessionActive)
         };idle()
     }
+    @Test fun actualManagerRefinesThreeByteZtIdentityAndHonorsDisabledExactAdapter() {
+        for (disabled in listOf(false, true)) {
+            val device = device()
+            EarbudConnectionManager(context).use { manager ->
+                if (disabled) manager.updateDisabledAdapters(setOf("rose-zt-i3"))
+                manager.onPhysicalConnected(address); manager.observeDevice(device, identity); idle()
+                val scanner = shadowOf(adapter.bluetoothLeScanner)
+                val callback = scanner.scanCallbacks.single()
+                val malformed = ReflectionHelpers.callStaticMethod<ScanRecord>(ScanRecord::class.java, "parseFromBytes",
+                    ClassParameter.from(ByteArray::class.java, byteArrayOf(4, 0xFF.toByte(), 0xF1.toByte(), 2, 3,
+                        3, 0xFF.toByte(), 0x42, 0, 0)))
+                callback.onScanResult(1, ScanResult(device, malformed, -40, SystemClock.elapsedRealtimeNanos())); idle()
+                assertNotEquals("rose-zt-i3", manager.snapshots().single().state.adapter!!.id)
+                assertEquals(1, scanner.scanCallbacks.size)
+                val record = ReflectionHelpers.callStaticMethod<ScanRecord>(ScanRecord::class.java, "parseFromBytes",
+                    ClassParameter.from(ByteArray::class.java, byteArrayOf(4, 0xFF.toByte(), 0xF1.toByte(), 2, 3, 0)))
+                callback.onScanResult(1, ScanResult(device, record, -40, SystemClock.elapsedRealtimeNanos())); idle()
+                if (disabled) assertNotEquals("rose-zt-i3", manager.snapshots().single().state.adapter!!.id)
+                else {
+                    assertEquals("rose-zt-i3", manager.snapshots().single().state.adapter!!.id)
+                    manager.observeDevice(device, identity); idle()
+                    assertEquals("rose-zt-i3", manager.snapshots().single().state.adapter!!.id)
+                }
+                assertTrue(scanner.scanCallbacks.isEmpty())
+            }; idle()
+        }
+    }
+
     @Test fun timeoutAndOwnerCancellationStopRealScansAndRejectLateCallbacks() {
         val device=device();var eligible=true;var accepted=0
         val discovery=RoseManufacturerDiscovery(context)

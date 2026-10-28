@@ -1,7 +1,7 @@
 # ROSELINK RS Common v2 model profiles
 
 2026-10-28 source reconstruction from ROSELINK 3.8.2 (5409), Dart 3.11.4 ARM64 AOT.
-This extends fifteen exact configurations independently of Coral. No vendor code, assets,
+This extends twenty-four exact configurations independently of Coral. No vendor code, assets,
 APK, firmware or private keys are bundled. The existing 53-file configuration inventory
 is the index; this document records the additional identity and daily-control contract.
 
@@ -13,7 +13,7 @@ ID in little-endian order. They are not Bluetooth names or the RS/BH product cod
 `identifyDevice` at0x7a7240 prefers12/8/4 hex-character prefixes.
 `RBleScanner._advertisementDataToHexString` at0xa88e6c reconstructs manufacturer data.
 `NormalEventHandler.scanDeviceToEarObject` at0xa88420 passes this raw evidence into
-`buildEarObject`. All fifteen configs explicitly declare RFCOMM UUID
+`buildEarObject`. All twenty-four configs explicitly declare RFCOMM UUID
 `0cf12d31-fac3-4553-bd80-d6832e7b3931` and allocate RsCommonV2Sender / Receiver.
 
 | Config | Advertisement prefix | Config offset | Ordinary EQ labels | Noise / other distinctions |
@@ -73,7 +73,7 @@ Find supports manual1left/2right/3both/4stop only;5/6 are received per-side stop
 not exposed writes. The details panel owns a60-second lease and stops on close only while
 its session/address/ownership still match. No find or codec action occurs at initialization.
 
-Unported separate contracts remain explicit: custom EQ curves, gain/hearing protection,
+Unported separate contracts remain explicit: custom EQ curves, additional gain/hearing profiles,
 spatial/ear-adaptive/wear/tap controls, independent mic mode, language and ANC-line tuning.
 They are not enabled by shared sender/config inheritance. No OTA, recording or business
 feature is added. Tests cover source identity, model-specific enum/readback constraints,
@@ -125,3 +125,69 @@ and actual source labels; protocol tests exercise invalid lengths, ranges, all s
 splits, query separation and reset. Six identities are covered by the existing full
 catalog identity/admission tests. Test results belong to the coordinated build report;
 no phone operations or physical validation were performed in this slice.
+
+## Nine remaining named configurations: bounded ordinary subset
+
+This extends the existing sender/receiver with nine constructor-qualified profiles;
+AURAMIC and the generic rs_common_v2 base remain excluded. Source paths are
+`asm/roselink/rose_bluetooth/config/rs_common_v2/<config>_device_config.dart` in the
+archived ROSELINK 3.8.2 AOT tree. All nine allocate RsCommonV2Sender,
+RsCommonV2Receiver and RsCommonV2ReceiveHandler; primary field_33 is the existing
+31 service UUID. HSC-2710's field_37/extra 6666/7777 services are not silently
+substituted as ordinary transports.
+
+| Config | Prefix | Ported differences |
+|---|---|---|
+| ceramics_u_hsc_2710 | 0b137957 | Four base noise modes; EQ 3/0/1/2; gain only, no hearing protection; audio 0/1/2; touch/find |
+| first_angel | 0b0e64be | Head/aggregate; ordinary EQ 1/0; no audio/noise; touch/find |
+| hyacinth | 0b120a0b | EQ 0/1/2; audio 0/1; touch/find; no noise |
+| jasmine | 0b0a0a11 | Two bud batteries, no case; no EQ/audio/noise; touch/find |
+| ky01 | 0a0b0a0d | EQ 0/1/2; no audio/noise; touch/find |
+| magician | 0b0e0a0d | Head/aggregate; audio 0/1/4/5; no EQ/noise/touch; find |
+| moka | 68f5b8eb | Head/aggregate; EQ 0/1/2; audio 0/1; no noise/touch/find |
+| opal | 0b0a0a12 | ANC/off/transparency only, never wind; EQ 0/1/2; touch/find; no audio |
+| zircon | 0b110a0b | Four base noise modes; EQ 0/1/2; audio 0/1/2/3; touch/find |
+
+All have declared game, multipoint and prompt widgets; each still needs its own valid
+report. Query construction excludes absent fields and parsing rejects unsolicited
+unsupported fields. Opal's noise option list is pool 0x8878 (ANC/normal/trans); HSC uses
+0x86e0 and Zircon 0x88f0 (four modes). Audio pools are HSC 0x86a0, Hyacinth/Moka 0x8120,
+Magician 0x89a8 and Zircon 0x8710. HSC EQ pool0x8cc0 orders semantic values3/0/1/2;
+zh_cn maps eq_custom_LIGHT_01 to "经典调音". First Angel's ordinary list0x8618 orders
+HIFI/POP, semantic1/0. UI labels follow semantic values rather than list positions.
+
+### Aggregate battery correction
+
+Previous aggregate projection incorrectly used the first (left) wire component.
+The source single-headphone widget selects BatteryType.charge (pool0x80a8).
+Receiver `_handleBatteryData` stores the third decoded component into RBatteryData
+field_17 at0xf0ce84. The common handler loads that field at0xefa230 and its non-TWS
+branch0xefa4cc updates controller charge-display field_27. Speakfree's override
+independently reads field_17 at0xef9ed8. Thus Swift2, SpeakFeel, SpeakFeel2 and new
+First Angel/Magician/Moka now expose that third component as aggregate; they do not
+expose it as a separate charging case or duplicate it into fictional earbuds.
+Distinct70/60/50 fixtures, charging and invalid third-byte regressions cover this fix.
+
+### Exact remaining gaps and old-path differences
+
+- HSC-2710 and Zircon advertise extra deep/limit ANC, ANC-line controls, firmware/
+  business workflows; their special fields are not inferred from the ordinary 09
+  response. HSC gain45 is ported independently of hearing46.
+- First Angel's separate custom/game EQ entry0xA0 is declared but its special
+  request/readback is not established by the ordinary preset codec; it remains
+  excluded, rather than treated as ordinary EQ.
+- Language widgets on Hyacinth/Jasmine/KY01/Magician/Zircon, Zircon wearing and
+  recording, custom EQ curves and remaining level/calibration workflows remain
+  explicit follow-up contracts. Existing vendor handoff is available; no static
+  capability is granted for any of these widgets.
+- Existing BudsFeel MK2 and EarFeel i7 retain their distinct RFCOMM paths and game
+  subsets; their source config declarations are not duplicate new adapters.
+  Ceramics U retains its existing six-mode/EQ/depth/tone profile, separate from
+  exact HSC-2710 manufacturer identity. Furina keeps its existing exact-name
+  BudsFeel path; its RoseLink additional EQ/multipoint/audio/touch/etc. remain a
+  difference ledger, not silently inherited from another configuration.
+
+No shared registry change is needed: exact model entries feed the existing
+manufacturer-qualified registry. Tests cover model discovery without static controls,
+profile query/parse isolation, Opal wind rejection, Moka absent find/touch, HSC gain vs
+hearing separation, aggregate correction, and actual popup/native EQ/gain presentation.

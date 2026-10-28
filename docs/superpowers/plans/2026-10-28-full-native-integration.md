@@ -209,7 +209,7 @@ does not treat every source command as universally supported. All items below re
   i7/U exact RFCOMM identity and model-qualified daily settings now implemented; i7/MK2 game,
   U six noise values/EQ/depth/tone settings, strict opaque-field parsing and native details.
   Other RoseLink model families and additional commands remain open.
-  Nine RS Common v2 configurations now have exact manufacturer-prefix refinement, bounded
+  Twenty-four RS Common v2 configurations now have exact manufacturer-prefix refinement, bounded
   same-address discovery, connection-scoped identity retention, model-qualified daily controls
   and native cards/details. Bluetooth address correspondence still requires device validation.
 - [ ] C6 NiceHCK: OriG six ANC/seven EQ, independent wind toggle, game/latency, dual/wearing,
@@ -428,17 +428,22 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-Native daily rows and Settings vendor-app handoff are followed by Apple reported identity,
-six additional RSv2 profiles, four-profile gain/hearing-protection controls, Ceramics X F8
-seven-field daily controls and first-generation FreeLace Pro. Validation passes 1,257 tests
-(323 protocol, 490 integration, 444 system-module), Release lint/assembly and protocol-test
-Debug assembly. Independent reviews checked F8 frame layout, RSv2 identities/fields and
-FreeLace lifecycle; the latter corrected aggregate-only battery handling to retain valid
-component reports. No new phone installation or physical validation is claimed.
+The Rose catalog branch checkpoint passes 1,283 tests (332 protocol, 500 integration,
+451 system-module), Release lint/assembly and protocol-test Debug assembly. It adds nine
+RSv2 profiles, independent ZT i3/HeadFeel protocols and Explorer plus seven RS Common profiles.
+Native settings reuse typed report-gated controls and source-specific transports. All families
+share unique manufacturer-identity refinement, preserving the existing connection-bound scan,
+cache, ownership and disabled-adapter rules. Actual scanner callback tests cover three-byte
+identity, malformed extra records, session retention and disabled exact adapters.
 
-Apple's 31 original catalog records remain identity metadata, not 31 new protocol promises;
-HQB indices use a separate namespace. Rename awaits authoritative readback. RSv2 still has
-source configurations outside the current 15-model catalog, and Ceramics X touch remapping,
-ZT i3/HeadFeel and F8 Explorer remain separate source-qualified work. Complex firmware and
-calibration workflows continue through explicit vendor-app handoff. This checkpoint does not
-complete the comprehensive goal.
+Independent reviews corrected ambiguous identity/name fallback, source-specific headphone
+battery projection, charged-earbud percentages and an unsupported RS Common LTV interpretation.
+No new phone installation or hardware validation is claimed. The previous Apple catalog,
+reported identity, FreeLace and vendor-handoff checkpoints remain part of this branch.
+
+Next finite source gaps include F8 Agate/Agate X/Ceramics/7034 configurations, additional daily
+fields in the existing Rose profiles and Sony functions beyond the current audio/multipoint
+slice. Apple rename still awaits authoritative readback; the 31 original identity records do
+not claim 31 fully implemented protocols. Complex firmware and calibration workflows continue
+through explicit vendor-app handoff. Other open family and release requirements above remain
+in scope; this checkpoint does not complete the comprehensive goal.

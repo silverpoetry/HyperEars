@@ -13,6 +13,8 @@ internal object SettingsAdvancedEditors {
         Editor(OppoCardPolicy::available, OppoSettingsDetails::open),
         Editor(BoseDailyCardPolicy::available, BoseDailySettingsDetails::open),
         Editor(PuddingCardPolicy::available, PuddingSettingsDetails::open),
+        Editor(RoseLegacySettingsPolicy::available, RoseLegacySettingsDetails::open),
+        Editor(RoseZtSettingsPolicy::available, RoseZtSettingsDetails::open),
         Editor(RoseRsV2SettingsPolicy::available, RoseRsV2SettingsDetails::open),
         Editor(RoseCeramicsXSettingsPolicy::available, RoseCeramicsXSettingsDetails::open),
         Editor(QcyCardPolicy::available, QcySettingsDetails::open),

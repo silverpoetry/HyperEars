@@ -96,6 +96,8 @@ internal class SettingsHeadsetBinding(
                     } }
                 }
             }
+            SettingsLegacyRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
+            SettingsRoseZtRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsCoralRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsRoseRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsCeramicsXRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
