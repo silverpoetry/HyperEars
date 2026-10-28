@@ -5,6 +5,42 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RoseRsV2AdapterTest {
+    @Test fun noiseDepthRequiresMatchingConfirmedModeAndNeverChangesItImplicitly() {
+        val m=Identity.Model.CERAMICS_U_HSC_2710;val a=RoseRsV2Adapter(m)
+        val anc=RoseRsV2ControlRequest.SetNoiseLevel(m.name,false,5)
+        val trans=RoseRsV2ControlRequest.SetNoiseLevel(m.name,true,1)
+        a.receive(frame(0x2C,1)+frame(0x2D,5));assertFalse(a.executeControl(anc).accepted)
+        a.receive(frame(9,1));val result=a.executeControl(anc)
+        assertTrue(result.accepted);assertArrayEquals(byteArrayOf(0x2C,5),payload(result.commands.single()))
+        assertArrayEquals(byteArrayOf(0xFA.toByte(),0x2C),payload(result.readback.single()))
+        assertEquals(1,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.ancLevel)
+        assertFalse(a.executeControl(trans).accepted)
+        a.receive(frame(9,3));assertTrue(a.executeControl(trans).accepted)
+        assertFalse(a.executeControl(trans.copy(level=3)).accepted);assertFalse(a.executeControl(anc).accepted)
+        a.receive(frame(9,2));assertFalse(a.executeControl(trans).accepted)
+        assertEquals(trans,ControlRequestTransport.decode(ControlRequestTransport.encode(trans)))
+        a.resetProtocolSession();assertFalse(a.executeControl(anc).accepted)
+    }
+    @Test fun languageAndWearNeedOwnReportsUseInvertedWearReadbackAndReset() {
+        val m=Identity.Model.ZIRCON;val a=RoseRsV2Adapter(m)
+        val language=RoseRsV2ControlRequest.SetLanguage(m.name,1)
+        val wear=RoseRsV2ControlRequest.SetWearDetection(m.name,false)
+        assertFalse(a.executeControl(language).accepted);assertFalse(a.executeControl(wear).accepted)
+        a.receive(frame(0x31,0))
+        assertTrue(a.executeControl(language).accepted);assertFalse(a.executeControl(wear).accepted)
+        a.receive(frame(8,0))
+        val result=a.executeControl(wear)
+        assertArrayEquals(byteArrayOf(8,1),payload(result.commands.single()))
+        assertArrayEquals(byteArrayOf(0xFA.toByte(),8),payload(result.readback.single()))
+        assertEquals(true,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.wearDetection)
+        assertEquals(0,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.language)
+        assertFalse(a.executeControl(language.copy(expectedModel="HYACINTH")).accepted)
+        assertFalse(a.executeControl(language.copy(language=2)).accepted)
+        assertEquals(wear,ControlRequestTransport.decode(ControlRequestTransport.encode(wear)))
+        assertEquals(language,ControlRequestTransport.decode(ControlRequestTransport.encode(language)))
+        a.receive(frame(8,1));assertEquals(false,a.runtimeState().features.get<RoseRsV2SettingsFeatureState>()!!.wearDetection)
+        a.resetProtocolSession();assertFalse(a.executeControl(language).accepted);assertFalse(a.executeControl(wear).accepted)
+    }
     @Test fun everyHeadProfileUsesReportedChargeSlotNotLeftAndNeverFillsBudTelemetry() {
         for(model in Identity.Model.entries.filter { it.aggregateBattery }) {
             val a=RoseRsV2Adapter(model)

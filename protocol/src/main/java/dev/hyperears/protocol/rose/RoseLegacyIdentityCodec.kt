@@ -4,6 +4,10 @@ package dev.hyperears.protocol.rose
 object RoseLegacyIdentityCodec {
     const val SERVICE_UUID = "0cf12d31-fac3-4553-bd80-d6832e7b3931"
     enum class Model(val prefixes: List<String>,val label:String,val spp:Boolean,val head:Boolean=false) {
+        AGATE(listOf("18840505"),"ROSE AGATE",false),
+        AGATE_X(listOf("18840506"),"ROSE AGATE X",false),
+        CERAMICS(listOf("18840100","18840103"),"ROSE CERAMICS",false),
+        CERAMICS_X_7034(listOf("18840112"),"ROSE Ceramics X (7034)",true),
         EXPLORER(listOf("18840107"),"ROSE EXPLORER",true),
         BUDSFREE(listOf("12cc3e4c"),"ROSE BudsFree i",false),
         CAMBRIAN(listOf("0b0c0a0c"),"ROSE Cambrian",true,true),
@@ -12,6 +16,7 @@ object RoseLegacyIdentityCodec {
         OPENLINK(listOf("0b0a5b9d"),"ROSE OpenLink",true),
         SPORTFEEL(listOf("0b0a0a0f"),"ROSE SportFeel",true),
         SWIFT(listOf("0b0b0a0b"),"ROSE SWIFT",false,true);
+        val f8 get() = this in setOf(AGATE, AGATE_X, CERAMICS, CERAMICS_X_7034, EXPLORER)
         val id get()="rose-legacy-"+name.lowercase(java.util.Locale.ROOT)
     }
     fun identify(data:Map<Int,List<Int>>):Model? {

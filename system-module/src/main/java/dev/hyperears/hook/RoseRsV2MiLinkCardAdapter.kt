@@ -96,5 +96,5 @@ internal object RoseRsV2SettingsPolicy {
                 (state.noiseMode != null && state.adapter?.supportedNoiseModes?.isNotEmpty() == true))
     fun request(state: EarbudState, address: String, request: RoseRsV2ControlRequest): RoseRsV2ControlRequest? =
         request.takeIf { available(state, address) &&
-            state.features.get<RoseRsV2SettingsFeatureState>()?.supports(request) == true }
+            state.features.get<RoseRsV2SettingsFeatureState>()?.supports(request,state.noiseMode) == true }
 }

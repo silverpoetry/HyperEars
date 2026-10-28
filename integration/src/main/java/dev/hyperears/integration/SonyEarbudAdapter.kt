@@ -77,18 +77,20 @@ open class SonyProtocolFamilyAdapter internal constructor(
         get() = when {
             runtimeState().features.get<SonyEqFeatureState>()?.let { it.writablePreset || it.writableBands || it.writableBass } == true ||
                 runtimeState().features.get<SonyAmbientFeatureState>()?.level in 1..20 ||
+                runtimeState().features.get<SonyAssignableFeatureState>()?.hasSettings == true ||
                 runtimeState().features.get<SonyAudioSettingsFeatureState>()?.hasSettings == true ||
                 runtimeState().features.get<SonyMultipointFeatureState>()?.hasSettings == true ->
                 if (effectiveCapabilities().noiseControl) SonyMiLinkPresentationIds.ADVANCED else SonyMiLinkPresentationIds.SETTINGS
             else -> configuration.miLinkPresentationId.takeIf { effectiveCapabilities().noiseControl }
         }
     override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
-        state is SonyEqFeatureState || state is SonyAmbientFeatureState || state is SonyAudioSettingsFeatureState || state is SonyMultipointFeatureState
+        state is SonyAssignableFeatureState || state is SonyEqFeatureState || state is SonyAmbientFeatureState || state is SonyAudioSettingsFeatureState || state is SonyMultipointFeatureState
     }
     override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
         when (request) {
             is SonyControlRequest.SetAmbient -> adapter.runtimeState().features.get<SonyAmbientFeatureState>()?.supports(request) == true
             is SonyControlRequest -> adapter.runtimeState().features.get<SonyEqFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyAssignableFeatureState>()?.supports(request) == true ||
                 adapter.runtimeState().features.get<SonyAudioSettingsFeatureState>()?.supports(request) == true ||
                 adapter.runtimeState().features.get<SonyMultipointFeatureState>()?.supports(request) == true
             else -> false
@@ -97,6 +99,7 @@ open class SonyProtocolFamilyAdapter internal constructor(
     override fun onProtocolReset() {
         removeFeatureState(SonyEqFeatureState.FEATURE_ID)
         removeFeatureState(SonyAmbientFeatureState.FEATURE_ID)
+        removeFeatureState(SonyAssignableFeatureState.FEATURE_ID)
         removeFeatureState(SonyAudioSettingsFeatureState.FEATURE_ID)
         removeFeatureState(SonyMultipointFeatureState.FEATURE_ID)
     }

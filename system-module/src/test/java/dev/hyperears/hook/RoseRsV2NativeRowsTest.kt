@@ -21,6 +21,30 @@ class RoseRsV2NativeRowsTest {
         adapter=RoseRsV2Adapter(Model.OPENFEEL_L).snapshot().copy(presentationId=RoseRsV2PresentationIds.SETTINGS),
         lifecycle=DeviceLifecycle(SystemProfileState.CONNECTED,PrivateTransportState.CONNECTED,ProtocolHandshakeState.CONFIRMED))
         .withFeature(feature)
+    @Test fun nativeDepthUsesFiveThreeOneAndBlocksStaleOffOrOtherModel() {
+        val f=Fixture();f.current=state(RoseRsV2SettingsFeatureState(Model.CERAMICS_U_HSC_2710.name,ancLevel=1,transparencyLevel=5)).withFeature(NoiseModeFeatureState(NoiseMode.ANC))
+        f.render();val anc=f.row("anc_level")!!;val trans=f.row("transparency_level")!!
+        assertEquals(listOf("5","3","1"),anc.entryValues.map(CharSequence::toString))
+        assertEquals(listOf("5","1"),trans.entryValues.map(CharSequence::toString))
+        assertTrue(anc.isEnabled);assertFalse(trans.isEnabled)
+        anc.callChangeListener("5");assertEquals(RoseRsV2ControlRequest.SetNoiseLevel(Model.CERAMICS_U_HSC_2710.name,false,5),f.sent.single())
+        assertEquals("1",anc.value)
+        f.current=f.current.withFeature(NoiseModeFeatureState(NoiseMode.OFF))
+        anc.callChangeListener("3");assertEquals(1,f.sent.size)
+        f.current=f.current.withFeature(NoiseModeFeatureState(NoiseMode.TRANSPARENCY))
+        trans.callChangeListener("3");assertEquals(1,f.sent.size)
+    }
+    @Test fun languageAndWearNativeChoicesKeepReportedStateAndRejectChangedProfile() {
+        val f=Fixture();f.current=state(RoseRsV2SettingsFeatureState(Model.ZIRCON.name,language=0,wearDetection=true))
+        f.render();val language=f.row("language")!!;val wear=f.row("wear")!!
+        assertEquals(listOf("中文","English"),language.entries.map(CharSequence::toString))
+        assertFalse(language.callChangeListener("1"));assertEquals("0",language.value)
+        assertEquals(RoseRsV2ControlRequest.SetLanguage(Model.ZIRCON.name,1),f.sent.last())
+        assertFalse(wear.callChangeListener("0"));assertEquals("1",wear.value)
+        assertEquals(RoseRsV2ControlRequest.SetWearDetection(Model.ZIRCON.name,false),f.sent.last())
+        f.current=state(RoseRsV2SettingsFeatureState(Model.ASTRO_X.name,wearDetection=true))
+        language.callChangeListener("1");wear.callChangeListener("0");assertEquals(2,f.sent.size)
+    }
     @Test fun hscGainOnlyAndPerProfileEqLabelsKeepSourceOrdering() {
         val f=Fixture();f.current=state(RoseRsV2SettingsFeatureState(Model.CERAMICS_U_HSC_2710.name,gain=1))
         f.render();assertNotNull(f.row("gain"));assertNull(f.row("hearing"))

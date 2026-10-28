@@ -68,3 +68,49 @@ layout. A checksum-valid payload `02 0E 01` is unknown and cannot grant game con
 The first two battery bytes use seven-bit percentages and high-bit charging; the third
 is a plain percentage with charging false. Swift and Cambrian project that third component
 to overall battery (`0xef9848`, `0xef962c`, receiver `0xeff3c8`–`0xeff3e0`).
+
+## Additional F8 manufacturer profiles
+
+All references below are under the same archived `config/f8` and receiver/sender tree.
+AGATE constructor `0x6dbe88` declares `18840505`; AGATE X `0x6dba80` declares
+`18840506`; Ceramics `0x6df348` declares `18840100` / `18840103`. Their config
+routines set sppSupport false, and F8 enum ordinal1 selects control FDB3/FF16/FF17
+in BaseDeviceConfig.normalBleServiceConfig `0x79d0dc`. The existing two GATT write
+candidates prefer WITHOUT_RESPONSE then WITH_RESPONSE, without copying fixed attribute
+handles from the separately validated Ceramics X companion endpoint.
+
+Ceramics X 7034 constructor `0x6de820` declares `18840112`. Its config routine
+`0x7b3f38` uses control RFCOMM UUID `0cf12d31-fac3-4553-bd80-d6832e7b3931` and
+sppSupport true. `00007034...` is field37/OTA, not a GATT control service. Its retail
+display CERAMICS-X is shared with the existing `18840109` configuration, so only its
+actual manufacturer prefix selects the new profile. Existing validated companion
+identity and transport are retained separately; names and a common F8 sender do not
+merge the models.
+
+AGATE and AGATE X use model-specific two-choice EQ labels. Config pools `0x8c98`
+and `0x8c68` resolve through `objs.txt` to semantic Rock0/HiFi1 and Rock0/POP1.
+The ordinary EQ dispatcher maps semantic0 to F8 raw1 and semantic1 to raw0.
+Therefore the native raw0/raw1 labels are HiFi/Rock for AGATE, Pop/Rock for AGATE X.
+AgateReceiveHandler `0xef8044` maps raw0 to semantic1 and raw1/raw2 to semantic0.
+Raw2 consequently lacks an independently confirmed distinct selection and is normalized
+to canonical raw1 when reported, replacing any older raw0 state. Ceramics
+also uses this handler despite declaring three ordinary EQ choices. This bounded
+port excludes raw2 as a distinct write choice instead of presenting an unproven
+separate Rock selection;
+Ceramics retains raw0 HiFi/raw1 Pop. Independent EQ reports still gate all writes.
+
+AGATE and Ceramics declare a game widget and can query/report field08; AGATE X does
+not, and rejects that field even if unsolicited. None of these three models queries
+or accepts noise, audio, multipoint, language, wear or touch-master state. Touch
+configuration widgets do not prove the separate master-switch workflow or a complete
+mapping schema. Their battery handler is also not inherited: AgateReceiveHandler's
+base battery method throws RFunctionLostException; standard Android battery remains.
+
+7034 explicitly selects CeramicsXReceiveHandler and supports the proven F8 EQ/game/
+audio/language/touch fields. Its noise field12 uses 0 wind,1 ANC,2 transparency,3 off,
+unlike Explorer's off0. Independent depth fields11/12 (hex) map 0/1/2 to high/medium/low;
+commands30/31 require the corresponding currently reported mode. Prompt/wear and
+private battery are not inferred from the broader shared sender. All new controls use
+the existing typed feature/request and native card/Settings details, reset lifecycle,
+per-field readbacks and audio confirmation. These four profiles remain source-qualified,
+without new hardware validation; OTA and incomplete gesture mappings use vendor handoff.

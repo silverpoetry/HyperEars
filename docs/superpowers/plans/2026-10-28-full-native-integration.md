@@ -428,22 +428,23 @@ outstanding; this checkpoint does not complete the comprehensive goal.
 
 ### Latest verified checkpoint
 
-The Rose catalog branch checkpoint passes 1,283 tests (332 protocol, 500 integration,
-451 system-module), Release lint/assembly and protocol-test Debug assembly. It adds nine
-RSv2 profiles, independent ZT i3/HeadFeel protocols and Explorer plus seven RS Common profiles.
-Native settings reuse typed report-gated controls and source-specific transports. All families
-share unique manufacturer-identity refinement, preserving the existing connection-bound scan,
-cache, ownership and disabled-adapter rules. Actual scanner callback tests cover three-byte
-identity, malformed extra records, session retention and disabled exact adapters.
+The F8/RSv2 daily/Sony assignment checkpoint passes 1,307 tests (338 protocol, 509 integration,
+460 system-module), Release lint/assembly and protocol-test Debug assembly. Documentation
+checks cover 79 Markdown files and 34 control applications. New source-qualified F8 profiles
+cover AGATE, AGATE X, CERAMICS and Ceramics X 7034; language, wearing detection and noise
+depth extend only their explicitly qualified RSv2 models. Sony V1 Table1 preset assignment
+preserves full capability/current vectors, rejects stale sibling changes and remains separate
+from V2 and Table2. Independent reviews and regressions cover these contracts.
 
-Independent reviews corrected ambiguous identity/name fallback, source-specific headphone
-battery projection, charged-earbud percentages and an unsupported RS Common LTV interpretation.
-No new phone installation or hardware validation is claimed. The previous Apple catalog,
-reported identity, FreeLace and vendor-handoff checkpoints remain part of this branch.
+Known unbranded catalog labels now trigger bounded same-device manufacturer observation only.
+The original named Ceramics X candidate can refine to 7034 after exact prefix12 evidence;
+name alone never selects the new protocol. The source EQ raw2 alias on the three small F8
+profiles replaces stale raw0 state while writable choices remain0/1. No new phone installation
+or hardware validation is claimed.
 
-Next finite source gaps include F8 Agate/Agate X/Ceramics/7034 configurations, additional daily
-fields in the existing Rose profiles and Sony functions beyond the current audio/multipoint
-slice. Apple rename still awaits authoritative readback; the 31 original identity records do
-not claim 31 fully implemented protocols. Complex firmware and calibration workflows continue
-through explicit vendor-app handoff. Other open family and release requirements above remain
-in scope; this checkpoint does not complete the comprehensive goal.
+Next work reconciles all RoseLink source configuration entries with actual adapter paths and
+fills remaining daily differences in the four older RSv2-associated adapters, plus further
+Sony source-qualified functions. The 31 Apple identity records remain metadata, and rename
+still awaits authoritative readback. Complex firmware/calibration workflows use explicit
+vendor-app handoff. Other open family, Android-experience and release requirements above
+remain in scope; this checkpoint does not complete the comprehensive goal.

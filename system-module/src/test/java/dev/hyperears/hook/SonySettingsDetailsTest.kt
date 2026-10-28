@@ -271,6 +271,24 @@ class SonySettingsDetailsTest {
         details.dismiss()
     }
 
+    @Test fun assignablePresetUsesCapturedVectorAndCannotOverwriteChangedSiblingOrSession() {
+        val fixture=Fixture()
+        val definition=SonyAssignableDefinition(listOf(1),listOf(SonyAssignableKey(0,0,listOf(0,16)),SonyAssignableKey(1,0,listOf(0,32))))
+        val feature=SonyAssignableFeatureState(definition,listOf(0,0),listOf(true,true))
+        fixture.current=fixture.current.withFeature(feature)
+        val details=fixture.open()
+        fun button()=descendants(popup(details).contentView).single{it.contentDescription=="sony.assignable.0.16"}
+        val old=button()
+        fixture.current=fixture.current.withFeature(feature.copy(current=listOf(0,32)))
+        old.performClick();assertTrue(fixture.sent.isEmpty())
+        fixture.observer!!(fixture.current)
+        button().performClick()
+        assertEquals(SonyControlRequest.SetAssignablePreset(definition,listOf(0,32),0,16),fixture.sent.single())
+        assertEquals(listOf(0,32),fixture.current.features.get<SonyAssignableFeatureState>()!!.current)
+        val stale=button();fixture.token="new-session";stale.performClick()
+        assertEquals(1,fixture.sent.size);assertEquals(1,fixture.unsubscribed)
+    }
+
     private fun attachListenerCount(view: View): Int {
         val info = org.robolectric.util.ReflectionHelpers.getField<Any?>(view, "mListenerInfo") ?: return 0
         return org.robolectric.util.ReflectionHelpers.getField<List<*>?>(info, "mOnAttachStateChangeListeners")?.size ?: 0

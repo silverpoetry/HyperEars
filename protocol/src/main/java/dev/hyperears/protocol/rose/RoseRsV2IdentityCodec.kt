@@ -30,6 +30,10 @@ object RoseRsV2IdentityCodec {
         MOKA("68f5b8eb","ROSE Moka",touch=false),
         OPAL("0b0a0a12","ROSE Opal",true,audio=false),
         ZIRCON("0b110a0b","ROSE Zircon",true);
+        val ancLevels: List<Int> get() = if(this in setOf(CERAMICS_MK2,CERAMICS_MK2_5736,CERAMICS_MK2_8912F,CERAMICS_U_HSC_2710,ZIRCON)) listOf(5,3,1) else emptyList()
+        val transparencyLevels: List<Int> get() = if(this == CERAMICS_U_HSC_2710) listOf(5,1) else ancLevels
+        val languageSupported: Boolean get() = this in setOf(CERAMICS_MK2,CERAMICS_MK2_8912F,HYACINTH,JASMINE,KY01,MAGICIAN,SPEAKFEEL,ZIRCON)
+        val wearDetectionSupported: Boolean get() = this in setOf(ASTRO_X,ZIRCON)
         val gainAndProtection: Boolean get() = this in setOf(OPENFEEL_L, OPENFEEL_MK2, SPEAKFEEL2, ASTRO_X)
         val gainSupported: Boolean get() = gainAndProtection || this == CERAMICS_U_HSC_2710
         val hearingProtectionSupported: Boolean get() = gainAndProtection

@@ -6,25 +6,42 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Transient
 
-@Serializable enum class RoseLegacySetting { EQ,GAME,AUDIO,TOUCH,PROMPT,LANGUAGE,WEAR,SPATIAL }
+@Serializable enum class RoseLegacySetting { EQ,GAME,AUDIO,TOUCH,PROMPT,LANGUAGE,WEAR,SPATIAL,ANC_LEVEL,TRANSPARENCY_LEVEL }
 @Serializable @SerialName("rose.legacy.settings")
 data class RoseLegacySettingsFeatureState(val model:String,val values:Map<RoseLegacySetting,Int> = emptyMap()):DeviceFeatureState {
     @Transient override val featureId=FEATURE_ID
     val profile get()=Identity.Model.entries.singleOrNull { it.name==model }
-    fun supports(request:RoseLegacyControlRequest.SetValue)=request.expectedModel==model && request.setting in values && request.value in profile?.allowed(request.setting).orEmpty()
+    fun supports(request:RoseLegacyControlRequest.SetValue,noise:NoiseMode?=null)=request.expectedModel==model && request.setting in values && request.value in profile?.allowed(request.setting).orEmpty() && when(request.setting) {
+        RoseLegacySetting.ANC_LEVEL -> noise == NoiseMode.ANC
+        RoseLegacySetting.TRANSPARENCY_LEVEL -> noise == NoiseMode.TRANSPARENCY
+        else -> true
+    }
     companion object {const val FEATURE_ID="rose.legacy.settings"}
 }
 @Serializable sealed interface RoseLegacyControlRequest:ControlRequest {
     @Serializable @SerialName("rose.legacy.set_value")
     data class SetValue(val expectedModel:String,val setting:RoseLegacySetting,val value:Int):RoseLegacyControlRequest
 }
-fun Identity.Model.allowed(setting:RoseLegacySetting):List<Int> = when(setting) {
-    RoseLegacySetting.GAME,RoseLegacySetting.TOUCH -> listOf(0,1)
-    RoseLegacySetting.EQ -> when(this){Identity.Model.EXPLORER,Identity.Model.BUDSFREE,Identity.Model.CAMBRIAN->listOf(0,1,2);Identity.Model.OPENFEEL->listOf(0,1);else->emptyList()}
-    RoseLegacySetting.AUDIO -> when(this){Identity.Model.EXPLORER->listOf(0,1,2);Identity.Model.BUDSFREE->listOf(0,1);Identity.Model.CAMBRIAN->listOf(0,1,4);Identity.Model.OPENFEEL->listOf(0,1,2,3,4);Identity.Model.SWIFT->emptyList();else->listOf(0,4)}
-    RoseLegacySetting.PROMPT -> if(this in setOf(Identity.Model.EXPLORER,Identity.Model.CAMBRIAN,Identity.Model.OPENFUN,Identity.Model.OPENLINK,Identity.Model.SPORTFEEL)) (1..5).toList() else emptyList()
-    RoseLegacySetting.LANGUAGE,RoseLegacySetting.WEAR -> if(this==Identity.Model.EXPLORER)listOf(0,1) else emptyList()
-    RoseLegacySetting.SPATIAL -> if(this==Identity.Model.SPORTFEEL)listOf(0,1) else emptyList()
+fun Identity.Model.allowed(setting:RoseLegacySetting):List<Int> {
+    if (this in setOf(Identity.Model.AGATE, Identity.Model.AGATE_X, Identity.Model.CERAMICS)) return when(setting) {
+        RoseLegacySetting.EQ -> listOf(0,1) // Agate handler aliases raw2 to raw1; no distinct confirmed Rock slot.
+        RoseLegacySetting.GAME -> if(this != Identity.Model.AGATE_X) listOf(0,1) else emptyList()
+        else -> emptyList()
+    }
+    if (this == Identity.Model.CERAMICS_X_7034) return when(setting) {
+        RoseLegacySetting.EQ,RoseLegacySetting.AUDIO,RoseLegacySetting.ANC_LEVEL,RoseLegacySetting.TRANSPARENCY_LEVEL -> listOf(0,1,2)
+        RoseLegacySetting.GAME,RoseLegacySetting.TOUCH,RoseLegacySetting.LANGUAGE -> listOf(0,1)
+        else -> emptyList()
+    }
+    return when(setting) {
+        RoseLegacySetting.GAME,RoseLegacySetting.TOUCH -> listOf(0,1)
+        RoseLegacySetting.EQ -> when(this){Identity.Model.EXPLORER,Identity.Model.BUDSFREE,Identity.Model.CAMBRIAN->listOf(0,1,2);Identity.Model.OPENFEEL->listOf(0,1);else->emptyList()}
+        RoseLegacySetting.AUDIO -> when(this){Identity.Model.EXPLORER->listOf(0,1,2);Identity.Model.BUDSFREE->listOf(0,1);Identity.Model.CAMBRIAN->listOf(0,1,4);Identity.Model.OPENFEEL->listOf(0,1,2,3,4);Identity.Model.SWIFT->emptyList();else->listOf(0,4)}
+        RoseLegacySetting.PROMPT -> if(this in setOf(Identity.Model.EXPLORER,Identity.Model.CAMBRIAN,Identity.Model.OPENFUN,Identity.Model.OPENLINK,Identity.Model.SPORTFEEL)) (1..5).toList() else emptyList()
+        RoseLegacySetting.LANGUAGE,RoseLegacySetting.WEAR -> if(this==Identity.Model.EXPLORER)listOf(0,1) else emptyList()
+        RoseLegacySetting.SPATIAL -> if(this==Identity.Model.SPORTFEEL)listOf(0,1) else emptyList()
+        RoseLegacySetting.ANC_LEVEL,RoseLegacySetting.TRANSPARENCY_LEVEL -> emptyList()
+    }
 }
 class RoseLegacyAdapter(val model:Identity.Model):StandardEarbudAdapter() {
     override val id=model.id
@@ -35,41 +52,44 @@ class RoseLegacyAdapter(val model:Identity.Model):StandardEarbudAdapter() {
     override val transportReadiness=TransportReadiness.PROTOCOL_HANDSHAKE
     override val controlApps=listOf(ControlAppCatalog.roseLink)
     override val transports:List<EarbudTransportSpec> = if(model.spp) listOf(RfcommEndpointSpec.ServiceUuid(Identity.SERVICE_UUID,id="${model.id}-spp")) else listOf(GattWriteMode.WITHOUT_RESPONSE,GattWriteMode.WITH_RESPONSE).map { mode -> GattTransportSpec(
-        serviceUuid="000000fe-0000-1000-8000-00805f9b34fb",writeCharacteristicUuid="000000f1-0000-1000-8000-00805f9b34fb",notifyCharacteristicUuid="000000f2-0000-1000-8000-00805f9b34fb",
+        serviceUuid=if(model.f8) RoseLuliXAdapter.SERVICE_UUID else "000000fe-0000-1000-8000-00805f9b34fb",
+        writeCharacteristicUuid=if(model.f8) RoseLuliXAdapter.WRITE_CHARACTERISTIC_UUID else "000000f1-0000-1000-8000-00805f9b34fb",
+        notifyCharacteristicUuid=if(model.f8) RoseLuliXAdapter.NOTIFY_CHARACTERISTIC_UUID else "000000f2-0000-1000-8000-00805f9b34fb",
         writeMode=mode,notificationsRequired=true,id="${model.id}-gatt-${mode.name}") }
     override fun matches(identity:EarbudIdentity)=identity.standardHeadset && !identity.nativeSystemEarbud && dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData)==model.id
     override val featureStateContract=StandardDeviceFeatureStateContract.extending { _,state->state is RoseLegacySettingsFeatureState && state.model==model.name }
-    override val controlRequestContract=StandardControlRequestContract.extending { adapter,request->request is RoseLegacyControlRequest.SetValue && adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>()?.supports(request)==true }
+    override val controlRequestContract=StandardControlRequestContract.extending { adapter,request->request is RoseLegacyControlRequest.SetValue && adapter.runtimeState().features.get<RoseLegacySettingsFeatureState>()?.supports(request,adapter.runtimeState().noiseMode)==true }
     override val miLinkCardPresentationId get()=if(runtimeState().noiseMode!=null) PRESENTATION else SETTINGS_ONLY.takeIf {runtimeState().features.get<RoseLegacySettingsFeatureState>()?.values?.isNotEmpty()==true}
     override fun onProtocolReset(){removeFeatureState(RoseLegacySettingsFeatureState.FEATURE_ID)}
     override fun createProtocolSession():ProtocolSession=RoseLegacySession(model)
     companion object {val PRESENTATION=MiLinkCardPresentationId("rose-legacy-settings");val SETTINGS_ONLY=MiLinkCardPresentationId("rose-legacy-settings-only")}
 }
 private class RoseLegacySession(private val model:Identity.Model):ProtocolSession {
-    private val f8=model==Identity.Model.EXPLORER
+    private val f8=model.f8
     private val decoder=Wire.Decoder(f8)
     private var state=RoseLegacySettingsFeatureState(model.name)
     private var noise:NoiseMode?=null
     private var sequence=0
     private var handshake=false
-    private val fields=if(f8) mapOf(RoseLegacySetting.EQ to 4,RoseLegacySetting.GAME to 8,RoseLegacySetting.AUDIO to 11,RoseLegacySetting.TOUCH to 22,RoseLegacySetting.PROMPT to 19,RoseLegacySetting.LANGUAGE to 10,RoseLegacySetting.WEAR to 9)
+    private val fields=if(f8) mapOf(RoseLegacySetting.EQ to 4,RoseLegacySetting.GAME to 8,RoseLegacySetting.AUDIO to 11,RoseLegacySetting.TOUCH to 22,RoseLegacySetting.PROMPT to 19,RoseLegacySetting.LANGUAGE to 10,RoseLegacySetting.WEAR to 9,RoseLegacySetting.ANC_LEVEL to 17,RoseLegacySetting.TRANSPARENCY_LEVEL to 18)
         else mapOf(RoseLegacySetting.EQ to 42,RoseLegacySetting.GAME to 14,RoseLegacySetting.AUDIO to 43,RoseLegacySetting.TOUCH to 7,RoseLegacySetting.PROMPT to 46,RoseLegacySetting.SPATIAL to 51)
-    private fun query()=if(f8) listOf(Wire.f8Query(12))+fields.filterKeys {model.allowed(it).isNotEmpty()}.values.map(Wire::f8Query) else listOf(Wire.rsQuery(sequence++ and 255))
+    private fun query()=if(f8) (if(modes().isNotEmpty()) listOf(Wire.f8Query(12)) else emptyList())+fields.filterKeys {model.allowed(it).isNotEmpty()}.values.map(Wire::f8Query) else listOf(Wire.rsQuery(sequence++ and 255))
     override fun initialReadCommands()=query()
     override fun readback(request:ControlRequest)=when(request){is RoseLegacyControlRequest.SetValue->if(f8)listOf(Wire.f8Query(fields.getValue(request.setting)))else query();is StandardControlRequest.SetNoiseMode->if(f8)listOf(Wire.f8Query(12))else query();else->emptyList()}
     override fun encode(request:ControlRequest):List<ByteArray> = when(request){
         StandardControlRequest.Refresh->query()
-        is RoseLegacyControlRequest.SetValue->if(!state.supports(request))emptyList()else if(f8){
-            val command=mapOf(RoseLegacySetting.EQ to 0x20,RoseLegacySetting.GAME to 0x25,RoseLegacySetting.AUDIO to 0x2b,RoseLegacySetting.TOUCH to 0x33,RoseLegacySetting.PROMPT to 0x32,RoseLegacySetting.LANGUAGE to 0x29,RoseLegacySetting.WEAR to 0x26).getValue(request.setting)
+        is RoseLegacyControlRequest.SetValue->if(!state.supports(request,noise))emptyList()else if(f8){
+            val command=mapOf(RoseLegacySetting.EQ to 0x20,RoseLegacySetting.GAME to 0x25,RoseLegacySetting.AUDIO to 0x2b,RoseLegacySetting.TOUCH to 0x33,RoseLegacySetting.PROMPT to 0x32,RoseLegacySetting.LANGUAGE to 0x29,RoseLegacySetting.WEAR to 0x26,RoseLegacySetting.ANC_LEVEL to 0x30,RoseLegacySetting.TRANSPARENCY_LEVEL to 0x31).getValue(request.setting)
             listOf(Wire.f8Write(command,request.value,request.setting==RoseLegacySetting.EQ))
         }else listOf(Wire.rsWrite(sequence++ and 255,fields.getValue(request.setting),request.value))
         is StandardControlRequest.SetNoiseMode->if(noise==null || request.mode !in modes())emptyList()else {
-            val value=if(f8)when(request.mode){NoiseMode.OFF->0;NoiseMode.ANC->1;else->2}else when(request.mode){NoiseMode.ANC->1;NoiseMode.OFF->2;NoiseMode.TRANSPARENCY->3;NoiseMode.WIND->4}
+            val value=if(model==Identity.Model.CERAMICS_X_7034) when(request.mode){NoiseMode.WIND->0;NoiseMode.ANC->1;NoiseMode.TRANSPARENCY->2;NoiseMode.OFF->3}
+            else if(f8)when(request.mode){NoiseMode.OFF->0;NoiseMode.ANC->1;else->2}else when(request.mode){NoiseMode.ANC->1;NoiseMode.OFF->2;NoiseMode.TRANSPARENCY->3;NoiseMode.WIND->4}
             listOf(if(f8)Wire.f8Write(0x2c,value)else Wire.rsWrite(sequence++ and 255,9,value))
         }
         else->emptyList()
     }
-    private fun modes():Set<NoiseMode> = when(model){Identity.Model.EXPLORER->setOf(NoiseMode.ANC,NoiseMode.OFF,NoiseMode.TRANSPARENCY);Identity.Model.BUDSFREE,Identity.Model.CAMBRIAN->NoiseMode.entries.toSet();else->emptySet()}
+    private fun modes():Set<NoiseMode> = when(model){Identity.Model.CERAMICS_X_7034->NoiseMode.entries.toSet();Identity.Model.EXPLORER->setOf(NoiseMode.ANC,NoiseMode.OFF,NoiseMode.TRANSPARENCY);Identity.Model.BUDSFREE,Identity.Model.CAMBRIAN->NoiseMode.entries.toSet();else->emptySet()}
     override fun offer(bytes:ByteArray):List<ProtocolEvent> = buildList {
         decoder.offer(bytes).forEach { report->
             if(!f8 && report.type==12 && report.data.size==3) {
@@ -85,11 +105,16 @@ private class RoseLegacySession(private val model:Identity.Model):ProtocolSessio
                 }
             }else if(report.type==if(f8)12 else 9){
                 val raw=report.data.singleOrNull()
-                val mode=if(f8)when(raw){0->NoiseMode.OFF;1->NoiseMode.ANC;2->NoiseMode.TRANSPARENCY;else->null}else when(raw){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;4->NoiseMode.WIND;else->null}
+                val mode=if(model==Identity.Model.CERAMICS_X_7034)when(raw){0->NoiseMode.WIND;1->NoiseMode.ANC;2->NoiseMode.TRANSPARENCY;3->NoiseMode.OFF;else->null}
+                else if(f8)when(raw){0->NoiseMode.OFF;1->NoiseMode.ANC;2->NoiseMode.TRANSPARENCY;else->null}else when(raw){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;4->NoiseMode.WIND;else->null}
                 if(mode!=null && mode in modes()){noise=mode;add(ProtocolEvent.CapabilitiesIdentified(battery=false,noiseModes=modes()));add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode)))}
             }else{
                 val setting=fields.entries.singleOrNull {it.value==report.type}?.key ?: return@forEach
-                val value=if(f8 && setting==RoseLegacySetting.EQ) report.data.takeIf {it.size==2 && it[0]==0}?.get(1) else report.data.singleOrNull()
+                val reported=if(f8 && setting==RoseLegacySetting.EQ) report.data.takeIf {it.size==2 && it[0]==0}?.get(1) else report.data.singleOrNull()
+                // AgateReceiveHandler reports raw1 and raw2 as the same semantic preset0.
+                // Canonicalize state without adding a distinct writable raw2 option.
+                val value=if(setting==RoseLegacySetting.EQ && reported==2 && model in setOf(
+                    Identity.Model.AGATE,Identity.Model.AGATE_X,Identity.Model.CERAMICS)) 1 else reported
                 if(value!=null && value in model.allowed(setting)){state=state.copy(values=state.values+(setting to value));add(ProtocolEvent.FeatureStateChanged(state))}
             }
         }

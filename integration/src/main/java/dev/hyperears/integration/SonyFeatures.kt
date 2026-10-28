@@ -60,6 +60,7 @@ data class SonyAmbientFeatureState(val level: Int, val voice: Boolean, val voice
 
 @Serializable
 sealed interface SonyControlRequest : ControlRequest {
+    @Serializable @SerialName("sony.set_assignable_preset") data class SetAssignablePreset(val expected: SonyAssignableDefinition, val expectedCurrent: List<Int>, val index: Int, val preset: Int) : SonyControlRequest
     @Serializable @SerialName("sony.set_multipoint") data class SetMultipoint(val expected: SonyMultipointDefinition, val enabled: Boolean) : SonyControlRequest
     @Serializable @SerialName("sony.reply_multipoint_alert") data class ReplyMultipointAlert(val expected: SonyMultipointDefinition, val expectedAlert: SonyMultipointAlert, val confirm: Boolean) : SonyControlRequest
     @Serializable @SerialName("sony.set_dsee") data class SetDsee(val expected: SonyAudioDefinition, val enabled: Boolean) : SonyControlRequest

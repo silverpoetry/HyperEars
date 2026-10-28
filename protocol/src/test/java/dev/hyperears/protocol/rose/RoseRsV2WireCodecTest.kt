@@ -5,6 +5,38 @@ import org.junit.Test
 
 class RoseRsV2WireCodecTest {
     private val models=RoseRsV2IdentityCodec.Model.entries
+    @Test fun noiseLevelQueriesRespectActualEnabledWidgetsAndHscTwoLevelTransparency() {
+        val supported=setOf("CERAMICS_MK2","CERAMICS_MK2_5736","CERAMICS_MK2_8912F","CERAMICS_U_HSC_2710","ZIRCON")
+        for(m in models) {
+            val query=RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map{it.toInt() and 255}
+            for(type in listOf(0x2C,0x2D)) {
+                assertEquals(m.name in supported,type in query)
+                for(value in 0..6) {
+                    val allowed=m.name in supported && value in (if(type==0x2D && m.name=="CERAMICS_U_HSC_2710") listOf(5,1) else listOf(5,3,1))
+                    assertEquals("${m.name}/$type/$value",allowed,RoseRsV2WireCodec.Decoder(m).offer(frame(type,value)).isNotEmpty())
+                }
+            }
+        }
+    }
+    @Test fun languageAndWearHaveIndependentWidgetGatesExactBoundsAndFragmentParsing() {
+        val language=setOf("CERAMICS_MK2","CERAMICS_MK2_8912F","HYACINTH","JASMINE","KY01","MAGICIAN","SPEAKFEEL","ZIRCON")
+        val wear=setOf("ASTRO_X","ZIRCON")
+        for(m in models) {
+            val query=RoseRsV2WireCodec.query(0,m).drop(3).dropLast(2).map{it.toInt() and 255}
+            assertEquals(m.name, m.name in language, 0x31 in query)
+            assertEquals(m.name, m.name in wear, 8 in query)
+            for((type,enabled) in listOf(0x31 to (m.name in language),8 to (m.name in wear))) {
+                for(value in 0..1) assertEquals(enabled,RoseRsV2WireCodec.Decoder(m).offer(frame(type,value)).isNotEmpty())
+                for(value in listOf(2,255)) assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(type,value)).isEmpty())
+                assertTrue(RoseRsV2WireCodec.Decoder(m).offer(frame(type,0,1)).isEmpty())
+            }
+        }
+        val report=frame(0x31,1)+frame(8,0)
+        for(split in 1 until report.size) {
+            val decoder=RoseRsV2WireCodec.Decoder(RoseRsV2IdentityCodec.Model.ZIRCON)
+            assertEquals(2,(decoder.offer(report.take(split).toByteArray())+decoder.offer(report.drop(split).toByteArray())).size)
+        }
+    }
     @Test fun nineFurtherProfilesKeepPrimaryEndpointAndIndependentFeatureQueries() {
         val expected=mapOf("0b137957" to RoseRsV2IdentityCodec.Model.CERAMICS_U_HSC_2710,
             "0b0e64be" to RoseRsV2IdentityCodec.Model.FIRST_ANGEL,"0b120a0b" to RoseRsV2IdentityCodec.Model.HYACINTH,

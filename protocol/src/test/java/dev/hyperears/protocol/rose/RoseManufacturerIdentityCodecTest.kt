@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RoseManufacturerIdentityCodecTest {
+    @Test fun knownUnbrandedNamesOnlyProvideADiscoveryHint() {
+        assertTrue(RoseManufacturerIdentityCodec.candidateName("CERAMICS-X"))
+        assertTrue(RoseManufacturerIdentityCodec.candidateName("SWIFT"))
+        assertTrue(RoseManufacturerIdentityCodec.candidateName("Agumon"))
+        assertTrue(RoseManufacturerIdentityCodec.candidateName("EarFree-i3"))
+        assertFalse(RoseManufacturerIdentityCodec.candidateName("SWIFT unknown model"))
+        assertFalse(RoseManufacturerIdentityCodec.candidateName(""))
+        assertNull(RoseManufacturerIdentityCodec.modelId(emptyMap()))
+    }
     @Test fun recognizesIndependentProtocolsIncludingThreeBytePrefixes() {
         assertEquals("rose-zt-i3", RoseManufacturerIdentityCodec.modelId(mapOf(0x02f1 to listOf(3))))
         assertEquals("rose-zt-headfeel", RoseManufacturerIdentityCodec.modelId(mapOf(0x5352 to listOf(0,2,0,2))))

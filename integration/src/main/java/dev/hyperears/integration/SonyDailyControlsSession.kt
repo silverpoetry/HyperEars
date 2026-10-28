@@ -4,6 +4,7 @@ import dev.hyperears.protocol.sony.SonyDailyControlsCodec as Wire
 
 /** Session-only capability evidence. No model names, Android dependencies or timers. */
 internal class SonyDailyControlsSession(private val v2: Boolean) {
+    private val assignable = SonyAssignableSession(v2)
     private val multipoint = SonyMultipointSession(v2)
     fun multipointState() = multipoint.state
     private val audio = SonyAudioSettingsSession(v2)
@@ -20,10 +21,11 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     private val ebbType get() = if (v2) 1 else 2
     data class Update(val states: List<DeviceFeatureState>, val queries: List<ByteArray>)
     fun accept(payload: ByteArray): Update? {
+        val assignableUpdate = assignable.accept(payload)
         val multipointUpdate = multipoint.accept(payload)
         val audioUpdate = audio.accept(payload)
         Wire.functions(v2, payload)?.let { next ->
-            if (functionsKnown && next == functions) return if (audioUpdate != null || multipointUpdate != null) Update(audioUpdate?.states.orEmpty() + multipointUpdate?.states.orEmpty(), audio.reads() + multipoint.reads()) else Update(emptyList(), emptyList())
+            if (functionsKnown && next == functions) return if (audioUpdate != null || multipointUpdate != null || assignableUpdate != null) Update(audioUpdate?.states.orEmpty() + multipointUpdate?.states.orEmpty() + assignableUpdate?.states.orEmpty(), audio.reads() + multipoint.reads() + assignable.reads(true)) else Update(emptyList(), emptyList())
             functionsKnown = true
             functions = next
             geometry.keys.retainAll(next.eqTypes); reports.keys.retainAll(next.eqTypes)
@@ -31,8 +33,9 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
             statuses.keys.retainAll(next.eqTypes); ambientReports.keys.retainAll(next.ambientTypes)
             positiveAmbientLevels.keys.retainAll(next.ambientTypes)
             ambientReport = chooseAmbient()
-            return Update(listOf(eqState(), ambientState() ?: SonyAmbientFeatureState(0, false, false, true)) + audioUpdate?.states.orEmpty() + multipointUpdate?.states.orEmpty(), reads(includeCapabilities = true))
+            return Update(listOf(eqState(), ambientState() ?: SonyAmbientFeatureState(0, false, false, true)) + audioUpdate?.states.orEmpty() + multipointUpdate?.states.orEmpty() + assignableUpdate?.states.orEmpty(), reads(includeCapabilities = true))
         }
+        if (assignableUpdate != null) return assignableUpdate
         if (multipointUpdate != null) return multipointUpdate
         if (audioUpdate != null) return audioUpdate
         var changed = false
@@ -78,6 +81,7 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     }
     fun ambientState(): SonyAmbientFeatureState? = ambientReport?.let { SonyAmbientFeatureState(it.level, it.voice, it.voiceWritable, it.adaptive) }
     fun reads(includeCapabilities: Boolean = false): List<ByteArray> = buildList {
+        addAll(assignable.reads(includeCapabilities))
         addAll(audio.reads())
         addAll(multipoint.reads())
         functions.eqTypes.forEach { type ->
@@ -121,6 +125,7 @@ internal class SonyDailyControlsSession(private val v2: Boolean) {
     }
     /** Return write followed by readbacks, which the owner places on its existing ACK queue. */
     fun encode(request: SonyControlRequest): List<ByteArray> {
+        if (request is SonyControlRequest.SetAssignablePreset) return assignable.encode(request)
         if (request is SonyControlRequest.SetMultipoint || request is SonyControlRequest.ReplyMultipointAlert) return multipoint.encode(request)
         if (request is SonyControlRequest.SetDsee || request is SonyControlRequest.SetConnectionQuality || request is SonyControlRequest.SetSpeakToChat)
             return audio.encode(request)

@@ -191,3 +191,48 @@ No shared registry change is needed: exact model entries feed the existing
 manufacturer-qualified registry. Tests cover model discovery without static controls,
 profile query/parse isolation, Opal wind rejection, Moka absent find/touch, HSC gain vs
 hearing separation, aggregate correction, and actual popup/native EQ/gain presentation.
+
+## Report-qualified language, wearing and noise depth
+
+Ordinary additions use existing typed state, native Settings choices and the same details
+panel. Queries never grant a control, reset removes its report, and every new request
+carries the expected exact model. No extra polling or private transport is introduced.
+
+- **Prompt language31:** Chinese0 / English1, read FA31, write31/value. Actual
+  RDeviceLangItemWidgetModel allocations occur in ceramics_mk2, ceramics_mk2_8912f,
+  hyacinth, jasmine, ky01, magician, speakfree and zircon. The 5736 variant does not
+  inherit its siblings' language widget. Sender setEarLanguageEnglish0x7e778c,
+  setEarLanguageChinese0x7e7950 and getEarLanguage0x7ee330 establish exact bytes;
+  receiver dispatch0xeffdfc and `_handleEarLang0xf0b570` establish report31.
+- **Wearing08:** only Astro X and Zircon among these24 profiles allocate
+  DeviceDetectionSwitchPanelItemWidgetModel. Sender setEarDetectionOn0x95c108
+  writes08/00 and Off0x934590 writes08/01. Receiver dispatch0xeffb7c and
+  `_handleInEarDetection0xf0c654` explicitly accept00/01, with00 meaning enabled.
+  UI presents ordinary enabled/disabled semantics while retaining this inversion.
+- **ANC2C / transparency2D depth:** widget queryCommands0x79ed88 reads enable flags
+  field13/17 before requesting these reports. Ceramics MK2/5736/8912F, HSC-2710
+  and Zircon enable both. Opal and BudsFeel MK2 explicitly disable both, despite
+  sharing default NoiseLevelType lists, so no depth is inferred for them.
+  The actual native dialog in widgets/device_widgets/device_anc.dart stores
+  LOW/MEDIUM/HIGH values at0xbd4258/0xbd43d8/0xbd4558 and
+  0xbd47c8/0xbd494c/0xbd4ad0 as Dart Smi10/6/2: wire5/3/1. This is not enum ordinal
+  order. HSC transparency list pool0x8cb8 contains LOW/HIGH only, hence5/1.
+  Direct ELF disassembly at0x7825f4 confirms the intent passes these integers to
+  RCommander.setAncLevel without remapping. Sender setAncLevel0x816104 and
+  setTransLevel0x80e568 use2C/2D and bound1..5. Receiver dispatch0xeffc70/0xeffca4
+  delegates to the F8 scalar handlers; the common handler updates anc/trans fields
+  independently. This port exposes only each configuration's native options.
+
+Depth writes additionally require the current device-confirmed ANC or transparency
+mode, at adapter, session and UI layers. Off/other-mode rows remain disabled; changing
+depth does not implicitly change mode. Stale model, mode, address, session and owner
+cannot authorize writes. Reports for language, wearing and either depth are independent;
+a depth report alone does not advertise noise capability.
+
+The earlier remaining-scope lists are historical gap snapshots: language/wearing/depth
+are now implemented only for the exact profiles above. Existing EarFeel i7 and Furina
+source configs also declare depth/wearing (and Furina language), but their separate
+legacy adapter/session paths still require their own proven format extension. Existing
+Ceramics U retains its already ported depth. Special EQ, adaptive/deep ANC, ANC-line,
+recording, ear-fit and calibration contracts remain separate; generic and AURAMIC
+configs do not grant ordinary headphone controls.

@@ -4,6 +4,7 @@ import dev.hyperears.integration.*
 
 /** Exact source UI levels; dB values are device settings, not measured sound exposure. */
 internal object RoseRsV2DailyLabels {
+    fun noiseLevel(value: Int) = when(value) { 5 -> "低"; 3 -> "中"; 1 -> "高"; else -> "档位 $value" }
     val gain = listOf("档位 0", "档位 1", "档位 2")
     fun equalizer(profile: dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model, value: Int): String = when (profile) {
         dev.hyperears.protocol.rose.RoseRsV2IdentityCodec.Model.CERAMICS_U_HSC_2710 -> if (value == 3) "经典调音" else listOf("流行","高保真","摇滚").getOrNull(value)
@@ -19,7 +20,6 @@ internal object SettingsRoseRsV2Rows {
         current: () -> EarbudState?, send: (ControlRequest) -> Unit) {
         val feature = state.features.get<RoseRsV2SettingsFeatureState>() ?: return
         val profile = feature.profile ?: return
-        if (!profile.gainSupported && !profile.hearingProtectionSupported) return
         fun choice(key: String, title: String, selected: Int?, labels: List<String>, request: (Int) -> RoseRsV2ControlRequest) {
             if (selected !in labels.indices) return
             add(host.choice("hyperears.rsv2.$key", title, labels, labels.indices.map(Int::toString), selected.toString(),
@@ -29,6 +29,23 @@ internal object SettingsRoseRsV2Rows {
                 RoseRsV2SettingsPolicy.request(latest, address, request(number))?.let(send)
             } })
         }
+        fun depth(transparency: Boolean) {
+            val values=if(transparency) profile.transparencyLevels else profile.ancLevels
+            val selected=if(transparency) feature.transparencyLevel else feature.ancLevel
+            if(selected !in values) return
+            val key=if(transparency) "transparency_level" else "anc_level"
+            val title=if(transparency) "通透强度" else "降噪深度"
+            val request: (Int)->RoseRsV2ControlRequest = { RoseRsV2ControlRequest.SetNoiseLevel(feature.model,transparency,it) }
+            add(host.choice("hyperears.rsv2.$key",title,values.map(RoseRsV2DailyLabels::noiseLevel),values.map(Int::toString),selected.toString(),
+                RoseRsV2SettingsPolicy.request(state,address,request(values.first())) != null) { raw -> runCatching {
+                val value=raw.toIntOrNull()?.takeIf { it in values } ?: return@runCatching
+                val latest=current() ?: return@runCatching
+                RoseRsV2SettingsPolicy.request(latest,address,request(value))?.let(send)
+            } })
+        }
+        depth(false);depth(true)
+        if (profile.languageSupported) choice("language", "耳机提示语言", feature.language, listOf("中文","English")) { RoseRsV2ControlRequest.SetLanguage(feature.model,it) }
+        if (profile.wearDetectionSupported) choice("wear", "佩戴检测", feature.wearDetection?.let { if(it)1 else 0 }, listOf("关闭","开启")) { RoseRsV2ControlRequest.SetWearDetection(feature.model,it==1) }
         if (profile.gainSupported) choice("gain", "增益", feature.gain, RoseRsV2DailyLabels.gain) { RoseRsV2ControlRequest.SetGain(feature.model, it) }
         if (profile.hearingProtectionSupported) choice("hearing", "听力保护", feature.hearingProtection, RoseRsV2DailyLabels.hearingProtection) {
             RoseRsV2ControlRequest.SetHearingProtection(feature.model, it)

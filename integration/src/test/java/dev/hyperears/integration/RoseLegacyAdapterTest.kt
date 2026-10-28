@@ -18,7 +18,7 @@ class RoseLegacyAdapterTest {
                 assertEquals(listOf(GattWriteMode.WITHOUT_RESPONSE,GattWriteMode.WITH_RESPONSE),adapter.transports.map {(it as GattTransportSpec).writeMode})
                 assertEquals(2,adapter.transports.map {it.id}.distinct().size)
             }
-            if(model!=Model.EXPLORER){
+            if(!model.f8){
                 adapter.receive(report(14,1))
                 val request=RoseLegacyControlRequest.SetValue(model.name,RoseLegacySetting.GAME,0)
                 assertTrue(adapter.executeControl(request).accepted)

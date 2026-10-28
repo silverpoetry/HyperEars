@@ -71,7 +71,7 @@ internal class RoseManufacturerDiscovery(context:Context) : AutoCloseable {
     companion object {
         fun observationMatches(expected:String,observed:String,ageMs:Long)=expected.equals(observed,true)&&ageMs in 0..15_000
         fun candidate(identity:EarbudIdentity)=identity.standardHeadset && !identity.nativeSystemEarbud && identity.manufacturerData.isEmpty() &&
-            (identity.serviceUuids.any { it.equals(RoseRsV2IdentityCodec.SERVICE_UUID,true) } ||
+            (RoseManufacturerIdentityCodec.candidateName(identity.deviceName.orEmpty()) || identity.serviceUuids.any { it.equals(RoseRsV2IdentityCodec.SERVICE_UUID,true) } ||
                 identity.deviceName.orEmpty().lowercase(Locale.ROOT).let { it.startsWith("rose ") || it.startsWith("roseselsa ") })
     }
 }

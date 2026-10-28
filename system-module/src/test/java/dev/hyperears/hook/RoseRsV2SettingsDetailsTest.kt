@@ -35,6 +35,30 @@ class RoseRsV2SettingsDetailsTest {
             {_,callback->observer=callback;{observer=null;released++}},{token})
         fun open()=RoseRsV2SettingsDetails.open(anchor,address,environment).also {shadowOf(Looper.getMainLooper()).idle()}
     }
+    @Test fun popupDepthIsDisabledOutsideConfirmedModeAndWritesSourceLowFive() {
+        val f=Fixture();f.state=f.state.withFeature(RoseRsV2SettingsFeatureState("ZIRCON",ancLevel=1)).withFeature(NoiseModeFeatureState(NoiseMode.OFF))
+        val d=f.open();val body=popup(d).contentView
+        assertFalse(descendants(body).filterIsInstance<RadioButton>().single {it.text=="低"}.isEnabled)
+        f.state=f.state.withFeature(NoiseModeFeatureState(NoiseMode.ANC));d.render(f.state)
+        val low=descendants(body).filterIsInstance<RadioButton>().single {it.text=="低"}
+        assertTrue(low.isEnabled);low.performClick()
+        assertEquals(RoseRsV2ControlRequest.SetNoiseLevel("ZIRCON",false,5),f.sent.single())
+        assertEquals(1,f.state.features.get<RoseRsV2SettingsFeatureState>()!!.ancLevel)
+        f.state=f.state.withFeature(NoiseModeFeatureState(NoiseMode.OFF));low.performClick()
+        assertEquals(1,f.sent.size);d.dismiss()
+    }
+    @Test fun languageOnlyReportOffersNativeDetailsWithoutInventingWear() {
+        val f=Fixture();f.state=f.state.withFeature(RoseRsV2SettingsFeatureState("HYACINTH",language=0))
+        val d=f.open();val body=popup(d).contentView
+        assertFalse(descendants(body).filterIsInstance<TextView>().any {it.text=="佩戴检测"})
+        descendants(body).filterIsInstance<RadioButton>().single {it.text=="English"}.performClick()
+        assertEquals(RoseRsV2ControlRequest.SetLanguage("HYACINTH",1),f.sent.single())
+        assertEquals(0,f.state.features.get<RoseRsV2SettingsFeatureState>()!!.language)
+        f.state=f.state.withFeature(RoseRsV2SettingsFeatureState("MAGICIAN",language=0))
+        descendants(body).filterIsInstance<RadioButton>().single {it.text=="English"}.performClick()
+        assertEquals(1,f.sent.size)
+        d.dismiss()
+    }
     @Test fun hscClassicEqSelectionUsesSemanticThreeNotListPosition() {
         val f=Fixture()
         f.state=f.state.withFeature(RoseRsV2SettingsFeatureState(RoseRsV2IdentityCodec.Model.CERAMICS_U_HSC_2710.name,eq=0,gain=1))

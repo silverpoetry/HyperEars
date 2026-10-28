@@ -11,13 +11,20 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
     val game: Boolean? = null, val multipoint: Boolean? = null, val audio: Int? = null,
     val touchEnabled: Boolean? = null, val touch: List<Int>? = null, val prompt: Int? = null,
     val findLeft: Boolean? = null, val findRight: Boolean? = null,
-    val gain: Int? = null, val hearingProtection: Int? = null) : DeviceFeatureState {
+    val gain: Int? = null, val hearingProtection: Int? = null,
+    val language: Int? = null, val wearDetection: Boolean? = null,
+    val ancLevel: Int? = null, val transparencyLevel: Int? = null) : DeviceFeatureState {
     @Transient override val featureId = FEATURE_ID
-    val hasSettings: Boolean get() = listOf(eq,bass,game,multipoint,audio,touchEnabled,touch,prompt,findLeft,findRight,gain,hearingProtection).any { it != null }
+    val hasSettings: Boolean get() = listOf(eq,bass,game,multipoint,audio,touchEnabled,touch,prompt,findLeft,findRight,gain,hearingProtection,language,wearDetection,ancLevel,transparencyLevel).any { it != null }
     val profile: Identity.Model? get() = Identity.Model.entries.singleOrNull { it.name == model }
-    fun supports(request: RoseRsV2ControlRequest): Boolean {
+    fun supports(request: RoseRsV2ControlRequest, noiseMode: NoiseMode? = null): Boolean {
         val p=profile ?: return false
         return when(request) {
+            is RoseRsV2ControlRequest.SetNoiseLevel -> request.expectedModel == model &&
+                if(request.transparency) noiseMode == NoiseMode.TRANSPARENCY && transparencyLevel in p.transparencyLevels && request.level in p.transparencyLevels
+                else noiseMode == NoiseMode.ANC && ancLevel in p.ancLevels && request.level in p.ancLevels
+            is RoseRsV2ControlRequest.SetLanguage -> p.languageSupported && language in 0..1 && request.expectedModel == model && request.language in 0..1
+            is RoseRsV2ControlRequest.SetWearDetection -> p.wearDetectionSupported && wearDetection != null && request.expectedModel == model
             is RoseRsV2ControlRequest.SetGain -> p.gainSupported && gain != null && request.expectedModel == model && request.level in 0..2
             is RoseRsV2ControlRequest.SetHearingProtection -> p.hearingProtectionSupported && hearingProtection != null && request.expectedModel == model && request.level in 0..6
             is RoseRsV2ControlRequest.SetEqualizer -> eq != null && request.preset in p.eqPresets
@@ -34,6 +41,9 @@ data class RoseRsV2SettingsFeatureState(val model: String, val eq: Int? = null, 
     companion object { const val FEATURE_ID="rose.rsv2_settings"; val SLOTS=listOf(1,2,3,4,17,18,19,20) }
 }
 @Serializable sealed interface RoseRsV2ControlRequest:ControlRequest {
+    @Serializable @SerialName("rose.rsv2_noise_level") data class SetNoiseLevel(val expectedModel:String,val transparency:Boolean,val level:Int):RoseRsV2ControlRequest
+    @Serializable @SerialName("rose.rsv2_language") data class SetLanguage(val expectedModel:String,val language:Int):RoseRsV2ControlRequest
+    @Serializable @SerialName("rose.rsv2_wear_detection") data class SetWearDetection(val expectedModel:String,val enabled:Boolean):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_gain") data class SetGain(val expectedModel:String,val level:Int):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_hearing_protection") data class SetHearingProtection(val expectedModel:String,val level:Int):RoseRsV2ControlRequest
     @Serializable @SerialName("rose.rsv2_eq") data class SetEqualizer(val preset:Int):RoseRsV2ControlRequest
@@ -59,7 +69,7 @@ class RoseRsV2Adapter(private val model:Identity.Model):StandardEarbudAdapter() 
     override val controlApps=listOf(ControlAppCatalog.roseLink)
     override val featureStateContract=StandardDeviceFeatureStateContract.extending { _,state -> state is RoseRsV2SettingsFeatureState && state.model==model.name }
     override val controlRequestContract=StandardControlRequestContract.extending { adapter,request ->
-        request is RoseRsV2ControlRequest && adapter.runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.supports(request)==true
+        request is RoseRsV2ControlRequest && adapter.runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.supports(request,adapter.runtimeState().features.get<NoiseModeFeatureState>()?.mode)==true
     }
     override fun matches(identity:EarbudIdentity)=identity.standardHeadset && !identity.nativeSystemEarbud && dev.hyperears.protocol.rose.RoseManufacturerIdentityCodec.modelId(identity.manufacturerData)==model.id
     override val miLinkCardPresentationId:MiLinkCardPresentationId? get()=RoseRsV2PresentationIds.SETTINGS.takeIf { runtimeState().features.get<RoseRsV2SettingsFeatureState>()?.hasSettings == true || (effectiveCapabilities().noiseControl && runtimeState().noiseMode != null) }
@@ -72,16 +82,20 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
     private var seq=0
     private var handshake=false
     private var noiseConfirmed=false
+    private var currentNoise:NoiseMode?=null
     private fun command(vararg payload:Int)=Wire.command(seq.also { seq=(seq+1) and 255 },payload.map(Int::toByte).toByteArray())
     override fun initialReadCommands()=listOf(Wire.query(seq.also {seq=(seq+1) and 255},model))
     override fun encode(request:ControlRequest):List<ByteArray> {
-        if(request is RoseRsV2ControlRequest && !settings.supports(request)) return emptyList()
+        if(request is RoseRsV2ControlRequest && !settings.supports(request,currentNoise)) return emptyList()
         return when(request) {
             StandardControlRequest.Refresh->initialReadCommands()
             is StandardControlRequest.SetNoiseMode->{
                 val value=when(request.mode){NoiseMode.ANC->1;NoiseMode.OFF->2;NoiseMode.TRANSPARENCY->3;NoiseMode.WIND->4}
                 if(noiseConfirmed && value in model.noiseValues) listOf(command(9,value)) else emptyList()
             }
+            is RoseRsV2ControlRequest.SetNoiseLevel->listOf(command(if(request.transparency)0x2D else 0x2C,request.level))
+            is RoseRsV2ControlRequest.SetLanguage->listOf(command(0x31,request.language))
+            is RoseRsV2ControlRequest.SetWearDetection->listOf(command(8,if(request.enabled)0 else 1))
             is RoseRsV2ControlRequest.SetGain->listOf(command(0x45,request.level))
             is RoseRsV2ControlRequest.SetHearingProtection->listOf(command(0x46,request.level))
             is RoseRsV2ControlRequest.SetEqualizer->listOf(command(0x2A,when(request.preset){0->1;1->0;else->request.preset}))
@@ -99,6 +113,9 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
     override fun readback(request:ControlRequest):List<ByteArray> {
         val feature=when(request) {
             is StandardControlRequest.SetNoiseMode->9
+            is RoseRsV2ControlRequest.SetNoiseLevel->if(request.transparency)0x2D else 0x2C
+            is RoseRsV2ControlRequest.SetLanguage->0x31
+            is RoseRsV2ControlRequest.SetWearDetection->8
             is RoseRsV2ControlRequest.SetGain->0x45
             is RoseRsV2ControlRequest.SetHearingProtection->0x46
             is RoseRsV2ControlRequest.SetEqualizer,is RoseRsV2ControlRequest.SetBass->0x2A
@@ -125,8 +142,10 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
                 }
                 is Wire.State.Touch->{settings=settings.copy(touch=report.actions);add(ProtocolEvent.FeatureStateChanged(settings))}
                 is Wire.State.Value->{
-                    if(report.type==9){noiseConfirmed=true;add(ProtocolEvent.CapabilitiesIdentified(false,model.noiseValues.map { when(it){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND} }.toSet()));add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(when(report.value){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND})))}
+                    if(report.type==9){noiseConfirmed=true;currentNoise=when(report.value){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND};add(ProtocolEvent.CapabilitiesIdentified(false,model.noiseValues.map { when(it){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND} }.toSet()));add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(when(report.value){1->NoiseMode.ANC;2->NoiseMode.OFF;3->NoiseMode.TRANSPARENCY;else->NoiseMode.WIND})))}
                     else {settings=when(report.type){
+                        0x2C->settings.copy(ancLevel=report.value);0x2D->settings.copy(transparencyLevel=report.value)
+                        0x31->settings.copy(language=report.value);8->settings.copy(wearDetection=report.value==0)
                         0x2A->settings.copy(eq=report.value);0x105->settings.copy(bass=report.value)
                         0x0E->settings.copy(game=report.value==1);0x32->settings.copy(multipoint=report.value==1)
                         0x2B->settings.copy(audio=report.value);7->settings.copy(touchEnabled=report.value==1)
@@ -138,5 +157,5 @@ internal class RoseRsV2Session(private val model:Identity.Model):ProtocolSession
             }
         }
     }
-    override fun reset(){decoder.reset();settings=RoseRsV2SettingsFeatureState(model.name);seq=0;handshake=false;noiseConfirmed=false}
+    override fun reset(){decoder.reset();settings=RoseRsV2SettingsFeatureState(model.name);seq=0;handshake=false;noiseConfirmed=false;currentNoise=null}
 }

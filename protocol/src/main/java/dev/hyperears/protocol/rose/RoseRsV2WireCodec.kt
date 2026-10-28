@@ -21,6 +21,10 @@ object RoseRsV2WireCodec {
     fun query(sequence: Int, model: RoseRsV2IdentityCodec.Model): ByteArray = command(sequence, buildList {
         add(0xFA); add(0x0D); add(0x0C)
         if (model.noise) add(9)
+        if (model.ancLevels.isNotEmpty()) add(0x2C)
+        if (model.transparencyLevels.isNotEmpty()) add(0x2D)
+        if (model.languageSupported) add(0x31)
+        if (model.wearDetectionSupported) add(8)
         if (model.eqPresets.isNotEmpty() || model.bass) add(0x2A)
         if (model.gainSupported) add(0x45)
         if (model.hearingProtectionSupported) add(0x46)
@@ -97,6 +101,10 @@ object RoseRsV2WireCodec {
                 0x0C -> if (values.size == 3) {
                     add(State.Battery(values[0], values[1], values[2]))
                 }
+                0x2C -> if (values.size == 1 && values[0] in model.ancLevels) add(State.Value(type,values[0]))
+                0x2D -> if (values.size == 1 && values[0] in model.transparencyLevels) add(State.Value(type,values[0]))
+                0x31 -> if (model.languageSupported && values.size == 1 && values[0] in 0..1) add(State.Value(type,values[0]))
+                8 -> if (model.wearDetectionSupported && values.size == 1 && values[0] in 0..1) add(State.Value(type,values[0]))
                 0x09 -> if (values.size == 1 && values[0] in model.noiseValues) add(State.Value(type, values[0]))
                 0x45 -> if (model.gainSupported && values.size == 1 && values[0] in 0..2) add(State.Value(type,values[0]))
                 0x46 -> if (model.hearingProtectionSupported && values.size == 1 && values[0] in 0..6) add(State.Value(type,values[0]))

@@ -101,6 +101,7 @@ internal class SettingsHeadsetBinding(
             SettingsCoralRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsRoseRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
             SettingsCeramicsXRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend, confirmInline)
+            SettingsSonyAssignableRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdditionalRows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsRoseRsV2Rows.add(host, state, address, { add(group, it) }, inlineCurrent, inlineSend)
             SettingsAdvancedEditors.forState(state)?.takeIf { it.available(state, address) }?.let { editor ->

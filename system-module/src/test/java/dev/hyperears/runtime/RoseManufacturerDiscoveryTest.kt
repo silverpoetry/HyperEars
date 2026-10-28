@@ -100,6 +100,40 @@ class RoseManufacturerDiscoveryTest {
         }
     }
 
+    @Test fun sharedCeramicsXNameCanRefineOriginalCandidateTo7034OnlyWithItsPrefix() {
+        val device=device(); val sharedName=identity.copy(deviceName="ROSE CERAMICS X")
+        EarbudConnectionManager(context).use { manager ->
+            manager.onPhysicalConnected(address); manager.observeDevice(device,sharedName); idle()
+            assertEquals("rose-luli-x-gatt",manager.snapshots().single().state.adapter!!.id)
+            val scanner=shadowOf(adapter.bluetoothLeScanner)
+            val callback=scanner.scanCallbacks.single { it.javaClass.name.startsWith(RoseManufacturerDiscovery::class.java.name) }
+            val record=ReflectionHelpers.callStaticMethod<ScanRecord>(ScanRecord::class.java,"parseFromBytes",
+                ClassParameter.from(ByteArray::class.java,byteArrayOf(5,0xff.toByte(),0x18,0x84.toByte(),1,0x12,0)))
+            callback.onScanResult(1,ScanResult(device,record,-40,SystemClock.elapsedRealtimeNanos())); idle()
+            assertEquals("rose-legacy-ceramics_x_7034",manager.snapshots().single().state.adapter!!.id)
+            assertFalse(callback in scanner.scanCallbacks)
+        }; idle()
+    }
+
+    @Test fun unbrandedKnownNameRequiresSameDeviceManufacturerEvidence() {
+        val device=device()
+        val unbranded=identity.copy(deviceName="SWIFT")
+        assertTrue(RoseManufacturerDiscovery.candidate(unbranded))
+        assertFalse(RoseManufacturerDiscovery.candidate(unbranded.copy(nativeSystemEarbud=true)))
+        assertFalse(RoseManufacturerDiscovery.candidate(unbranded.copy(standardHeadset=false)))
+        EarbudConnectionManager(context).use { manager ->
+            manager.onPhysicalConnected(address); manager.observeDevice(device, unbranded); idle()
+            assertNotEquals("rose-legacy-swift", manager.snapshots().single().state.adapter!!.id)
+            val scanner=shadowOf(adapter.bluetoothLeScanner)
+            val callback=scanner.scanCallbacks.single()
+            val record=ReflectionHelpers.callStaticMethod<ScanRecord>(ScanRecord::class.java,"parseFromBytes",
+                ClassParameter.from(ByteArray::class.java,byteArrayOf(5,0xff.toByte(),0x0b,0x0b,0x0a,0x0b,0)))
+            callback.onScanResult(1,ScanResult(device,record,-40,SystemClock.elapsedRealtimeNanos())); idle()
+            assertEquals("rose-legacy-swift", manager.snapshots().single().state.adapter!!.id)
+            assertTrue(scanner.scanCallbacks.isEmpty())
+        }; idle()
+    }
+
     @Test fun timeoutAndOwnerCancellationStopRealScansAndRejectLateCallbacks() {
         val device=device();var eligible=true;var accepted=0
         val discovery=RoseManufacturerDiscovery(context)

@@ -95,11 +95,11 @@ internal class RoseRsV2SettingsDetails private constructor(
             renderRows(state)
         } finally { rendering = false }
     }
-    private fun choices(label: String, selected: Int?, labels: List<String>, request: (Int) -> RoseRsV2ControlRequest) {
+    private fun choices(label: String, selected: Int?, labels: List<String>, enabled: Boolean = true, request: (Int) -> RoseRsV2ControlRequest) {
         controls.addView(text(label, 17f))
         controls.addView(RadioGroup(context).apply {
             labels.forEachIndexed { index, title -> addView(RadioButton(context).apply {
-                id = View.generateViewId(); text = title; setTextColor(color(true)); isChecked = selected == index
+                id = View.generateViewId(); text = title; setTextColor(color(true)); isChecked = selected == index; isEnabled = enabled
                 setOnClickListener { guarded { send(request(index)) } }
             }) }
         })
@@ -111,6 +111,20 @@ internal class RoseRsV2SettingsDetails private constructor(
         val settings = state.features.get<RoseRsV2SettingsFeatureState>() ?: return
         val profile = settings.profile ?: return
         controls.addView(text(profile.label, 19f))
+        for(transparency in listOf(false,true)) {
+            val values=if(transparency) profile.transparencyLevels else profile.ancLevels
+            val selected=if(transparency) settings.transparencyLevel else settings.ancLevel
+            if(selected in values) choices(if(transparency) "通透强度" else "降噪深度",values.indexOf(selected),values.map(RoseRsV2DailyLabels::noiseLevel),
+                RoseRsV2SettingsPolicy.request(state,address,RoseRsV2ControlRequest.SetNoiseLevel(settings.model,transparency,values.first())) != null) {
+                RoseRsV2ControlRequest.SetNoiseLevel(settings.model,transparency,values[it])
+            }
+        }
+        if(profile.languageSupported) settings.language?.takeIf { it in 0..1 }?.let { value ->
+            choices("耳机提示语言",value,listOf("中文","English")) { RoseRsV2ControlRequest.SetLanguage(settings.model,it) }
+        }
+        if(profile.wearDetectionSupported) settings.wearDetection?.let { value ->
+            choices("佩戴检测",if(value)1 else 0,listOf("关闭","开启")) { RoseRsV2ControlRequest.SetWearDetection(settings.model,it==1) }
+        }
         settings.eq?.let { selected ->
             val labels = profile.eqPresets.map { RoseRsV2DailyLabels.equalizer(profile,it) }
             choices("音效", profile.eqPresets.indexOf(selected), labels) { RoseRsV2ControlRequest.SetEqualizer(profile.eqPresets[it]) }

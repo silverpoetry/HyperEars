@@ -351,7 +351,11 @@ internal class EarbudConnectionManager(
 
     private fun observeRoseManufacturer(device: BluetoothDevice, identity: EarbudIdentity) {
         if (!RoseManufacturerDiscovery.candidate(identity)) return
-        if (EarbudAdapterRegistry.resolve(identity)?.resolution == dev.hyperears.integration.AdapterResolution.EXACT_MATCH) return
+        val candidate = EarbudAdapterRegistry.resolve(identity)
+        // RoseLink assigns CERAMICS-X to both original GATT and 7034 SPP profiles.
+        // A name-selected original candidate remains refinable by exact manufacturer evidence.
+        if (candidate?.resolution == dev.hyperears.integration.AdapterResolution.EXACT_MATCH &&
+            candidate !is dev.hyperears.integration.RoseLuliXAdapter) return
         val key = normalizeAddress(runCatching { device.address }.getOrNull() ?: return)
         val connection = synchronized(lifecycleLock) { physicalConnections[key] } ?: return
         fun eligible() = synchronized(lifecycleLock) {

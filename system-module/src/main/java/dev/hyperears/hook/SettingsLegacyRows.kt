@@ -9,7 +9,7 @@ internal object SettingsLegacyRows {
         if (!RoseLegacySettingsPolicy.available(state, address)) return
         val feature = state.features.get<RoseLegacySettingsFeatureState>() ?: return
         for ((setting, selected) in feature.values) {
-            if (!feature.supports(RoseLegacyControlRequest.SetValue(feature.model,setting, selected))) continue
+            if (!feature.supports(RoseLegacyControlRequest.SetValue(feature.model,setting, selected), state.noiseMode)) continue
             add(host.choice("hyperears.legacy.${setting.name.lowercase(java.util.Locale.ROOT)}",
                 RoseLegacySettingsPolicy.title(setting), RoseLegacySettingsPolicy.labels(setting,feature),
                 requireNotNull(feature.profile).allowed(setting).map(Int::toString), selected.toString(), true) { raw -> runCatching {

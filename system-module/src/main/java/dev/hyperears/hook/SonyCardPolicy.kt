@@ -8,6 +8,7 @@ internal object SonyCardPolicy {
     fun available(state: EarbudState, address: String) = ready(state, address) && (
         state.features.get<SonyEqFeatureState>()?.let { it.writablePreset || it.writableBands || it.writableBass } == true ||
             state.features.get<SonyAmbientFeatureState>()?.level in 1..20 ||
+            state.features.get<SonyAssignableFeatureState>()?.hasSettings == true ||
             state.features.get<SonyAudioSettingsFeatureState>()?.hasSettings == true ||
             state.features.get<SonyMultipointFeatureState>()?.hasSettings == true)
     fun request(state: EarbudState, address: String, request: SonyControlRequest): SonyControlRequest? {
@@ -15,6 +16,7 @@ internal object SonyCardPolicy {
         val supported = when (request) {
             is SonyControlRequest.SetAmbient -> state.features.get<SonyAmbientFeatureState>()?.supports(request) == true
             else -> state.features.get<SonyEqFeatureState>()?.supports(request) == true ||
+                state.features.get<SonyAssignableFeatureState>()?.supports(request) == true ||
                 state.features.get<SonyAudioSettingsFeatureState>()?.supports(request) == true ||
                 state.features.get<SonyMultipointFeatureState>()?.supports(request) == true
         }

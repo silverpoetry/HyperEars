@@ -16,19 +16,22 @@ internal object RoseLegacySettingsPolicy {
     fun request(state: EarbudState, address: String, request: RoseLegacyControlRequest.SetValue): RoseLegacyControlRequest.SetValue? {
         if (!available(state, address)) return null
         val feature = state.features.get<RoseLegacySettingsFeatureState>() ?: return null
-        return request.takeIf { feature.supports(it) &&
+        return request.takeIf { feature.supports(it, state.noiseMode) &&
             feature.values[it.setting] != it.value }
     }
     fun title(setting:RoseLegacySetting)=when(setting){
         RoseLegacySetting.EQ->"音效";RoseLegacySetting.GAME->"游戏模式";RoseLegacySetting.AUDIO->"音频与双设备模式";RoseLegacySetting.TOUCH->"触控开关"
-        RoseLegacySetting.PROMPT->"提示音音量";RoseLegacySetting.LANGUAGE->"提示音语言";RoseLegacySetting.WEAR->"佩戴检测";RoseLegacySetting.SPATIAL->"空间音效"
+        RoseLegacySetting.PROMPT->"提示音音量";RoseLegacySetting.LANGUAGE->"提示音语言";RoseLegacySetting.WEAR->"佩戴检测";RoseLegacySetting.SPATIAL->"空间音效";RoseLegacySetting.ANC_LEVEL->"降噪强度";RoseLegacySetting.TRANSPARENCY_LEVEL->"通透强度"
     }
     fun labels(setting:RoseLegacySetting,feature:RoseLegacySettingsFeatureState):List<String> {
         val profile=feature.profile ?: return emptyList()
         return profile.allowed(setting).map { value->when(setting){
-            RoseLegacySetting.EQ->if(profile==dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.OPENFEEL) listOf("均衡","低音")[value] else listOf("高保真","流行","摇滚")[value]
-            RoseLegacySetting.AUDIO->if(profile==dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.EXPLORER) listOf("双设备连接","LDAC","AAC / SBC")[value] else listOf("AAC / SBC","LDAC","LHDC","LC3","双设备连接")[value]
-            RoseLegacySetting.TOUCH->if(profile!=dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.EXPLORER) {if(value==0)"开启"else"关闭"}else{if(value==0)"关闭"else"开启"}
+            RoseLegacySetting.EQ->if(profile==dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.AGATE) listOf("高保真","摇滚")[value]
+                else if(profile==dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.AGATE_X) listOf("流行","摇滚")[value]
+                else if(profile==dev.hyperears.protocol.rose.RoseLegacyIdentityCodec.Model.OPENFEEL) listOf("均衡","低音")[value] else listOf("高保真","流行","摇滚")[value]
+            RoseLegacySetting.AUDIO->if(profile.f8) listOf("双设备连接","LDAC","AAC / SBC")[value] else listOf("AAC / SBC","LDAC","LHDC","LC3","双设备连接")[value]
+            RoseLegacySetting.TOUCH->if(!profile.f8) {if(value==0)"开启"else"关闭"}else{if(value==0)"关闭"else"开启"}
+            RoseLegacySetting.ANC_LEVEL,RoseLegacySetting.TRANSPARENCY_LEVEL->listOf("高","中","低")[value]
             RoseLegacySetting.LANGUAGE->if(value==0)"中文"else"English"
             RoseLegacySetting.PROMPT->"级别 $value"
             else->if(value==0)"关闭"else"开启"
@@ -104,7 +107,7 @@ internal class RoseLegacySettingsDetails private constructor(
         if (pendingAudio?.first != values[RoseLegacySetting.AUDIO]) pendingAudio = null
         for ((setting, selected) in values) {
             val feature = state.features.get<RoseLegacySettingsFeatureState>()!!
-            if (!feature.supports(RoseLegacyControlRequest.SetValue(feature.model,setting, selected))) continue
+            if (!feature.supports(RoseLegacyControlRequest.SetValue(feature.model,setting, selected), state.noiseMode)) continue
             controls.addView(text(RoseLegacySettingsPolicy.title(setting)))
             controls.addView(RadioGroup(context).apply {
                 RoseLegacySettingsPolicy.labels(setting,feature).forEachIndexed { index, label ->

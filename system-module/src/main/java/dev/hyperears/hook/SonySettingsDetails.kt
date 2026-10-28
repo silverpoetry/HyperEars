@@ -132,6 +132,9 @@ internal class SonySettingsDetails private constructor(
         val audio = state.features.get<SonyAudioSettingsFeatureState>()
         val ambient = state.features.get<SonyAmbientFeatureState>()
         return when (request) {
+            is SonyControlRequest.SetAssignablePreset -> state.features.get<SonyAssignableFeatureState>()?.let {
+                it.definition == request.expected && it.current == request.expectedCurrent.toMutableList().apply { this[request.index]=request.preset }
+            } == true
             is SonyControlRequest.SetMultipoint -> multipoint?.let { it.definition == request.expected && it.enabled == request.enabled && it.alert == null && it.pendingTransaction == null } == true
             is SonyControlRequest.ReplyMultipointAlert -> multipoint?.let { it.definition == request.expected && it.alert == null &&
                 it.enabled == (if (request.confirm) request.expectedAlert.target else !request.expectedAlert.target) } == true
@@ -185,6 +188,29 @@ internal class SonySettingsDetails private constructor(
                 7 -> "耳机提示：更改双设备连接需要断开并重新连接。确认继续吗？"
                 112 -> "耳机提示：将同时启用双设备连接和 LDAC，音质选项可能受到限制。确认继续吗？"
                 else -> ""
+            }
+        }
+    }
+    private fun addAssignable(parent:LinearLayout) {
+        val container=column();parent.addView(container)
+        renders += { current ->
+            container.removeAllViews()
+            val feature=current.features.get<SonyAssignableFeatureState>()?.takeIf{it.hasSettings}
+            val definition=feature?.definition
+            val values=feature?.current
+            if(definition!=null && values!=null) definition.keys.forEachIndexed { index,key ->
+                container.addView(text(SettingsSonyAssignableRows.title(key.id),17f))
+                val group=RadioGroup(context)
+                key.presets.forEach { preset -> group.addView(RadioButton(context).apply {
+                    id=View.generateViewId();text=SettingsSonyAssignableRows.label(preset)
+                    contentDescription="sony.assignable.${key.id}.$preset"
+                    isSaveEnabled=false;isChecked=values[index]==preset
+                    isEnabled=feature?.available?.getOrNull(index)==true
+                    setOnClickListener { if(!rendering) withCurrent {
+                        send(SonyControlRequest.SetAssignablePreset(definition,values,index,preset))
+                    } }
+                }) }
+                container.addView(group)
             }
         }
     }
@@ -245,6 +271,7 @@ internal class SonySettingsDetails private constructor(
         body.addView(text("关闭", 16f).apply { setOnClickListener { dismiss() } })
         body.addView(status)
         val controls = column()
+        addAssignable(controls)
         addAudioSettings(controls)
         addMultipoint(controls)
         val ambientRow = column()
