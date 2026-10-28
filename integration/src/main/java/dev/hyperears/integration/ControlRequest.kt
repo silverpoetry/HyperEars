@@ -121,6 +121,14 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(QcyControlRequest.SetToggle::class, QcyControlRequest.SetToggle.serializer())
+                subclass(QcyControlRequest.SetSpatialMode::class, QcyControlRequest.SetSpatialMode.serializer())
+                subclass(QcyControlRequest.SetEqPreset::class, QcyControlRequest.SetEqPreset.serializer())
+                subclass(QcyControlRequest.SetCustomEq::class, QcyControlRequest.SetCustomEq.serializer())
+                subclass(VivoTws3eControlRequest.SetDoubleTap::class, VivoTws3eControlRequest.SetDoubleTap.serializer())
+                subclass(VivoTws3eControlRequest.SetHold::class, VivoTws3eControlRequest.SetHold.serializer())
+                subclass(VivoTws3eControlRequest.SetDeepX::class, VivoTws3eControlRequest.SetDeepX.serializer())
+                subclass(VivoTws3eControlRequest.SetWearDetection::class, VivoTws3eControlRequest.SetWearDetection.serializer())
                 subclass(AppleHostLongPressLeaseRequest::class, AppleHostLongPressLeaseRequest.serializer())
                 subclass(AppleSpatialControlRequest.SetMode::class, AppleSpatialControlRequest.SetMode.serializer())
                 subclass(AppleSpatialControlRequest.BeginCalibration::class, AppleSpatialControlRequest.BeginCalibration.serializer())

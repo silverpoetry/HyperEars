@@ -4,8 +4,7 @@ package dev.hyperears.protocol.qcy
  * Codec for QCY's public `0xFF` command stream.
  *
  * The codec deliberately contains no BLE or Android behavior. It accepts arbitrary byte chunks,
- * validates every nested command length, and exposes only the battery and three-state noise
- * controls consumed by HyperEars.
+ * validates every nested command length, and exposes independently validated device reports.
  */
 object QcyWireCodec {
     data class Frame(
@@ -56,6 +55,63 @@ object QcyWireCodec {
         if (frame.command != COMMAND_NOISE_MODE || frame.parameters.size != 1) return null
         val value = frame.parameters.single().unsigned()
         return NoiseMode.entries.firstOrNull { it.value == value }
+    }
+
+    /** QCYpods 7bfbd95: command-specific off values, never coerce unknown reports. */
+    enum class Toggle(val command: Int, val off: Int) {
+        LOW_LATENCY(0x09, 2), SLEEP(0x10, 2), LDAC(0x23, 2), MULTIPOINT(0x24, 2),
+        DYNAMIC_EQ(0x27, 0), ADAPTIVE_VOLUME(0x40, 0),
+    }
+    data class EqBand(val frequency: Int, val gainHundredths: Int, val qHundredths: Int, val type: Int)
+    data class Equalizer(val preset: Int, val masterGainHundredths: Int, val bands: List<EqBand>)
+    val presetIds = setOf(0, 1, 2, 3, 4, 5, 6, 10)
+    val customFrequencies = listOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+    val advancedQueries: List<ByteArray> get() =
+        (Toggle.entries.map { it.command } + listOf(0x20, 0x22, 0x2D)).map(::query)
+    fun query(command: Int): ByteArray = request(command)
+    fun setToggle(toggle: Toggle, enabled: Boolean) = packet(toggle.command, byteArrayOf(if (enabled) 1 else toggle.off.toByte()))
+    fun parseToggle(frame: Frame): Pair<Toggle, Boolean>? {
+        val toggle = Toggle.entries.find { it.command == frame.command } ?: return null
+        val value = frame.parameters.singleOrNull()?.unsigned() ?: return null
+        return when (value) { 1 -> toggle to true; toggle.off -> toggle to false; else -> null }
+    }
+    fun setSpatialMode(mode: Int): ByteArray {
+        require(mode in 0..2)
+        return packet(0x2D, byteArrayOf(mode.toByte()))
+    }
+    fun parseSpatialMode(frame: Frame): Int? = if (frame.command == 0x2D)
+        frame.parameters.singleOrNull()?.unsigned()?.takeIf { it in 0..2 } else null
+    fun setEqPreset(preset: Int): ByteArray {
+        require(preset in presetIds)
+        return packet(0x20, byteArrayOf(preset.toByte()))
+    }
+    fun parseEqPreset(frame: Frame): Int? {
+        if (frame.command !in setOf(0x20, 0x22)) return null
+        if (frame.parameters.size != 1 && parseEqualizer(frame) == null) return null
+        return frame.parameters.firstOrNull()?.unsigned()?.takeIf { it in presetIds }
+    }
+    fun parseEqualizer(frame: Frame): Equalizer? {
+        val p = frame.parameters
+        if (frame.command != 0x22 || p.size < 10 || (p.size - 3) % 7 != 0) return null
+        val preset = p[0].unsigned().takeIf { it in presetIds } ?: return null
+        fun word(i: Int) = p[i].unsigned() or (p[i + 1].unsigned() shl 8)
+        val bands = (3 until p.size step 7).map { i ->
+            EqBand(word(i), word(i + 2).toShort().toInt(), word(i + 4), p[i + 6].unsigned())
+        }
+        if (preset == 0 && bands.size != 10) return null
+        if (bands.size > 10 || bands.any { it.frequency !in 1..20000 || it.qHundredths == 0 || it.type !in 0..3 }) return null
+        return Equalizer(preset, word(1).toShort().toInt(), bands)
+    }
+    /** Exact upstream custom PEQ: ten fixed frequencies, type 2, Q=1, master gain=0. */
+    fun setCustomEq(gains: List<Int>): ByteArray {
+        require(gains.size == 10 && gains.all { it in -8..8 })
+        val p = ArrayList<Byte>()
+        fun word(value: Int) { p += value.toByte(); p += (value shr 8).toByte() }
+        p += 0.toByte(); word(0)
+        gains.forEachIndexed { index, gain ->
+            word(customFrequencies[index]); word(gain * 100); word(100); p += 2.toByte()
+        }
+        return packet(0x22, p.toByteArray())
     }
 
     class Decoder {

@@ -8,6 +8,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MoondropPuddingAdapterTest {
+    @Test fun explicitUnavailableSnapshotClearsPreviouslyConfirmedBattery() {
+        val adapter = readyAdapter()
+        fun report(left: Int, right: Int, case: Int) = MoondropPuddingWireCodec.frame(
+            command = 0x1d, subcommand = 0x1b, opcode = 1,
+            parameters = byteArrayOf(1, left.toByte(), 2, right.toByte(), 3, case.toByte()))
+        adapter.receive(report(0, 255, 255))
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        adapter.receive(report(80, 70, 60))
+        assertEquals(80, adapter.runtimeState().battery.left.percent)
+        adapter.receive(report(0, 255, 255))
+        assertEquals(EarbudBattery(), adapter.runtimeState().battery)
+        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
+        adapter.receive(report(85, 75, 65))
+        adapter.receive(report(101, 120, 128))
+        assertEquals(85, adapter.runtimeState().battery.left.percent)
+    }
     @Test
     fun exactNameSelectsPuddingWithoutCachedSppUuid() {
         val adapter = requireNotNull(

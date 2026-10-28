@@ -9,8 +9,14 @@ HyperEars 的原创代码整体按 GNU GPL-3.0-only 发布。以下项目为协�
 - Leaf-lsgtky/OppoPods: <https://github.com/Leaf-lsgtky/OppoPods>
 
 用于理解 OPPO 私有 RFCOMM 帧、电量、降噪和 HyperOS 系统集成路径。1812z 项目
-README 声明 GPL-3.0。HyperEars 不随 APK 分发该项目的代码、应用或资源；本项目许可证
-及其与外部资料的关系以各自仓库中的许可证原文为准。
+README 声明 GPL-3.0。本项目许可证及其与外部资料的关系以各自仓库中的许可证原文为准。
+
+身份目录与产品 ID 适配参考 Leaf 固定提交 `929d813f1b82d5b09dd39a84b4f18744e8ef7e64`：
+`pods/Packets.kt` 的 `ProductIdParser`、`pods/DeviceModelRegistry.kt` 及
+`app/src/main/assets/device_models.json`。Leaf README 声明 GPL-3.0，该提交无独立 LICENSE。
+`OppoProductCatalog.kt` 整理其 141 条产品 ID、名称及子销售别名，仅保留 SPP 耳机候选资格，
+不导入功能标志、厂商图片或原始云配置。协议实现独立接入 HyperEars 会话与能力确认模型。
+目录不是逐型号实机验证清单；118 条明确 SPP 耳机可探测，其他 23 条仅作目录记录。
 
 ## HyperRose / ROSESELSA protocol profiles
 
@@ -151,6 +157,10 @@ ProtocolSession，不复制上游程序、厂商资源或应用代码。上游�
 用于 vivo TWS 3e 的公开协议画像。该仓库当前未被 GitHub 识别出标准许可证；本项目
 只记录可互操作的协议事实和独立实现，不复制其程序或资源。
 
+高级设置协议核对固定提交 `81beeef0aaca22c7018ba03863c4f0ef759fde9f`：RFCOMM JSON
+状态、左右双击、长按循环、DeepX 和佩戴检测。仅在 TWS 3e 的实际报告确认后开放，
+不把这些命令外推到其他 vivo / iQOO 型号；通话手势缺少明确回读，尚未开放。
+
 ## Bose BMAP research
 
 - aaronsb/bosectl: <https://github.com/aaronsb/bosectl>
@@ -204,8 +214,9 @@ Gadgetbridge 的 AGPL 程序代码，也不分发 SonyHeadphonesClient、厂商�
 - Declared license: GNU GPL-3.0（仓库 README 声明；该固定提交未包含独立的许可证文件）
 
 用于核对 QCY `A001/1001/1002` GATT 端点、`0xFF` 命令流、组件电量 `0x2F`、噪声模式
-`0x0C`、厂商数据 `0x521C` 及伴生控制端点关联方式。HyperEars 只实现 MiLink 所需的电量
-与原生三态噪声控制，并在自身 Adapter、ProtocolSession 和 WireCodec 边界内重新组织实现；
+`0x0C`、厂商数据 `0x521C` 及伴生控制端点关联方式；同时参考低延迟、睡眠、LDAC、
+双设备、动态 EQ、厂商空间模式、自适应音量、EQ 预设与十段 PEQ。HyperEars 在自身
+Adapter、ProtocolSession 和 WireCodec 边界内重新组织实现，按实际回报逐项开放控制；
 不分发 QCYpods 的应用、界面、图片、品牌资源或构建产物。上游许可证状态按固定提交如实
 记录，具体条款以其仓库声明为准。
 

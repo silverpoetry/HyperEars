@@ -38,10 +38,7 @@ class QcyEarbudAdapterTest {
         assertTrue(adapter.snapshot().capabilities.battery)
         assertFalse(adapter.snapshot().capabilities.noiseControl)
         assertEquals(
-            listOf(
-                QcyWireCodec.queryBattery.toList(),
-                QcyWireCodec.queryNoiseMode.toList(),
-            ),
+            (listOf(QcyWireCodec.queryBattery, QcyWireCodec.queryNoiseMode) + QcyWireCodec.advancedQueries).map(ByteArray::toList),
             adapter.beginHandshake().commands.map(ByteArray::toList),
         )
 

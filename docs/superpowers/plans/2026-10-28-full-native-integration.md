@@ -154,6 +154,9 @@ does not treat every source command as universally supported. All items below re
   EQ/custom EQ, game, multipoint, spatial, wearing, prompts, fit and Golden Sound workflows.
   Resolve source length conflicts with fixtures. LE Audio has a separate lifecycle/peer/group
   implementation and actual stereo-playback acceptance, including manual disconnect behavior.
+  Identity slice implemented: 141 catalog entries, 118 source-declared SPP headset candidates,
+  strict 24-bit product replies, exact aliases and same-session refinement. Advanced controls
+  and LE Audio remain outstanding; identity entries do not grant static capabilities.
 - [ ] C3 Huawei/Honor: union HuaweiPods/OpenFreebuds exact routes and aliases; old HFP plus SPP
   FreeBuds3 paths, Studio/FreeLace topology, firmware-specific ANC/transparency, EQ, gestures,
   spatial, wearing, dual-device, latency, quality, prompts/language and smart functions.
@@ -169,8 +172,13 @@ does not treat every source command as universally supported. All items below re
   codec and firmware-qualified mappings, readback and native UI.
 - [ ] C7 QCY: optional low-latency/sleep/EQ/PEQ/LDAC/dual/dynamic-EQ/spatial/adaptive-volume,
   additional state sources and strict value/outer-frame validation; preserve targeted endpoint scan.
+  Daily-control slice implemented with typed contracts, report gates, native card/details,
+  independent review and regression tests; hardware validation remains pending.
 - [ ] C8 vivo/iQOO: TWS3e double/hold/noise-cycle/DeepX/wear; preserve per-model GAIA differences
   and require separate evidence before family expansion of advanced commands.
+  Exact TWS 3e slice implemented from raw RFCOMM JSON reports, including native card/details,
+  independent review and regression tests. Call-gesture settings remain unavailable because the
+  reference lacks reliable readback semantics; hardware validation remains pending.
 - [ ] C9 MOONDROP: Pudding five modes/gain/LED and dialect-specific framing/readback; Robin and
   MIRAGE compatibility; ZZZ pure battery; investigate the 52 catalog records/aliases by protocol
   family, retaining explicit unimplemented protocol gaps until actually filled.

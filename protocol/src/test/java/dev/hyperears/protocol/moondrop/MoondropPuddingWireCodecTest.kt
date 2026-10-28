@@ -7,6 +7,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MoondropPuddingWireCodecTest {
+    @Test fun explicitUnavailableSnapshotIsDifferentFromMalformedOrAbsentBattery() {
+        fun frame(left: Int, right: Int, case: Int) = MoondropPuddingWireCodec.Frame(
+            0x1d, 0x1b, 1, byteArrayOf(1, left.toByte(), 2, right.toByte(), 3, case.toByte()))
+        assertEquals(MoondropPuddingWireCodec.BatteryState(null, null, null),
+            MoondropPuddingWireCodec.parseBattery(frame(0, 255, 255)))
+        assertEquals(MoondropPuddingWireCodec.BatteryState(null, null, null),
+            MoondropPuddingWireCodec.parseBattery(frame(255, 0, 255)))
+        assertNull(MoondropPuddingWireCodec.parseBattery(frame(101, 120, 128)))
+        assertNull(MoondropPuddingWireCodec.parseBattery(frame(0, 255, 255).copy(parameters = byteArrayOf(1, 0))))
+    }
     @Test
     fun commandsMatchCapturedBytes() {
         assertEquals("FF 01 00 00 00 0A 03 00", MoondropPuddingWireCodec.handshake.hex())

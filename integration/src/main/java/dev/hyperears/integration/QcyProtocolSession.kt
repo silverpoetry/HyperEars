@@ -6,11 +6,12 @@ import dev.hyperears.protocol.qcy.QcyWireCodec
 internal class QcyProtocolSession : ProtocolSession {
     private val decoder = QcyWireCodec.Decoder()
     private var handshakePublished = false
+    private var settings = QcySettingsFeatureState()
 
     override fun initialReadCommands(): List<ByteArray> = listOf(
         QcyWireCodec.queryBattery,
         QcyWireCodec.queryNoiseMode,
-    )
+    ) + QcyWireCodec.advancedQueries
 
     override fun encode(request: ControlRequest): List<ByteArray> = when {
         request === StandardControlRequest.Refresh -> initialReadCommands()
@@ -20,17 +21,49 @@ internal class QcyProtocolSession : ProtocolSession {
             ?.let(::listOf)
             .orEmpty()
 
+        request is QcyControlRequest && settings.supports(request) -> listOf(when (request) {
+            is QcyControlRequest.SetToggle -> QcyWireCodec.setToggle(request.setting.wire(), request.enabled)
+            is QcyControlRequest.SetSpatialMode -> QcyWireCodec.setSpatialMode(request.mode)
+            is QcyControlRequest.SetEqPreset -> QcyWireCodec.setEqPreset(request.preset)
+            is QcyControlRequest.SetCustomEq -> QcyWireCodec.setCustomEq(request.gains)
+        })
         else -> emptyList()
     }
 
     override fun readback(request: ControlRequest): List<ByteArray> = when (request) {
         is StandardControlRequest.SetNoiseMode -> listOf(QcyWireCodec.queryNoiseMode)
+        is QcyControlRequest.SetToggle -> listOf(QcyWireCodec.query(request.setting.command))
+        is QcyControlRequest.SetSpatialMode -> listOf(QcyWireCodec.query(0x2D))
+        is QcyControlRequest.SetEqPreset -> listOf(QcyWireCodec.query(0x20), QcyWireCodec.query(0x22))
+        is QcyControlRequest.SetCustomEq -> listOf(QcyWireCodec.query(0x22))
         else -> emptyList()
     }
 
     override fun offer(bytes: ByteArray): List<ProtocolEvent> = buildList {
         var accepted = false
         decoder.offer(bytes).forEach { frame ->
+            var changed = false
+            QcyWireCodec.parseToggle(frame)?.let { (toggle, enabled) ->
+                val setting = QcyToggle.entries.single { it.command == toggle.command }
+                settings = settings.copy(toggles = settings.toggles + (setting to enabled))
+                changed = true
+            }
+            QcyWireCodec.parseSpatialMode(frame)?.let {
+                settings = settings.copy(spatialMode = it); changed = true
+            }
+            QcyWireCodec.parseEqPreset(frame)?.let { preset ->
+                settings = if (frame.command == 0x20) settings.copy(eqPreset = preset, eqV1Preset = preset)
+                    else settings.copy(eqPreset = preset, eqV2Preset = preset, equalizer = QcyWireCodec.parseEqualizer(frame)?.let { eq ->
+                        QcyEqualizer(eq.preset, eq.masterGainHundredths, eq.bands.map {
+                            QcyEqBand(it.frequency, it.gainHundredths, it.qHundredths, it.type)
+                        })
+                    })
+                changed = true
+            }
+            if (changed) {
+                accepted = true
+                add(ProtocolEvent.FeatureStateChanged(settings))
+            }
             QcyWireCodec.parseBattery(frame)?.let { battery ->
                 accepted = true
                 add(ProtocolEvent.CapabilitiesIdentified(battery = true))
@@ -70,6 +103,7 @@ internal class QcyProtocolSession : ProtocolSession {
     override fun reset() {
         decoder.reset()
         handshakePublished = false
+        settings = QcySettingsFeatureState()
     }
 
     private fun QcyWireCodec.BatteryCell.toBatteryReading(): BatteryReading =

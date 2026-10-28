@@ -627,6 +627,11 @@ object EarbudAdapterRegistry {
         add(Registration(oppoGroup, ::OppoEncoFree4Adapter))
         add(Registration(oppoGroup, ::OppoEncoX3Adapter))
         add(Registration(oppoGroup, ::OppoEncoAir5Adapter))
+        OppoProductCatalog.products.filter { it.privateProbeCandidate && it.productId !in
+            setOf(0x063810, 0x068C10, 0x067410, 0x06D810)
+        }.forEach { product ->
+            add(Registration(oppoGroup) { OppoCatalogEarbudAdapter(product) })
+        }
         add(Registration(oppoGroup, ::OppoEarbudAdapter))
         add(Registration(boseGroup, ::BoseHeadphonesAdapter))
         add(Registration(boseGroup, ::BoseEarbudAdapter))

@@ -10,7 +10,10 @@ import dev.hyperears.protocol.oppo.OppoWireCodec
  * this candidate configuration, but private capabilities remain closed until a valid OPPO response;
  * a concrete adapter overrides only a verified difference.
  */
-open class OppoEarbudAdapter : StandardEarbudAdapter() {
+open class OppoEarbudAdapter(
+    transferredSession: ProtocolSession? = null,
+    initialRuntimeState: AdapterRuntimeState = AdapterRuntimeState(),
+) : StandardEarbudAdapter(transferredSession, initialRuntimeState) {
     override val id: String = ID
     override val displayName: String = "OPPO Enco headset"
     override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
@@ -34,11 +37,33 @@ open class OppoEarbudAdapter : StandardEarbudAdapter() {
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
         val name = normalizeDeviceName(identity.deviceName.orEmpty())
+        val catalog = OppoProductCatalog.named(identity.deviceName.orEmpty())
+        if (catalog.isNotEmpty()) return catalog.any { it.privateProbeCandidate }
         return name.contains("oppo") || name.contains("enco")
     }
 
     override fun createProtocolSession(): ProtocolSession =
-        OppoProtocolSession(wireConfig)
+        OppoProtocolSession(wireConfig, ::isAdapterEnabled)
+
+    override fun onProductIdentified(productId: Int): HandshakeResult? {
+        val session = protocolSession as? OppoProtocolSession ?: return null
+        val product = OppoProductCatalog.find(productId)?.takeIf { it.privateProbeCandidate }
+            ?: return null
+        if (!isAdapterEnabled(product.adapterId)) return null
+        if (session.confirmedNoiseMode == null) removeFeatureState(NoiseModeFeatureState.FEATURE_ID)
+        val next = OppoCatalogEarbudAdapter(product, session, runtimeState())
+        // The transferred conversation must consult the current adapter's policy, including
+        // policy updates made after an earlier identity refinement.
+        session.productAdmission = { next.isAdapterEnabled(it) }
+        next.acceptReportedModes(session.confirmedNoiseMode != null)
+        return selectReplacement(next, AdapterActivation.KEEP_CHANNEL_READY)
+    }
+
+    internal fun acceptReportedModes(reported: Boolean) {
+        if (reported) {
+            onCapabilitiesIdentified(false, setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY))
+        }
+    }
 
     companion object {
         const val ID = "oppo-enco-family"
@@ -60,7 +85,7 @@ class OppoEncoAir2ProAdapter : OppoModelEarbudAdapter() {
 
     override fun matches(identity: EarbudIdentity): Boolean =
         super.matches(identity) &&
-            normalizeDeviceName(identity.deviceName.orEmpty()).contains("encoair2pro")
+            OppoProductCatalog.exact(identity.deviceName.orEmpty())?.productId == 0x063810
 
     companion object { const val ID = "oppo-enco-air2-pro" }
 }
@@ -73,7 +98,7 @@ class OppoEncoFree4Adapter : OppoModelEarbudAdapter() {
 
     override fun matches(identity: EarbudIdentity): Boolean =
         super.matches(identity) &&
-            normalizeDeviceName(identity.deviceName.orEmpty()).contains("encofree4")
+            OppoProductCatalog.exact(identity.deviceName.orEmpty())?.productId == 0x068C10
 
     companion object { const val ID = "oppo-enco-free4" }
 }
@@ -86,7 +111,7 @@ class OppoEncoX3Adapter : OppoModelEarbudAdapter() {
 
     override fun matches(identity: EarbudIdentity): Boolean =
         super.matches(identity) &&
-            normalizeDeviceName(identity.deviceName.orEmpty()).contains("encox3")
+            OppoProductCatalog.exact(identity.deviceName.orEmpty())?.productId == 0x067410
 
     companion object { const val ID = "oppo-enco-x3" }
 }
@@ -99,9 +124,31 @@ class OppoEncoAir5Adapter : OppoModelEarbudAdapter() {
 
     override fun matches(identity: EarbudIdentity): Boolean =
         super.matches(identity) &&
-            normalizeDeviceName(identity.deviceName.orEmpty()).contains("encoair5")
+            OppoProductCatalog.exact(identity.deviceName.orEmpty())?.productId == 0x06D810
 
     companion object { const val ID = "oppo-enco-air5" }
+}
+
+/** Exact catalog identity; shared protocol flags never grant capabilities. */
+class OppoCatalogEarbudAdapter internal constructor(
+    private val product: OppoProductCatalog.Product,
+    transferredSession: ProtocolSession? = null,
+    initialRuntimeState: AdapterRuntimeState = AdapterRuntimeState(),
+) : OppoEarbudAdapter(transferredSession, initialRuntimeState) {
+    override val id: String = product.adapterId
+    override val displayName: String = product.displayName
+    private val identifiedSession = transferredSession as? OppoProtocolSession
+    override val resolution: AdapterResolution
+        get() = if (identifiedSession?.productId == product.productId) {
+            AdapterResolution.PROTOCOL_CONFIRMED
+        } else {
+            AdapterResolution.EXACT_MATCH
+        }
+    override val wireConfig: OppoWireConfig = product.wireConfig
+
+    override fun matches(identity: EarbudIdentity): Boolean =
+        super.matches(identity) && product.privateProbeCandidate &&
+            OppoProductCatalog.exact(identity.deviceName.orEmpty())?.productId == product.productId
 }
 
 /**
@@ -121,15 +168,22 @@ data class OppoWireConfig(
     }
 }
 
-private class OppoProtocolSession(
-    private val configuration: OppoWireConfig,
+internal class OppoProtocolSession(
+    initialConfiguration: OppoWireConfig,
+    internal var productAdmission: (String) -> Boolean,
 ) : ProtocolSession {
+    private var configuration = initialConfiguration
+    var productId: Int? = null
+        private set
+    var confirmedNoiseMode: NoiseMode? = null
+        private set
     private val decoder = OppoWireCodec.Decoder()
     private var handshakePublished = false
     private var battery = EarbudBattery()
     private var pendingNotificationRegistration: ByteArray? = null
 
     override fun initialReadCommands(): List<ByteArray> = listOf(
+        OppoWireCodec.queryProductId,
         OppoWireCodec.queryNotificationSupport,
         OppoWireCodec.queryBattery,
         OppoWireCodec.queryAnc,
@@ -158,6 +212,21 @@ private class OppoProtocolSession(
     override fun offer(bytes: ByteArray): List<ProtocolEvent> =
         decoder.offer(bytes).flatMap { frame ->
             buildList {
+                OppoWireCodec.parseProductId(frame)?.let { identified ->
+                    val product = OppoProductCatalog.find(identified)?.takeIf { it.privateProbeCandidate }
+                    // Reject a disabled identity before it can alter the active dialect or
+                    // invalidate report evidence. Adapter replacement applies the same gate.
+                    if (product != null && !productAdmission(product.adapterId)) return@buildList
+                    val nextConfiguration = product?.wireConfig ?: configuration
+                    if (configuration != nextConfiguration) confirmedNoiseMode = null
+                    configuration = nextConfiguration
+                    publishHandshakeIfNeeded()
+                    if (productId != identified) {
+                        productId = identified
+                        add(ProtocolEvent.ProductIdentified(identified))
+                    }
+                    return@buildList
+                }
                 OppoWireCodec.parseNotificationSupport(frame)?.let { advertisedIds ->
                     val subscribableIds = advertisedIds.filterNot { it.isDebugNotification() }
                         .toByteArray()
@@ -182,6 +251,7 @@ private class OppoProtocolSession(
                 OppoWireCodec.parseAncState(frame)
                     ?.toDomainMode()
                     ?.let { mode ->
+                        confirmedNoiseMode = mode
                         publishHandshakeIfNeeded()
                         add(
                             ProtocolEvent.CapabilitiesIdentified(
@@ -205,6 +275,8 @@ private class OppoProtocolSession(
 
     override fun reset() {
         decoder.reset()
+        productId = null
+        confirmedNoiseMode = null
         handshakePublished = false
         battery = EarbudBattery()
         pendingNotificationRegistration = null

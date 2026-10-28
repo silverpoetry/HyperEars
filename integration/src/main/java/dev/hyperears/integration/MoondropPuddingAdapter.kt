@@ -191,8 +191,15 @@ internal class MoondropPuddingProtocolSession : ProtocolSession {
             }
 
             MoondropPuddingWireCodec.parseBattery(frame)?.let { battery ->
+                val unavailable = battery.leftPercent == null && battery.rightPercent == null && battery.casePercent == null
+                // Unknown-only discovery does not establish private telemetry capability.
+                if (unavailable && this@MoondropPuddingProtocolSession.battery == EarbudBattery()) return@let
                 this@MoondropPuddingProtocolSession.battery =
-                    this@MoondropPuddingProtocolSession.battery.merge(battery)
+                    if (unavailable) {
+                        EarbudBattery()
+                    } else {
+                        this@MoondropPuddingProtocolSession.battery.merge(battery)
+                    }
                 add(ProtocolEvent.CapabilitiesIdentified(battery = true))
                 add(
                     ProtocolEvent.FeatureStateChanged(

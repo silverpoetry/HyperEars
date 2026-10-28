@@ -60,6 +60,18 @@ open class QcyStandardGattAdapter(
         ),
     )
 
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state -> state is QcySettingsFeatureState }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is QcyControlRequest && adapter.runtimeState().features.get<QcySettingsFeatureState>()?.supports(request) == true
+    }
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = when {
+            effectiveCapabilities().noiseControl -> PRESENTATION_ID
+            runtimeState().features.get<QcySettingsFeatureState>() != null -> SETTINGS_PRESENTATION_ID
+            else -> null
+        }
+    override fun controlPolicy(request: ControlRequest) = ControlExecutionPolicy()
+    override fun onProtocolReset() { removeFeatureState(QcySettingsFeatureState.FEATURE_ID) }
     override fun createProtocolSession(): ProtocolSession = QcyProtocolSession()
 
     override fun onInitialProtocolUnavailable(): InitialProtocolFailureResolution =
@@ -69,6 +81,8 @@ open class QcyStandardGattAdapter(
 
     companion object {
         const val ID = "qcy-standard-gatt-family"
+        val PRESENTATION_ID = MiLinkCardPresentationId(ID)
+        val SETTINGS_PRESENTATION_ID = MiLinkCardPresentationId("$ID-settings")
         const val QCY_MANUFACTURER_ID = 0x521C
         const val SERVICE_UUID = "0000a001-0000-1000-8000-00805f9b34fb"
         const val WRITE_CHARACTERISTIC_UUID = "00001001-0000-1000-8000-00805f9b34fb"

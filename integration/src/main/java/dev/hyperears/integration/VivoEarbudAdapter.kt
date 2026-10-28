@@ -1,6 +1,7 @@
 package dev.hyperears.integration
 
 import dev.hyperears.protocol.vivo.VivoTwsProtocol
+import dev.hyperears.protocol.vivo.VivoTws3eWireCodec
 
 /**
  * Shared vivo/iQOO TWS family adapter.
@@ -78,6 +79,22 @@ class VivoTwsAir3ProAdapter : VivoModelEarbudAdapter() {
  */
 class VivoTws3eAdapter : VivoModelEarbudAdapter() {
 
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        request is VivoTws3eControlRequest &&
+            adapter.runtimeState().features.get<VivoTws3eFeatureState>()?.supports(request) == true
+    }
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        state is VivoTws3eFeatureState
+    }
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = VivoTws3ePresentationIds.SETTINGS.takeIf {
+            runtimeState().features.get<VivoTws3eFeatureState>()?.hasSettings == true
+        }
+    override fun onProtocolReset() {
+        super.onProtocolReset()
+        removeFeatureState(VivoTws3eFeatureState.FEATURE_ID)
+    }
+
     override val id: String = ID
     override val displayName: String = "vivo TWS 3e"
     override val protocolConfig: VivoTwsProtocol.WireConfig =
@@ -98,6 +115,8 @@ private class VivoProtocolSession(
 ) : ProtocolSession {
     private val decoder = VivoTwsProtocol.Decoder()
     private var handshakePublished = false
+    private val statusDecoder = VivoTws3eWireCodec.StatusDecoder()
+    private var settings: VivoTws3eFeatureState? = null
 
     override fun initialReadCommands(): List<ByteArray> = listOf(
         VivoTwsProtocol.handshake(),
@@ -114,11 +133,40 @@ private class VivoProtocolSession(
             ),
         )
 
+        request is VivoTws3eControlRequest && config == VivoTwsProtocol.WireConfig.TWS_3E_V3 &&
+            settings?.supports(request) == true -> listOf(when (request) {
+                is VivoTws3eControlRequest.SetDoubleTap -> VivoTws3eWireCodec.setDoubleTap(request.right, request.action.wire)
+                is VivoTws3eControlRequest.SetHold -> VivoTws3eWireCodec.setHold(request.left.wire, request.right.wire)
+                is VivoTws3eControlRequest.SetDeepX -> VivoTws3eWireCodec.setDeepX(request.preset.wire)
+                is VivoTws3eControlRequest.SetWearDetection -> VivoTws3eWireCodec.setWearDetection(request.enabled)
+            })
         else -> emptyList()
     }
 
+    // No documented advanced query exists. Only subsequent A102|10084 reports confirm writes.
+    private fun statusEvents(bytes: ByteArray): List<ProtocolEvent> {
+        if (config != VivoTwsProtocol.WireConfig.TWS_3E_V3) return emptyList()
+        return statusDecoder.offer(bytes).flatMap { json ->
+            val report = VivoTws3eStatus.parse(json) ?: return@flatMap emptyList()
+            settings = report.settings
+            buildList {
+                add(ProtocolEvent.FeatureStateChanged(report.settings))
+                report.battery?.let {
+                    add(ProtocolEvent.CapabilitiesIdentified(battery = true))
+                    add(ProtocolEvent.FeatureStateChanged(BatteryFeatureState(it)))
+                }
+                report.noise?.let {
+                    add(ProtocolEvent.CapabilitiesIdentified(battery = false,
+                        noiseModes = VivoEarbudAdapter.THREE_STATE_NOISE_MODES))
+                    add(ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(it)))
+                }
+                publishHandshakeIfNeeded()
+            }
+        }
+    }
+
     override fun offer(bytes: ByteArray): List<ProtocolEvent> =
-        decoder.offer(bytes).flatMap { frame ->
+        statusEvents(bytes) + decoder.offer(bytes).flatMap { frame ->
             VivoTwsProtocol.parseHandshakeState(frame)?.let {
                 return@flatMap if (it.accepted) {
                     handshakePublished = true
@@ -170,6 +218,8 @@ private class VivoProtocolSession(
 
     override fun reset() {
         decoder.reset()
+        statusDecoder.reset()
+        settings = null
         handshakePublished = false
     }
 

@@ -74,8 +74,8 @@ object MoondropPuddingWireCodec {
      *
      * For both buds, 00 and FF mean "not connected / unreadable" (e.g. bud resting in the case)
      * and decode to null. The case keeps 0..100 valid (an empty case is a real state); FF is
-     * unreadable and decodes to null. A frame is rejected only when it contains no readable
-     * battery component.
+     * unreadable and decodes to null. A complete snapshot of these explicit unavailable values
+     * clears old readings; an absent/invalid frame must not have that effect.
      */
     fun parseBattery(frame: Frame): BatteryState? {
         if (frame.command != 0x1D || frame.opcode != 0x01 || frame.parameters.size != 6) return null
@@ -90,7 +90,11 @@ object MoondropPuddingWireCodec {
         val left = frame.parameters[1].unsigned().takeIf { it in 1..100 }
         val right = frame.parameters[3].unsigned().takeIf { it in 1..100 }
         val case = frame.parameters[5].unsigned().takeIf { it in 0..100 }
-        if (left == null && right == null && case == null) return null
+        if (left == null && right == null && case == null) {
+            val explicitUnavailable = frame.parameters[1].unsigned() in setOf(0, 255) &&
+                frame.parameters[3].unsigned() in setOf(0, 255) && frame.parameters[5].unsigned() == 255
+            if (!explicitUnavailable) return null
+        }
         return BatteryState(left, right, case)
     }
 

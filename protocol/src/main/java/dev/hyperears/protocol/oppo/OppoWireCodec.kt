@@ -8,6 +8,9 @@ package dev.hyperears.protocol.oppo
  * integration Adapter owns that interpretation.
  */
 object OppoWireCodec {
+    // OppoPods Leaf 929d813f ProductIdParser: status followed by three little-endian ID bytes.
+    const val QUERY_PRODUCT_ID = 0x0103
+    const val PRODUCT_ID_RESPONSE = 0x8103
     const val QUERY_BATTERY = 0x0106
     const val BATTERY_RESPONSE = 0x8106
     const val QUERY_ANC = 0x010C
@@ -41,6 +44,7 @@ object OppoWireCodec {
         val secondary: Int?,
     )
 
+    val queryProductId: ByteArray = packet(QUERY_PRODUCT_ID)
     val queryBattery: ByteArray = packet(QUERY_BATTERY)
     val queryNotificationSupport: ByteArray = packet(QUERY_NOTIFICATION_SUPPORT)
     val queryAnc: ByteArray = packet(
@@ -66,6 +70,14 @@ object OppoWireCodec {
             command = REGISTER_NOTIFICATIONS,
             payload = byteArrayOf(ids.size.toByte()) + ids,
         )
+    }
+
+    fun parseProductId(frame: Frame): Int? {
+        if (frame.command != PRODUCT_ID_RESPONSE || frame.payload.size != 4 ||
+            frame.payload[0].unsigned() != STATUS_SUCCESS
+        ) return null
+        return frame.payload[1].unsigned() or (frame.payload[2].unsigned() shl 8) or
+            (frame.payload[3].unsigned() shl 16)
     }
 
     fun parseNotificationSupport(frame: Frame): ByteArray? {
