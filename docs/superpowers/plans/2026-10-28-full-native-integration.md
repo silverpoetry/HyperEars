@@ -1,5 +1,22 @@
 # HyperEars full native integration implementation plan
 
+## Current owner-directed scope: close broad expansion
+
+The user explicitly stopped further work on unowned models after checkpoint5c7db60.
+Retain completed source-backed ports and their validation limits in the current Draft PR.
+Do not resume the unchecked broad backlog below: it is historical scope, not an active queue.
+Only an obvious partially exposed feature that breaks this delivery warrants completion or removal.
+After submitting this checkpoint, active device work is limited to the user's AirPods5 wireless
+and ROSE Coral. AirPods5's ordinary Bluetooth details screenshot is a failed acceptance result;
+see [user validation](../../research/airpods5-user-validation.md). Do not claim a newer build fixes it
+without evidence. No further Sony GATT, Huawei language or phone-DSP expansion is scheduled.
+
+The release/build checks below remain evidence for the committed code, not hardware acceptance.
+Keep the PR Draft while changed owned-device paths await validation; preserve contribution ancestry
+and do not close original device PRs. Device investigation begins read-only; installation, restarts
+and settings changes remain separate user-directed actions.
+
+
 > Execute task by task using subagent-driven-development. Preserve the full objective across
 > sessions; a passing milestone is not completion of the complete integration goal.
 
