@@ -19,6 +19,59 @@ internal data class NativeWindowRequest(
     val metadata: NativePresentationMetadata,
     val producer: IBinder,
 ) {
+    fun forBinding(
+        latest: NativeWindowRequest?,
+        currentProducer: IBinder?,
+    ): NativeWindowRequest? {
+        if (!state.sessionActive || metadata.admission != NativeAdmission.HYPEREARS ||
+            (currentProducer != null && currentProducer != producer)
+        ) {
+            return null
+        }
+        if (latest == null) return this
+        if (latest.producer != producer || latest.state.address != state.address) return null
+        // Native ownership is sticky for this physical connection, including an older snapshot.
+        if (latest.metadata.connection == metadata.connection &&
+            latest.metadata.admission == NativeAdmission.SYSTEM) return null
+        // Revisions are monotonic per address within a producer, including session replacement.
+        // The Activity can reach this process before its newer broadcast does.
+        if (latest.state.revision < state.revision) return this
+        return updated(latest.state, latest.session, latest.metadata, latest.producer)
+    }
+
+    fun updated(
+        state: EarbudState,
+        session: String,
+        metadata: NativePresentationMetadata,
+        producer: IBinder,
+    ): NativeWindowRequest? {
+        if (state.address != this.state.address || producer != this.producer || session != this.session ||
+            metadata.connection != this.metadata.connection || metadata.admission == NativeAdmission.SYSTEM
+        ) {
+            return null
+        }
+        if (state.revision < this.state.revision) return this
+        if (metadata.admission != NativeAdmission.HYPEREARS || !state.sessionActive) return null
+        return if (state.revision > this.state.revision) copy(state = state, metadata = metadata) else this
+    }
+
+    fun stateArray(): Array<String> {
+        val p = requireNotNull(NativeHeadsetProjection.from(state))
+        return arrayOf(
+            p.left.percent?.toString() ?: "-",
+            p.right.percent?.toString() ?: "-",
+            p.chargingCase.percent?.toString() ?: "-",
+            "false",
+            "false",
+            p.left.charging.toString(),
+            p.right.charging.toString(),
+            p.chargingCase.charging.toString(),
+            p.address,
+            "2",
+            p.name,
+        )
+    }
+
     companion object {
         const val ACTIVITY = "com.android.bluetooth.ble.app.fastconnect.MiuiFastConnectActivity"
         private const val PAYLOAD = "dev.hyperears.native_snapshot"
