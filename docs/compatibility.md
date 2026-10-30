@@ -179,18 +179,25 @@ OriG in 使用 RFCOMM UUID `a100`。
 | Pudding（蓝牙名称 `MOONDROP Pudding`） | 具体型号 | 实机验证 | 名称规则选择候选；与 Robin 相同的严格握手响应确认协议 | 系统整机 → 私有左右耳与充电盒 | 降噪、关闭、通透 |
 | MIRAGE（蓝牙名称 `MOONDROP MIRAGE`） | 具体型号 | 原版部分实机验证；维护版待复核 | 品牌与型号名称选择候选；共用 Pudding 的严格握手与逐项响应确认后开放 | 系统整机 → 私有左右耳与充电盒 | 基础降噪、关闭、通透 |
 | Space Travel 2 Ultra（蓝牙名称 `Space Travel 2 Ultra`） | 标准回退 | 用户名称记录 | 精确名称选择水月雨家族；私有协议待确认 | 系统整机 | 无 |
+| ZZZ-ANGELS-OWS（水月雨 × 绝区零「妄想天使·闪亮登场」耳夹款） | 具体型号 | 维护版实机复核通过 | 规范化完整名称匹配（排除 `-LEA` 身份）；家族 API 握手与电量查询响应确认 | 系统整机 → 私有左右耳 | 无 |
 | 其他名称包含 MOONDROP / 水月雨的耳机 | 标准回退 | 标准回退 | 品牌名称与 Android 标准耳机身份匹配 | 系统整机 | 无 |
 
 Robin 和 Pudding 使用 Bluetooth SIG 标准 SPP UUID 建立 RFCOMM 通道。该 UUID 只用于选择
-连接端点，不参与品牌或型号判定。握手确认前仅保留系统整机电量，不开放私有控制；确认后
-分别以合法电量和模式查询响应开放对应能力。模式写入后耳机不主动回报，模块会主动查询并
-以回读结果更新状态。精确型号握手暂时失败时保留对应 Adapter，使用统一的有界退避与休眠
-唤醒路径，不会改判成其他厂商。Pudding 的帧格式与模式命令与 Robin 同构（子命令
+连接端点，不参与品牌或型号判定。ZZZ-ANGELS-OWS 同样使用标准 SPP（设备 SDP 与官方 App
+实机抓包确认）；该型号是无降噪的 OWS 耳夹耳机（官方 App 与抓包均无任何噪声命令），模块
+不发送噪声命令、不开放噪声控制。其协议字节由官方 MOONDROP Link 应用实现与实机抓包
+交叉验证：握手回答 `00 04 03 01`，电量响应为两对 `01 <左> 02 <右>`（设备实测不支持
+充电盒组件），解析按对容错；判型排除其故意不可用的 `-LEA` LE Audio 身份。握手确认前
+仅保留系统整机电量，不开放私有控制；确认后以合法电量和模式查询响应开放对应能力。
+Robin、Pudding 模式写入后耳机不主动回报，模块会主动查询并以回读结果更新状态。精确
+型号握手暂时失败时保留对应 Adapter，使用统一的有界退避与休眠唤醒路径，不会改判成
+其他厂商。Pudding 的帧格式与模式命令与 Robin 同构（子命令
 `40/41`、操作码 `03/04`）；电量帧 `01 <左> 02 <右> 03 <盒>` 中左右耳 `00` 与 `FF`
 均表示未连接并显示未知，充电盒 `FF` 为不可读。捕获记录中帧载荷之后的尾字节
 （如 `40`）不参与任何校验。详见
-[`moondrop-pudding-protocol.md`](moondrop-pudding-protocol.md)。MIRAGE 原 PR 已于 2026-09-21
-实机确认握手、私有电量与基础三态读写。维护版于 2026-10-23 经维护者批准合入，
+[`moondrop-pudding-protocol.md`](moondrop-pudding-protocol.md) 与
+[`moondrop-zzz-angels-protocol.md`](moondrop-zzz-angels-protocol.md)。MIRAGE 原 PR 已于
+2026-09-21 实机确认握手、私有电量与基础三态读写。维护版于 2026-10-23 经维护者批准合入，
 实机复核与自适应降噪命令证据继续跟踪，见
 [`moondrop-mirage-protocol.md`](moondrop-mirage-protocol.md)。
 
