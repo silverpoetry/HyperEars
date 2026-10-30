@@ -48,7 +48,11 @@ internal class NativePresentationRuntime(
     private val records = linkedMapOf<String, Record>()
     private val gate = ConnectionPresentationGate()
     private val gateDecisions = mutableMapOf<String, Pair<String, String>>()
-    private var ownershipStore: NativeOwnershipStore? = null
+    // The contract resolves once at construction and is never retried, so the ownership decision must be
+    // visible to every later reader; a missing store has no self-healing path to re-read it.
+    @Volatile private var ownershipStore: NativeOwnershipStore? = null
+    // Conservative until the contract resolves: only an absent data plane may fall back to HyperEars.
+    @Volatile private var ownershipContract = OwnershipContractState.MISMATCH
     private val ownershipReadings = mutableMapOf<String, Pair<String, NativeAdmission>>()
     private val ownershipReports = mutableMapOf<String, Pair<String, NativeAdmission>>()
     private var producer: IBinder? = null
@@ -71,8 +75,19 @@ internal class NativePresentationRuntime(
         if (!uiProcess) {
             runCatching { NativeOwnershipStore.resolve(context) { key ->
                 handler.post { nativeOwnershipChanged(key) }
-            } }.onSuccess { ownershipStore = it }
-                .onFailure { ModuleLog.warn(TAG, "native ownership store unavailable", it) }
+            } }.onSuccess {
+                ownershipStore = it
+                ownershipContract = OwnershipContractState.RESOLVED
+            }.onFailure { failure ->
+                val diagnosis = ownershipContractDiagnosis(failure)
+                ownershipContract = diagnosis.state
+                ModuleLog.warn(TAG, when {
+                    diagnosis.state == OwnershipContractState.MISSING -> "native ownership contract classes absent"
+                    diagnosis.truncated -> "unexpected native ownership contract: cause chain truncated " +
+                        "depth=${diagnosis.chainDepth} limit=$MAX_CAUSE_DEPTH"
+                    else -> "unexpected native ownership contract: shape mismatch depth=${diagnosis.chainDepth}"
+                }, failure)
+            }
             runCatching { NativeConnectionHint().also { configure(it, context.classLoader); it.install() } }
                 .onSuccess { hint = it }
                 .onFailure { ModuleLog.warn(TAG, "connection hint unavailable", it) }
@@ -261,7 +276,12 @@ internal class NativePresentationRuntime(
     private fun checkNativeOwnership(record: Record): NativeAdmission {
         val address = record.state.address ?: return NativeAdmission.UNKNOWN
         val cached = ownershipReadings[address]?.takeIf { it.first == record.session }
-        val admission = cached?.second ?: (ownershipStore?.read(address) ?: NativeAdmission.UNKNOWN).also {
+        val admission = cached?.second ?: ownershipAdmission(
+            reading = ownershipStore?.read(address),
+            contract = ownershipContract,
+            // render() already gates on the record being active; this re-check is defensive.
+            milinkAccepted = record.active,
+        ).also {
             ownershipReadings[address] = record.session to it
             ModuleLog.debug("NativeOwnership") {
                 "decision=$it address=${maskBluetoothAddress(address)} session=${record.session}"
@@ -328,7 +348,12 @@ internal class NativePresentationRuntime(
         if (!allowTransient || record.metadata.replay ||
             settings.headsetConnectionPresentation == HeadsetConnectionPresentation.OFF) return
         attemptPresentation(record) {
-            present(record, settings.headsetConnectionPresentation)
+            // Structural invariant: present() reaches host reflection and settings, so a failure folds into
+            // "not submitted" here, where the gate keeps the connection retryable, instead of on the host's
+            // main looper.
+            runCatching { present(record, settings.headsetConnectionPresentation) }
+                .onFailure { ModuleLog.warn(TAG, "presentation attempt failed", it) }
+                .getOrDefault(false)
         }
     }
 
@@ -359,7 +384,11 @@ internal class NativePresentationRuntime(
             "popup" -> HeadsetConnectionPresentation.BATTERY_POPUP
             else -> return
         }
-        present(record, mode)
+        // Same invariant on the manual preview path, which the gate does not wrap: fold to not submitted.
+        runCatching { present(record, mode) }.getOrElse { failure ->
+            ModuleLog.debug(TAG, "preview presentation failed ${failure.javaClass.name}; treating as not submitted")
+            false
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -385,9 +414,23 @@ internal class NativePresentationRuntime(
         }
         val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(p.address) ?: return false
         if (BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) return false
-        if (hint?.flowOwnsPresentation(device) != false) {
+        // An absent subsystem and a failed query are both indeterminate: neither may fail closed here.
+        // Anything else present() can throw is folded by its two callers, the gate submit lambda and
+        // preview(), so nothing reaches the host's main looper either. The native window occupancy guard
+        // above and the connection gate still decide.
+        val flowOwns = hint?.let { circulation ->
+            runCatching { circulation.flowOwnsPresentation(device) }.getOrElse { failure ->
+                ModuleLog.debug(TAG, "circulation query failed ${failure.javaClass.name}; treating as indeterminate")
+                null
+            }
+        }
+        if (displayBlockedByNativeCirculation(flowOwns)) {
             ModuleLog.debug(TAG, "presentation skipped: native circulation owns display")
             return false
+        }
+        if (hint == null) {
+            ModuleLog.debug(TAG, "circulation state unavailable (native hint absent); " +
+                "relying on native window guard")
         }
         val onHomeOrCoverScreen = if (mode == HeadsetConnectionPresentation.SMART) {
             runCatching { scene?.isOnHomeOrCoverScreen(context) }

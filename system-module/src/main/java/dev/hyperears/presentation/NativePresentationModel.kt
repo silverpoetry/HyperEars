@@ -85,6 +85,17 @@ internal fun resolveNativePresentationTarget(
     HeadsetConnectionPresentation.OFF -> null
 }
 
+/**
+ * Whether the native circulation flow currently owns the earbud display and the module must stand down.
+ * A null reading means the native hint subsystem could not be installed at all, so circulation is neither
+ * observable nor provable: that alone must not keep the popup closed, while the native window occupancy
+ * guard and the connection gate still decide. A present subsystem keeps its exact verdict. An absent
+ * singleton (the subsystem is installed but the native instance is not created yet) is reported by the
+ * query as true and does block: that is a different kind of indeterminacy from a missing subsystem and
+ * the two must not be merged.
+ */
+internal fun displayBlockedByNativeCirculation(flowOwns: Boolean?): Boolean = flowOwns == true
+
 /** No timers or IO; failed eligibility/display checks do not consume a connection. */
 internal class ConnectionPresentationGate(private val freshnessMs: Long = 10_000) {
     private val consumed = mutableMapOf<String, Long>()

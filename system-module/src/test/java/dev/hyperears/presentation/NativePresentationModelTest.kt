@@ -184,4 +184,27 @@ class NativePresentationModelTest {
             assertNull(resolveNativePresentationTarget(HeadsetConnectionPresentation.OFF, scene))
         }
     }
+
+    @Test
+    fun absentNativeCirculationSubsystemDoesNotBlockDisplay() {
+        assertFalse(displayBlockedByNativeCirculation(flowOwns = null))
+    }
+
+    @Test
+    fun observedNativeCirculationKeepsItsVerdict() {
+        assertTrue(displayBlockedByNativeCirculation(flowOwns = true))
+        assertFalse(displayBlockedByNativeCirculation(flowOwns = false))
+    }
+
+    /**
+     * The reported build has no installable native hint subsystem (plugin ready hint=false), so every
+     * circulation reading is null there. That absence alone must never read as "the native flow owns the
+     * display": the popup stays gated only by the native window occupancy tag and the connection gate.
+     */
+    @Test
+    fun missingHintSubsystemNeverGrantsACirculationBlock() {
+        for (flowOwns in listOf<Boolean?>(null, true, false)) {
+            assertEquals(flowOwns.toString(), flowOwns == true, displayBlockedByNativeCirculation(flowOwns))
+        }
+    }
 }

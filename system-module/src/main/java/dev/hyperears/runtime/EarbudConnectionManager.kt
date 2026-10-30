@@ -91,7 +91,12 @@ internal class EarbudConnectionManager(
         }
     }
 
-    /** Only the native host's authenticated report for this exact live session can grant display. */
+    /**
+     * Only the native host's authenticated report for this exact live session can grant display. On a build
+     * whose native ownership contract classes are absent, the HyperEars grant comes from the module's own
+     * verified reading of that absence, so the remaining guards here are the system-owned address check and
+     * the presentation host's native popup occupancy check.
+     */
     fun confirmNativeAdmission(address: String, token: String, admission: NativeAdmission) {
         if (admission == NativeAdmission.UNKNOWN) return
         var removals = emptyList<Removal>()
