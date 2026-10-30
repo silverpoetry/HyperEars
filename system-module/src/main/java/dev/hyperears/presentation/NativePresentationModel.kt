@@ -112,6 +112,15 @@ internal fun flowOwnsFromReadings(
     else -> null
 }
 
+/**
+ * The popup's charging-case area on contract-absent builds: the host window layout generation there
+ * has no third-party case artwork, so showing it produced a blank block and stacked buttons (device
+ * 2026-10-31 01:03). The area keeps the explicit hidden shape on those builds, and every other build
+ * applies the projection's own verdict unchanged.
+ */
+internal fun caseAreaEffective(contractMissing: Boolean, showCase: Boolean): Boolean =
+    if (contractMissing) false else showCase
+
 /** No timers or IO; failed eligibility/display checks do not consume a connection. */
 internal class ConnectionPresentationGate(private val freshnessMs: Long = 10_000) {
     private val consumed = mutableMapOf<String, Long>()

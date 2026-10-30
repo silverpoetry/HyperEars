@@ -181,6 +181,9 @@ internal class NativePresentationRuntime(
                 onOpened = { id, token -> sendWindowEvent(id, token) },
                 onClosed = { id -> sendWindowEvent(id, null) },
                 openSettings = ::openHeadsetSettings,
+                // The popup's case area needs the host window contract's generation; on builds whose
+                // ownership data plane is confirmed absent it would corrupt the layout (device 01:03).
+                caseAreaExtensionAvailable = { ownershipContract != OwnershipContractState.MISSING },
             ).also { configure(it, loader); it.install() }
         }.onSuccess { windowBridge = it }
             .onFailure { ModuleLog.warn(TAG, "native popup unavailable", it) }

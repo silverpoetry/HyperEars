@@ -34,6 +34,9 @@ internal class AirPodsWindowBridge(
     private val onOpened: (String, IBinder) -> Unit,
     private val onClosed: (String) -> Unit,
     private val openSettings: (Context, EarbudState) -> Boolean,
+    // The injected contract freshness: on contract-absent builds the popup's case area cannot render
+    // third-party artwork, so the runtime reports the extension unavailable there (device 01:03).
+    private val caseAreaExtensionAvailable: () -> Boolean = { true },
 ) : HookContext() {
     private val handler = Handler(Looper.getMainLooper())
     private val controllers = IdentityHashMap<Any, Binding>()
@@ -257,9 +260,19 @@ internal class AirPodsWindowBridge(
                     if (root !== NativeMembers.get(binding.controller, "mView")) return@runCatching
                     val p = projection(binding)
                     if (p.singleBattery) return@runCatching
-                    if (visibility.apply(root, p.showCaseInPopup)) {
+                    val effective = caseAreaEffective(
+                        contractMissing = !caseAreaExtensionAvailable(),
+                        showCase = p.showCaseInPopup,
+                    )
+                    if (!effective && p.showCaseInPopup) {
+                        ModuleLog.debug(TAG, "case area suppressed on contract-absent build " +
+                            "battery=${p.chargingCase.percent}")
+                    }
+                    // The false branch is the same explicit-hide path the device showed healthy at
+                    // 00:47: apply(false), never a skipped apply.
+                    if (visibility.apply(root, effective)) {
                         ModuleLog.debug(TAG) {
-                            "case visibility=${p.showCaseInPopup} battery=${p.chargingCase.percent} " +
+                            "case visibility=$effective battery=${p.chargingCase.percent} " +
                                 "charging=${p.chargingCase.charging} revision=${binding.state.revision}"
                         }
                     }

@@ -232,4 +232,17 @@ class NativePresentationModelTest {
         assertNull(flowOwnsFromReadings(null, null))
         assertFalse(displayBlockedByNativeCirculation(flowOwnsFromReadings(null, null)))
     }
+
+    @Test
+    fun caseAreaIsForcedHiddenOnlyOnContractAbsentBuilds() {
+        // Exhaustive 2x2: a contract-bearing build applies the projection verdict unchanged, and a
+        // contract-absent build hides the area even when the projection wanted to show it.
+        for (missing in listOf(true, false)) {
+            for (showCase in listOf(true, false)) {
+                val expected = if (missing) false else showCase
+                assertEquals("missing=$missing showCase=$showCase",
+                    expected, caseAreaEffective(missing, showCase))
+            }
+        }
+    }
 }
