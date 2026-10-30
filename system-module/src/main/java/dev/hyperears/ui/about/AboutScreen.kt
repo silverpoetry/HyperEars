@@ -292,7 +292,7 @@ internal val supportBrands = listOf(
                 name = "Pudding",
                 evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.COMPONENT,
-                noiseControl = "降噪 / 关闭 / 通透",
+                noiseControl = "降噪（自适应） / 关闭 / 通透 / 抗风噪",
             ),
             SupportEntry(
                 name = "ZZZ-ANGELS-OWS（妄想天使）",

@@ -41,7 +41,7 @@ class MoondropPuddingAdapter : MoondropJieliAdapter("moondrop-pudding-spp") {
         internal val BATTERY_BOOTSTRAP_DELAYS_MS = MoondropJieliAdapter.BATTERY_BOOTSTRAP_DELAYS_MS
         internal val MODE_CONFIRMATION_DELAYS_MS = MoondropJieliAdapter.MODE_CONFIRMATION_DELAYS_MS
 
-        /** Pudding accepts and controls every captured tier byte, including basic (`04`). */
+        /** Recognize all captured tiers; ANC writes adaptive (`04`), while basic (`01`) is read-only. */
         internal val PUDDING_NOISE_TIERS: Set<MoondropPuddingWireCodec.NoiseMode> =
             MoondropPuddingWireCodec.NoiseMode.entries.toSet()
     }

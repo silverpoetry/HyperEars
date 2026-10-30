@@ -283,7 +283,7 @@ class MoondropMirageAdapterTest {
     }
 
     @Test
-    fun windAndBasicTierReportsStayUnrecognizedOnMirage() {
+    fun windAndAdaptiveTierReportsStayUnrecognizedOnMirage() {
         val adapter = readyAdapterWithNoiseMode(NoiseMode.OFF)
 
         val windReport = adapter.receive(
@@ -294,7 +294,7 @@ class MoondropMirageAdapterTest {
                 parameters = byteArrayOf(0x03),
             ),
         )
-        val basicReport = adapter.receive(
+        val adaptiveReport = adapter.receive(
             MoondropPuddingWireCodec.frame(
                 command = 0x1D,
                 subcommand = 0x41,
@@ -304,7 +304,7 @@ class MoondropMirageAdapterTest {
         )
 
         assertFalse(windReport.stateChanged)
-        assertFalse(basicReport.stateChanged)
+        assertFalse(adaptiveReport.stateChanged)
         assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
         assertFalse(adapter.snapshot().capabilities.windNoiseControl)
         assertEquals(
