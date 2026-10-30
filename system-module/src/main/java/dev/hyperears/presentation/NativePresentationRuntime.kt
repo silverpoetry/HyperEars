@@ -38,9 +38,13 @@ internal class NativePresentationRuntime(
     private val configure: (HookContext, ClassLoader) -> Unit,
 ) {
     private data class Record(val state: EarbudState, val session: String,
-        val metadata: NativePresentationMetadata, val producer: IBinder)
+        val metadata: NativePresentationMetadata, val producer: IBinder) {
+        val active: Boolean get() = state.sessionActive && metadata.admission != NativeAdmission.SYSTEM
+    }
     private val handler = Handler(Looper.getMainLooper())
     private val registry = DeviceStateRegistry()
+    // Keep the latest lifecycle (including its closing/system-owned record) to invalidate delayed
+    // Activity tickets. Only active records may render or resolve ownership.
     private val records = linkedMapOf<String, Record>()
     private val gate = ConnectionPresentationGate()
     private val gateDecisions = mutableMapOf<String, Pair<String, String>>()
@@ -155,7 +159,6 @@ internal class NativePresentationRuntime(
                             NativeWindowRequest(request.id, it.state, it.session, it.metadata, it.producer)
                         },
                         currentProducer = producer,
-                        hasAcceptedState = address != null && registry.knownState(address) != null,
                     )
                 },
                 onOpened = { id, token -> sendWindowEvent(id, token) },
@@ -215,9 +218,10 @@ internal class NativePresentationRuntime(
         }
         val accepted = registry.accept(state, token) ?: return
         val address = accepted.address ?: return
+        val record = Record(accepted, token, metadata, nextProducer)
+        records[address] = record
         windowBridge?.update(accepted, token, metadata, nextProducer)
-        if (!accepted.sessionActive || metadata.admission == NativeAdmission.SYSTEM) {
-            records.remove(address)
+        if (!record.active) {
             gateDecisions.remove(address)
             ownershipReadings.remove(address)
             ownershipReports.remove(address)
@@ -225,8 +229,6 @@ internal class NativePresentationRuntime(
             // Retain the consumed connection through logical session replacement.
             return
         }
-        val record = Record(accepted, token, metadata, nextProducer)
-        records[address] = record
         render(record, allowTransient = true)
     }
 
@@ -243,7 +245,7 @@ internal class NativePresentationRuntime(
     }
 
     private fun nativeOwnershipChanged(key: String?) {
-        records.values.toList().forEach { record ->
+        records.values.filter(Record::active).forEach { record ->
             val address = record.state.address ?: return@forEach
             if (NativeOwnershipStore.affects(address, key)) {
                 ownershipReadings.remove(address)
@@ -309,7 +311,7 @@ internal class NativePresentationRuntime(
 
     @SuppressLint("MissingPermission")
     private fun render(record: Record, allowTransient: Boolean) {
-        if (uiProcess || settings.modulePaused) return
+        if (uiProcess || settings.modulePaused || !record.active) return
         val p = NativeHeadsetProjection.from(record.state) ?: return
         if (record.metadata.replay || record.metadata.admission != NativeAdmission.HYPEREARS) {
             attemptPresentation(record) { false }
@@ -344,7 +346,9 @@ internal class NativePresentationRuntime(
     }
 
     private fun preview(kind: String?) {
-        val record = records.values.lastOrNull { it.metadata.admission == NativeAdmission.HYPEREARS } ?: run {
+        val record = records.values.lastOrNull {
+            it.active && it.metadata.admission == NativeAdmission.HYPEREARS
+        } ?: run {
             ModuleLog.debug(TAG, "preview rejected: no admitted connected headset")
             return
         }

@@ -12,7 +12,6 @@ import dev.hyperears.integration.StandardEarbudAdapter
 import dev.hyperears.integration.SystemProfileState
 import dev.hyperears.integration.withFeature
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -48,7 +47,7 @@ class NativeWindowRequestTest {
         val launched = request(null)
         val accepted = request(100, revision = 2)
 
-        val bound = requireNotNull(launched.forBinding(accepted, producer, hasAcceptedState = true))
+        val bound = requireNotNull(launched.forBinding(accepted, producer))
 
         assertEquals(100, requireNotNull(NativeHeadsetProjection.from(bound.state)).left.percent)
         assertEquals("100", bound.stateArray()[0])
@@ -60,8 +59,8 @@ class NativeWindowRequestTest {
     fun missingConsumerSnapshotRetainsTheValidatedLaunchRequest() {
         for (percent in listOf(null, 0, 100)) {
             val launched = request(percent)
-            assertSame(launched, launched.forBinding(null, null, hasAcceptedState = false))
-            assertSame(launched, launched.forBinding(null, producer, hasAcceptedState = false))
+            assertSame(launched, launched.forBinding(null, null))
+            assertSame(launched, launched.forBinding(null, producer))
         }
     }
 
@@ -75,9 +74,8 @@ class NativeWindowRequestTest {
         assertNull(registry.state(launched.state.address!!))
         assertNull(
             launched.forBinding(
-                null,
+                launched.copy(state = registry.knownState(launched.state.address!!)!!),
                 producer,
-                hasAcceptedState = registry.knownState(launched.state.address!!) != null,
             ),
         )
     }
@@ -86,16 +84,15 @@ class NativeWindowRequestTest {
     fun nativeOwnershipWithoutAnEligibleRecordCannotFallBackToTheLaunchSnapshot() {
         val launched = request(100)
         val system = launched.copy(metadata = metadata.copy(admission = NativeAdmission.SYSTEM))
-        assertNull(launched.forBinding(system, producer, hasAcceptedState = true))
-        assertNull(launched.forBinding(null, producer, hasAcceptedState = true))
+        assertNull(launched.forBinding(system, producer))
     }
 
     @Test
     fun producerReplacementRejectsAnOldTicketEvenWithoutACachedAddress() {
         val launched = request(100)
         val replacement = binder()
-        assertNull(launched.forBinding(null, replacement, hasAcceptedState = false))
-        assertNull(launched.forBinding(launched, replacement, hasAcceptedState = true))
+        assertNull(launched.forBinding(null, replacement))
+        assertNull(launched.forBinding(launched, replacement))
     }
 
     @Test
@@ -108,14 +105,14 @@ class NativeWindowRequestTest {
                 launched.copy(metadata = metadata.copy(admission = NativeAdmission.UNKNOWN)),
             )
         for (ticket in invalid) {
-            assertNull(ticket.forBinding(null, producer, hasAcceptedState = false))
+            assertNull(ticket.forBinding(null, producer))
         }
     }
 
     @Test
-    fun identityAndOwnershipChangesRejectBindingAndLiveUpdatesRegardlessOfRevision() {
+    fun currentIdentityAndOwnershipChangesRejectBindingAndLiveUpdates() {
         val launched = request(100)
-        for (revision in listOf(0L, 2L)) {
+        for (revision in listOf(1L, 2L)) {
             val next = request(0, revision)
             val invalid =
                 listOf(
@@ -129,7 +126,7 @@ class NativeWindowRequestTest {
                     next.copy(state = next.state.copy(lifecycle = DeviceLifecycle())),
                 )
             for (candidate in invalid) {
-                assertNull(launched.forBinding(candidate, producer, hasAcceptedState = true))
+                assertNull(launched.forBinding(candidate, producer))
                 assertNull(
                     launched.updated(
                         candidate.state,
@@ -147,16 +144,50 @@ class NativeWindowRequestTest {
         val latest = request(100, revision = 3)
         for (revision in listOf(1L, 3L)) {
             val old = request(null, revision)
-            assertSame(latest, latest.forBinding(old, producer, hasAcceptedState = true))
+            assertSame(latest, latest.forBinding(old, producer))
             assertSame(latest, latest.updated(old.state, old.session, old.metadata, old.producer))
         }
+    }
+
+    @Test
+    fun olderUnknownAdmissionCannotRejectANewerAuthorizedLaunch() {
+        val launched = request(100, revision = 3)
+        val older = request(null, revision = 2).copy(
+            metadata = metadata.copy(admission = NativeAdmission.UNKNOWN),
+        )
+        assertSame(launched, launched.forBinding(older, producer))
+        assertSame(launched, launched.updated(older.state, older.session, older.metadata, producer))
+    }
+
+    @Test
+    fun olderClosedLifecycleCannotBlockANewerReconnectTicket() {
+        val closed = request(null, revision = 2).let {
+            it.copy(state = it.state.copy(lifecycle = DeviceLifecycle()))
+        }
+        val reconnected = request(80, revision = 3).copy(
+            session = "session-2",
+            metadata = metadata.copy(connection = HeadsetConnection("connection-2", 200)),
+        )
+        assertSame(reconnected, reconnected.forBinding(closed, producer))
+        assertNull(closed.forBinding(reconnected, producer))
+        assertNull(request(80).forBinding(reconnected, producer))
+    }
+
+    @Test
+    fun systemOwnershipOfTheSameConnectionRejectsEvenAnOlderSnapshot() {
+        val launched = request(100, revision = 3)
+        val system = request(null, revision = 2).copy(
+            metadata = metadata.copy(admission = NativeAdmission.SYSTEM),
+        )
+        assertNull(launched.forBinding(system, producer))
+        assertNull(launched.updated(system.state, system.session, system.metadata, producer))
     }
 
     @Test
     fun updatesBeforeAndAfterTheFirstHostReadUseTheSameMonotonicSnapshot() {
         val launched = request(null)
         val accepted = request(100, revision = 2)
-        val bound = requireNotNull(launched.forBinding(accepted, producer, hasAcceptedState = true))
+        val bound = requireNotNull(launched.forBinding(accepted, producer))
         val beforeCallback = request(0, revision = 3)
         val readable =
             requireNotNull(
@@ -204,19 +235,18 @@ class NativeWindowRequestTest {
                 launched.forBinding(
                     latest.copy(state = registry.state(launched.state.address!!)!!),
                     producer,
-                    hasAcceptedState = true,
                 ),
             )
         assertEquals("100", bound.stateArray()[0])
 
         val reconnected =
-            request(0).copy(
+            request(0, revision = 4).copy(
                 session = "session-2",
                 metadata = metadata.copy(connection = HeadsetConnection("connection-2", 200)),
             )
         registry.accept(reconnected.state, reconnected.session)
         assertNull(registry.accept(request(100, revision = 10).state, launched.session))
-        assertNull(bound.forBinding(reconnected, producer, hasAcceptedState = true))
+        assertNull(bound.forBinding(reconnected, producer))
     }
 
     @Test
@@ -224,10 +254,10 @@ class NativeWindowRequestTest {
         for ((percent, expected) in listOf(100 to "100", 0 to "0", null to "-")) {
             val launched = request(null)
             val latest = request(percent, revision = 2)
-            val bound = requireNotNull(launched.forBinding(latest, producer, hasAcceptedState = true))
+            val bound = requireNotNull(launched.forBinding(latest, producer))
             assertEquals(listOf(expected, "-", "-"), bound.stateArray().take(3))
             assertEquals(listOf("false", "false", "false"), bound.stateArray().slice(5..7))
-            assertFalse(requireNotNull(NativeHeadsetProjection.from(bound.state)).canShowConnectionHint)
+            assertEquals(percent != null, requireNotNull(NativeHeadsetProjection.from(bound.state)).canShowConnectionHint)
         }
     }
 
@@ -257,7 +287,7 @@ class NativeWindowRequestTest {
                         .withFeature(BatteryFeatureState(battery)),
                 id = "another-ticket",
             )
-        val bound = requireNotNull(launched.forBinding(latest, producer, hasAcceptedState = true))
+        val bound = requireNotNull(launched.forBinding(latest, producer))
         assertEquals("window-1", bound.id)
         assertEquals(
             listOf("0", "100", "-", "false", "false", "true", "false", "false"),

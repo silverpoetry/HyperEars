@@ -22,15 +22,20 @@ internal data class NativeWindowRequest(
     fun forBinding(
         latest: NativeWindowRequest?,
         currentProducer: IBinder?,
-        hasAcceptedState: Boolean,
     ): NativeWindowRequest? {
         if (!state.sessionActive || metadata.admission != NativeAdmission.HYPEREARS ||
             (currentProducer != null && currentProducer != producer)
         ) {
             return null
         }
-        // A known lifecycle without an eligible record has ended or ceded native ownership.
-        if (latest == null) return takeUnless { hasAcceptedState }
+        if (latest == null) return this
+        if (latest.producer != producer || latest.state.address != state.address) return null
+        // Native ownership is sticky for this physical connection, including an older snapshot.
+        if (latest.metadata.connection == metadata.connection &&
+            latest.metadata.admission == NativeAdmission.SYSTEM) return null
+        // Revisions are monotonic per address within a producer, including session replacement.
+        // The Activity can reach this process before its newer broadcast does.
+        if (latest.state.revision < state.revision) return this
         return updated(latest.state, latest.session, latest.metadata, latest.producer)
     }
 
@@ -41,11 +46,12 @@ internal data class NativeWindowRequest(
         producer: IBinder,
     ): NativeWindowRequest? {
         if (state.address != this.state.address || producer != this.producer || session != this.session ||
-            metadata.connection != this.metadata.connection ||
-            metadata.admission != NativeAdmission.HYPEREARS || !state.sessionActive
+            metadata.connection != this.metadata.connection || metadata.admission == NativeAdmission.SYSTEM
         ) {
             return null
         }
+        if (state.revision < this.state.revision) return this
+        if (metadata.admission != NativeAdmission.HYPEREARS || !state.sessionActive) return null
         return if (state.revision > this.state.revision) copy(state = state, metadata = metadata) else this
     }
 
