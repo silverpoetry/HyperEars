@@ -19,6 +19,7 @@ open class BoseEarbudAdapter(
     override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
     override val controlApps: List<ControlAppSpec> = listOf(
         ControlAppCatalog.bose,
+        ControlAppCatalog.boseChina,
         ControlAppCatalog.boseConnect,
     )
     override val privateProtocolRequired: Boolean = true

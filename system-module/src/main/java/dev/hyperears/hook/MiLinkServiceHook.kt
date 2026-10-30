@@ -26,6 +26,7 @@ import dev.hyperears.integration.MiLinkStateCodec
 import dev.hyperears.integration.NoiseMode
 import dev.hyperears.integration.NoiseModeFeatureState
 import dev.hyperears.integration.withFeature
+import dev.hyperears.presentation.NativeAdmission
 import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.ModuleSettingsRuntime
 import java.io.Closeable
@@ -85,9 +86,6 @@ internal class MiLinkServiceHook : HookContext() {
             val wasPaused = settings.modulePaused
             settings = updated
             if (updated.modulePaused && !wasPaused) clearModuleState()
-            if (!updated.modulePaused) {
-                ProcessStateStore.snapshots().forEach(::queryNativeAdmission)
-            }
         }
         hookApplicationContext()
         val runtimeClasses = listOf(
@@ -504,11 +502,6 @@ internal class MiLinkServiceHook : HookContext() {
                 captureContext(instance)
 
                 val candidateState = rawStateForAddress(address)
-                val nativeResult = result
-                if (MiLinkDeviceOwnershipRegistry.isNativeAdmissionAccepted(nativeResult) ||
-                    MiLinkDeviceOwnershipRegistry.isNativeAdmissionRejected(nativeResult)) {
-                    ProcessStateStore.sessionToken(address)?.let { admissionQueries[address] = it }
-                }
                 val decision = deviceOwnership.observeNativeAdmission(
                     address = address,
                     originalResult = result,
@@ -541,9 +534,6 @@ internal class MiLinkServiceHook : HookContext() {
                         recordBridgeStage(device, BridgeStage.IDENTITY_QUERIED)
                         rememberRuntimeOwner(className, instance)
                         result = NATIVE_HEADSET_SUPPORTED
-                        if (MiLinkDeviceOwnershipRegistry.isNativeAdmissionRejected(nativeResult)) {
-                            publishNativeAdmission(address)
-                        }
                     }
 
                     MiLinkDeviceOwnershipRegistry.Owner.UNKNOWN -> Unit
@@ -726,7 +716,6 @@ internal class MiLinkServiceHook : HookContext() {
     }
 
     private fun clearModuleState() {
-        admissionQueries.clear()
         knownAddresses.clear()
         deviceOwnership.clear()
         pendingSystemOwnershipClaims.clear()
@@ -746,6 +735,12 @@ internal class MiLinkServiceHook : HookContext() {
             ?.let(ProcessStateStore::knownSnapshot)
             ?: EarbudState()
         val state = ProcessStateStore.accept(intent) ?: return
+        if (NativePresentationContract.metadata(intent)?.admission == NativeAdmission.SYSTEM) {
+            state.address?.let { address ->
+                deviceOwnership.claimSystemOwnership(address)
+                headsetDetailExtension?.unbind(address)
+            }
+        }
         ModuleLog.debug("MiLink", "accepted state rev=${state.revision}")
         state.address?.let {
             val normalized = normalizeAddress(it)
@@ -753,7 +748,6 @@ internal class MiLinkServiceHook : HookContext() {
             if (state.sessionActive && !systemOwned) {
                 knownAddresses += normalized
                 observeStateAccepted(state, sessionToken)
-                queryNativeAdmission(state)
             } else {
                 if (systemOwned) {
                     knownAddresses.remove(normalized)
@@ -771,40 +765,6 @@ internal class MiLinkServiceHook : HookContext() {
             headsetDetailExtension?.onStateChanged(state)
         }
     }
-
-    private fun publishNativeAdmission(address: String) {
-        val appContext = context ?: return
-        val token = ProcessStateStore.sessionToken(address) ?: return
-        BroadcastIdentity.send(appContext, NativePresentationContract.admission(address, token))
-    }
-
-    /** Query the existing bound service once per candidate; no new service or retry timer. */
-    @SuppressLint("MissingPermission")
-    private fun queryNativeAdmission(state: EarbudState) {
-        if (settings.headsetConnectionPresentation ==
-            dev.hyperears.settings.HeadsetConnectionPresentation.OFF &&
-            !settings.headsetDetailNotification) return
-        val address = state.address ?: return
-        if (deviceOwnership.isSystemOwned(address)) return
-        val token = ProcessStateStore.sessionToken(address) ?: return
-        if (admissionQueries[address] == token) return
-        val appContext = context ?: return
-        runCatching {
-            val type = findClass("com.xiaomi.mxbluetoothsdk.service.MxBluetoothService")
-            val owner = type.getDeclaredField("mMxBluetoothService")
-                .apply { isAccessible = true }.get(null) ?: return
-            if (type.getDeclaredField("mBluetoothHeadsetService")
-                    .apply { isAccessible = true }.get(owner) == null) return
-            val device = appContext.getSystemService(BluetoothManager::class.java)
-                ?.adapter?.getRemoteDevice(address) ?: return
-            // Our existing after Hook observes the original result. The final result is ignored.
-            type.getDeclaredMethod("checkIsMiTWS", BluetoothDevice::class.java).invoke(owner, device)
-        }.onFailure {
-            ModuleLog.debug("MiLink", "native admission query unavailable: ${it.javaClass.simpleName}")
-        }
-    }
-
-    private val admissionQueries = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     private fun handleSystemOwnershipClaim(
         context: Context?,

@@ -171,9 +171,9 @@ internal object EarbudSessionService {
 
                     NativePresentationContract.ACTION_ADMISSION -> {
                         if (!BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
-                                ModuleContract.MILINK_PACKAGE)) return
-                        val (address, token) = NativePresentationContract.readAdmission(intent) ?: return
-                        connectionManager.confirmNativeAdmission(address, token)
+                                ModuleContract.NATIVE_HEADSET_PACKAGE)) return
+                        val report = NativePresentationContract.readAdmission(intent) ?: return
+                        connectionManager.confirmNativeAdmission(report.address, report.session, report.admission)
                     }
 
                     ModuleContract.ACTION_SYSTEM_OWNERSHIP_CLAIMED -> {

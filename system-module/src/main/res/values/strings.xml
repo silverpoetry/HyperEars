@@ -10,19 +10,30 @@
         <item>com.oplus.melody</item>
         <item>com.coloros.oppopods</item>
         <item>com.bose.bosemusic</item>
+        <item>com.bose.bosemusic.china</item>
         <item>com.bose.monet</item>
         <item>com.edifier.edifierconnect</item>
+        <item>com.edifier.edifierconnex</item>
         <item>cn.ikaile.ruoshui.client</item>
         <item>cn.lightyeartech.android</item>
         <item>com.yuandao.nicehck</item>
         <item>com.sony.songpal.mdr</item>
         <item>com.qcymall.googleearphonesetup</item>
+        <item>com.qcymall.earphonesetup</item>
         <item>com.panasonic.technicsaudioconnect</item>
         <item>com.huawei.smartaudio</item>
+        <item>com.huawei.smarthome</item>
         <item>com.moondroplab.moondrop.moondrop_app</item>
         <item>com.samsung.android.app.watchmanager</item>
         <item>com.samsung.accessory.zenithmgr</item>
         <item>com.samsung.accessory.berrymgr</item>
         <item>com.samsung.accessory.pearlmgr</item>
+        <item>com.samsung.accessory.atticmgr</item>
+        <item>com.samsung.accessory.neobeanmgr</item>
+        <item>com.samsung.accessory.jellymgr</item>
+        <item>com.samsung.accessory.paranmgr</item>
+        <item>com.samsung.accessory.pianomgr</item>
+        <item>com.samsung.accessory.gemstonemgr</item>
+        <item>com.samsung.accessory.budsunitemgr</item>
     </string-array>
 </resources>

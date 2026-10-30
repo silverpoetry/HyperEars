@@ -56,7 +56,8 @@ node tools/validate-docs.mjs
     [展示资源规范](docs/headset-artwork.md)，不得把 Android 资源加载放入协议层。
 
 新增或变更厂商控制 App 时，还必须同步更新 `ControlAppCatalog`、对应 Adapter 的
-`controlApps`、`META-INF/xposed/scope.list` 和
+`controlApps`、`META-INF/xposed/scope.list`、`strings.xml` 中的 `xposed_scope`、
+`AndroidManifest.xml` 的 `queries` 和
 [控制 App 目录](docs/control-apps.md)，并补充控制权优先顺序测试。控制 App 包名只能作为
 导航目标和控制权边界，不能作为耳机品牌或型号的识别证据。
 
@@ -109,6 +110,10 @@ node tools/validate-docs.mjs
 只解决更新日志冲突并更新复核记录，不改变已复核的端点与协议行为。
 
 ### 提交要求
+
+2026-10-27，ZZZ-ANGELS-OWS #92 作者确认 #95 的 `b333f1fe` 签名维护包已通过首次连接、
+电量、未知清理、重连及退避恢复复核。本次收尾保留原作者提交与已复核协议实现，仅同步主线
+并补充固件的单耳在盒电量冻结说明。
 
 - Kotlin/Java 使用 4 空格，Markdown/YAML 使用 2 空格，统一 LF；
 - 公共协议常量说明来源和语义，不只记录十六进制值；

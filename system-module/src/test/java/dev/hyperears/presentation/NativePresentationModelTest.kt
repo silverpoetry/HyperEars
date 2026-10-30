@@ -44,12 +44,49 @@ class NativePresentationModelTest {
         assertFalse(requireNotNull(NativeHeadsetProjection.from(headphones)).canShowConnectionHint)
         assertTrue(requireNotNull(NativeHeadsetProjection.from(
             headphones.withFeature(BatteryFeatureState(EarbudBattery.fromAggregate(20))))).canShowConnectionHint)
-        assertFalse(requireNotNull(NativeHeadsetProjection.from(
+        assertTrue(requireNotNull(NativeHeadsetProjection.from(
             state(EarbudBattery.fromAggregate(20)))).canShowConnectionHint)
         assertFalse(requireNotNull(NativeHeadsetProjection.from(
             state(EarbudBattery(case = BatteryReading(80, false)), true))).canShowConnectionHint)
         assertTrue(requireNotNull(NativeHeadsetProjection.from(
             state(EarbudBattery(left = BatteryReading(0, false)), true))).canShowConnectionHint)
+    }
+
+    @Test
+    fun everyRegisteredAdapterCanPresentSystemBatteryBeforeProtocolConfirmation() {
+        EarbudAdapterRegistry.adapters.forEach { adapter ->
+            val initial = EarbudState(
+                adapter = adapter.snapshot(),
+                address = "02:00:00:00:00:01",
+                lifecycle = DeviceLifecycle(systemProfile = SystemProfileState.CONNECTED),
+            ).withFeature(BatteryFeatureState(EarbudBattery.fromSystemAggregate(100)))
+            val projection = requireNotNull(NativeHeadsetProjection.from(initial))
+            assertTrue(adapter.id, projection.canShowConnectionHint)
+            assertTrue(adapter.id, projection.singleBattery)
+            assertEquals(adapter.id, 100, projection.left.percent)
+            assertNull(adapter.id, projection.right.percent)
+            assertNull(adapter.id, projection.chargingCase.percent)
+            assertEquals(adapter.id,
+                if (adapter.formFactor == HeadsetFormFactor.TWS) "earphone" else "single_battery_head",
+                projection.singleBatteryHintArtwork)
+        }
+    }
+
+    @Test
+    fun ceramicsXLogKeepsAggregateTelemetryAndAllConfirmedNoiseModes() {
+        val adapter = RoseLuliXAdapter()
+        adapter.onSystemBatteryChanged(100)
+        adapter.receive(byteArrayOf(0x00, 0x27, 0x02, 0x00, 0x03, 0x0C, 0x01, 0x02))
+        // This unclassified report appeared before disconnection; it proves no battery fields.
+        adapter.receive(byteArrayOf(0x09, 0xFF.toByte(), 0, 0, 1, 9, 1, 0x0B, 0, 0, 0x1E))
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        assertEquals(NoiseMode.entries.toSet(), adapter.snapshot().supportedNoiseModes)
+        val input = state(EarbudBattery.fromSystemAggregate(100)).copy(adapter = adapter.snapshot())
+        val projection = requireNotNull(NativeHeadsetProjection.from(input))
+        assertTrue(projection.canShowConnectionHint)
+        assertTrue(projection.singleBattery)
+        assertEquals(100, projection.left.percent)
+        assertFalse(projection.showCaseInPopup)
     }
 
     @Test
@@ -117,6 +154,19 @@ class NativePresentationModelTest {
         val expired = admitted.copy(connection = HeadsetConnection("expired", 100))
         assertFalse(gate.tryPresent(expired, 200) { false })
         assertFalse(gate.tryPresent(expired, 10_101) { fail("Expired connection"); true })
+    }
+
+    @Test
+    fun replayCannotCancelALiveConnectionWaitingForAdmissionOrBattery() {
+        val gate = ConnectionPresentationGate()
+        val pending = NativePresentationMetadata(HeadsetConnection("physical", 100))
+        assertFalse(gate.tryPresent(pending, 150) { fail("Not admitted"); true })
+        assertFalse(gate.tryPresent(pending.copy(replay = true), 200) { fail("Replay"); true })
+        val admitted = pending.copy(admission = NativeAdmission.HYPEREARS)
+        assertFalse(gate.tryPresent(admitted, 300) { false })
+        assertFalse(gate.tryPresent(admitted.copy(replay = true), 400) { fail("Replay"); true })
+        assertTrue(gate.tryPresent(admitted, 500) { true })
+        assertFalse(gate.tryPresent(admitted, 600) { fail("Duplicate"); true })
     }
 
     @Test
