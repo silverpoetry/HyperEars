@@ -11,7 +11,6 @@ import dev.hyperears.bridge.StateBroadcaster
 import dev.hyperears.bridge.BroadcastIdentity
 import dev.hyperears.bridge.NativePresentationContract
 import dev.hyperears.hook.ModuleLog
-import dev.hyperears.integration.EarbudAdapter
 import dev.hyperears.integration.EarbudIdentity
 import dev.hyperears.integration.EarbudState
 import dev.hyperears.settings.ModuleSettings
@@ -45,17 +44,11 @@ internal object EarbudSessionService {
     fun registerDevice(
         device: BluetoothDevice,
         identity: EarbudIdentity,
-        adapter: EarbudAdapter,
-    ): Boolean = runtime?.connectionManager?.registerDevice(device, identity, adapter) == true
+    ): Boolean = runtime?.connectionManager?.registerDevice(device, identity) == true
 
     fun onPhysicalConnected(address: String) {
         runtime?.connectionManager?.onPhysicalConnected(address)
     }
-
-    fun observeDevice(
-        device: BluetoothDevice,
-        identity: EarbudIdentity,
-    ): Boolean = runtime?.connectionManager?.observeDevice(device, identity) == true
 
     fun unregisterDevice(device: BluetoothDevice?): Boolean =
         runtime?.connectionManager?.unregisterDevice(device) == true
@@ -239,7 +232,7 @@ internal object EarbudSessionService {
         private fun applySettings(settings: ModuleSettings) {
             connectionManager.setModulePaused(settings.modulePaused)
             connectionManager.updateExternalControlEnabled(settings.yieldToVendorControlApp)
-            connectionManager.updateDisabledAdapters(settings.disabledAdapterIds)
+            connectionManager.updateAdapterSelection(settings.disabledAdapterIds, settings.forcedAdapterIds)
         }
     }
 

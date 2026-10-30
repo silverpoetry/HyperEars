@@ -55,6 +55,7 @@ StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Sony and Samsung dev
   the current page, settings destination and earbud sessions.
 - Provides a drop-down for choosing what the MiLink card's “More settings” action opens, plus settings for runtime yielding, automatic update checks and pausing the integration.
 - Provides a Debug > Adapters page that groups every model, family fallback and standard fallback Adapter by brand, with a group switch that disables or restores all Adapters in that brand.
+- Allows selecting an initial protocol adapter for an individual device in Debug > Force adapter to test possible compatibility; features still require valid protocol responses.
 - Provides a Debug page for detailed logging and diagnostic export.
 - Provides root-only shortcuts for restarting MiLink, restarting Bluetooth and stopping supported vendor controllers.
 - No module diagnostics are produced while detailed logging is disabled. When enabled, injected-process logs are written through the LSPosed daemon; settings changes and shortcut results are kept in the app's bounded local log and merged during export.

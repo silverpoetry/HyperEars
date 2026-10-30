@@ -682,7 +682,14 @@ object EarbudAdapterRegistry {
     }
 
     val groups: List<EarbudAdapterGroup> by lazy {
-        catalogRegistrations
+        groupsFor(catalogRegistrations)
+    }
+
+    /** Only fresh, capability-locked entry adapters may be selected for a manual probe. */
+    val probeGroups: List<EarbudAdapterGroup> by lazy { groupsFor(initialRegistrations) }
+
+    private fun groupsFor(registrations: List<Registration>): List<EarbudAdapterGroup> =
+        registrations
             .groupBy(Registration::group)
             .map { (group, members) ->
                 EarbudAdapterGroup(
@@ -691,7 +698,6 @@ object EarbudAdapterRegistry {
                     adapters = members.map(Registration::descriptor),
                 )
             }
-    }
 
     /** Builds the settings-only catalog without touching the connection matching hot path. */
     fun preloadCatalog() {
@@ -723,8 +729,19 @@ object EarbudAdapterRegistry {
     fun forIntegration(
         identity: EarbudIdentity,
         disabledAdapterIds: Set<String> = emptySet(),
-    ): EarbudAdapter? = resolve(identity, disabledAdapterIds)
-        ?.takeIf(EarbudAdapter::integrationEnabled)
+        forcedAdapterId: String? = null,
+    ): EarbudAdapter? {
+        if (forcedAdapterId == null) {
+            return resolve(identity, disabledAdapterIds)?.takeIf(EarbudAdapter::integrationEnabled)
+        }
+        if (!identity.standardHeadset || PlatformReservedHeadsetPolicy.reserves(identity)) return null
+        val candidate = initialRegistrations.firstOrNull {
+            it.descriptor.id == forcedAdapterId && it.descriptor.id !in disabledAdapterIds
+        }?.factory?.invoke()
+        // A removed/disabled/confirmation-only entry never selects a different private protocol.
+        return (candidate ?: StandardEarbudAdapter().takeUnless { it.id in disabledAdapterIds })
+            ?.takeIf(EarbudAdapter::integrationEnabled)
+    }
 
     private fun requireUniqueIds(registrations: List<Registration>) {
         val duplicates = registrations

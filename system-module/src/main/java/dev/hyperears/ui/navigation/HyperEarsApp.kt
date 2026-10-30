@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.hyperears.integration.EarbudAdapterRegistry
+import dev.hyperears.integration.EarbudState
 import dev.hyperears.integration.NoiseMode
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
@@ -29,6 +30,7 @@ import dev.hyperears.ui.dashboard.MiuixDashboardScreen
 import dev.hyperears.ui.settings.AdapterSettingsScreen
 import dev.hyperears.ui.settings.AppearanceSettingsScreen
 import dev.hyperears.ui.settings.DebugSettingsScreen
+import dev.hyperears.ui.settings.ForcedAdapterSettingsScreen
 import dev.hyperears.ui.settings.MiuixAdapterSettingsScreen
 import dev.hyperears.ui.settings.MiuixAppearanceSettingsScreen
 import dev.hyperears.ui.settings.MiuixDebugSettingsScreen
@@ -47,6 +49,7 @@ private enum class SecondaryDestination {
     APPEARANCE,
     DEBUG,
     ADAPTERS,
+    FORCED_ADAPTERS,
     COMPATIBILITY,
 }
 
@@ -95,10 +98,12 @@ fun HyperEarsApp(
                 uiPreferences = uiPreferences,
                 onUiPreferencesChanged = onUiPreferencesChanged,
                 settings = settings,
+                states = uiState.sessions.map { it.state },
                 rootAvailable = rootAvailable,
                 onSettingsChanged = onSettingsChanged,
                 onExportLogs = onExportLogs,
                 onOpenAdapters = { secondaryDestination = SecondaryDestination.ADAPTERS },
+                onOpenForcedAdapters = { secondaryDestination = SecondaryDestination.FORCED_ADAPTERS },
                 onNavigateBack = {
                     secondaryDestination = previousSecondaryDestination(secondaryDestination)
                 },
@@ -212,7 +217,9 @@ private val SecondaryDestination.stateKey: String
 private fun previousSecondaryDestination(
     destination: SecondaryDestination?,
 ): SecondaryDestination? = when (destination) {
-    SecondaryDestination.ADAPTERS -> SecondaryDestination.DEBUG
+    SecondaryDestination.ADAPTERS,
+    SecondaryDestination.FORCED_ADAPTERS,
+    -> SecondaryDestination.DEBUG
     SecondaryDestination.APPEARANCE,
     SecondaryDestination.DEBUG,
     SecondaryDestination.COMPATIBILITY,
@@ -227,10 +234,12 @@ private fun RenderSecondaryDestination(
     uiPreferences: UiPreferences,
     onUiPreferencesChanged: (UiPreferences) -> Unit,
     settings: ModuleSettings,
+    states: List<EarbudState>,
     rootAvailable: Boolean?,
     onSettingsChanged: (ModuleSettings) -> Unit,
     onExportLogs: () -> Unit,
     onOpenAdapters: () -> Unit,
+    onOpenForcedAdapters: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     when (style) {
@@ -254,11 +263,16 @@ private fun RenderSecondaryDestination(
                 onSettingsChanged = onSettingsChanged,
                 onExportLogs = onExportLogs,
                 onOpenAdapters = onOpenAdapters,
+                onOpenForcedAdapters = onOpenForcedAdapters,
                 onNavigateBack = onNavigateBack,
             )
 
             SecondaryDestination.COMPATIBILITY -> CompatibilityScreen(
                 onNavigateBack = onNavigateBack,
+            )
+            SecondaryDestination.FORCED_ADAPTERS -> ForcedAdapterSettingsScreen(
+                style = style, states = states, groups = EarbudAdapterRegistry.probeGroups,
+                settings = settings, onSettingsChanged = onSettingsChanged, onNavigateBack = onNavigateBack,
             )
         }
 
@@ -282,11 +296,16 @@ private fun RenderSecondaryDestination(
                 onSettingsChanged = onSettingsChanged,
                 onExportLogs = onExportLogs,
                 onOpenAdapters = onOpenAdapters,
+                onOpenForcedAdapters = onOpenForcedAdapters,
                 onNavigateBack = onNavigateBack,
             )
 
             SecondaryDestination.COMPATIBILITY -> MiuixCompatibilityScreen(
                 onNavigateBack = onNavigateBack,
+            )
+            SecondaryDestination.FORCED_ADAPTERS -> ForcedAdapterSettingsScreen(
+                style = style, states = states, groups = EarbudAdapterRegistry.probeGroups,
+                settings = settings, onSettingsChanged = onSettingsChanged, onNavigateBack = onNavigateBack,
             )
         }
     }
