@@ -8,6 +8,17 @@ import org.junit.Test
 
 class ControlAppArbitrationTest {
     @Test
+    fun theAstroControllerBelongsOnlyToTheVerifiedBrandVariant() {
+        val adapter = TheAstroOpenProS2Adapter()
+        assertEquals(listOf(ControlAppCatalog.theAstro), adapter.controlApps)
+        assertEquals(ControlAppCatalog.theAstro, ControlAppCatalog.find("com.tytech.theastro.wear"))
+        assertEquals(ControlAppCatalog.theAstro,
+            ControlAppCatalog.activeOwner(adapter.controlApps, setOf("com.tytech.theastro.wear")))
+        assertNull(ControlAppCatalog.activeOwner(adapter.controlApps, setOf("com.tytech.dreamewear")))
+        assertTrue(FloS2SportGattAdapter().controlApps.isEmpty())
+    }
+
+    @Test
     fun adaptersDeclareOnlyTheirVendorControllerApplications() {
         assertEquals(
             listOf(ControlAppCatalog.vivoEarphones),

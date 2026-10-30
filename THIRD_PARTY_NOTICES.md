@@ -281,6 +281,15 @@ fingerprint when stable symbols and the exact-version table are unavailable.
 Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不随项目分发厂商应用、
 抓包文件、固件或品牌资源。该贡献合入后的源代码遵循本项目的 GNU GPL-3.0-only 许可。
 
+## FloS2 community protocol contribution
+
+TheAstro OpenPro S2 的 GATT 帧、CRC、整机电量、四档音效、脱敏测试向量与原版实机结果由
+Conastin 在 [PR #90](https://github.com/silverpoetry/HyperEars/pull/90) 提供；Dreame Flo S2
+按贡献者资料作为家族候选。维护分支保留其原始提交及后续充电字段修正，源代码及贡献者绘制的模式图标按
+本项目 GNU GPL-3.0-only 许可维护。协议资料来自贡献者对伴侣 App 的互操作研究和实机记录，
+不分发厂商应用、固件、反编译产物或厂商图片。贡献者补充的实采 App 为流宇
+`com.tytech.theastro.wear` 1.4.3（10）。
+
 ## MOONDROP Link application research
 
 - MOONDROP Link for Android（`com.moondroplab.moondrop.moondrop_app`），官方下载

@@ -26,6 +26,7 @@
         <package android:name="com.huawei.smartaudio" />
         <package android:name="com.huawei.smarthome" />
         <package android:name="com.moondroplab.moondrop.moondrop_app" />
+        <package android:name="com.tytech.theastro.wear" />
         <package android:name="com.samsung.android.app.watchmanager" />
         <package android:name="com.samsung.accessory.zenithmgr" />
         <package android:name="com.samsung.accessory.berrymgr" />
