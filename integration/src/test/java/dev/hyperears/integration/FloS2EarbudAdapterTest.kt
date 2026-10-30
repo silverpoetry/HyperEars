@@ -89,6 +89,19 @@ class FloS2EarbudAdapterTest {
     }
 
     @Test
+    fun batteryPushCarriesTheChargingBitIntoTheAggregateReading() {
+        val adapter = TheAstroOpenProS2Adapter()
+        adapter.receive(STATUS_STANDARD.hexBytes())
+
+        // Captured plug-in frame: the final push before the earbud powers off, charging = 1.
+        adapter.receive("AE 66 E0 02 64 01 87 86".hexBytes())
+
+        val reading = adapter.runtimeState().battery.left
+        assertEquals(100, reading.percent)
+        assertTrue(reading.charging)
+    }
+
+    @Test
     fun soundEffectControlIsGatedAndConfirmedByTheStatusReadback() {
         val adapter = TheAstroOpenProS2Adapter()
         val request = FloS2ControlRequest.SetSoundEffect(FloS2SoundEffect.ENHANCED)

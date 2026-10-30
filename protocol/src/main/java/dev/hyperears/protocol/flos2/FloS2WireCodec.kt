@@ -33,6 +33,9 @@ object FloS2WireCodec {
     /** Unsolicited battery push, handler-named `_onProtocolFrameBatteryReport` in the vendor app. */
     const val SUB_BATTERY_REPORT: Int = 0xE0
 
+    /** Charging-state wire value emitted while the earbud is on the charger. */
+    const val CHARGING_STATE_CHARGING: Int = 1
+
     /** Sound-effect switch (vendor app symbol `setEqMode`). */
     const val SUB_SET_SOUND_EFFECT: Int = 0x03
 
@@ -82,6 +85,17 @@ object FloS2WireCodec {
         val mcuFirmwareVersion: String?,
         val deviceName: String?,
         val serial: String?,
+    )
+
+    /** Fields decoded from the unsolicited battery push (`0x66/0xE0`). */
+    data class BatteryReport(
+        val batteryPercent: Int,
+        /**
+         * Raw charging-state byte: 0 = discharging, 1 = charging; the vendor parser also accepts
+         * 2, which real captures never emitted. `null` when the byte is absent or outside the
+         * vendor enum.
+         */
+        val chargingState: Int?,
     )
 
     /** Recomputes the wire CRC over `bytes[from, to)`. */
@@ -148,14 +162,24 @@ object FloS2WireCodec {
     }
 
     /**
-     * Parses the battery push event: payload is exactly the battery percentage as u16 LE.
-     * Observed values are quantised to 10% steps by the earbud; the charging bit stays zero
-     * because the earbud powers off while charging.
+     * Parses the battery push event: payload is `[battery% u8][charging u8]`.
+     *
+     * Mirrors the vendor handler: the percentage byte is clamped to 100, and the charging byte
+     * decodes only when the payload carries it and holds one of the enum values {0, 1, 2}.
+     * Charging evidence on the
+     * wire: plugging the charger in makes the earbud emit one final push with charging = 1 and
+     * power off ~290 ms later, so that frame is the only charging signal while cabled; charging
+     * inside the case keeps the link alive with the byte stuck at 0, where only the rising
+     * percentage hints at charging.
      */
-    fun parseBatteryReport(frame: Frame): Int? {
+    fun parseBatteryReport(frame: Frame): BatteryReport? {
         if (frame.primaryType != PRIMARY_STATUS || frame.subType != SUB_BATTERY_REPORT) return null
-        if (frame.payload.size != 2) return null
-        return frame.payload.uInt16Le(0)?.takeIf { it in 0..100 }
+        val payload = frame.payload
+        if (payload.isEmpty()) return null
+        return BatteryReport(
+            batteryPercent = payload[0].unsigned().coerceAtMost(100),
+            chargingState = payload.getOrNull(1)?.unsigned()?.takeIf { it in 0..2 },
+        )
     }
 
     class Decoder {

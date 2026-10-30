@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The sound-effect card loads these drawables by name through
+  Resources.getIdentifier in the MiLink process, which the resource
+  shrinker cannot see. Keep the four selector groups (and their on/off
+  states) through release shrinking.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_flos2_effect_*" />

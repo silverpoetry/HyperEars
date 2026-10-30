@@ -43,12 +43,20 @@ internal class FloS2ProtocolSession : ProtocolSession {
                     )
                 }
             }
-            FloS2WireCodec.parseBatteryReport(frame)?.let { percent ->
+            FloS2WireCodec.parseBatteryReport(frame)?.let { report ->
                 acceptHandshake()
                 add(ProtocolEvent.CapabilitiesIdentified(battery = true))
                 add(
                     ProtocolEvent.FeatureStateChanged(
-                        BatteryFeatureState(EarbudBattery.fromAggregate(percent)),
+                        BatteryFeatureState(
+                            EarbudBattery.fromAggregate(
+                                report.batteryPercent,
+                                // Only the captured charging value (1) asserts charging; the
+                                // vendor enum also admits 2, unobserved on real hardware.
+                                charging =
+                                    report.chargingState == FloS2WireCodec.CHARGING_STATE_CHARGING,
+                            ),
+                        ),
                     ),
                 )
             }

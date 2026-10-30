@@ -61,16 +61,47 @@ class FloS2WireCodecTest {
     }
 
     @Test
-    fun batteryPushDecodesPercentAndIgnoresOutOfRange() {
+    fun batteryPushDecodesPercentAndChargingState() {
         val decoder = FloS2WireCodec.Decoder()
         val at70 = decoder.offer("AE 66 E0 02 46 00 22 F6".hexBytes()).single()
         val at60 = decoder.offer("AE 66 E0 02 3C 00 B0 11".hexBytes()).single()
+        val charging = decoder.offer("AE 66 E0 02 64 01 87 86".hexBytes()).single()
 
-        assertEquals(70, FloS2WireCodec.parseBatteryReport(at70))
-        assertEquals(60, FloS2WireCodec.parseBatteryReport(at60))
-        assertNull(
+        assertEquals(FloS2WireCodec.BatteryReport(70, 0), FloS2WireCodec.parseBatteryReport(at70))
+        assertEquals(FloS2WireCodec.BatteryReport(60, 0), FloS2WireCodec.parseBatteryReport(at60))
+        // Captured plug-in frame: the last push before the earbud powers off carries charging = 1.
+        assertEquals(
+            FloS2WireCodec.BatteryReport(100, 1),
+            FloS2WireCodec.parseBatteryReport(charging),
+        )
+        // The vendor handler clamps the percentage byte to 100 instead of dropping the frame.
+        assertEquals(
+            FloS2WireCodec.BatteryReport(100, 0),
+            FloS2WireCodec.parseBatteryReport(at70.copy(payload = byteArrayOf(0x7F, 0x00))),
+        )
+        // A charging byte outside the vendor enum {0, 1, 2} leaves the state unparsed.
+        assertEquals(
+            FloS2WireCodec.BatteryReport(70, null),
+            FloS2WireCodec.parseBatteryReport(at70.copy(payload = byteArrayOf(0x46, 0x05))),
+        )
+    }
+
+    @Test
+    fun batteryPushToleratesDeviatingPayloadLengths() {
+        val frame = FloS2WireCodec.Decoder().offer("AE 66 E0 02 46 00 22 F6".hexBytes()).single()
+
+        // No payload carries no battery at all.
+        assertNull(FloS2WireCodec.parseBatteryReport(frame.copy(payload = ByteArray(0))))
+        // The percentage byte still decodes without the charging byte.
+        assertEquals(
+            FloS2WireCodec.BatteryReport(70, null),
+            FloS2WireCodec.parseBatteryReport(frame.copy(payload = byteArrayOf(0x46))),
+        )
+        // Bytes beyond the two documented ones are ignored, as in the vendor handler.
+        assertEquals(
+            FloS2WireCodec.BatteryReport(70, 0),
             FloS2WireCodec.parseBatteryReport(
-                at70.copy(payload = byteArrayOf(0x7F.toByte(), 0x00)),
+                frame.copy(payload = byteArrayOf(0x46, 0x00, 0x2A)),
             ),
         )
     }
@@ -112,7 +143,7 @@ class FloS2WireCodecTest {
         val frames = decoder.offer(noisy)
 
         assertEquals(1, frames.size)
-        assertEquals(60, FloS2WireCodec.parseBatteryReport(frames.single()))
+        assertEquals(60, FloS2WireCodec.parseBatteryReport(frames.single())?.batteryPercent)
     }
 
     private companion object {
