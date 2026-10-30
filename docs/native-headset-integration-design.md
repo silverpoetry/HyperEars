@@ -127,14 +127,13 @@ Sony Controller 的早期实验只证明原生 UI 可被外部状态驱动，按
 | 现有 `ProtocolSession` / `WireCodec` | 协议对话与纯字节解析 | 系统 UI 和原生通知调用 |
 | 现有 Bluetooth 会话管理 | 管理设备会话，发布已接受状态，记录真实连接来源 | 按品牌决定哪种弹窗或图片 |
 | 系统耳机宿主登记与 MiLink 原始接管报告 | 保护系统已支持设备；展示检查独立于 MiLink | 依据模块 Hook 后的结果反推系统归属 |
-| 拟新增 `NativeHeadsetProjection` | 把现有状态投影为展示需要的名称、形态和电量 | 解析协议、补造数值、修改 Adapter 能力 |
-| 拟新增 `NativeHeadsetCoordinator` | 校验归属与生命周期，去重，维护本模块创建的展示记录 | 蓝牙连接、协议重试或型号稳定状态机 |
-| 拟新增 `HyperOsHeadsetBridge` | 封装经验证的宿主入口、参数和资源差异 | 公共 Adapter 中的 HyperOS 分支 |
+| `NativeHeadsetProjection` | 把现有状态投影为展示需要的名称、形态和电量 | 解析协议、补造数值、修改 Adapter 能力 |
+| `NativePresentationRuntime` / `NativeOwnershipStore` | 校验归属与生命周期，去重，维护本模块创建的展示记录 | 蓝牙连接、协议重试或型号稳定状态机 |
+| `NativeConnectionHint` / `AirPodsWindowBridge` / `NativeDetailNotification` | 封装经验证的宿主入口、参数和资源差异 | 公共 Adapter 中的 HyperOS 分支 |
 | 后端内部的窗口绑定 | 关联一次授权、Controller、ServiceConnection、状态版本及本地回调 | 改写原生 Apple 数据库或建立另一套协议会话 |
-| 拟新增 `XiaomiBluetoothProcessHook` | 宿主生命周期、动态插件就绪和必要的限定语义 Hook | 系统范围的 View、Socket、反射扫描 Hook |
+| `XiaomiBluetoothProcessHook` | 宿主生命周期、动态插件就绪和必要的限定语义 Hook | 系统范围的 View、Socket、反射扫描 Hook |
 
-这些名称表示拟新增的职责，不要求每项都成为复杂继承体系。先实现一个经验证的后端，
-实际出现版本差异时再拆分后端；不预设按每个 OS 版本建立子类。
+这些组件按职责组合，实际出现版本差异时再拆分后端，不按每个 OS 版本预设子类。
 
 状态沿以下链条传播：
 
