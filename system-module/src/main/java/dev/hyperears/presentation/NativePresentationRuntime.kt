@@ -348,7 +348,12 @@ internal class NativePresentationRuntime(
         if (!allowTransient || record.metadata.replay ||
             settings.headsetConnectionPresentation == HeadsetConnectionPresentation.OFF) return
         attemptPresentation(record) {
-            present(record, settings.headsetConnectionPresentation)
+            // Structural invariant: present() reaches host reflection and settings, so a failure folds into
+            // "not submitted" here, where the gate keeps the connection retryable, instead of on the host's
+            // main looper.
+            runCatching { present(record, settings.headsetConnectionPresentation) }
+                .onFailure { ModuleLog.warn(TAG, "presentation attempt failed", it) }
+                .getOrDefault(false)
         }
     }
 
@@ -379,7 +384,11 @@ internal class NativePresentationRuntime(
             "popup" -> HeadsetConnectionPresentation.BATTERY_POPUP
             else -> return
         }
-        present(record, mode)
+        // Same invariant on the manual preview path, which the gate does not wrap: fold to not submitted.
+        runCatching { present(record, mode) }.getOrElse { failure ->
+            ModuleLog.debug(TAG, "preview presentation failed ${failure.javaClass.name}; treating as not submitted")
+            false
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -405,9 +414,23 @@ internal class NativePresentationRuntime(
         }
         val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(p.address) ?: return false
         if (BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) return false
-        if (hint?.flowOwnsPresentation(device) != false) {
+        // An absent subsystem and a failed query are both indeterminate: neither may fail closed here.
+        // Anything else present() can throw is folded by its two callers, the gate submit lambda and
+        // preview(), so nothing reaches the host's main looper either. The native window occupancy guard
+        // above and the connection gate still decide.
+        val flowOwns = hint?.let { circulation ->
+            runCatching { circulation.flowOwnsPresentation(device) }.getOrElse { failure ->
+                ModuleLog.debug(TAG, "circulation query failed ${failure.javaClass.name}; treating as indeterminate")
+                null
+            }
+        }
+        if (displayBlockedByNativeCirculation(flowOwns)) {
             ModuleLog.debug(TAG, "presentation skipped: native circulation owns display")
             return false
+        }
+        if (hint == null) {
+            ModuleLog.debug(TAG, "circulation state unavailable (native hint absent); " +
+                "relying on native window guard")
         }
         val onHomeOrCoverScreen = if (mode == HeadsetConnectionPresentation.SMART) {
             runCatching { scene?.isOnHomeOrCoverScreen(context) }
