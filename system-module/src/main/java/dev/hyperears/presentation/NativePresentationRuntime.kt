@@ -442,13 +442,12 @@ internal class NativePresentationRuntime(
         }
         ModuleLog.debug(TAG, "selected target=$target mode=$mode home=$onHomeOrCoverScreen")
         return when (target) {
-            // The native hint always goes first; the third-party island renderer is admitted only on
-            // builds whose ownership contract is confirmed absent, so contract-bearing builds keep
-            // exactly the previous native-hint-only behavior.
-            NativePresentationTarget.ISLAND -> when (nativeIslandAdmission(
-                contract = ownershipContract,
-                nativeShown = hint?.show(p, device) == true,
-            )) {
+            // On contract-absent builds the native hint's success carries no render proof, so the
+            // island is submitted directly and the native attempt is never evaluated; contract-
+            // bearing builds keep exactly the previous native-hint-only behavior.
+            NativePresentationTarget.ISLAND -> when (nativeIslandAdmission(ownershipContract) {
+                hint?.show(p, device) == true
+            }) {
                 NativeIslandRoute.NATIVE_SHOWN -> true
                 NativeIslandRoute.THIRD_PARTY -> NativeIslandPresentation.tryShow(context, p)
                 NativeIslandRoute.NOT_SHOWN -> false

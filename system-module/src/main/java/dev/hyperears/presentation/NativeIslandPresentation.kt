@@ -14,9 +14,11 @@ import dev.hyperears.integration.BatteryReading
  * and submits it straight to the system status-bar render endpoint, bypassing only the plugin's own
  * business gates, never the module's ownership or window guards.
  *
- * Coexistence red line: the runtime admits this renderer only when [OwnershipContractState.MISSING]
- * and only after the native hint was tried first and did not show. On every build that still carries
- * the ownership contract the previous "native hint only" behavior is unchanged.
+ * Coexistence red line: the runtime routes the island target to this renderer directly when the
+ * ownership contract is confirmed absent ([OwnershipContractState.MISSING]), because on those builds
+ * the native hint reports success even when it silently failed and its verdict carries no proof. On
+ * every build that still carries the ownership contract the previous "native hint only" behavior is
+ * unchanged and this renderer is never reached.
  *
  * Host-state red line: this object only reads the module's own projection and the system service. It
  * never writes host SharedPreferences, Settings, the file provider, filesDir, or sends host intents;
@@ -129,14 +131,19 @@ internal object NativeIslandPresentation {
 internal enum class NativeIslandRoute { NATIVE_SHOWN, THIRD_PARTY, NOT_SHOWN }
 
 /**
- * The coexistence gate: the native hint is always tried first and a shown hint ends the decision for
- * every contract state. The third-party renderer is admitted only when the ownership contract is
- * confirmed absent, so builds that still carry the native data plane never see the new path, even
- * when the native hint declines to show.
+ * The coexistence gate. On builds whose ownership contract is confirmed absent the native hint cannot
+ * be trusted: the host API catches all of its own failures and reports success without rendering
+ * anything, so on device its submission always "succeeded" while no island ever appeared (device log
+ * 2026-10-31 00:47). Those builds go straight to the third-party renderer and the native probe is not
+ * even evaluated. On contract-bearing builds the native hint decides alone, exactly as before: shown
+ * wins, declined means nothing shows, and the new renderer is never admitted.
  */
-internal fun nativeIslandAdmission(contract: OwnershipContractState, nativeShown: Boolean): NativeIslandRoute = when {
-    nativeShown -> NativeIslandRoute.NATIVE_SHOWN
+internal fun nativeIslandAdmission(
+    contract: OwnershipContractState,
+    nativeShown: () -> Boolean,
+): NativeIslandRoute = when {
     contract == OwnershipContractState.MISSING -> NativeIslandRoute.THIRD_PARTY
+    nativeShown() -> NativeIslandRoute.NATIVE_SHOWN
     else -> NativeIslandRoute.NOT_SHOWN
 }
 

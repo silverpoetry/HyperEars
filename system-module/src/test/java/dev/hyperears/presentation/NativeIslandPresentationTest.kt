@@ -2,6 +2,8 @@ package dev.hyperears.presentation
 
 import dev.hyperears.integration.BatteryReading
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -110,20 +112,34 @@ class NativeIslandPresentationTest {
     }
 
     @Test
-    fun nativeHintWinsBeforeTheThirdPartyIslandOnEveryContract() {
+    fun islandAdmissionCoversEveryContractAndNativeVerdict() {
         for (contract in OwnershipContractState.entries) {
-            assertEquals(contract.toString(), NativeIslandRoute.NATIVE_SHOWN,
-                nativeIslandAdmission(contract, nativeShown = true))
+            for (shown in listOf(true, false)) {
+                val expected = if (contract == OwnershipContractState.MISSING) NativeIslandRoute.THIRD_PARTY
+                else if (shown) NativeIslandRoute.NATIVE_SHOWN else NativeIslandRoute.NOT_SHOWN
+                assertEquals("$contract shown=$shown", expected, nativeIslandAdmission(contract) { shown })
+            }
         }
     }
 
     @Test
-    fun thirdPartyIslandIsAdmittedOnlyOnMissingContract() {
-        assertEquals(NativeIslandRoute.THIRD_PARTY,
-            nativeIslandAdmission(OwnershipContractState.MISSING, nativeShown = false))
+    fun missingContractSubmitsTheIslandWithoutTheNativeAttempt() {
+        // The host API silently swallows its own failures on these builds, so a native show()==true
+        // proves nothing rendered (device log 2026-10-31 00:47): the island goes direct and the
+        // native probe must not be evaluated at all.
+        var probed = false
+        val route = nativeIslandAdmission(OwnershipContractState.MISSING) { probed = true; true }
+        assertEquals(NativeIslandRoute.THIRD_PARTY, route)
+        assertFalse("the native hint attempt must not run on a missing contract", probed)
+    }
+
+    @Test
+    fun thirdPartyIslandIsNeverAdmittedOnContractBearingBuilds() {
         for (contract in listOf(OwnershipContractState.RESOLVED, OwnershipContractState.MISMATCH)) {
-            assertEquals("$contract: the renderer must never be reached", NativeIslandRoute.NOT_SHOWN,
-                nativeIslandAdmission(contract, nativeShown = false))
+            for (shown in listOf(true, false)) {
+                assertNotEquals("$contract shown=$shown must never reach the renderer",
+                    NativeIslandRoute.THIRD_PARTY, nativeIslandAdmission(contract) { shown })
+            }
         }
     }
 }
