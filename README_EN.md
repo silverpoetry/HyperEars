@@ -28,6 +28,7 @@ StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Sony and Samsung dev
   Popup only, Island only and Off are also available.
 - Provides an independent battery notification with access to headset settings and the native disconnect action.
   These displays require the `com.xiaomi.bluetooth` scope; the hardware test baseline is HyperOS 4.
+- The native headset host checks system ownership directly for connection displays and battery notifications; MiLink does not need to be running and the control center does not need to be opened first.
 - Publishes eligible third-party headsets to the MiLink device center for device handoff and system volume.
 - Provides the same handoff and volume path to standard A2DP/HFP headsets, with Android aggregate-battery fallback.
 

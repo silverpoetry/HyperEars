@@ -58,18 +58,18 @@ internal class NativeDetailNotification(
         ModuleLog.debug("NativeDetail", "published revision of native battery notification")
     }
 
-    fun remove(address: String, systemOwned: Boolean) {
+    fun remove(address: String) {
         val entry = entries.remove(address) ?: return
-        // A platform ownership claim may already have replaced the same native notification.
-        if (systemOwned) return
         val visible = notification(address)
-        if (visible != null && visible.postTime != entry.postedAt) return
+        // Cancel only our exact visible post, including when ownership changes. A replacement
+        // posted by the native owner has a different postTime and must remain untouched.
+        if (visible == null || visible.postTime != entry.postedAt) return
         withProjection(entry.projection) { methods.cancel.invoke(null, context, entry.device) }
         // Preserve the native channel and the user's per-device notification preferences.
     }
 
     fun clear() {
-        entries.keys.toList().forEach { remove(it, false) }
+        entries.keys.toList().forEach { remove(it) }
     }
 
     private fun notification(address: String) = notifications.activeNotifications

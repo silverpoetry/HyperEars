@@ -28,6 +28,7 @@ vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、Nic
   超级岛，也可选仅弹窗、仅超级岛或关闭。
 - 可独立开启耳机电量通知，查看当前电量、打开耳机设置或断开连接。
   新增展示需勾选 `com.xiaomi.bluetooth` 作用域，实机基线为 HyperOS 4。
+- 连接提示和电量通知由系统耳机进程直接检查原生接管状态，无需先启动 MiLink 或打开控制中心。
 
 ### 设备能力
 
