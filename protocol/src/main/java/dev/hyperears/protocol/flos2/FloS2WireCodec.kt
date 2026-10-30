@@ -168,9 +168,9 @@ object FloS2WireCodec {
      * decodes only when the payload carries it and holds one of the enum values {0, 1, 2}.
      * Charging evidence on the
      * wire: plugging the charger in makes the earbud emit one final push with charging = 1 and
-     * power off ~290 ms later, so that frame is the only charging signal while cabled; charging
-     * inside the case keeps the link alive with the byte stuck at 0, where only the rising
-     * percentage hints at charging.
+     * power off shortly afterwards (110 ms and 290 ms in two captures). The final percentage
+     * need not be 100. Inside the case the link stays alive with a charging byte of 0; this codec
+     * reports that value without inferring charging from a rising percentage.
      */
     fun parseBatteryReport(frame: Frame): BatteryReport? {
         if (frame.primaryType != PRIMARY_STATUS || frame.subType != SUB_BATTERY_REPORT) return null

@@ -101,6 +101,7 @@ open class FloS2SportGattAdapter(
 
 /** Exact candidate for TheAstro OpenPro S2, captured on a real device. */
 class TheAstroOpenProS2Adapter : FloS2SportGattAdapter() {
+    override val controlApps: List<ControlAppSpec> = listOf(ControlAppCatalog.theAstro)
     override val id: String = ID
     override val displayName: String = "TheAstro OpenPro S2"
     override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH

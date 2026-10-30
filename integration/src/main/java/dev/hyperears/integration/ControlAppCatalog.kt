@@ -102,6 +102,11 @@ object ControlAppCatalog {
         displayName = "MOONDROP",
     )
 
+    val theAstro = ControlAppSpec(
+        packageName = "com.tytech.theastro.wear",
+        displayName = "流宇",
+    )
+
     val galaxyWearable = ControlAppSpec(
         packageName = "com.samsung.android.app.watchmanager",
         displayName = "Galaxy Wearable",
@@ -171,6 +176,7 @@ object ControlAppCatalog {
         huaweiSmartAudio,
         huaweiAiLife,
         moondrop,
+        theAstro,
         galaxyWearable,
         galaxyBuds2ProManager,
         galaxyBuds2Manager,
