@@ -476,6 +476,11 @@ class MainActivity : ComponentActivity() {
                                 updated.disabledAdapterIds.sorted().joinToString(","),
                         )
                     }
+                    if (previous.forcedAdapterIds != updated.forcedAdapterIds) {
+                        add("forcedAdapters=" + updated.forcedAdapterIds.toSortedMap().entries.joinToString(",") {
+                            "**:**:**:**:${it.key.takeLast(5)}=${it.value}"
+                        })
+                    }
                 }.joinToString(separator = " · "),
             )
         }

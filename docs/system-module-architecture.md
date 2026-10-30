@@ -243,6 +243,13 @@ open class HonorEarbudAdapter : StandardEarbudAdapter() {
 匹配依据来自 Android 已缓存的设备名称、Class、服务 UUID 和地址信息，不主动扫描。
 Registry 不按 ID 恢复运行时 Adapter，也不参与协议升级。
 
+调试覆盖是独立的初始候选选择策略：`forcedAdapterIds` 按设备地址保存初次探测 Adapter ID，
+Registry 从初始注册工厂创建全新实例，跳过该次名称／型号匹配，继续执行原生设备保护与
+协议确认。协议识别后才能产生的已确认 Adapter 不进入这个选择目录；UI 只消费注册表描述。
+Bluetooth 会话管理器在同一策略锁内选择候选；设置变更先结束目标设备的旧模块会话，再按
+最新策略注册，保留物理连接标识。比较初始候选 ID 与当前运行 Adapter 分开，避免把正常
+协议升级当成设置变化而重建无关会话。持久化只使用平台字符串集合，不存储 Adapter 或能力。
+
 Registry 结果只是 Bluetooth 进程中的静态候选。MiLink 执行原生 `checkIsMiTWS(device)` 时，
 模块在同一稳定入口保护系统所有权：原始结果表示支持时，系统所有权优先，并通过带发送方
 身份的定向广播同步到 MiLink 的 `:audio`、`:core`、`:ui` 进程，同时关闭 Bluetooth 进程中
