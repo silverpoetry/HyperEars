@@ -391,6 +391,7 @@ fun DebugSettingsScreen(
     onSettingsChanged: (ModuleSettings) -> Unit,
     onExportLogs: () -> Unit,
     onOpenAdapters: () -> Unit,
+    onOpenForcedAdapters: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -430,6 +431,12 @@ fun DebugSettingsScreen(
                             title = "适配器",
                             detail = "按品牌管理具体型号与家族回退。",
                             onClick = onOpenAdapters,
+                        )
+                        PreferenceDivider()
+                        NavigationPreference(
+                            title = "强制适配器",
+                            detail = "为指定设备选择协议探测入口。",
+                            onClick = onOpenForcedAdapters,
                         )
                         PreferenceDivider()
                         TogglePreference(

@@ -39,6 +39,7 @@ data class ModuleSettings(
     val modulePaused: Boolean = false,
     val diagnosticLogging: Boolean = false,
     val disabledAdapterIds: Set<String> = emptySet(),
+    val forcedAdapterIds: Map<String, String> = emptyMap(),
     val headsetConnectionPresentation: HeadsetConnectionPresentation = HeadsetConnectionPresentation.SMART,
     val headsetDetailNotification: Boolean = false,
 )
@@ -59,6 +60,7 @@ object ModuleSettingsStore {
     private const val MODULE_PAUSED = "module_paused"
     private const val DIAGNOSTIC_LOGGING = "diagnostic_logging"
     private const val DISABLED_ADAPTER_IDS = "disabled_adapter_ids"
+    private const val FORCED_ADAPTER_IDS = "forced_adapter_ids"
     private const val HEADSET_CONNECTION_PRESENTATION = "headset_connection_presentation"
     private const val HEADSET_DETAIL_NOTIFICATION = "headset_detail_notification"
     private const val REMOTE_MIGRATION_COMPLETE = "remote_migration_complete"
@@ -77,6 +79,9 @@ object ModuleSettingsStore {
             .getStringSet(DISABLED_ADAPTER_IDS, emptySet())
             .orEmpty()
             .toSet(),
+        forcedAdapterIds = ForcedAdapterSettings.decode(
+            preferences.getStringSet(FORCED_ADAPTER_IDS, emptySet()).orEmpty(),
+        ),
     )
 
     fun write(preferences: SharedPreferences, settings: ModuleSettings): Boolean =
@@ -94,6 +99,8 @@ object ModuleSettingsStore {
             .putString(HEADSET_CONNECTION_PRESENTATION, settings.headsetConnectionPresentation.name)
             .putBoolean(HEADSET_DETAIL_NOTIFICATION, settings.headsetDetailNotification)
             .putStringSet(DISABLED_ADAPTER_IDS, settings.disabledAdapterIds.toRemotePreferencesSet())
+            .putStringSet(FORCED_ADAPTER_IDS,
+                ForcedAdapterSettings.encode(settings.forcedAdapterIds).toRemotePreferencesSet())
             .commit()
 
     fun readLocal(context: Context): ModuleSettings = read(localPreferences(context))
@@ -157,6 +164,7 @@ object ModuleSettingsStore {
         MODULE_PAUSED,
         DIAGNOSTIC_LOGGING,
         DISABLED_ADAPTER_IDS,
+        FORCED_ADAPTER_IDS,
         HEADSET_CONNECTION_PRESENTATION,
         HEADSET_DETAIL_NOTIFICATION,
     )

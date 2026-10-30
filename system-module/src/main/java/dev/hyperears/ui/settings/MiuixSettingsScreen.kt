@@ -215,6 +215,7 @@ fun MiuixDebugSettingsScreen(
     onSettingsChanged: (ModuleSettings) -> Unit,
     onExportLogs: () -> Unit,
     onOpenAdapters: () -> Unit,
+    onOpenForcedAdapters: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -251,6 +252,11 @@ fun MiuixDebugSettingsScreen(
                             title = "适配器",
                             summary = "按品牌管理具体型号与家族回退。",
                             onClick = onOpenAdapters,
+                        )
+                        ArrowPreference(
+                            title = "强制适配器",
+                            summary = "为指定设备选择协议探测入口。",
+                            onClick = onOpenForcedAdapters,
                         )
                         MiuixSwitchPreference(
                             title = "详细日志",

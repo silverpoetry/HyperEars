@@ -46,6 +46,7 @@ internal class EarbudConnectionManager(
         val session: EarbudDeviceSession,
         val identity: EarbudIdentity,
         val token: String,
+        val candidateAdapterId: String,
         var state: EarbudState,
     )
 
@@ -90,19 +91,31 @@ internal class EarbudConnectionManager(
         }
     }
 
-    /** Only an authenticated MiLink receipt for this exact live session can grant presentation. */
-    fun confirmNativeAdmission(address: String, token: String) {
+    /** Only the native host's authenticated report for this exact live session can grant display. */
+    fun confirmNativeAdmission(address: String, token: String, admission: NativeAdmission) {
+        if (admission == NativeAdmission.UNKNOWN) return
+        var removals = emptyList<Removal>()
         val next = synchronized(lifecycleLock) {
             val key = normalizeAddress(address)
             val record = sessions[key]?.takeIf { it.token == token } ?: return
             if (closed || modulePaused || key in systemOwnedAddresses || !record.state.sessionActive) return
-            if (presentationAdmissions[key] == NativeAdmission.HYPEREARS) return
-            presentationAdmissions[key] = NativeAdmission.HYPEREARS
+            if (presentationAdmissions[key] == admission) return
+            presentationAdmissions[key] = admission
+            if (admission == NativeAdmission.SYSTEM) {
+                systemOwnedAddresses += key
+                observedDevices.remove(key)
+                removals = removeLocked(address)
+                return@synchronized null
+            }
             record.state = record.state.copy(revision = record.state.revision + 1)
             lastRevisions[key] = record.state.revision
             snapshotLocked(record.state, record.token).also { knownDevices[key] = it }
         }
-        publish(next)
+        ModuleLog.debug(COMPONENT) {
+            "native host admission=$admission address=${maskBluetoothAddress(address)}"
+        }
+        finishRemovals(removals)
+        next?.let(::publish)
     }
 
     private fun snapshotLocked(state: EarbudState, token: String): Snapshot {
@@ -117,6 +130,7 @@ internal class EarbudConnectionManager(
     private var externalControlEnabled = true
     private var modulePaused = false
     private var disabledAdapterIds: Set<String> = emptySet()
+    private var forcedAdapterIds: Map<String, String> = emptyMap()
 
     @Volatile
     private var closed = false
@@ -129,7 +143,6 @@ internal class EarbudConnectionManager(
     fun registerDevice(
         device: BluetoothDevice,
         identity: EarbudIdentity,
-        earbudAdapter: EarbudAdapter,
     ): Boolean {
         val name = identity.deviceName
         val address = runCatching { device.address }.getOrNull() ?: return false
@@ -145,7 +158,9 @@ internal class EarbudConnectionManager(
                 return false
             }
             observedDevices[key] = ObservedDevice(device, identity)
-            if (earbudAdapter.id in disabledAdapterIds) return false
+            val earbudAdapter = EarbudAdapterRegistry.forIntegration(
+                identity, disabledAdapterIds, forcedAdapterIds[key],
+            ) ?: return false
             earbudAdapter.configureDisabledAdapterIds(disabledAdapterIds)
             sessions[key]?.let(Registration::Existing) ?: run {
                 val initialState = knownDevices[key]
@@ -181,6 +196,7 @@ internal class EarbudConnectionManager(
                     session = session,
                     identity = identity,
                     token = UUID.randomUUID().toString(),
+                    candidateAdapterId = earbudAdapter.id,
                     state = state,
                 )
                 sessions[key] = record
@@ -206,24 +222,11 @@ internal class EarbudConnectionManager(
                 registration.record.session.start()
                 ModuleLog.debug(
                     COMPONENT,
-                    "registered ${earbudAdapter.id} at ${maskBluetoothAddress(address)}",
+                    "registered ${registration.record.candidateAdapterId} at ${maskBluetoothAddress(address)}",
                 )
                 true
             }
         }
-    }
-
-    /** Records a connected device when its currently eligible adapter set is empty. */
-    @SuppressLint("MissingPermission")
-    fun observeDevice(device: BluetoothDevice, identity: EarbudIdentity): Boolean {
-        val address = runCatching { device.address }.getOrNull() ?: return false
-        val key = normalizeAddress(address)
-        val adapter = synchronized(lifecycleLock) {
-            if (closed || modulePaused || key in systemOwnedAddresses) return false
-            observedDevices[key] = ObservedDevice(device, identity)
-            EarbudAdapterRegistry.forIntegration(identity, disabledAdapterIds)
-        } ?: return false
-        return registerDevice(device, identity, adapter)
     }
 
     fun unregisterDevice(device: BluetoothDevice?): Boolean {
@@ -316,11 +319,13 @@ internal class EarbudConnectionManager(
     }
 
     /** Re-resolves active devices against the same ordered Registry after a policy change. */
-    fun updateDisabledAdapters(adapterIds: Set<String>) {
+    fun updateAdapterSelection(adapterIds: Set<String>, forcedIds: Map<String, String>) {
         val normalized = adapterIds.toSet()
+        val forced = forcedIds.mapKeys { normalizeAddress(it.key) }
         val changes = synchronized(lifecycleLock) {
-            if (closed || disabledAdapterIds == normalized) return
+            if (closed || (disabledAdapterIds == normalized && forcedAdapterIds == forced)) return
             disabledAdapterIds = normalized
+            forcedAdapterIds = forced
             if (modulePaused) return
 
             val decisions = observedDevices.values.mapNotNull { observed ->
@@ -330,8 +335,11 @@ internal class EarbudConnectionManager(
                 val replacement = EarbudAdapterRegistry.forIntegration(
                     identity = observed.identity,
                     disabledAdapterIds = normalized,
+                    forcedAdapterId = forced[key],
                 )
-                if (replacement?.id == record?.session?.adapter?.id) {
+                if ((record == null && replacement == null) ||
+                    (record != null && replacement?.id == record.candidateAdapterId &&
+                        record.session.adapter.id !in normalized)) {
                     null
                 } else {
                     val removal = record?.let {
@@ -350,8 +358,15 @@ internal class EarbudConnectionManager(
 
         finishRemovals(changes.mapNotNull(AdapterReconfiguration::removal))
         changes.forEach { change ->
-            change.replacement?.let { replacement ->
-                registerDevice(change.device, change.identity, replacement)
+            ModuleLog.debug(COMPONENT) {
+                "adapter selection changed address=${maskBluetoothAddress(change.device.address)} " +
+                    "forced=${forced[normalizeAddress(change.device.address)]} " +
+                    "candidate=${change.replacement?.id}"
+            }
+            change.replacement?.let {
+                // Re-read the policy under the registration lock; a newer setting may have
+                // arrived while the retired session was closing.
+                registerDevice(change.device, change.identity)
             }
         }
     }
