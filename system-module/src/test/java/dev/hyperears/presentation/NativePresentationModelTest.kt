@@ -207,4 +207,29 @@ class NativePresentationModelTest {
             assertEquals(flowOwns.toString(), flowOwns == true, displayBlockedByNativeCirculation(flowOwns))
         }
     }
+
+    @Test
+    fun legacyRecordReadersDecideBeforeTheStableWrappers() {
+        // Old builds carry the three record getters; their verdict expression must stay unchanged and
+        // the wrappers must never override it, even when they would disagree.
+        assertTrue(flowOwnsFromReadings(Triple(1, false, false), Pair(false, false)) == true)
+        assertTrue(flowOwnsFromReadings(Triple(0, true, false), null) == true)
+        assertTrue(flowOwnsFromReadings(Triple(0, false, true), null) == true)
+        assertEquals(false, flowOwnsFromReadings(Triple(0, false, false), Pair(true, true)))
+    }
+
+    @Test
+    fun stableWrappersOnlyDecideWhenLegacyNamesAreAbsent() {
+        assertTrue(flowOwnsFromReadings(null, Pair(true, false)) == true)
+        assertTrue(flowOwnsFromReadings(null, Pair(false, true)) == true)
+        assertEquals(false, flowOwnsFromReadings(null, Pair(false, false)))
+    }
+
+    @Test
+    fun missingLegacyAndWrapperNamesBothReportIndeterminate() {
+        // Neither the record's old names nor the MBN wrappers exist: no verdict, and an indeterminate
+        // reading must never block the display through displayBlockedByNativeCirculation.
+        assertNull(flowOwnsFromReadings(null, null))
+        assertFalse(displayBlockedByNativeCirculation(flowOwnsFromReadings(null, null)))
+    }
 }

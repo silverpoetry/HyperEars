@@ -96,6 +96,22 @@ internal fun resolveNativePresentationTarget(
  */
 internal fun displayBlockedByNativeCirculation(flowOwns: Boolean?): Boolean = flowOwns == true
 
+/**
+ * The circulation fallback chain (island-spec §8): verified legacy record getters decide on their own
+ * and keep the old-build verdict unchanged; only when this build lacks those names the stable wrapper
+ * readings decide; neither being readable is indeterminate, which [displayBlockedByNativeCirculation]
+ * never reads as a block. A null pair/triple means that probe could not run, and inner nulls mean an
+ * unreadable single flag.
+ */
+internal fun flowOwnsFromReadings(
+    legacy: Triple<Int?, Boolean?, Boolean?>?,
+    wrappers: Pair<Boolean?, Boolean?>?,
+): Boolean? = when {
+    legacy != null -> legacy.first == 1 || legacy.second == true || legacy.third == true
+    wrappers != null -> wrappers.first == true || wrappers.second == true
+    else -> null
+}
+
 /** No timers or IO; failed eligibility/display checks do not consume a connection. */
 internal class ConnectionPresentationGate(private val freshnessMs: Long = 10_000) {
     private val consumed = mutableMapOf<String, Long>()

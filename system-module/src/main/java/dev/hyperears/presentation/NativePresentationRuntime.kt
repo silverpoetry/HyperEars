@@ -418,7 +418,7 @@ internal class NativePresentationRuntime(
         // Anything else present() can throw is folded by its two callers, the gate submit lambda and
         // preview(), so nothing reaches the host's main looper either. The native window occupancy guard
         // above and the connection gate still decide.
-        val flowOwns = hint?.let { circulation ->
+        val flowOwns: Boolean? = hint?.let { circulation ->
             runCatching { circulation.flowOwnsPresentation(device) }.getOrElse { failure ->
                 ModuleLog.debug(TAG, "circulation query failed ${failure.javaClass.name}; treating as indeterminate")
                 null
@@ -442,7 +442,17 @@ internal class NativePresentationRuntime(
         }
         ModuleLog.debug(TAG, "selected target=$target mode=$mode home=$onHomeOrCoverScreen")
         return when (target) {
-            NativePresentationTarget.ISLAND -> hint?.show(p, device) == true
+            // The native hint always goes first; the third-party island renderer is admitted only on
+            // builds whose ownership contract is confirmed absent, so contract-bearing builds keep
+            // exactly the previous native-hint-only behavior.
+            NativePresentationTarget.ISLAND -> when (nativeIslandAdmission(
+                contract = ownershipContract,
+                nativeShown = hint?.show(p, device) == true,
+            )) {
+                NativeIslandRoute.NATIVE_SHOWN -> true
+                NativeIslandRoute.THIRD_PARTY -> NativeIslandPresentation.tryShow(context, p)
+                NativeIslandRoute.NOT_SHOWN -> false
+            }
             NativePresentationTarget.POPUP -> {
                 if (!popupCompatible) {
                     ModuleLog.debug(TAG, "popup unavailable: host contract not ready")

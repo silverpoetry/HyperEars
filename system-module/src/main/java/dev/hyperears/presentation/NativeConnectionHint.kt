@@ -96,12 +96,34 @@ internal class NativeConnectionHint : HookContext() {
         }
     }
 
-    fun flowOwnsPresentation(device: BluetoothDevice): Boolean {
+    /**
+     * Whether the native circulation flow currently owns the display, or null when neither the legacy
+     * record getters nor the stable wrappers can be read on this build (indeterminate, never a block).
+     * The legacy names are tried first so old builds keep their exact verdict; the public wrappers are
+     * the fallback for builds whose record class only exposes the renamed accessors (island-spec §8).
+     */
+    fun flowOwnsPresentation(device: BluetoothDevice): Boolean? {
         val native = NativeMembers.field(notificationType, "mMiuiBluetoothNotification").get(null) ?: return true
         val managers = NativeMembers.call(native, "getConnectManagerList") as? Map<*, *> ?: return false
         val record = managers[device] ?: return false
-        return NativeMembers.call(record, "getRequestFlag") == 1 ||
-            NativeMembers.call(record, "getIsShowFastConnectDialog") == true ||
-            NativeMembers.call(record, "getAlreadyShowFastConnectDiaolog") == true
+        val legacy = runCatching {
+            Triple(NativeMembers.call(record, "getRequestFlag") as? Int,
+                NativeMembers.call(record, "getIsShowFastConnectDialog") as? Boolean,
+                NativeMembers.call(record, "getAlreadyShowFastConnectDiaolog") as? Boolean)
+        }
+        val legacyFailure = legacy.exceptionOrNull()
+        if (legacyFailure == null) return flowOwnsFromReadings(legacy.getOrThrow(), null)
+        if (legacyFailure !is NoSuchMethodException) throw legacyFailure
+        // This build has no legacy record names. The stable public wrappers take the device directly
+        // (island-spec §8); the second name keeps the host's own spelling.
+        val wrappers = runCatching {
+            Pair(NativeMembers.method(native.javaClass, "getShowDialogFromConnectManager",
+                BluetoothDevice::class.java).invoke(native, device) as? Boolean,
+                NativeMembers.method(native.javaClass, "getAlreadyShowDiaologFromConnectManager",
+                    BluetoothDevice::class.java).invoke(native, device) as? Boolean)
+        }
+        val wrapperFailure = wrappers.exceptionOrNull()
+        if (wrapperFailure != null && wrapperFailure !is NoSuchMethodException) throw wrapperFailure
+        return flowOwnsFromReadings(null, wrappers.getOrNull())
     }
 }
