@@ -295,8 +295,8 @@ internal val supportBrands = listOf(
                 noiseControl = "降噪 / 关闭 / 通透",
             ),
             SupportEntry(
-                name = "MIRAGE",
-                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                name = "MIRAGE（初音未来）",
+                evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.COMPONENT,
                 noiseControl = "基础降噪 / 关闭 / 通透",
             ),

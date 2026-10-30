@@ -44,14 +44,20 @@ class CompatibilityFilterTest {
     }
 
     @Test
-    fun findsTheMoondropMirageReferenceProtocolEntry() {
-        val result = filterSupportBrands("MIRAGE 参考协议")
+    fun findsTheVerifiedMoondropMirageCollabEntry() {
+        val result = filterSupportBrands("MIRAGE")
 
         assertEquals(listOf("MOONDROP / 水月雨"), result.map(SupportBrand::name))
         assertEquals(
-            listOf("MIRAGE"),
+            listOf("MIRAGE（初音未来）"),
             result.single().entries.map(SupportEntry::name),
         )
+        assertTrue("初音未来" in result.single().entries.single().name)
+        assertEquals(
+            EvidenceLevel.VERIFIED,
+            result.single().entries.single().evidence,
+        )
+        assertEquals("实机验证", result.single().entries.single().evidence.label)
         assertEquals(
             BatteryCapability.COMPONENT,
             result.single().entries.single().battery,
