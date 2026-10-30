@@ -90,19 +90,31 @@ internal class EarbudConnectionManager(
         }
     }
 
-    /** Only an authenticated MiLink receipt for this exact live session can grant presentation. */
-    fun confirmNativeAdmission(address: String, token: String) {
+    /** Only the native host's authenticated report for this exact live session can grant display. */
+    fun confirmNativeAdmission(address: String, token: String, admission: NativeAdmission) {
+        if (admission == NativeAdmission.UNKNOWN) return
+        var removals = emptyList<Removal>()
         val next = synchronized(lifecycleLock) {
             val key = normalizeAddress(address)
             val record = sessions[key]?.takeIf { it.token == token } ?: return
             if (closed || modulePaused || key in systemOwnedAddresses || !record.state.sessionActive) return
-            if (presentationAdmissions[key] == NativeAdmission.HYPEREARS) return
-            presentationAdmissions[key] = NativeAdmission.HYPEREARS
+            if (presentationAdmissions[key] == admission) return
+            presentationAdmissions[key] = admission
+            if (admission == NativeAdmission.SYSTEM) {
+                systemOwnedAddresses += key
+                observedDevices.remove(key)
+                removals = removeLocked(address)
+                return@synchronized null
+            }
             record.state = record.state.copy(revision = record.state.revision + 1)
             lastRevisions[key] = record.state.revision
             snapshotLocked(record.state, record.token).also { knownDevices[key] = it }
         }
-        publish(next)
+        ModuleLog.debug(COMPONENT) {
+            "native host admission=$admission address=${maskBluetoothAddress(address)}"
+        }
+        finishRemovals(removals)
+        next?.let(::publish)
     }
 
     private fun snapshotLocked(state: EarbudState, token: String): Snapshot {

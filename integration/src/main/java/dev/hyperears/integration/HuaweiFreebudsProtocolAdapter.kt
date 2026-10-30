@@ -48,7 +48,10 @@ internal abstract class HuaweiFreebudsProtocolAdapter(
             id = "$endpointPrefix-channel-$channel",
         )
     }
-    override val controlApps: List<ControlAppSpec> = listOf(ControlAppCatalog.huaweiSmartAudio)
+    override val controlApps: List<ControlAppSpec> = listOf(
+        ControlAppCatalog.huaweiSmartAudio,
+        ControlAppCatalog.huaweiAiLife,
+    )
 
     override val featureStateContract: DeviceFeatureStateContract =
         if (profile.extension != null) {

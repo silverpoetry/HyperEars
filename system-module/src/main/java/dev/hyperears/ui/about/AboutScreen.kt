@@ -295,6 +295,12 @@ internal val supportBrands = listOf(
                 noiseControl = "降噪 / 关闭 / 通透",
             ),
             SupportEntry(
+                name = "ZZZ-ANGELS-OWS（妄想天使）",
+                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                battery = BatteryCapability.LEFT_RIGHT,
+                noiseControl = "无",
+            ),
+            SupportEntry(
                 name = "其他 MOONDROP / 水月雨耳机",
                 evidence = EvidenceLevel.STANDARD_FALLBACK,
                 battery = BatteryCapability.SYSTEM,

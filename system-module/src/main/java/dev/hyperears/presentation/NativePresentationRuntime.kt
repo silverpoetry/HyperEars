@@ -43,6 +43,10 @@ internal class NativePresentationRuntime(
     private val registry = DeviceStateRegistry()
     private val records = linkedMapOf<String, Record>()
     private val gate = ConnectionPresentationGate()
+    private val gateDecisions = mutableMapOf<String, Pair<String, String>>()
+    private var ownershipStore: NativeOwnershipStore? = null
+    private val ownershipReadings = mutableMapOf<String, Pair<String, NativeAdmission>>()
+    private val ownershipReports = mutableMapOf<String, Pair<String, NativeAdmission>>()
     private var producer: IBinder? = null
     private var producerDeath: IBinder.DeathRecipient? = null
     private val retiredProducers = ArrayDeque<IBinder>()
@@ -61,6 +65,10 @@ internal class NativePresentationRuntime(
 
     init {
         if (!uiProcess) {
+            runCatching { NativeOwnershipStore.resolve(context) { key ->
+                handler.post { nativeOwnershipChanged(key) }
+            } }.onSuccess { ownershipStore = it }
+                .onFailure { ModuleLog.warn(TAG, "native ownership store unavailable", it) }
             runCatching { NativeConnectionHint().also { configure(it, context.classLoader); it.install() } }
                 .onSuccess { hint = it }
                 .onFailure { ModuleLog.warn(TAG, "connection hint unavailable", it) }
@@ -126,6 +134,9 @@ internal class NativePresentationRuntime(
                 .onFailure { ModuleLog.warn(TAG, "native scene query unavailable", it) }
         }
         popupCompatible = runCatching { AirPodsWindowSymbols(loader) }.isSuccess
+        ModuleLog.debug(TAG) {
+            "plugin ready ui=$uiProcess popup=$popupCompatible scene=${scene != null} hint=${hint != null}"
+        }
         if (!popupCompatible) {
             ModuleLog.debug(TAG, "popup contract unavailable for loaded plugin")
         }
@@ -196,7 +207,10 @@ internal class NativePresentationRuntime(
         windowBridge?.update(accepted, token, metadata, nextProducer)
         if (!accepted.sessionActive || metadata.admission == NativeAdmission.SYSTEM) {
             records.remove(address)
-            details?.remove(address, metadata.admission == NativeAdmission.SYSTEM)
+            gateDecisions.remove(address)
+            ownershipReadings.remove(address)
+            ownershipReports.remove(address)
+            details?.remove(address)
             // Retain the consumed connection through logical session replacement.
             return
         }
@@ -211,7 +225,40 @@ internal class NativePresentationRuntime(
         records.clear()
         registry.clear()
         gate.clear()
+        gateDecisions.clear()
+        ownershipReadings.clear()
+        ownershipReports.clear()
         releaseWindow()
+    }
+
+    private fun nativeOwnershipChanged(key: String?) {
+        records.values.toList().forEach { record ->
+            val address = record.state.address ?: return@forEach
+            if (NativeOwnershipStore.affects(address, key)) {
+                ownershipReadings.remove(address)
+                ownershipReports.remove(address)
+                render(record, allowTransient = false)
+            }
+        }
+    }
+
+    /** Read and report in the actual presentation host; MiLink is not part of this path. */
+    private fun checkNativeOwnership(record: Record): NativeAdmission {
+        val address = record.state.address ?: return NativeAdmission.UNKNOWN
+        val cached = ownershipReadings[address]?.takeIf { it.first == record.session }
+        val admission = cached?.second ?: (ownershipStore?.read(address) ?: NativeAdmission.UNKNOWN).also {
+            ownershipReadings[address] = record.session to it
+            ModuleLog.debug("NativeOwnership") {
+                "decision=$it address=${maskBluetoothAddress(address)} session=${record.session}"
+            }
+        }
+        val report = record.session to admission
+        if (admission != NativeAdmission.UNKNOWN && admission != record.metadata.admission &&
+            ownershipReports[address] != report && record.producer.isBinderAlive) {
+            BroadcastIdentity.send(context, NativePresentationContract.admission(address, record.session, admission))
+            ownershipReports[address] = report
+        }
+        return admission
     }
 
     private fun prepareDetails() {
@@ -253,17 +300,36 @@ internal class NativePresentationRuntime(
     private fun render(record: Record, allowTransient: Boolean) {
         if (uiProcess || settings.modulePaused) return
         val p = NativeHeadsetProjection.from(record.state) ?: return
-        if (record.metadata.replay) gate.tryPresent(record.metadata, SystemClock.elapsedRealtime()) { false }
+        if (record.metadata.replay || record.metadata.admission != NativeAdmission.HYPEREARS) {
+            attemptPresentation(record) { false }
+        }
+        if (checkNativeOwnership(record) != NativeAdmission.HYPEREARS) return
         if (record.metadata.admission != NativeAdmission.HYPEREARS) return
         val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(p.address) ?: return
         if (settings.headsetDetailNotification) {
             runCatching { details?.update(p, device, record.metadata.connection.id) }
                 .onFailure { ModuleLog.warn(TAG, "detail notification update failed", it) }
         }
-        if (!allowTransient || settings.headsetConnectionPresentation == HeadsetConnectionPresentation.OFF) return
-        gate.tryPresent(record.metadata, SystemClock.elapsedRealtime()) {
+        if (!allowTransient || record.metadata.replay ||
+            settings.headsetConnectionPresentation == HeadsetConnectionPresentation.OFF) return
+        attemptPresentation(record) {
             present(record, settings.headsetConnectionPresentation)
         }
+    }
+
+    private fun attemptPresentation(record: Record, submit: () -> Boolean): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        return gate.tryPresent(record.metadata, now, onDecision = { decision ->
+            val address = record.state.address ?: return@tryPresent
+            val value = record.metadata.connection.id to decision
+            if (gateDecisions.put(address, value) != value) {
+                ModuleLog.debug(TAG) {
+                    "connection gate=$decision address=${maskBluetoothAddress(address)} " +
+                        "ageMs=${now - record.metadata.connection.connectedAtElapsedMs} " +
+                        "adapter=${record.state.adapter?.id} batterySource=${record.state.adapter?.batterySource}"
+                }
+            }
+        }, submit = submit)
     }
 
     private fun preview(kind: String?) {

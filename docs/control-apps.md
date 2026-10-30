@@ -24,16 +24,20 @@ Sony | Headphones Connect。
 | OPPO Enco | Wireless Earphones | `com.oplus.melody` | 2 |
 | OPPO Enco | Wireless Earphones (ColorOS 11) | `com.coloros.oppopods` | 3 |
 | Bose | Bose | `com.bose.bosemusic` | 1 |
-| Bose | Bose Connect | `com.bose.monet` | 2 |
+| Bose | Bose（中国版） | `com.bose.bosemusic.china` | 2 |
+| Bose | Bose Connect | `com.bose.monet` | 3 |
 | Edifier / 漫步者 | Edifier Connect | `com.edifier.edifierconnect` | 1 |
+| Edifier / 漫步者 | EDIFIER ConneX | `com.edifier.edifierconnex` | 2 |
 | ROSESELSA / 弱水时砂 | ROSELINK | `cn.ikaile.ruoshui.client` | 1 |
 | StarRing / 籁特易耳 | LightYear | `cn.lightyeartech.android` | 1 |
 | NiceHCK / YuanDao | 原道 | `com.yuandao.nicehck` | 1 |
-| MOONDROP 家族（Pudding / MIRAGE） | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
+| MOONDROP 家族（Pudding / MIRAGE / ZZZ-ANGELS-OWS） | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
 | QCY | QCY | `com.qcymall.googleearphonesetup` | 1 |
+| QCY | QCY（中国版） | `com.qcymall.earphonesetup` | 2 |
 | Sony | Sony \| Sound Connect | `com.sony.songpal.mdr` | 1 |
 | Technics EAH-AZ TWS | Technics Audio Connect | `com.panasonic.technicsaudioconnect` | 1 |
 | 华为 FreeBuds 系列 | 智慧音频 | `com.huawei.smartaudio` | 1 |
+| 华为 FreeBuds 系列 | 智慧生活 / AI Life | `com.huawei.smarthome` | 2 |
 | Samsung Galaxy Buds2 Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
 | Samsung Galaxy Buds2 Pro | Galaxy Buds2 Pro Manager | `com.samsung.accessory.zenithmgr` | 2 |
 | Samsung Galaxy Buds2 | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
@@ -62,6 +66,31 @@ Sony | Headphones Connect。
 统一 Galaxy Buds 控制器的包名以
 [官方应用页面](https://play.google.com/store/apps/details?id=com.samsung.accessory.budsunitemgr) 为准。
 以上只声明导航与进程控制权优先顺序；不表示各型号导航与退避已实机验证。
+
+2026-10-27 的包名核查补齐了以下候选：
+
+| 控制 App | 核查依据 |
+|---|---|
+| Bose（中国版） | 实机 PackageManager：已安装 15.7.0（16270），包名为 `com.bose.bosemusic.china`，Launcher 入口可解析；国际版包名不存在 |
+| QCY（中国版） | [小米应用商店](https://app.mi.com/details?id=com.qcymall.earphonesetup)列出的包名与开发者 |
+| EDIFIER ConneX | [Edifier 发布的 Google Play 页面](https://play.google.com/store/apps/details?id=com.edifier.edifierconnex) |
+| 智慧生活 / AI Life | [小米应用商店包名](https://app.mi.com/details?id=com.huawei.smarthome)，以及[华为耳机支持说明](https://consumer.huawei.com/en/support/content/en-us00759662/)中的 AI Life 用途 |
+
+本轮核对包身份及声明一致性，新增候选的完整导航和退避行为尚未在新版安装包上实测。
+保留原候选的优先顺序，新增候选按上表顺序回退；多个版本同时安装时，当前已接管控制权的
+App 仍优先。智慧生活还管理其他智能设备，勾选其作用域后，进程运行就会按相同规则参与退避；
+应只勾选实际用于耳机控制的 App。
+
+其余已核对的控制 App 包名继续沿用：
+[vivo 耳机](https://app.mi.com/details?id=com.vivo.vivotws)、
+[HeyMelody](https://play.google.com/store/apps/details?id=com.heytap.headset)、
+[ROSELINK](https://play.google.com/store/apps/details?id=cn.ikaile.ruoshui.client)、
+[籁特易耳](https://app.mi.com/details?id=cn.lightyeartech.android)、
+[原道](https://app.mi.com/details?id=com.yuandao.nicehck)、
+[Sony Sound Connect](https://play.google.com/store/apps/details?id=com.sony.songpal.mdr)、
+[Technics Audio Connect](https://play.google.com/store/apps/details?id=com.panasonic.technicsaudioconnect)，
+以及[水月雨官网下载页](https://moondroplab.com/en/download)指向的 MOONDROP Android 包。
+这些来源未提供需要另外登记的地区包证据；应用显示名称变化本身不新增包名。
 
 “Adapter 声明顺序”只在同一家族声明了多个控制 App 时使用：
 

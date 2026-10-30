@@ -8,7 +8,10 @@ abstract class QcyEarbudAdapter(
     initialRuntimeState: AdapterRuntimeState = AdapterRuntimeState(),
 ) : StandardEarbudAdapter(transferredSession, initialRuntimeState) {
     override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
-    override val controlApps: List<ControlAppSpec> = listOf(ControlAppCatalog.qcy)
+    override val controlApps: List<ControlAppSpec> = listOf(
+        ControlAppCatalog.qcy,
+        ControlAppCatalog.qcyChina,
+    )
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false

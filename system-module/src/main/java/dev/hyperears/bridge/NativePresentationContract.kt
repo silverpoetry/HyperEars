@@ -43,14 +43,21 @@ internal object NativePresentationContract {
 
     fun producer(intent: Intent): IBinder? = intent.extras?.getBinder(PRODUCER)
 
-    fun admission(address: String, token: String): Intent = Intent(ACTION_ADMISSION)
-        .setPackage(ModuleContract.BLUETOOTH_PACKAGE)
-        .putExtra(ADDRESS, address).putExtra(SESSION, token)
+    data class AdmissionReport(val address: String, val session: String, val admission: NativeAdmission)
 
-    fun readAdmission(intent: Intent): Pair<String, String>? {
+    fun admission(address: String, token: String, admission: NativeAdmission): Intent = Intent(ACTION_ADMISSION)
+        .setPackage(ModuleContract.BLUETOOTH_PACKAGE)
+        .addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        .putExtra(ADDRESS, address).putExtra(SESSION, token)
+        .putExtra(ADMISSION, admission.name)
+
+    fun readAdmission(intent: Intent): AdmissionReport? {
         val address = intent.getStringExtra(ADDRESS)?.takeIf(String::isNotBlank) ?: return null
         val session = intent.getStringExtra(SESSION)?.takeIf(String::isNotBlank) ?: return null
-        return address to session
+        val admission = intent.getStringExtra(ADMISSION)
+            ?.let { runCatching { NativeAdmission.valueOf(it) }.getOrNull() }
+            ?.takeIf { it != NativeAdmission.UNKNOWN } ?: return null
+        return AdmissionReport(address, session, admission)
     }
 
     fun preview(kind: String): Intent = Intent(ACTION_PREVIEW)

@@ -30,7 +30,7 @@ class ControlAppArbitrationTest {
             TechnicsEarbudAdapter().controlApps,
         )
         assertEquals(
-            listOf(ControlAppCatalog.huaweiSmartAudio),
+            listOf(ControlAppCatalog.huaweiSmartAudio, ControlAppCatalog.huaweiAiLife),
             HuaweiFreebudsPro3Adapter().controlApps,
         )
         assertEquals(
@@ -64,6 +64,44 @@ class ControlAppArbitrationTest {
             ),
         )
         assertNull(ControlAppCatalog.activeOwner(candidates, emptySet()))
+    }
+
+    @Test
+    fun boseFamiliesAndConcreteModelsInheritTheChinaController() {
+        val expected = listOf(
+            ControlAppCatalog.bose,
+            ControlAppCatalog.boseChina,
+            ControlAppCatalog.boseConnect,
+        )
+        val adapters = listOf(BoseEarbudAdapter(), BoseHeadphonesAdapter()) + BoseBmapModelRegistry.adapters
+        adapters.forEach { adapter ->
+            assertEquals(adapter.id, expected, adapter.controlApps)
+            assertEquals(adapter.id, expected, adapter.snapshot().controlApps)
+        }
+        assertEquals(ControlAppCatalog.boseChina, ControlAppCatalog.find("com.bose.bosemusic.china"))
+        assertNull(ControlAppCatalog.find("com.bose.bosemusic.china.clone"))
+    }
+
+    @Test
+    fun alternateControllersParticipateWithoutChangingExistingPriority() {
+        val cases = listOf(
+            BoseHeadphonesAdapter().controlApps to ControlAppCatalog.boseChina,
+            EdifierEarbudAdapter().controlApps to ControlAppCatalog.edifierConnex,
+            QcyStandardGattAdapter().controlApps to ControlAppCatalog.qcyChina,
+            HuaweiFreebudsPro3Adapter().controlApps to ControlAppCatalog.huaweiAiLife,
+        )
+        cases.forEach { (candidates, alternate) ->
+            assertEquals(alternate, ControlAppCatalog.find(alternate.packageName))
+            assertEquals(alternate, ControlAppCatalog.activeOwner(candidates, setOf(alternate.packageName)))
+            assertEquals(
+                candidates.first(),
+                ControlAppCatalog.activeOwner(
+                    candidates,
+                    setOf(candidates.first().packageName, alternate.packageName),
+                ),
+            )
+        }
+        assertTrue(StandardEarbudAdapter().controlApps.isEmpty())
     }
 
     @Test

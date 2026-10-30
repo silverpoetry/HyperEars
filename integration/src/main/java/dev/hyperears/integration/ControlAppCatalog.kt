@@ -32,6 +32,11 @@ object ControlAppCatalog {
         displayName = "Bose",
     )
 
+    val boseChina = ControlAppSpec(
+        packageName = "com.bose.bosemusic.china",
+        displayName = "Bose（中国版）",
+    )
+
     val boseConnect = ControlAppSpec(
         packageName = "com.bose.monet",
         displayName = "Bose Connect",
@@ -40,6 +45,11 @@ object ControlAppCatalog {
     val edifierConnect = ControlAppSpec(
         packageName = "com.edifier.edifierconnect",
         displayName = "Edifier Connect",
+    )
+
+    val edifierConnex = ControlAppSpec(
+        packageName = "com.edifier.edifierconnex",
+        displayName = "EDIFIER ConneX",
     )
 
     val roseLink = ControlAppSpec(
@@ -67,6 +77,11 @@ object ControlAppCatalog {
         displayName = "QCY",
     )
 
+    val qcyChina = ControlAppSpec(
+        packageName = "com.qcymall.earphonesetup",
+        displayName = "QCY（中国版）",
+    )
+
     val technicsAudioConnect = ControlAppSpec(
         packageName = "com.panasonic.technicsaudioconnect",
         displayName = "Technics Audio Connect",
@@ -75,6 +90,11 @@ object ControlAppCatalog {
     val huaweiSmartAudio = ControlAppSpec(
         packageName = "com.huawei.smartaudio",
         displayName = "智慧音频",
+    )
+
+    val huaweiAiLife = ControlAppSpec(
+        packageName = "com.huawei.smarthome",
+        displayName = "智慧生活 / AI Life",
     )
 
     val moondrop = ControlAppSpec(
@@ -137,15 +157,19 @@ object ControlAppCatalog {
         oplusWirelessEarphones,
         colorOsWirelessEarphones,
         bose,
+        boseChina,
         boseConnect,
         edifierConnect,
+        edifierConnex,
         roseLink,
         lightYear,
         yuanDao,
         sonySoundConnect,
         qcy,
+        qcyChina,
         technicsAudioConnect,
         huaweiSmartAudio,
+        huaweiAiLife,
         moondrop,
         galaxyWearable,
         galaxyBuds2ProManager,

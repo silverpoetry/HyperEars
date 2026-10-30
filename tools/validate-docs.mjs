@@ -114,6 +114,8 @@ const scopePath = path.join(
   "system-module/src/main/resources/META-INF/xposed/scope.list",
 );
 const controlAppDocumentPath = path.join(repositoryRoot, "docs/control-apps.md");
+const manifestPath = path.join(repositoryRoot, "system-module/src/main/AndroidManifest.xml");
+const legacyScopePath = path.join(repositoryRoot, "system-module/src/main/res/values/strings.xml");
 const catalogSource = readFileSync(catalogPath, "utf8");
 const controlAppDocument = readFileSync(controlAppDocumentPath, "utf8").replaceAll("\\|", "|");
 const controlAppPattern = /val\s+(\w+)\s*=\s*ControlAppSpec\(\s*packageName\s*=\s*"([^"]+)"\s*,\s*displayName\s*=\s*"([^"]+)"/gs;
@@ -126,12 +128,31 @@ const coreScopes = new Set(["com.android.bluetooth", "com.milink.service", "com.
 const declaredScopes = new Set(
   readFileSync(scopePath, "utf8").split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
 );
+const queriesBlock = /<queries\b[^>]*>([\s\S]*?)<\/queries>/.exec(readFileSync(manifestPath, "utf8"))?.[1];
+const legacyScopeBlock = /<string-array\b[^>]*name="xposed_scope"[^>]*>([\s\S]*?)<\/string-array>/
+  .exec(readFileSync(legacyScopePath, "utf8"))?.[1];
+const registrationsBlock = /val\s+all:\s*List<ControlAppSpec>\s*=\s*listOf\(([\s\S]*?)\n\s*\)/
+  .exec(catalogSource)?.[1];
+if (queriesBlock == null) failures.push("AndroidManifest.xml: missing package visibility declarations");
+if (legacyScopeBlock == null) failures.push("strings.xml: missing xposed_scope array");
+if (registrationsBlock == null) failures.push("ControlAppCatalog: missing all registration list");
+const visiblePackages = new Set(
+  [...(queriesBlock ?? "").matchAll(/<package\b[^>]*android:name="([^"]+)"[^>]*\/>/g)]
+    .map((match) => match[1]),
+);
+const legacyScopes = new Set(
+  [...(legacyScopeBlock ?? "").matchAll(/<item>\s*([^<]+?)\s*<\/item>/g)].map((match) => match[1]),
+);
+const registrations = new Set((registrationsBlock ?? "").split(",").map((entry) => entry.trim()).filter(Boolean));
 const adapterSources = collectFiles(
   path.join(repositoryRoot, "integration/src/main/java"),
   (file) => path.extname(file) === ".kt" && file !== catalogPath,
 ).map((file) => readFileSync(file, "utf8")).join("\n");
 
 for (const app of controlApps) {
+  if (!registrations.has(app.symbol)) {
+    failures.push(`ControlAppCatalog.all: missing registration ${app.symbol}`);
+  }
   if (!controlAppDocument.includes(`\`${app.packageName}\``)) {
     failures.push(`docs/control-apps.md: missing package ${app.packageName}`);
   }
@@ -141,12 +162,25 @@ for (const app of controlApps) {
   if (!declaredScopes.has(app.packageName)) {
     failures.push(`scope.list: missing optional package ${app.packageName}`);
   }
+  if (!legacyScopes.has(app.packageName)) {
+    failures.push(`strings.xml xposed_scope: missing optional package ${app.packageName}`);
+  }
+  if (!visiblePackages.has(app.packageName)) {
+    failures.push(`AndroidManifest.xml queries: missing optional package ${app.packageName}`);
+  }
   if (!adapterSources.includes(`ControlAppCatalog.${app.symbol}`)) {
     failures.push(`Adapter declarations: unused control app ${app.symbol}`);
   }
 }
 
 const catalogPackages = new Set(controlApps.map((app) => app.packageName));
+const catalogSymbols = new Set(controlApps.map((app) => app.symbol));
+for (const symbol of registrations) {
+  if (!catalogSymbols.has(symbol)) failures.push(`ControlAppCatalog.all: unknown entry ${symbol}`);
+}
+for (const scope of legacyScopes) {
+  if (!declaredScopes.has(scope)) failures.push(`scope.list: missing legacy scope ${scope}`);
+}
 for (const scope of declaredScopes) {
   if (!coreScopes.has(scope) && !catalogPackages.has(scope)) {
     failures.push(`ControlAppCatalog: missing scope entry ${scope}`);
@@ -156,6 +190,8 @@ for (const coreScope of coreScopes) {
   if (!declaredScopes.has(coreScope)) {
     failures.push(`scope.list: missing core package ${coreScope}`);
   }
+  if (!legacyScopes.has(coreScope)) failures.push(`strings.xml xposed_scope: missing core package ${coreScope}`);
+  if (!visiblePackages.has(coreScope)) failures.push(`AndroidManifest.xml queries: missing core package ${coreScope}`);
 }
 
 if (failures.length > 0) {
