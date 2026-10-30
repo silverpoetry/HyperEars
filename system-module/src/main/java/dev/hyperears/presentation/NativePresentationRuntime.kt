@@ -94,7 +94,9 @@ internal class NativePresentationRuntime(
                         Intent.ACTION_SCREEN_OFF -> windowBridge?.closeAll("screen off")
                         BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                             val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                            if (device?.address in records) windowBridge?.closeAll("Bluetooth disconnected")
+                            if (device?.address?.let(records::get)?.active == true) {
+                                windowBridge?.closeAll("Bluetooth disconnected")
+                            }
                         }
                     }
                 }.onFailure { ModuleLog.warn(TAG, "native presentation event failed", it) }
