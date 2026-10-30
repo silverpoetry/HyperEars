@@ -28,6 +28,7 @@ vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、Nic
   超级岛，也可选仅弹窗、仅超级岛或关闭。
 - 可独立开启耳机电量通知，查看当前电量、打开耳机设置或断开连接。
   新增展示需勾选 `com.xiaomi.bluetooth` 作用域，实机基线为 HyperOS 4。
+- 连接提示和电量通知由系统耳机进程直接检查原生接管状态，无需先启动 MiLink 或打开控制中心。
 
 ### 设备能力
 
@@ -75,7 +76,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 | Edifier / 漫步者 | W860NB PRO、花再 Evo Pro、FitClip Ultra、FitBuds Turbo 实机验证；其余家族外推 | 头戴整机、TWS 组件或聚合电量 | 按型号提供降噪、关闭、通透、抗风噪；FitClip Ultra 仅游戏模式，Turbo 另有游戏模式 |
 | ROSESELSA / 弱水时砂 | Furina Endless Solo of Solitude、ROSE Ceramics Ultra 实机验证；两个型号公开实现；产品线家族外推；其余标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透、抗风噪 |
 | NiceHCK / YuanDao | OriG in 公开实现；其他标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | OriG in 支持降噪、关闭、通透、抗风噪 |
-| MOONDROP / 水月雨 | Robin 公开协议；Pudding 实机验证；MIRAGE 原版部分实测、维护版待复核；其他标准回退 | Robin 私有左右耳电量；Pudding / MIRAGE 私有左右耳与充电盒电量；均由有效响应确认，回退设备使用系统整机电量 | 降噪、关闭、通透；MIRAGE 新档位待确认 |
+| MOONDROP / 水月雨 | Robin 公开协议；Pudding 实机验证；ZZZ-ANGELS-OWS 维护版实机复核通过；MIRAGE 原版部分实测、维护版待复核；其他标准回退 | Robin、ZZZ-ANGELS-OWS 私有左右耳电量；Pudding / MIRAGE 私有左右耳与充电盒电量；均由有效响应确认，回退设备使用系统整机电量 | 降噪、关闭、通透；MIRAGE 新档位待确认；ZZZ-ANGELS-OWS 无降噪功能 |
 | 荣耀 | X5s Pro 实机验证；其他标准回退 | X5s Pro 协议确认后提供私有组件电量；回退设备使用系统整机电量 | X5s Pro 协议确认后支持降噪、关闭、通透 |
 | 华为 | FreeBuds 5i、FreeBuds Pro 3 实机验证；FreeBuds 4 公开实现；FreeBuds / FreeClip / FreeLace 家族探测；其余标准回退 | 合法协议响应后提供私有组件或整机电量；回退设备使用系统整机电量 | 5i、Pro 3 支持三态；Pro 3 另有型号专属档位；FreeBuds 4 支持降噪、关闭；家族候选在协议确认后支持三态，不开放档位 |
 | QCY | Crossky C50S 公开协议；同协议家族探测；其余标准回退 | 协议确认后提供私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透 |
@@ -231,6 +232,7 @@ SHA-256 文件。
 - [Sony Headphones 协议](docs/sony-headphones-protocol.md)
 - [MOONDROP Robin 协议](docs/moondrop-robin-protocol.md)
 - [MOONDROP Pudding 协议](docs/moondrop-pudding-protocol.md)
+- [MOONDROP ZZZ-ANGELS-OWS 协议](docs/moondrop-zzz-angels-protocol.md)
 - [QCY 标准 GATT 协议](docs/qcy-standard-gatt-protocol.md)
 - [StarRing Ultra 协议](docs/starring-ultra-protocol.md)
 - [Edifier (BES) 协议](docs/edifier-bes-protocol.md)

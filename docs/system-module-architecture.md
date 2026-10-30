@@ -243,12 +243,18 @@ open class HonorEarbudAdapter : StandardEarbudAdapter() {
 匹配依据来自 Android 已缓存的设备名称、Class、服务 UUID 和地址信息，不主动扫描。
 Registry 不按 ID 恢复运行时 Adapter，也不参与协议升级。
 
-Registry 结果只是 Bluetooth 进程中的静态候选。MiLink 执行原生 `checkIsMiTWS(device)` 后，
-模块才在同一稳定入口仲裁最终所有权：原始结果表示支持时，系统所有权优先，并通过带发送方
+Registry 结果只是 Bluetooth 进程中的静态候选。MiLink 执行原生 `checkIsMiTWS(device)` 时，
+模块在同一稳定入口保护系统所有权：原始结果表示支持时，系统所有权优先，并通过带发送方
 身份的定向广播同步到 MiLink 的 `:audio`、`:core`、`:ui` 进程，同时关闭 Bluetooth 进程中
 同地址的模块会话；原始结果表示不支持且存在活动候选时，HyperEars 才把结果补充为支持。
 MiLink 子进程在收到系统认领前可以消费相同的活动候选快照，收到认领后，身份、电量、噪声
 能力、命令、卡片扩展和设置跳转会统一退避，不单独维护品牌黑名单。
+
+从 3.1.1 起，连接提示和电量通知由 `com.xiaomi.bluetooth` 读取原生登记状态并向 Bluetooth
+回传当前会话的结果，独立于 MiLink 启动和卡片创建。Bluetooth 验证来源与会话 token 后，
+发布统一的展示元数据；原生登记为系统所有时同步结束模块会话，MiLink 消费该结果并停止
+同地址适配。任一路径确认系统所有权后，后到的模块许可均不能覆盖它。具体存储与失败边界见
+[原生接管检查](native-headset-integration-design.md#41-原生接管检查独立于-milink)。
 
 需要私有协议的 Adapter 在会话第一阶段执行只读确认。结果只有四种：
 

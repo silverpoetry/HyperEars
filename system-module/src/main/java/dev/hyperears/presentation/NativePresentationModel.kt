@@ -39,9 +39,11 @@ data class NativeHeadsetProjection(
 
     // The native connected island needs ear/headphone telemetry. Its single-battery template
     // becomes an invalid icon-only model before a reading exists; a case reading cannot fill it.
-    val canShowConnectionHint: Boolean
-        get() = (left.available || right.available) &&
-            !(singleBattery && form == HeadsetFormFactor.TWS)
+    val canShowConnectionHint: Boolean get() = left.available || right.available
+
+    /** The native one-value island may use either its headphone or generic earbud artwork. */
+    val singleBatteryHintArtwork: String
+        get() = if (form == HeadsetFormFactor.TWS) "earphone" else "single_battery_head"
 
     companion object {
         fun from(state: EarbudState): NativeHeadsetProjection? {
@@ -86,20 +88,36 @@ internal fun resolveNativePresentationTarget(
 /** No timers or IO; failed eligibility/display checks do not consume a connection. */
 internal class ConnectionPresentationGate(private val freshnessMs: Long = 10_000) {
     private val consumed = mutableMapOf<String, Long>()
+    private val pending = mutableMapOf<String, Long>()
 
-    fun tryPresent(metadata: NativePresentationMetadata, now: Long, submit: () -> Boolean): Boolean {
+    fun tryPresent(
+        metadata: NativePresentationMetadata,
+        now: Long,
+        onDecision: (String) -> Unit = {},
+        submit: () -> Boolean,
+    ): Boolean {
+        fun skip(reason: String): Boolean { onDecision(reason); return false }
         consumed.entries.removeAll { now - it.value > freshnessMs }
+        pending.entries.removeAll { now - it.value > freshnessMs }
         if (metadata.replay) {
-            consumed[metadata.connection.id] = metadata.connection.connectedAtElapsedMs
-            return false
+            // A startup replay cannot itself open a window. It must not cancel a live connection
+            // already waiting for native admission, plugin readiness or battery telemetry either.
+            if (metadata.connection.id !in pending) {
+                consumed[metadata.connection.id] = metadata.connection.connectedAtElapsedMs
+            }
+            return skip("replay")
         }
-        if (metadata.admission != NativeAdmission.HYPEREARS) return false
-        if (now - metadata.connection.connectedAtElapsedMs !in 0..freshnessMs) return false
-        if (metadata.connection.id in consumed || !submit()) return false
+        if (now - metadata.connection.connectedAtElapsedMs !in 0..freshnessMs) return skip("expired")
+        if (metadata.connection.id in consumed) return skip("consumed")
+        pending[metadata.connection.id] = metadata.connection.connectedAtElapsedMs
+        if (metadata.admission != NativeAdmission.HYPEREARS) return skip("admission-${metadata.admission}")
+        if (!submit()) return skip("not-submitted")
+        pending.remove(metadata.connection.id)
         consumed[metadata.connection.id] = metadata.connection.connectedAtElapsedMs
+        onDecision("submitted")
         return true
     }
 
-    fun retire(id: String) { consumed.remove(id) }
-    fun clear() { consumed.clear() }
+    fun retire(id: String) { consumed.remove(id); pending.remove(id) }
+    fun clear() { consumed.clear(); pending.clear() }
 }
