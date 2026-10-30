@@ -1,6 +1,5 @@
 package dev.hyperears.presentation
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import dev.hyperears.hook.ModuleLog
@@ -44,25 +43,10 @@ internal class NativeOwnershipStore private constructor(
             key == "saved$address" || key == "$address-type" || key == "third_party_type$address"
 
         @Suppress("DEPRECATION")
-        // These are the explicitly scoped host's classes, not Android framework hidden APIs.
-        @SuppressLint("PrivateApi")
-        fun resolve(context: Context, onChanged: (String?) -> Unit): NativeOwnershipStore {
-            val loader = context.classLoader
-            // Validate the semantic host contract before interpreting absence as module ownership.
-            val binder = Class.forName(
-                "com.android.bluetooth.ble.app.headset.BluetoothHeadsetService\$HeadsetBinder", false, loader,
-            )
-            listOf("isMiTWS", "checkIsMiTWS", "checkIsAirPods", "checkIsThirdPartyHeadset").forEach { name ->
-                require(NativeMembers.method(binder, name, String::class.java).returnType ==
-                    Boolean::class.javaPrimitiveType) { "Unexpected native ownership contract: $name" }
-            }
-            val handler = Class.forName(
-                "com.android.bluetooth.ble.app.headset.FragmentHandler", false, loader,
-            )
-            val deviceStore = NativeMembers.field(handler, "HEADSET_DEVICE_INFO").get(null) as String
-            require(deviceStore == "DeviceIdCached") { "Unverified native registration store" }
+        /** Called only after validating the host's named contract or its unique DEX identity readers. */
+        fun openVerified(context: Context, onChanged: (String?) -> Unit): NativeOwnershipStore {
             return NativeOwnershipStore(
-                context.getSharedPreferences(deviceStore, Context.MODE_MULTI_PROCESS),
+                context.getSharedPreferences("DeviceIdCached", Context.MODE_MULTI_PROCESS),
                 context.getSharedPreferences("HEADSET_DEVICE_ID_INFO", Context.MODE_MULTI_PROCESS),
                 context.getSharedPreferences("AirpodsModel", Context.MODE_MULTI_PROCESS),
                 onChanged,

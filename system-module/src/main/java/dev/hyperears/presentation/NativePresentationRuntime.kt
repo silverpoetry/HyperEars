@@ -49,8 +49,8 @@ internal class NativePresentationRuntime(
     private val gate = ConnectionPresentationGate()
     private val gateDecisions = mutableMapOf<String, Pair<String, String>>()
     private var ownershipStore: NativeOwnershipStore? = null
-    private val ownershipReadings = mutableMapOf<String, Pair<String, NativeAdmission>>()
-    private val ownershipReports = mutableMapOf<String, Pair<String, NativeAdmission>>()
+    private val ownershipReadings = NativeAdmissionCache()
+    private var flow: NativePresentationFlow? = null
     private var producer: IBinder? = null
     private var producerDeath: IBinder.DeathRecipient? = null
     private val retiredProducers = ArrayDeque<IBinder>()
@@ -69,13 +69,7 @@ internal class NativePresentationRuntime(
 
     init {
         if (!uiProcess) {
-            runCatching { NativeOwnershipStore.resolve(context) { key ->
-                handler.post { nativeOwnershipChanged(key) }
-            } }.onSuccess { ownershipStore = it }
-                .onFailure { ModuleLog.warn(TAG, "native ownership store unavailable", it) }
-            runCatching { NativeConnectionHint().also { configure(it, context.classLoader); it.install() } }
-                .onSuccess { hint = it }
-                .onFailure { ModuleLog.warn(TAG, "connection hint unavailable", it) }
+            prepareHost()
         }
         context.registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -87,7 +81,7 @@ internal class NativePresentationRuntime(
                         }
                         NativePresentationContract.ACTION_PREVIEW -> if (!uiProcess &&
                             BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
-                                ModuleContract.MODULE_PACKAGE)) preview(NativePresentationContract.kind(intent))
+                                ModuleContract.MODULE_PACKAGE)) preview(intent)
                         NativePresentationContract.ACTION_WINDOW -> if (!uiProcess &&
                             BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
                                 ModuleContract.NATIVE_HEADSET_PACKAGE)) windowChanged(intent)
@@ -126,6 +120,36 @@ internal class NativePresentationRuntime(
         } }
         BroadcastIdentity.send(context, ModuleContract.requestState(ModuleContract.NATIVE_HEADSET_PACKAGE))
         ModuleLog.debug(TAG, "receiver ready ui=$uiProcess")
+    }
+
+    /** One bounded APK scan off the main thread. Each native capability can fail independently. */
+    private fun prepareHost() {
+        val executor = Executors.newSingleThreadExecutor { Thread(it, "HyperEars-native-host") }
+        executor.execute {
+            val result = runCatching { NativeHostResolver.resolve(context) { key ->
+                handler.post { nativeOwnershipChanged(key) }
+            } }
+            handler.post {
+                result.onSuccess { symbols ->
+                    symbols.ownership.onSuccess { ownershipStore = it }
+                        .onFailure { ModuleLog.warn(TAG, "native ownership contract unavailable", it) }
+                    symbols.flow.onSuccess { flow = it }
+                        .onFailure { ModuleLog.warn(TAG, "native circulation contract unavailable", it) }
+                    symbols.airPodsState.onSuccess { getter ->
+                        runCatching { NativeConnectionHint(getter).also {
+                            configure(it, context.classLoader); it.install()
+                        } }.onSuccess { hint = it }
+                            .onFailure { ModuleLog.warn(TAG, "connection hint hook unavailable", it) }
+                    }.onFailure { ModuleLog.warn(TAG, "connection hint contract unavailable", it) }
+                    ownershipReadings.clear()
+                    ModuleLog.debug(TAG) {
+                        "host ready ownership=${ownershipStore != null} flow=${flow != null} hint=${hint != null}"
+                    }
+                    records.values.toList().forEach { render(it, allowTransient = true) }
+                }.onFailure { ModuleLog.warn(TAG, "native host resolution failed", it) }
+            }
+            executor.shutdown()
+        }
     }
 
     // A feature-plugin class in the explicitly scoped Xiaomi host, not an Android framework API.
@@ -226,7 +250,6 @@ internal class NativePresentationRuntime(
         if (!record.active) {
             gateDecisions.remove(address)
             ownershipReadings.remove(address)
-            ownershipReports.remove(address)
             details?.remove(address)
             // Retain the consumed connection through logical session replacement.
             return
@@ -242,7 +265,6 @@ internal class NativePresentationRuntime(
         gate.clear()
         gateDecisions.clear()
         ownershipReadings.clear()
-        ownershipReports.clear()
         releaseWindow()
     }
 
@@ -251,27 +273,24 @@ internal class NativePresentationRuntime(
             val address = record.state.address ?: return@forEach
             if (NativeOwnershipStore.affects(address, key)) {
                 ownershipReadings.remove(address)
-                ownershipReports.remove(address)
                 render(record, allowTransient = false)
             }
         }
     }
 
     /** Read and report in the actual presentation host; MiLink is not part of this path. */
-    private fun checkNativeOwnership(record: Record): NativeAdmission {
+    private fun checkNativeOwnership(record: Record, refresh: Boolean = false): NativeAdmission {
         val address = record.state.address ?: return NativeAdmission.UNKNOWN
-        val cached = ownershipReadings[address]?.takeIf { it.first == record.session }
-        val admission = cached?.second ?: (ownershipStore?.read(address) ?: NativeAdmission.UNKNOWN).also {
-            ownershipReadings[address] = record.session to it
+        val admission = ownershipReadings.read(address, record.session, refresh) {
+            val result = ownershipStore?.read(address) ?: NativeAdmission.UNKNOWN
             ModuleLog.debug("NativeOwnership") {
-                "decision=$it address=${maskBluetoothAddress(address)} session=${record.session}"
+                "decision=$result address=${maskBluetoothAddress(address)} session=${record.session}"
             }
+            result
         }
-        val report = record.session to admission
         if (admission != NativeAdmission.UNKNOWN && admission != record.metadata.admission &&
-            ownershipReports[address] != report && record.producer.isBinderAlive) {
+            record.producer.isBinderAlive) {
             BroadcastIdentity.send(context, NativePresentationContract.admission(address, record.session, admission))
-            ownershipReports[address] = report
         }
         return admission
     }
@@ -328,7 +347,7 @@ internal class NativePresentationRuntime(
         if (!allowTransient || record.metadata.replay ||
             settings.headsetConnectionPresentation == HeadsetConnectionPresentation.OFF) return
         attemptPresentation(record) {
-            present(record, settings.headsetConnectionPresentation)
+            present(record, settings.headsetConnectionPresentation) == NativePresentationResult.SUBMITTED
         }
     }
 
@@ -347,47 +366,62 @@ internal class NativePresentationRuntime(
         }, submit = submit)
     }
 
-    private fun preview(kind: String?) {
-        val record = records.values.lastOrNull {
-            it.active && it.metadata.admission == NativeAdmission.HYPEREARS
-        } ?: run {
-            ModuleLog.debug(TAG, "preview rejected: no admitted connected headset")
-            return
-        }
-        val mode = when (kind) {
+    private fun preview(intent: Intent) {
+        val mode = when (NativePresentationContract.kind(intent)) {
             "hint" -> HeadsetConnectionPresentation.SYSTEM_HINT
             "popup" -> HeadsetConnectionPresentation.BATTERY_POPUP
             else -> return
         }
-        present(record, mode)
+        val result = runCatching {
+            val record = records.values.lastOrNull { it.active }
+                ?: return@runCatching NativePresentationResult.NO_DEVICE
+            previewAdmissionResult(checkNativeOwnership(record, refresh = true), record.metadata.admission)
+                ?: present(record, mode, manual = true)
+        }.getOrElse {
+            ModuleLog.warn(TAG, "preview failed", it)
+            NativePresentationResult.FAILED
+        }
+        ModuleLog.debug(TAG, "preview kind=${NativePresentationContract.kind(intent)} result=$result")
+        NativePresentationContract.previewId(intent)?.let { id ->
+            BroadcastIdentity.send(context, NativePresentationContract.previewResult(id, result))
+        }
+    }
+
+    private fun present(record: Record, mode: HeadsetConnectionPresentation, manual: Boolean = false): NativePresentationResult {
+        return runCatching { presentResolved(record, mode, manual) }.getOrElse {
+            ModuleLog.warn(TAG, "native presentation failed", it)
+            NativePresentationResult.FAILED
+        }
     }
 
     @SuppressLint("MissingPermission")
-    private fun present(record: Record, mode: HeadsetConnectionPresentation): Boolean {
-        if (settings.modulePaused || mode == HeadsetConnectionPresentation.OFF) return false
-        val p = NativeHeadsetProjection.from(record.state) ?: return false
+    private fun presentResolved(record: Record, mode: HeadsetConnectionPresentation, manual: Boolean): NativePresentationResult {
+        if (settings.modulePaused || mode == HeadsetConnectionPresentation.OFF) return NativePresentationResult.PAUSED
+        val p = NativeHeadsetProjection.from(record.state) ?: return NativePresentationResult.NO_DEVICE
         val power = context.getSystemService(PowerManager::class.java)
         val keyguard = context.getSystemService(KeyguardManager::class.java)
         val user = context.getSystemService(UserManager::class.java)
         // fast_connect_show_dialog is also written by ignorePairDialog/pairing paths without a UI.
         // The native owner tag and per-device flow record represent presentation occupancy.
         val busy = !Settings.Global.getString(context.contentResolver, "miui_nearby_show_dialog").isNullOrEmpty()
-        if (!user.isUserUnlocked || !user.isUserForeground || !power.isInteractive ||
-            keyguard.isKeyguardLocked || busy || activeWindow != null) {
+        if (!user.isUserUnlocked || !user.isUserForeground || !power.isInteractive || keyguard.isKeyguardLocked) {
             ModuleLog.debug(TAG, "presentation skipped: unlocked=${user.isUserUnlocked} " +
                 "foreground=${user.isUserForeground} interactive=${power.isInteractive} " +
                 "locked=${keyguard.isKeyguardLocked} nativeWindow=$busy ownWindow=${activeWindow != null}")
-            return false
+            return NativePresentationResult.SCREEN_UNAVAILABLE
         }
+        if (busy || activeWindow != null) return NativePresentationResult.BUSY
         if (Settings.Global.getInt(context.contentResolver, "miui_disable_fast_connect_bt_off", 1) != 0) {
             ModuleLog.debug(TAG, "presentation skipped: native FastConnect disabled")
-            return false
+            return NativePresentationResult.NATIVE_DISABLED
         }
-        val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(p.address) ?: return false
-        if (BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) return false
-        if (hint?.flowOwnsPresentation(device) != false) {
-            ModuleLog.debug(TAG, "presentation skipped: native circulation owns display")
-            return false
+        val device = context.getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(p.address)
+            ?: return NativePresentationResult.NO_DEVICE
+        if (BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) return NativePresentationResult.NO_DEVICE
+        val circulation = flow?.read(device) ?: return NativePresentationResult.HOST_UNAVAILABLE
+        if (circulation.blocks(manual)) {
+            ModuleLog.debug(TAG, "presentation skipped: native flow=$circulation manual=$manual")
+            return NativePresentationResult.BUSY
         }
         val onHomeOrCoverScreen = if (mode == HeadsetConnectionPresentation.SMART) {
             runCatching { scene?.isOnHomeOrCoverScreen(context) }
@@ -395,15 +429,15 @@ internal class NativePresentationRuntime(
         } else null
         val target = resolveNativePresentationTarget(mode, onHomeOrCoverScreen) ?: run {
             ModuleLog.debug(TAG, "presentation skipped: native scene unavailable")
-            return false
+            return NativePresentationResult.HOST_UNAVAILABLE
         }
         ModuleLog.debug(TAG, "selected target=$target mode=$mode home=$onHomeOrCoverScreen")
         return when (target) {
-            NativePresentationTarget.ISLAND -> hint?.show(p, device) == true
+            NativePresentationTarget.ISLAND -> hint?.show(p, device) ?: NativePresentationResult.HOST_UNAVAILABLE
             NativePresentationTarget.POPUP -> {
                 if (!popupCompatible) {
                     ModuleLog.debug(TAG, "popup unavailable: host contract not ready")
-                    return false
+                    return NativePresentationResult.HOST_UNAVAILABLE
                 }
                 val id = UUID.randomUUID().toString()
                 activeWindow = id
@@ -414,12 +448,12 @@ internal class NativePresentationRuntime(
                 }.getOrElse {
                     releaseWindow()
                     ModuleLog.warn(TAG, "popup launch failed", it)
-                    return false
+                    return NativePresentationResult.FAILED
                 }
                 BroadcastIdentity.send(context,
                     ModuleContract.control(StandardControlRequest.Refresh, p.address, record.session))
                 ModuleLog.debug(TAG, "popup submitted address=${maskBluetoothAddress(p.address)}")
-                true
+                NativePresentationResult.SUBMITTED
             }
         }
     }

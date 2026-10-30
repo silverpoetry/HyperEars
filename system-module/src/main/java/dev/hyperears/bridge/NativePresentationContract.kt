@@ -6,11 +6,14 @@ import android.os.IBinder
 import dev.hyperears.presentation.HeadsetConnection
 import dev.hyperears.presentation.NativeAdmission
 import dev.hyperears.presentation.NativePresentationMetadata
+import dev.hyperears.presentation.NativePresentationResult
+import java.util.UUID
 
 /** Transport metadata for the existing accepted state, never an alternative battery/control bus. */
 internal object NativePresentationContract {
     const val ACTION_ADMISSION = "dev.hyperears.action.NATIVE_ADMISSION"
     const val ACTION_PREVIEW = "dev.hyperears.action.NATIVE_PREVIEW"
+    const val ACTION_PREVIEW_RESULT = "dev.hyperears.action.NATIVE_PREVIEW_RESULT"
     const val ACTION_WINDOW = "dev.hyperears.action.NATIVE_WINDOW"
     const val EXTRA_WINDOW = "dev.hyperears.native_window"
     private const val CONNECTION = "native_connection"
@@ -21,6 +24,8 @@ internal object NativePresentationContract {
     private const val ADDRESS = "native_address"
     private const val SESSION = "native_session"
     private const val KIND = "native_kind"
+    private const val PREVIEW_ID = "native_preview_id"
+    private const val PREVIEW_RESULT = "native_preview_result"
 
     fun attach(intent: Intent, metadata: NativePresentationMetadata, producer: IBinder): Intent =
         intent.putExtra(CONNECTION, metadata.connection.id)
@@ -60,8 +65,17 @@ internal object NativePresentationContract {
         return AdmissionReport(address, session, admission)
     }
 
-    fun preview(kind: String): Intent = Intent(ACTION_PREVIEW)
-        .setPackage(ModuleContract.NATIVE_HEADSET_PACKAGE).putExtra(KIND, kind)
+    fun preview(kind: String, id: String): Intent = Intent(ACTION_PREVIEW)
+        .setPackage(ModuleContract.NATIVE_HEADSET_PACKAGE).putExtra(KIND, kind).putExtra(PREVIEW_ID, id)
+
+    fun previewId(intent: Intent): String? = intent.getStringExtra(PREVIEW_ID)
+        ?.takeIf { runCatching { UUID.fromString(it) }.isSuccess }
+
+    fun previewResult(id: String, result: NativePresentationResult): Intent = Intent(ACTION_PREVIEW_RESULT)
+        .setPackage(ModuleContract.MODULE_PACKAGE).putExtra(PREVIEW_ID, id).putExtra(PREVIEW_RESULT, result.name)
+
+    fun previewResult(intent: Intent): NativePresentationResult? = intent.getStringExtra(PREVIEW_RESULT)
+        ?.let { runCatching { NativePresentationResult.valueOf(it) }.getOrNull() }
 
     fun kind(intent: Intent): String? = intent.getStringExtra(KIND)
 }

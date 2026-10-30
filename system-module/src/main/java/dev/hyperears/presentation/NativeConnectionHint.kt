@@ -9,7 +9,7 @@ import dev.hyperears.integration.HeadsetFormFactor
 import java.lang.reflect.Method
 
 /** Reuses the native AirPods connection notification, with a call-scoped read-only state source. */
-internal class NativeConnectionHint : HookContext() {
+internal class NativeConnectionHint(private val stateGetter: Method) : HookContext() {
     private val current = ThreadLocal<NativeHeadsetProjection?>()
     private lateinit var notificationType: Class<*>
     private var singleBatteryResource: Method? = null
@@ -18,9 +18,9 @@ internal class NativeConnectionHint : HookContext() {
         notificationType = findClass("com.android.bluetooth.ble.app.MiuiBluetoothNotification")
         NativeMembers.method(notificationType, "showConnectToastForAirPods",
             Int::class.javaPrimitiveType!!, BluetoothDevice::class.java, Int::class.javaPrimitiveType!!)
-        val getter = findMethod("com.android.bluetooth.ble.app.offlinefind.OfflineFindProvider",
-            "getAirPodsState", String::class.java, Context::class.java)
-        hookBefore(getter) {
+        require(stateGetter.parameterTypes.contentEquals(arrayOf(String::class.java, Context::class.java)))
+        require(stateGetter.returnType == Array<String>::class.java)
+        hookBefore(stateGetter) {
             val state = current.get() ?: return@hookBefore
             if (args[0] != state.address) return@hookBefore
             // This native getter uses a different ordering from the popup Controller's getter.
@@ -43,18 +43,19 @@ internal class NativeConnectionHint : HookContext() {
         }.onFailure { ModuleLog.debug("NativeHint", "single-battery TWS resource entry unavailable") }
     }
 
-    fun show(projection: NativeHeadsetProjection, device: BluetoothDevice): Boolean {
+    fun show(projection: NativeHeadsetProjection, device: BluetoothDevice): NativePresentationResult {
         if (!projection.canShowConnectionHint) {
             ModuleLog.debug("NativeHint", "not submitted: usable ear battery unavailable " +
                 "form=${projection.form} single=${projection.singleBattery}")
-            return false
+            return NativePresentationResult.NO_BATTERY
         }
-        val native = NativeMembers.field(notificationType, "mMiuiBluetoothNotification").get(null) ?: return false
+        val native = NativeMembers.field(notificationType, "mMiuiBluetoothNotification").get(null)
+            ?: return NativePresentationResult.HOST_UNAVAILABLE
         if (projection.singleBattery && projection.form == HeadsetFormFactor.TWS &&
             runCatching { singleBatteryResource?.invoke(native, projection.singleBatteryHintArtwork, null) }
                 .getOrNull() == null) {
             ModuleLog.debug("NativeHint", "not submitted: single-battery TWS resource unavailable")
-            return false
+            return NativePresentationResult.RESOURCE_UNAVAILABLE
         }
         val previous = current.get()
         current.set(projection)
@@ -64,18 +65,10 @@ internal class NativeConnectionHint : HookContext() {
                 .invoke(native, 2, device, if (projection.singleBattery) 3 else 0)
             ModuleLog.debug("NativeHint", "submitted address=${maskBluetoothAddress(projection.address)} " +
                 "left=${projection.left.percent} right=${projection.right.percent} single=${projection.singleBattery}")
-            true
+            NativePresentationResult.SUBMITTED
         } finally {
             if (previous == null) current.remove() else current.set(previous)
         }
     }
 
-    fun flowOwnsPresentation(device: BluetoothDevice): Boolean {
-        val native = NativeMembers.field(notificationType, "mMiuiBluetoothNotification").get(null) ?: return true
-        val managers = NativeMembers.call(native, "getConnectManagerList") as? Map<*, *> ?: return false
-        val record = managers[device] ?: return false
-        return NativeMembers.call(record, "getRequestFlag") == 1 ||
-            NativeMembers.call(record, "getIsShowFastConnectDialog") == true ||
-            NativeMembers.call(record, "getAlreadyShowFastConnectDiaolog") == true
-    }
 }

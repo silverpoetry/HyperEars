@@ -27,9 +27,7 @@ internal class NativeDetailNotification(
         hookBefore(methods.notificationType) {
             current.get()?.takeIf { it.singleBattery }?.let { result = "singlebatteryheadset" }
         }
-        val click = findMethod("com.android.bluetooth.ble.app.headset.BluetoothHeadsetService\$HeadSetReceiver",
-            "onReceive", Context::class.java, Intent::class.java)
-        hookBefore(click) {
+        hookBefore(methods.click) {
             val intent = args[1] as? Intent ?: return@hookBefore
             if (intent.action != "com.android.bluetooth.headset.click.detail_notification") return@hookBefore
             val address = intent.getStringExtra("bluetoothaddress") ?: return@hookBefore

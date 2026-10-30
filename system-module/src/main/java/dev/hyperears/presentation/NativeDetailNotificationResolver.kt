@@ -10,6 +10,7 @@ internal object NativeDetailNotificationResolver {
         val cancel: Method,
         val support: Method,
         val notificationType: Method,
+        val click: Method,
     )
 
     fun resolve(apk: String, loader: ClassLoader): Methods {
@@ -52,7 +53,7 @@ internal object NativeDetailNotificationResolver {
                     usingEqStrings("getNotifyType deviceId=", "show_new_notification_type")
                 }
             })
-            Methods(create, cancel, support, type)
+            Methods(create, cancel, support, type, NativeHostResolver.notificationClick(dex, loader))
         }
     }
 }

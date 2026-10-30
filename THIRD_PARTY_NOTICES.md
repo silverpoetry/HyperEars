@@ -295,3 +295,12 @@ Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不�
 所有。
 
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
+
+## Xiaomi BluetoothExtension interoperability research
+
+原生连接展示兼容依据 Xiaomi HyperOS 系统包中的 `BluetoothExtension.apk` 及其内置插件，
+仅记录原生登记存储、方法签名、行为标识和调用关系等互操作事实。HyperOS 3.0.304 / Android 16
+样本及 HyperOS 4 / Android 17 对照样本的版本、散列和验证边界见
+[原生展示设计](docs/native-headset-integration-design.md#25-hyperos-3-静态兼容核对)。
+HyperEars 独立实现解析与接入代码，不分发厂商 APK、反编译代码、图片或其他资源；
+系统组件及相关商标的权利归其各自权利人所有。

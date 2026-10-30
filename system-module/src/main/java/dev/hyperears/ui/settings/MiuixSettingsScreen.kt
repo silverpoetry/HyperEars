@@ -31,9 +31,6 @@ import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
 import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.HeadsetConnectionPresentation
-import dev.hyperears.bridge.BroadcastIdentity
-import dev.hyperears.bridge.NativePresentationContract
-import androidx.compose.ui.platform.LocalContext
 import dev.hyperears.settings.MoreSettingsTarget
 import dev.hyperears.ui.components.MiuixHyperEarsPage
 import dev.hyperears.ui.components.rememberSwitchHaptics
@@ -218,7 +215,7 @@ fun MiuixDebugSettingsScreen(
     onOpenForcedAdapters: () -> Unit,
     onNavigateBack: () -> Unit,
 ) {
-    val context = LocalContext.current
+    val preview = rememberNativePreviewAction()
     MiuixHyperEarsPage(title = "调试", onNavigateBack = onNavigateBack) { padding, behavior ->
         LazyColumn(
             state = rememberLazyListState(),
@@ -276,12 +273,12 @@ fun MiuixDebugSettingsScreen(
                         MiuixActionPreference(
                             title = "预览超级岛", summary = "显示当前耳机的连接提示。",
                             available = !settings.modulePaused, running = false,
-                            onClick = { BroadcastIdentity.send(context, NativePresentationContract.preview("hint")) },
+                            onClick = { preview("hint") },
                         )
                         MiuixActionPreference(
                             title = "预览电量弹窗", summary = "查看当前耳机的原生电量窗口。",
                             available = !settings.modulePaused, running = false,
-                            onClick = { BroadcastIdentity.send(context, NativePresentationContract.preview("popup")) },
+                            onClick = { preview("popup") },
                         )
                     }
                 }
