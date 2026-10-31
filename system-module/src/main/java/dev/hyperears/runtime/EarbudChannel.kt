@@ -319,6 +319,33 @@ private class AndroidGattChannel(
     private var connectedDetails: String? = null
 
     private var pendingRead = ByteArray(0)
+    @Volatile private var tandemPreparation: SonyGattPreparationBridge? = null
+    @Volatile private var settledMtu: Int? = null
+    @Volatile private var awaitingMtu = false
+    @Volatile private var discoveryStarted = false
+    private var notifyCharacteristic: BluetoothGattCharacteristic? = null
+    private var probeCharacteristic: BluetoothGattCharacteristic? = null
+    private var lengthCharacteristic: BluetoothGattCharacteristic? = null
+
+    private fun discover(active: BluetoothGatt) {
+        if (!owns(active) || discoveryStarted) return
+        discoveryStarted = true
+        if (!active.discoverServices()) terminate(IOException("GATT service discovery did not start"))
+    }
+
+    private fun settleMtu(active: BluetoothGatt, value: Int) {
+        if (!owns(active)) return
+        if (value < spec.minimumMtu || value !in 23..517) {
+            terminate(IOException("GATT MTU $value below required ${spec.minimumMtu}"))
+            return
+        }
+        settledMtu = value
+        tandemPreparation?.mtu(value)
+        if (awaitingMtu) {
+            awaitingMtu = false
+            discover(active)
+        }
+    }
 
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -328,8 +355,12 @@ private class AndroidGattChannel(
                     terminate(IOException("GATT connection status=$status"))
 
                 newState == BluetoothProfile.STATE_CONNECTED -> {
-                    if (!gatt.discoverServices()) {
-                        terminate(IOException("GATT service discovery did not start"))
+                    if (discoveryStarted || awaitingMtu) return
+                    val requested = spec.requestedMtu
+                    if (requested == null) discover(gatt) else {
+                        awaitingMtu = true
+                        val started = runCatching { gatt.requestMtu(requested) }.getOrDefault(false)
+                        if (!started && awaitingMtu) settleMtu(gatt, 23)
                     }
                 }
 
@@ -387,23 +418,53 @@ private class AndroidGattChannel(
             connectedDetails =
                 "service=${service?.uuid ?: "<any>"} write=${write.describe()} " +
                     "notify=${notify.describe()}"
-            if (!gatt.setCharacteristicNotification(notify, true)) {
-                terminate(IOException("GATT notification registration failed"))
-                return
-            }
-            val cccd = notify.getDescriptor(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID)
-            if (cccd == null) {
-                if (spec.notificationsRequired) {
-                    terminate(IOException("GATT notify characteristic has no CCCD"))
-                } else {
-                    connectCompletion.complete(Unit)
+            notifyCharacteristic = notify
+            fun subscribeData() {
+                if (!gatt.setCharacteristicNotification(notify, true)) {
+                    terminate(IOException("GATT notification registration failed"))
+                    return
                 }
-                return
+                val cccd = notify.getDescriptor(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID)
+                if (cccd == null) {
+                    if (spec.notificationsRequired || spec.tandemPreparation != null) {
+                        terminate(IOException("GATT notify characteristic has no CCCD"))
+                    } else {
+                        connectCompletion.complete(Unit)
+                    }
+                    return
+                }
+                val started =
+                    gatt.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) ==
+                        BluetoothStatusCodes.SUCCESS
+                if (!started) terminate(IOException("GATT CCCD write did not start"))
             }
-            val started =
-                gatt.writeDescriptor(cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) ==
-                    BluetoothStatusCodes.SUCCESS
-            if (!started) terminate(IOException("GATT CCCD write did not start"))
+            val preparation = spec.tandemPreparation
+            if (preparation == null) {
+                subscribeData()
+            } else {
+                val preparationService = gatt.getService(UUID.fromString(preparation.serviceUuid))
+                lengthCharacteristic = preparationService?.getCharacteristic(UUID.fromString(preparation.writableLengthUuid))
+                probeCharacteristic = preparationService?.getCharacteristic(UUID.fromString(preparation.mtuReadyUuid))
+                val bridge = SonyGattPreparationBridge(
+                    subscribeProbe = {
+                        val probe = probeCharacteristic
+                        val descriptor = probe?.getDescriptor(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID)
+                        owns(gatt) && probe != null && descriptor != null &&
+                            gatt.setCharacteristicNotification(probe,true) &&
+                            gatt.writeDescriptor(descriptor,BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) == BluetoothStatusCodes.SUCCESS
+                    },
+                    readLength = {
+                        val characteristic = lengthCharacteristic
+                        owns(gatt) && characteristic != null && gatt.readCharacteristic(characteristic)
+                    },
+                    subscribeData = { if (owns(gatt)) subscribeData() },
+                    ready = { if (owns(gatt)) connectCompletion.complete(Unit) },
+                    failed = { terminate(IOException("Tandem GATT preparation failed")) },
+                )
+                tandemPreparation = bridge
+                bridge.services(probeCharacteristic?.getDescriptor(CLIENT_CHARACTERISTIC_CONFIGURATION_UUID) != null)
+                settledMtu?.let(bridge::mtu)
+            }
         }
 
         override fun onDescriptorWrite(
@@ -414,11 +475,35 @@ private class AndroidGattChannel(
             if (!owns(gatt) || descriptor.uuid != CLIENT_CHARACTERISTIC_CONFIGURATION_UUID) {
                 return
             }
+            tandemPreparation?.let { preparation ->
+                when (descriptor.characteristic) {
+                    probeCharacteristic -> preparation.probeSubscribed(status == BluetoothGatt.GATT_SUCCESS)
+                    notifyCharacteristic -> preparation.dataSubscribed(status == BluetoothGatt.GATT_SUCCESS)
+                }
+                return
+            }
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 connectCompletion.complete(Unit)
             } else {
                 terminate(IOException("GATT CCCD write status=$status"))
             }
+        }
+
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            if (!owns(gatt)) return
+            val settled = if (status == BluetoothGatt.GATT_SUCCESS) mtu else 23
+            settleMtu(gatt, settled)
+        }
+
+        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
+            if (owns(gatt) && characteristic === lengthCharacteristic)
+                tandemPreparation?.length(value,status == BluetoothGatt.GATT_SUCCESS)
+        }
+
+        @Deprecated("Deprecated in API 33")
+        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            @Suppress("DEPRECATION")
+            onCharacteristicRead(gatt,characteristic,characteristic.value ?: byteArrayOf(),status)
         }
 
         @Deprecated("Deprecated in API 33")
@@ -427,7 +512,7 @@ private class AndroidGattChannel(
             characteristic: BluetoothGattCharacteristic,
         ) {
             @Suppress("DEPRECATION")
-            offerIncoming(characteristic.value)
+            onNotification(gatt,characteristic,characteristic.value)
         }
 
         override fun onCharacteristicChanged(
@@ -435,7 +520,7 @@ private class AndroidGattChannel(
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray,
         ) {
-            offerIncoming(value)
+            onNotification(gatt,characteristic,value)
         }
 
         override fun onCharacteristicWrite(
@@ -443,7 +528,7 @@ private class AndroidGattChannel(
             characteristic: BluetoothGattCharacteristic,
             status: Int,
         ) {
-            if (!owns(gatt)) return
+            if (!owns(gatt) || characteristic !== writeCharacteristic) return
             val completion = pendingWrite ?: return
             pendingWrite = null
             if (status == BluetoothGatt.GATT_SUCCESS) {
@@ -615,28 +700,25 @@ private class AndroidGattChannel(
                 GattWriteMode.WITH_RESPONSE -> BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 GattWriteMode.WITHOUT_RESPONSE -> BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
-            if (spec.writeMode == GattWriteMode.WITHOUT_RESPONSE) {
+            if (spec.requestedMtu != null && spec.tandemPreparation == null &&
+                bytes.size > (settledMtu ?: 23) - 3) {
+                throw IOException("GATT atomic write exceeds negotiated payload capacity")
+            }
+            val fragments = tandemPreparation?.fragments(bytes) ?: listOf(bytes)
+            for (fragment in fragments) {
+                val completion = CompletableDeferred<Unit>()
+                pendingWrite = completion
                 val started = active.writeCharacteristic(
                     characteristic,
-                    bytes,
+                    fragment,
                     writeType,
                 ) == BluetoothStatusCodes.SUCCESS
-                if (!started) throw IOException("GATT write command did not start")
-                return@withLock
+                if (!started) {
+                    pendingWrite = null
+                    throw IOException("GATT write did not start")
+                }
+                withTimeout(WRITE_TIMEOUT_MS) { completion.await() }
             }
-
-            val completion = CompletableDeferred<Unit>()
-            pendingWrite = completion
-            val started = active.writeCharacteristic(
-                characteristic,
-                bytes,
-                writeType,
-            ) == BluetoothStatusCodes.SUCCESS
-            if (!started) {
-                pendingWrite = null
-                throw IOException("GATT write did not start")
-            }
-            withTimeout(WRITE_TIMEOUT_MS) { completion.await() }
         }
     }
 
@@ -647,12 +729,26 @@ private class AndroidGattChannel(
     private fun owns(candidate: BluetoothGatt): Boolean =
         !closed.get() && (gatt == null || gatt === candidate)
 
+    private fun onNotification(source: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray?) {
+        if (!owns(source)) return
+        if (tandemPreparation != null) {
+            if (characteristic === probeCharacteristic) {
+                value?.let { tandemPreparation?.probeNotification(it) }
+                return
+            }
+            if (characteristic !== notifyCharacteristic) return
+        }
+        offerIncoming(value)
+    }
+
     private fun offerIncoming(value: ByteArray?) {
         if (value != null && value.isNotEmpty()) incoming.trySend(value.copyOf())
     }
 
     private fun terminate(error: IOException) {
         if (!closed.compareAndSet(false, true)) return
+        tandemPreparation?.close()
+        tandemPreparation = null
         peerResolution?.completeExceptionally(error)
         peerResolution = null
         connectCompletion.completeExceptionally(error)

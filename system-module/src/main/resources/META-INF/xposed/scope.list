@@ -31,3 +31,5 @@ com.samsung.accessory.paranmgr
 com.samsung.accessory.pianomgr
 com.samsung.accessory.gemstonemgr
 com.samsung.accessory.budsunitemgr
+
+com.android.settings

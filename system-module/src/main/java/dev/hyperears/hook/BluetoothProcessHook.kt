@@ -53,7 +53,9 @@ internal class BluetoothProcessHook : HookContext() {
                 if (previousState == currentState) return@hookAfter
 
                 val dispatch = Runnable {
-                    handleA2dpState(device, currentState)
+                    runBluetoothCallback({ error ->
+                        ModuleLog.warn("Bluetooth", "Module profile callback failed; preserving Bluetooth host", error)
+                    }) { handleA2dpState(device, currentState) }
                 }
                 val handler = runCatching { getObjectField(instance, "mHandler") as? Handler }
                     .getOrNull()
@@ -69,6 +71,7 @@ internal class BluetoothProcessHook : HookContext() {
         device: BluetoothDevice,
         state: Int,
     ) {
+        if (EarbudSessionService.onSonyA2dpState(device, state)) return
         if (state == BluetoothProfile.STATE_DISCONNECTING ||
             state == BluetoothProfile.STATE_DISCONNECTED
         ) {

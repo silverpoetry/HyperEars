@@ -353,6 +353,13 @@ MiLink 原始耳机准入结果具有最高优先级：只要当前 ROM 已原�
 于系统原生支持的 Apple 或其他品牌设备。音箱、车机和无法保守判定为耳机的设备也不会进入
 标准耳机回退。
 
+## Sony WH-1000XM6 原生详情
+
+XM6 在原有协议基础上增加 HyperOS 详情、单电量角标与报告确认的高级设置：EQ、环境声、
+Speak-to-Chat、按键、Quick Access、双设备、声音提示及连接模式。GATT/LE Audio 路由只
+使用合法设备身份中的地址关联。用户测试过拆分前详情页；最终独立分支及高级控制仍待
+实机复核。详见[原生界面说明](sony-native-settings.md)。
+
 ## 4. 提交新设备证据
 
 请按 [CONTRIBUTING.md](../CONTRIBUTING.md) 提交设备名称、设备形态、服务 UUID、脱敏后的

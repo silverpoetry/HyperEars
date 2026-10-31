@@ -1,0 +1,42 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "workflow": "imagegen CLI generate; no input reference image; deterministic grayscale color variants",
+  "prompt_file": "docs/sony-wh1000xm6-artwork-prompt.txt",
+  "size": [
+    640,
+    640
+  ],
+  "alpha": true,
+  "resources": [
+    {
+      "resource": "headset_sony_wh1000xm6_01.png",
+      "sha256": "6469900d7c558899d57188e3efdcb919bf674cb0726f6da6ad0e1979266f09ea",
+      "color": "01"
+    },
+    {
+      "resource": "headset_sony_wh1000xm6_03.png",
+      "sha256": "ef0aed9b8488d95fed3967210e0b4072203358c599ac7b68b8fc5f91fe5a09ff",
+      "color": "03"
+    },
+    {
+      "resource": "headset_sony_wh1000xm6_05.png",
+      "sha256": "57d779e14d36532ca7729b3e6c867c2b1b9bcdad1e76c8aee4129f0960da3816",
+      "color": "05"
+    },
+    {
+      "resource": "headset_sony_wh1000xm6_06.png",
+      "sha256": "48f543a904911b1aae9019ac759cb092993ae71011ccea3e9cb270cbf484fffe",
+      "color": "06"
+    },
+    {
+      "resource": "headset_sony_wh1000xm6_08.png",
+      "sha256": "c63db2c6aaea3acf7158a904ad9b971a250009a11d51be06cd2bd00d3fdd857c",
+      "color": "08"
+    },
+    {
+      "resource": "headset_sony_wh1000xm6_0d.png",
+      "sha256": "abaf73612c0270eb991d59f41cf64f9a9ccb4955f1c380e2d56dd2f46df0c2dd",
+      "color": "0d"
+    }
+  ]
+}

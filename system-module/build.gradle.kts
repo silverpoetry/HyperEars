@@ -65,6 +65,8 @@ android {
         compose = true
     }
 
+    testOptions { unitTests.isIncludeAndroidResources = true }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -100,5 +102,10 @@ dependencies {
     implementation(libs.libxposed.service)
     implementation(libs.dexkit)
 
+    debugImplementation(libs.androidx.preference)
+    debugImplementation(libs.androidx.appcompat)
+    debugImplementation(libs.androidx.fragment.ktx)
+    testImplementation(libs.robolectric)
+    testRuntimeOnly(libs.libxposed.api)
     testImplementation(libs.junit)
 }

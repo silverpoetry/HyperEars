@@ -73,10 +73,72 @@ open class SonyProtocolFamilyAdapter internal constructor(
     final override val id: String = configuration.id
     final override val displayName: String = configuration.displayName
     final override val formFactor: HeadsetFormFactor = configuration.formFactor
+    override val artwork: HeadsetArtwork get() = if (configuration.id == "sony-wh-1000xm6")
+        runtimeState().features.get<SonyInformationFeatureState>()?.artwork() ?: super.artwork else super.artwork
     final override val miLinkCardPresentationId: MiLinkCardPresentationId?
-        get() = configuration.miLinkPresentationId.takeIf {
-            effectiveCapabilities().noiseControl
+        get() = when {
+            runtimeState().features.get<SonyEqFeatureState>()?.let { it.writablePreset || it.writableBands || it.writableBass } == true ||
+                runtimeState().features.get<SonyAmbientFeatureState>()?.level in 1..20 ||
+                runtimeState().features.get<SonyAssignableFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<SonyVoiceGuidanceFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<SonyVirtualSoundFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<SonyDevicesFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<SonyQuickAccessFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<SonyAudioSettingsFeatureState>()?.hasSettings == true ||
+                runtimeState().features.get<SonyMultipointFeatureState>()?.hasSettings == true ->
+                if (effectiveCapabilities().noiseControl) SonyMiLinkPresentationIds.ADVANCED else SonyMiLinkPresentationIds.SETTINGS
+            else -> configuration.miLinkPresentationId.takeIf { effectiveCapabilities().noiseControl }
         }
+    override val featureStateContract = StandardDeviceFeatureStateContract.extending { _, state ->
+        state is SonyDevicesFeatureState || state is SonyQuickAccessFeatureState || state is SonyLeAudioOperation || state is SonyLeAudioFeatureState || state is SonyPowerFeatureState || state is SonyInformationFeatureState || state is SonyVendorToolsFeatureState || state is SonyVirtualSoundFeatureState || state is SonyVoiceGuidanceFeatureState || state is SonyAssignableFeatureState || state is SonyEqFeatureState || state is SonyAmbientFeatureState || state is SonyAudioSettingsFeatureState || state is SonyMultipointFeatureState
+    }
+    override val controlRequestContract = StandardControlRequestContract.extending { adapter, request ->
+        when (request) {
+            is SonyControlRequest.ManageDevices -> adapter.runtimeState().features.get<SonyMultipointFeatureState>()?.enabled != false &&
+                adapter.runtimeState().features.get<SonyDevicesFeatureState>()?.supports(request) == true
+            is SonyControlRequest.SetLeAudio -> adapter.runtimeState().features.get<SonyLeAudioFeatureState>()?.supports(request) == true
+            is SonyControlRequest.ReadLeAudioHistory -> adapter.runtimeState().features.get<SonyLeAudioFeatureState>()?.supports(request) == true
+            is SonyControlRequest.ReplyLeAudioAlert -> adapter.runtimeState().features.get<SonyLeAudioFeatureState>()?.supports(request) == true
+            is SonyControlRequest.PowerOff -> adapter.runtimeState().features.get<SonyPowerFeatureState>()?.supports(request) == true
+            is SonyControlRequest.SetAmbient, is SonyControlRequest.SetAdaptiveAmbient -> adapter.runtimeState().features.get<SonyAmbientFeatureState>()?.supports(request) == true
+            is SonyControlRequest -> adapter.runtimeState().features.get<SonyEqFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyAssignableFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyVoiceGuidanceFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyVirtualSoundFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyDevicesFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyQuickAccessFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyAudioSettingsFeatureState>()?.supports(request) == true ||
+                adapter.runtimeState().features.get<SonyMultipointFeatureState>()?.supports(request) == true
+            else -> false
+        }
+    }
+    override fun onProtocolReset() {
+        removeFeatureState(SonyLeAudioOperation.FEATURE_ID)
+        removeFeatureState(SonyLeAudioFeatureState.FEATURE_ID)
+        removeFeatureState(SonyPowerFeatureState.FEATURE_ID)
+        removeFeatureState(SonyInformationFeatureState.FEATURE_ID)
+        removeFeatureState(SonyVendorToolsFeatureState.FEATURE_ID)
+        removeFeatureState(SonyVirtualSoundFeatureState.FEATURE_ID)
+        removeFeatureState(SonyVoiceGuidanceFeatureState.FEATURE_ID)
+        removeFeatureState(SonyEqFeatureState.FEATURE_ID)
+        removeFeatureState(SonyAmbientFeatureState.FEATURE_ID)
+        removeFeatureState(SonyAssignableFeatureState.FEATURE_ID)
+        removeFeatureState(SonyDevicesFeatureState.FEATURE_ID)
+        removeFeatureState(SonyQuickAccessFeatureState.FEATURE_ID)
+        removeFeatureState(SonyAudioSettingsFeatureState.FEATURE_ID)
+        removeFeatureState(SonyMultipointFeatureState.FEATURE_ID)
+    }
+    override fun onControlWritten(request:ControlRequest,scope:AdapterEventScope) {
+        if (request is SonyControlRequest.ReplyLeAudioAlert) {
+            val session = protocolSession as? SonyHeadphonesProtocolSession ?: return
+            session.leAudioState()?.let { adoptRuntimeState(runtimeState().copy(features = runtimeState().features.update(it))) }
+        }
+        if(request is SonyControlRequest.SetVirtualSound) {
+            val session=protocolSession as? SonyHeadphonesProtocolSession?:return
+            session.virtualWritten(request)
+            session.virtualState()?.let{adoptRuntimeState(runtimeState().copy(features=runtimeState().features.update(it)))}
+        }
+    }
     final override val privateProtocolRequired: Boolean = true
     final override val transportReadiness: TransportReadiness =
         TransportReadiness.PROTOCOL_HANDSHAKE
@@ -87,7 +149,8 @@ open class SonyProtocolFamilyAdapter internal constructor(
     final override val supportedNoiseModes: Set<NoiseMode> = emptySet()
     final override val resolution: AdapterResolution = configuration.resolution
     final override val transports: List<EarbudTransportSpec> =
-        if (configuration.preferServiceV2) SONY_V2_FIRST_TRANSPORTS else SONY_V1_FIRST_TRANSPORTS
+        (if (configuration.preferServiceV2) SONY_V2_FIRST_TRANSPORTS else SONY_V1_FIRST_TRANSPORTS) +
+            if (configuration.id == "sony-wh-1000xm6") listOf(SONY_XM6_HPC_TRANSPORT) else emptyList()
 
     final override fun matches(identity: EarbudIdentity): Boolean =
         identity.isEligibleSonyHeadset() && matcher(identity)
@@ -255,6 +318,8 @@ object SonyAdapterRegistry {
 }
 
 object SonyMiLinkPresentationIds {
+    val ADVANCED = MiLinkCardPresentationId("sony-advanced")
+    val SETTINGS = MiLinkCardPresentationId("sony-settings")
     val AMBIENT_ONLY = MiLinkCardPresentationId("sony-ambient-only")
 }
 
@@ -276,6 +341,13 @@ private class SonyHeadphonesProtocolSession(
     private var awaitingAck = false
     private var preHandshakeInitRetryCount = 0
     private var battery = EarbudBattery()
+    private var daily: SonyDailyControlsSession? = null
+    private var devices:SonyDevicesSession?=null
+    private var voice: SonyVoiceGuidanceSession? = null
+    private var virtual: SonyVirtualSoundSession? = null
+    @Synchronized fun leAudioState() = leAudio
+    fun virtualState()=virtual?.state
+    fun virtualWritten(request:SonyControlRequest.SetVirtualSound) {virtual?.written(request)}
 
     @Synchronized
     override fun initialReadCommands(): List<ByteArray> {
@@ -287,9 +359,54 @@ private class SonyHeadphonesProtocolSession(
     @Synchronized
     override fun encode(request: ControlRequest): List<ByteArray> {
         if (version == null) return emptyList()
+        // The shared adapter rejects empty encoded results. Do not leave a rejected control
+        // behind the current ACK transaction to execute later without caller acceptance.
+        if (request !== StandardControlRequest.Refresh && (awaitingAck || pendingRequests.isNotEmpty())) return emptyList()
         when {
-            request === StandardControlRequest.Refresh -> enqueueStateReads()
+            request === StandardControlRequest.Refresh -> { enqueueStateReads(); daily?.reads()?.forEach(::enqueueDaily); voice?.reads()?.forEach(::enqueueVoice); devices?.reads()?.forEach(::enqueueVoice); virtual?.reads()?.forEach(::enqueueDaily) }
             request is StandardControlRequest.SetNoiseMode -> enqueueNoiseWrite(request.mode)
+            request is SonyControlRequest.SetLeAudio -> {
+                if (leAudio?.supports(request) != true) return emptyList()
+                dev.hyperears.protocol.sony.SonyLeAudioAlertCodec.enableConnectionAlerts().forEach(::enqueueDaily)
+                enqueueDaily(dev.hyperears.protocol.sony.SonyLeAudioCodec.setting(request.enabled,true))
+            }
+            request is SonyControlRequest.ReadLeAudioHistory -> {
+                if (leAudio?.supports(request) != true) return emptyList()
+                enqueueDaily(dev.hyperears.protocol.sony.SonyLeAudioCodec.historyQuery())
+            }
+            request is SonyControlRequest.ReplyLeAudioAlert -> {
+                val state = leAudio ?: return emptyList()
+                if (!state.supports(request)) return emptyList()
+                val body = state.replyBytes(request) ?: return emptyList()
+                enqueueDaily(body)
+                // Reserve exactly once; publish the consumed prompt after the transport write succeeds.
+                leAudio = state.copy(alert = null, alertExpiresAtMillis = 0)
+            }
+            request is SonyControlRequest.PowerOff -> {
+                if (power?.supports(request) != true) return emptyList()
+                enqueueDaily(dev.hyperears.protocol.sony.SonyPowerCodec.powerOff(version == Version.V2))
+            }
+            request is SonyControlRequest.SetVirtualSound -> {
+                val commands=virtual?.encode(request).orEmpty()
+                if(commands.isEmpty())return emptyList()
+                commands.forEach(::enqueueDaily)
+            }
+            request is SonyControlRequest.ManageDevices -> {
+                if(daily?.multipointState()?.enabled==false)return emptyList()
+                val commands=devices?.encode(request).orEmpty()
+                if(commands.isEmpty())return emptyList()
+                commands.forEach(::enqueueVoice)
+            }
+            request is SonyControlRequest.SetVoiceGuidance -> {
+                val commands=voice?.encode(request).orEmpty()
+                if(commands.isEmpty())return emptyList()
+                commands.forEach(::enqueueVoice)
+            }
+            request is SonyControlRequest -> {
+                val commands = daily?.encode(request).orEmpty()
+                if (commands.isEmpty()) return emptyList()
+                commands.forEach(::enqueueDaily)
+            }
             else -> return emptyList()
         }
         return nextRequestIfIdle()?.let(::listOf).orEmpty()
@@ -310,7 +427,16 @@ private class SonyHeadphonesProtocolSession(
                         type = SonyHeadphonesWireCodec.MessageType.ACK,
                         sequence = 1 - frame.sequence,
                     )
-                    addAll(handleCommand(frame.payload))
+                    // SPP outer 0x0E is Table 2. Its colliding opcodes are not Table 1 EQ/ANC.
+                    if (frame.type == SonyHeadphonesWireCodec.MessageType.COMMAND_1)
+                        addAll(handleCommand(frame.payload))
+                    else {
+                        voice?.accept(frame.payload)?.let { add(ProtocolEvent.FeatureStateChanged(it)) }
+                        devices?.accept(frame.payload)?.let { update ->
+                            add(ProtocolEvent.FeatureStateChanged(update.state))
+                            update.queries.forEach(::enqueueVoice);scheduleNextRequest()
+                        }
+                    }
                 }
             }
         }
@@ -326,6 +452,10 @@ private class SonyHeadphonesProtocolSession(
         scheduleNextRequest()
     }
 
+    private var leAudio: SonyLeAudioFeatureState? = null
+    private var power: SonyPowerFeatureState? = null
+    private var information = SonyInformationFeatureState()
+
     private fun handleCommand(payload: ByteArray): List<ProtocolEvent> {
         if (payload.isEmpty()) return emptyList()
         if (payload[0] == INIT_REPLY && version == null) {
@@ -334,7 +464,15 @@ private class SonyHeadphonesProtocolSession(
                 8 -> Version.V2
                 else -> return listOf(ProtocolEvent.HandshakeRejected)
             }
+            daily = SonyDailyControlsSession(version == Version.V2)
+            if(version==Version.V2 && configuration.id=="sony-wh-1000xm6") {
+                devices=SonyDevicesSession()
+                enqueueVoice(byteArrayOf(0x06,0x00))
+            }
+            voice = SonyVoiceGuidanceSession(version == Version.V2)
+            virtual = SonyVirtualSoundSession(version == Version.V2)
             enqueueStateReads()
+            enqueueDaily(byteArrayOf(0x06, 0x00))
             scheduleNextRequest()
             // The init reply identifies Sony's transport dialect only. Capabilities are
             // published later from the corresponding valid state response.
@@ -353,6 +491,50 @@ private class SonyHeadphonesProtocolSession(
         }
 
         val activeVersion = version ?: return emptyList()
+        if (configuration.id == "sony-wh-1000xm6") {
+            dev.hyperears.protocol.sony.SonyInformationCodec.parse(activeVersion == Version.V2, payload)?.let { report ->
+                information = information.accept(report)
+                return listOf(ProtocolEvent.FeatureStateChanged(information))
+            }
+        }
+        if (configuration.id == "sony-wh-1000xm6" && activeVersion == Version.V2 && leAudio?.supported == true) {
+            dev.hyperears.protocol.sony.SonyLeAudioAlertCodec.parse(payload)?.let { alert ->
+                val next = requireNotNull(leAudio).acceptAlert(alert)
+                leAudio = next
+                return listOf(ProtocolEvent.FeatureStateChanged(next))
+            }
+        }
+        val leReport = if (configuration.id == "sony-wh-1000xm6" && activeVersion == Version.V2)
+            dev.hyperears.protocol.sony.SonyLeAudioCodec.parse(payload) else null
+        val leChanged = leReport?.let { report ->
+            if (report !is dev.hyperears.protocol.sony.SonyLeAudioCodec.Report.Capability && leAudio?.supported != true) null
+            else {
+                val previous = leAudio
+                val next = (previous ?: SonyLeAudioFeatureState()).accept(report)
+                leAudio = next
+                if (next.supported && previous?.supported != true) {
+                    dev.hyperears.protocol.sony.SonyLeAudioCodec.reads().forEach(::enqueueDaily)
+                    scheduleNextRequest()
+                }
+                next.takeIf { it != previous }
+            }
+        }
+        val powerChanged = if (configuration.id == "sony-wh-1000xm6")
+            dev.hyperears.protocol.sony.SonyPowerCodec.available(activeVersion == Version.V2, payload)?.let {
+                SonyPowerFeatureState(if (activeVersion == Version.V2) 2 else 1, it).also { next -> power = next }
+            } else null
+        val vendorTools=if(activeVersion==Version.V1)
+            dev.hyperears.protocol.sony.SonyVendorToolsCodec.optimizerFunction(payload)?.let{SonyVendorToolsFeatureState(1,it)} else null
+        val virtualUpdate=virtual?.accept(payload)
+        virtualUpdate?.queries?.forEach(::enqueueDaily)
+        if(virtualUpdate?.queries?.isNotEmpty()==true)scheduleNextRequest()
+        val voiceChanged=voice?.functions(payload)==true
+        if(voiceChanged) { voice?.reads()?.forEach(::enqueueVoice); scheduleNextRequest() }
+        val voiceEvents=if(voiceChanged)listOfNotNull(voice?.state?.let{ProtocolEvent.FeatureStateChanged(it)})else emptyList()
+        val dailyUpdate = daily?.accept(payload)
+        dailyUpdate?.queries?.forEach(::enqueueDaily)
+        if (dailyUpdate?.queries?.isNotEmpty() == true) scheduleNextRequest()
+        val dailyEvents = listOfNotNull(leChanged?.let { ProtocolEvent.FeatureStateChanged(it) }) + listOfNotNull(powerChanged?.let { ProtocolEvent.FeatureStateChanged(it) }) + dailyUpdate?.states.orEmpty().map { ProtocolEvent.FeatureStateChanged(it) } + listOfNotNull(vendorTools?.let{ProtocolEvent.FeatureStateChanged(it)}) + voiceEvents + virtualUpdate?.states.orEmpty().map{ProtocolEvent.FeatureStateChanged(it)}
         parseBattery(activeVersion, payload)?.let { updated ->
             battery = updated
             return listOf(
@@ -367,8 +549,9 @@ private class SonyHeadphonesProtocolSession(
                     noiseModes = supportedModes(configuration.ambientDialect),
                 ),
                 ProtocolEvent.FeatureStateChanged(NoiseModeFeatureState(mode)),
-            )
+            ) + dailyEvents
         }
+        if (leReport != null || dailyUpdate != null || voiceChanged || virtualUpdate!=null || vendorTools!=null || powerChanged != null) return dailyEvents
         return listOf(
             ProtocolEvent.UnknownFrame(
                 version = if (activeVersion == Version.V1) 1 else 2,
@@ -377,6 +560,14 @@ private class SonyHeadphonesProtocolSession(
                 payloadSize = payload.size,
             ),
         )
+    }
+
+    private fun enqueueVoice(payload:ByteArray) {
+        pendingRequests += Request(SonyHeadphonesWireCodec.MessageType.COMMAND_2,payload)
+    }
+
+    private fun enqueueDaily(payload: ByteArray) {
+        pendingRequests += Request(SonyHeadphonesWireCodec.MessageType.COMMAND_1, payload)
     }
 
     private fun enqueueStateReads() {
@@ -399,11 +590,14 @@ private class SonyHeadphonesProtocolSession(
                 payload = byteArrayOf(AMBIENT_GET, ambientSubtype(activeVersion)),
             )
         }
+        if (configuration.id == "sony-wh-1000xm6")
+            dev.hyperears.protocol.sony.SonyInformationCodec.reads(activeVersion == Version.V2).forEach(::enqueueDaily)
     }
 
     private fun enqueueNoiseWrite(mode: NoiseMode) {
         val activeVersion = version ?: return
         if (mode !in supportedModes(configuration.ambientDialect)) return
+        daily?.noiseWrite(mode)?.let { commands -> commands.forEach(::enqueueDaily); return }
         pendingRequests += Request(
             type = SonyHeadphonesWireCodec.MessageType.COMMAND_1,
             payload = if (activeVersion == Version.V1) {
@@ -640,6 +834,13 @@ private class SonyHeadphonesProtocolSession(
         awaitingAck = false
         preHandshakeInitRetryCount = 0
         battery = EarbudBattery()
+        information = SonyInformationFeatureState()
+        power = null
+        leAudio = null
+        daily = null
+        devices = null
+        voice = null
+        virtual = null
     }
 
     private companion object {
@@ -665,6 +866,20 @@ private class SonyHeadphonesProtocolSession(
         }
     }
 }
+
+/** SonyPods SonyCapabilityProbe routes Table2 over HPC when MC is absent during LE operation. */
+private val SONY_XM6_HPC_TRANSPORT = GattTransportSpec(
+    serviceUuid = "5b833e20-6bc7-4802-8e9a-723ceca4bd8f",
+    writeCharacteristicUuid = "5b833c60-6bc7-4802-8e9a-723ceca4bd8f",
+    notifyCharacteristicUuid = "5b833c61-6bc7-4802-8e9a-723ceca4bd8f",
+    notificationsRequired = true,
+    tandemPreparation = GattTandemPreparationSpec(
+        serviceUuid = "5b833e20-6bc7-4802-8e9a-723ceca4bd8f",
+        writableLengthUuid = "5b833c91-6bc7-4802-8e9a-723ceca4bd8f",
+        mtuReadyUuid = "5b833c93-6bc7-4802-8e9a-723ceca4bd8f",
+    ),
+    id = "sony-xm6-gatt-hpc",
+)
 
 private val SONY_V1_FIRST_TRANSPORTS: List<EarbudTransportSpec> = listOf(
     RfcommEndpointSpec.ServiceUuid(

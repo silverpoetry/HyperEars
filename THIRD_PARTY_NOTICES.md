@@ -295,3 +295,13 @@ Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不�
 所有。
 
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
+
+## Sony WH-1000XM6 advanced controls
+
+Protocol research also references Mercury000/SonyPods at commit
+`3f701ff8f9b30c6909b9dbe8d99248f20d55560e` (GPL-3.0), including capability discovery,
+Table 1/2 settings and regression examples. Typed codecs and feature contracts are
+organized independently within HyperEars. No vendor APK, decompiled source or vendor
+product images are included. XM6 illustrations are generated without a reference image;
+metadata and prompt are in `docs/sony-wh1000xm6-artwork-sources.json` and
+`docs/sony-wh1000xm6-artwork-prompt.txt`.

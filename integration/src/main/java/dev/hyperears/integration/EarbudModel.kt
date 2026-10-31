@@ -467,6 +467,12 @@ enum class GattWriteMode {
  * UUIDs are authoritative. Optional instance IDs pin a captured attribute table when a device
  * exposes duplicate characteristic UUIDs; runtimes still validate characteristic properties.
  */
+data class GattTandemPreparationSpec(
+    val serviceUuid: String,
+    val writableLengthUuid: String,
+    val mtuReadyUuid: String,
+)
+
 data class GattTransportSpec(
     /** Optional service boundary used to disambiguate otherwise common characteristic UUIDs. */
     val serviceUuid: String? = null,
@@ -477,9 +483,16 @@ data class GattTransportSpec(
     val writeMode: GattWriteMode = GattWriteMode.WITH_RESPONSE,
     val notificationsRequired: Boolean = false,
     val peerSelection: GattPeerSelection = GattPeerSelection.SessionDevice,
+    val tandemPreparation: GattTandemPreparationSpec? = null,
+    /** Negotiate before discovery. Ordinary adapters retain their existing default path. */
+    val requestedMtu: Int? = if (tandemPreparation != null) 517 else null,
+    val minimumMtu: Int = 23,
     override val id: String,
 ) : EarbudTransportSpec {
     init {
+        require(minimumMtu in 23..517)
+        require(requestedMtu?.let { it in minimumMtu..517 } ?: (minimumMtu == 23))
+        require(tandemPreparation == null || writeMode == GattWriteMode.WITH_RESPONSE)
         require(serviceUuid == null || serviceUuid.isNotBlank())
         require(writeCharacteristicUuid.isNotBlank())
         require(notifyCharacteristicUuid.isNotBlank())

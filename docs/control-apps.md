@@ -217,3 +217,8 @@ adb shell pm path com.vivo.vivotws
 
 包名只定义控制权边界，不得加入设备匹配证据。若厂商更换包名，应作为新目录项单独验证，
 不能仅按相似名称或签名未知的兼容客户端放宽匹配。
+
+## Sony WH-1000XM6 原生详情
+
+XM6 沿用目录中的 Sony Sound Connect 作用域及控制权声明；原生耳机详情另需
+`com.android.settings`。主动打开控制 App 前先完成私有通道交接。

@@ -27,6 +27,11 @@ sealed interface ControlRequest
  */
 @Serializable
 sealed interface StandardControlRequest : ControlRequest {
+    @Serializable @SerialName("standard.begin_vendor_handoff")
+    data class BeginVendorHandoff(val packageName:String,val leaseId:String):StandardControlRequest
+    @Serializable @SerialName("standard.end_vendor_handoff")
+    data class EndVendorHandoff(val leaseId:String):StandardControlRequest
+
     @Serializable
     @SerialName("standard.refresh")
     data object Refresh : StandardControlRequest
@@ -74,6 +79,8 @@ fun interface ControlRequestContract {
 /** Baseline request contract inherited by all adapters. */
 object StandardControlRequestContract : ControlRequestContract {
     override fun supports(adapter: EarbudAdapter, request: ControlRequest): Boolean = when {
+        request is StandardControlRequest.BeginVendorHandoff -> request.leaseId.isNotBlank() && adapter.controlApps.any {it.packageName==request.packageName}
+        request is StandardControlRequest.EndVendorHandoff -> request.leaseId.isNotBlank()
         request === StandardControlRequest.Refresh -> true
         request is StandardControlRequest.SetNoiseMode ->
             adapter.effectiveCapabilities().noiseControl &&
@@ -110,6 +117,26 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(SonyControlRequest.SetDsee::class, SonyControlRequest.SetDsee.serializer())
+                subclass(SonyControlRequest.SetConnectionQuality::class, SonyControlRequest.SetConnectionQuality.serializer())
+                subclass(SonyControlRequest.SetAdaptiveAmbient::class,SonyControlRequest.SetAdaptiveAmbient.serializer())
+                subclass(SonyControlRequest.ManageDevices::class,SonyControlRequest.ManageDevices.serializer())
+                subclass(SonyControlRequest.SetQuickAccess::class,SonyControlRequest.SetQuickAccess.serializer())
+                subclass(SonyControlRequest.SetSpeakParameters::class, SonyControlRequest.SetSpeakParameters.serializer())
+                subclass(SonyControlRequest.SetSpeakToChat::class, SonyControlRequest.SetSpeakToChat.serializer())
+                subclass(SonyControlRequest.SetMultipoint::class, SonyControlRequest.SetMultipoint.serializer())
+                subclass(SonyControlRequest.ReplyMultipointAlert::class, SonyControlRequest.ReplyMultipointAlert.serializer())
+                subclass(SonyControlRequest.SetWearingPlayback::class, SonyControlRequest.SetWearingPlayback.serializer())
+                subclass(SonyControlRequest.SetVoiceGuidance::class, SonyControlRequest.SetVoiceGuidance.serializer())
+                subclass(SonyControlRequest.SetVirtualSound::class, SonyControlRequest.SetVirtualSound.serializer())
+                subclass(SonyControlRequest.SetAssignableAction::class, SonyControlRequest.SetAssignableAction.serializer())
+                subclass(SonyControlRequest.SetAssignablePreset::class, SonyControlRequest.SetAssignablePreset.serializer())
+                subclass(SonyControlRequest.SetEqPreset::class, SonyControlRequest.SetEqPreset.serializer())
+                subclass(SonyControlRequest.SetEqBands::class, SonyControlRequest.SetEqBands.serializer())
+                subclass(SonyControlRequest.SetClearBass::class, SonyControlRequest.SetClearBass.serializer())
+                subclass(SonyControlRequest.SetAmbient::class, SonyControlRequest.SetAmbient.serializer())
+                subclass(StandardControlRequest.BeginVendorHandoff::class,StandardControlRequest.BeginVendorHandoff.serializer())
+                subclass(StandardControlRequest.EndVendorHandoff::class,StandardControlRequest.EndVendorHandoff.serializer())
                 subclass(SamsungControlRequest.SetTouchGesture::class, SamsungControlRequest.SetTouchGesture.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldActions::class, SamsungControlRequest.SetTouchHoldActions.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldNoiseCycles::class, SamsungControlRequest.SetTouchHoldNoiseCycles.serializer())

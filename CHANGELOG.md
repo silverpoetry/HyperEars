@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+- Add WH-1000XM6 native details, single-battery presentation and report-gated advanced controls.
+- Add XM6 GATT preparation and Classic/LE Audio route tracking using confirmed address reports.
+
 ## [3.2.0] - 2026-10-30
 
 本版新增按设备选择适配器的调试功能和水月雨 ZZZ-ANGELS-OWS 支持，修复原生电量弹窗

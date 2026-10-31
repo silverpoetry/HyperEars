@@ -9,6 +9,21 @@ import org.junit.Test
 
 class SonyEarbudAdapterTest {
     @Test
+    fun xm6OffersPreparedHpcWithoutGrantingCapabilities() {
+        val adapter = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity(deviceName = "WH-1000XM6", standardHeadset = true)))
+        val endpoint = adapter.transports.filterIsInstance<GattTransportSpec>().single()
+        assertEquals("5b833e20-6bc7-4802-8e9a-723ceca4bd8f", endpoint.serviceUuid)
+        assertEquals("5b833c60-6bc7-4802-8e9a-723ceca4bd8f", endpoint.writeCharacteristicUuid)
+        assertEquals("5b833c61-6bc7-4802-8e9a-723ceca4bd8f", endpoint.notifyCharacteristicUuid)
+        assertEquals("5b833c91-6bc7-4802-8e9a-723ceca4bd8f", endpoint.tandemPreparation?.writableLengthUuid)
+        assertTrue(endpoint.notificationsRequired)
+        assertEquals(GattWriteMode.WITH_RESPONSE,endpoint.writeMode)
+        assertFalse(adapter.effectiveCapabilities().noiseControl)
+        val xm4 = requireNotNull(EarbudAdapterRegistry.resolve(EarbudIdentity(deviceName = "WH-1000XM4", standardHeadset = true)))
+        assertTrue(xm4.transports.none {it is GattTransportSpec})
+    }
+
+    @Test
     fun resolvesConcreteModelsBeforeProtocolFamilies() {
         assertEquals("sony-wh-1000xm5", resolve("WH-1000XM5").id)
         assertEquals(HeadsetFormFactor.HEADPHONES, resolve("WH-1000XM5").formFactor)
@@ -333,18 +348,20 @@ class SonyEarbudAdapterTest {
         protocol.offer(ack(1))
         protocol.drainImmediateCommands()
         protocol.offer(ack(0))
+        assertArrayEquals(bytes("06 00"), decode(protocol.drainImmediateCommands().single()).payload)
+        protocol.offer(ack(1))
 
         val ancWrite = decode(
             protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)).single(),
         )
         assertArrayEquals(bytes("68 19 01 01 00 00 14 00 00"), ancWrite.payload)
-        protocol.offer(ack(1))
+        protocol.offer(ack(0))
 
         val transparencyWrite = decode(
             protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY)).single(),
         )
         assertArrayEquals(bytes("68 19 01 01 01 00 14 00 00"), transparencyWrite.payload)
-        protocol.offer(ack(0))
+        protocol.offer(ack(1))
 
         val offWrite = decode(
             protocol.encode(StandardControlRequest.SetNoiseMode(NoiseMode.OFF)).single(),

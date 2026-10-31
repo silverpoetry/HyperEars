@@ -46,6 +46,8 @@ internal object EarbudSessionService {
         identity: EarbudIdentity,
     ): Boolean = runtime?.connectionManager?.registerDevice(device, identity) == true
 
+    fun onSonyA2dpState(device: BluetoothDevice, state: Int): Boolean = runtime?.connectionManager?.onSonyA2dpState(device, state) == true
+
     fun onPhysicalConnected(address: String) {
         runtime?.connectionManager?.onPhysicalConnected(address)
     }
@@ -79,6 +81,16 @@ internal object EarbudSessionService {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (context == null || intent == null) return
                 when (intent.action) {
+                    android.bluetooth.BluetoothLeAudio.ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED -> {
+                        if (!dev.hyperears.bridge.BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid, "com.android.bluetooth")) return
+                        val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+                        connectionManager.onSonyLeState(device, intent.getIntExtra(android.bluetooth.BluetoothProfile.EXTRA_STATE, -1))
+                    }
+                    BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                        if (!dev.hyperears.bridge.BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid, "com.android.bluetooth")) return
+                        val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+                        if (!dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device)) connectionManager.forgetSonyBond(device)
+                    }
                     BluetoothSystemBattery.ACTION_LEVEL_CHANGED -> {
                         val device = BluetoothSystemBattery.device(intent) ?: return
                         connectionManager.updateSystemBattery(
@@ -209,12 +221,15 @@ internal object EarbudSessionService {
                 addAction(ModuleContract.ACTION_SYSTEM_OWNERSHIP_CLAIMED)
                 addAction(NativePresentationContract.ACTION_ADMISSION)
                 addAction(BluetoothSystemBattery.ACTION_LEVEL_CHANGED)
+                addAction(android.bluetooth.BluetoothLeAudio.ACTION_LE_AUDIO_CONNECTION_STATE_CHANGED)
+                addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
             }
             context.registerReceiver(
                 receiver,
                 filter,
                 Context.RECEIVER_EXPORTED,
             )
+            connectionManager.snapshotSonyAudioProfiles()
             controlAppPresence.requestAnnouncements()
             ModuleLog.debug(COMPONENT, "control receiver registered")
         }
