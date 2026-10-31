@@ -295,6 +295,12 @@ internal val supportBrands = listOf(
                 noiseControl = "降噪（自适应） / 关闭 / 通透 / 抗风噪",
             ),
             SupportEntry(
+                name = "MIRAGE（初音未来）",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "基础降噪 / 关闭 / 通透",
+            ),
+            SupportEntry(
                 name = "ZZZ-ANGELS-OWS（妄想天使）",
                 evidence = EvidenceLevel.REFERENCE_PROTOCOL,
                 battery = BatteryCapability.LEFT_RIGHT,

@@ -34,7 +34,8 @@ Adapter 只在下列名称规则之一成立时选择 MIRAGE。归一化 = 转�
 负例：`Desired Mirage 500` 与 `MIKU Speaker` 不含水月雨品牌 token，不进入 MOONDROP
 适配；`MOONDROP Xyz` 只命中家族回退。服务端目录不携带 MAC、OUI 或传输层字段，因此
 名称归一化与后续协议响应证据是仅有的两道判型门；广播名精确串经实机官方 App 记录佐证
-为 `MOONDROP MIRAGE`（§7.2），中文别名形态仍待实机确认。
+为 `MOONDROP MIRAGE`（§7.2），中文别名形态经设备持有者（原作者）2026-10-30 实机报告
+确认为「初音未来」。
 
 传输使用 Bluetooth SIG 标准 SPP UUID `00001101-0000-1000-8000-00805f9b34fb`。该 UUID
 被大量蓝牙设备共同使用，只负责建立 RFCOMM 端点，不属于水月雨身份依据，也不会让

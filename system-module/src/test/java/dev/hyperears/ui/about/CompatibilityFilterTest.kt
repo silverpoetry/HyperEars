@@ -44,6 +44,28 @@ class CompatibilityFilterTest {
     }
 
     @Test
+    fun findsTheVerifiedMoondropMirageCollabEntry() {
+        val result = filterSupportBrands("MIRAGE")
+
+        assertEquals(listOf("MOONDROP / 水月雨"), result.map(SupportBrand::name))
+        assertEquals(
+            listOf("MIRAGE（初音未来）"),
+            result.single().entries.map(SupportEntry::name),
+        )
+        assertTrue("初音未来" in result.single().entries.single().name)
+        assertEquals(
+            EvidenceLevel.VERIFIED,
+            result.single().entries.single().evidence,
+        )
+        assertEquals("实机验证", result.single().entries.single().evidence.label)
+        assertEquals(
+            BatteryCapability.COMPONENT,
+            result.single().entries.single().battery,
+        )
+        assertEquals("基础降噪 / 关闭 / 通透", result.single().entries.single().noiseControl)
+    }
+
+    @Test
     fun findsTheVerifiedFreeClip2BatteryOnlyEntry() {
         val result = filterSupportBrands("FreeClip 2 实机验证")
 
