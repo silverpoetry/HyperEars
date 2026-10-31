@@ -35,12 +35,16 @@ internal object NativeIslandNotification {
     internal const val FOCUS_PIC_EARPHONE = "miui.focus.pic_earphone"
     internal const val FOCUS_PIC_CONNECT = "miui.focus.pic_connect_button"
     internal const val FOCUS_BUSINESS = "btheadsetnotification"
+    // Single object-owned main-looper handler: one pending generation at a time, no per-submit
+    // handler instances and no runnable retention after the cancel fires or is replaced. Declared as
+    // a plain object property, not a companion: this file already crashes lint's FIR analyzer in a
+    // companion-inside-object form, and a non-local return inside runCatching lambdas in a second form.
+    private val handler = Handler(Looper.getMainLooper())
 
     /**
      * The v1 shape carries no `actions`/`pics` (no legitimate jump target and no model artwork) and
      * uses a framework small icon, so nothing here depends on plugin resource resolution.
      */
-    @SuppressLint("MissingPermission") // Host-process submission under the system-fixed grant above.
     fun tryShow(context: Context, projection: NativeHeadsetProjection): Boolean = runCatching {
         show(context, projection)
     }.getOrElse { failure ->
@@ -48,6 +52,10 @@ internal object NativeIslandNotification {
         false
     }
 
+    // The host Bluetooth process posts under the system-fixed grants audited on device (POST_NOTIFICATIONS
+    // and STATUS_BAR both granted=true); the module manifest declares neither. NotificationPermission is
+    // the API-33 checker for notify(); MissingPermission covers the activeNotifications read.
+    @SuppressLint("NotificationPermission", "MissingPermission")
     private fun show(context: Context, projection: NativeHeadsetProjection): Boolean {
         if (!projection.canShowConnectionHint) {
             ModuleLog.debug(TAG, "notification not submitted: usable ear battery unavailable")
@@ -80,11 +88,28 @@ internal object NativeIslandNotification {
             "left=${projection.left.percent} right=${projection.right.percent}")
         // The host leaves the notification resident; a third-party text island must not clutter the
         // shade, so the same tag+id is cancelled once the island window (the 5 s connect duration)
-        // has passed.
-        Handler(Looper.getMainLooper()).postDelayed(
-            { manager.cancel(CHANNEL_ID, NOTIFY_ID) }, CANCEL_DELAY_MS,
-        )
+        // has passed. One shared handler owns at most one pending generation: a newer submission
+        // removes the older timer, so an old generation never deletes the newer notification. The
+        // delayed cancel additionally checks ownership: if the host itself posted the same tag+id in
+        // the window (real AirPods path), its extras carry a different param and stay untouched.
+        // Residual risk (documented in the changelog): if the host process dies before the timer,
+        // the notification can linger until the shade is cleared by hand.
+        handler.removeCallbacksAndMessages(null)
+        handler.postDelayed({ cancelIfStillMine(manager, param) }, CANCEL_DELAY_MS)
         return true
+    }
+
+    private fun cancelIfStillMine(manager: NotificationManager, param: String) {
+        val attempt = runCatching { manager.activeNotifications.toList() }
+        if (attempt.isFailure) {
+            ModuleLog.debug(TAG, "notification cancel check unavailable: " +
+                "${attempt.exceptionOrNull()?.javaClass?.name}; retaining")
+            return
+        }
+        val slot = attempt.getOrThrow().firstOrNull { it.tag == CHANNEL_ID && it.id == NOTIFY_ID }
+        if (shouldCancelFocusNotification(slot?.notification?.extras?.getString(FOCUS_PARAM_KEY), param)) {
+            manager.cancel(CHANNEL_ID, NOTIFY_ID)
+        }
     }
 }
 
@@ -96,6 +121,14 @@ internal data class FocusExtrasEntry(val key: String, val value: String)
 
 internal fun focusExtrasEntries(paramJson: String): List<FocusExtrasEntry> =
     listOf(FocusExtrasEntry(NativeIslandNotification.FOCUS_PARAM_KEY, paramJson))
+
+/**
+ * Cancel ownership (review Minor): the delayed retract may delete the shared tag+id slot only while
+ * it still carries this submission's param. A slot gone (null), foreign (the host's own AirPods post)
+ * or overwritten by a newer generation is retained — retraction only ever removes our own artifact.
+ */
+internal fun shouldCancelFocusNotification(activeParam: String?, myParam: String): Boolean =
+    activeParam == myParam
 
 /**
  * The param_v2 JSON body (island-spec §11): key order follows the host's org.json put order, the

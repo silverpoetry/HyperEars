@@ -1,6 +1,8 @@
 package dev.hyperears.presentation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NativeIslandNotificationTest {
@@ -27,5 +29,16 @@ class NativeIslandNotificationTest {
         // a third-party text island after the island window (the 5 s connect duration) elapsed.
         assertEquals(999, NativeIslandNotification.NOTIFY_ID)
         assertEquals(5_000L, NativeIslandNotification.CANCEL_DELAY_MS)
+    }
+
+    @Test
+    fun delayedCancelOnlyRemovesOurOwnNotification() {
+        // Review Minor: ownership-gated retraction. Equal param cancels; a foreign param (the host's
+        // own post on the real AirPods path), a newer generation's param, or a missing slot (null)
+        // are all retained.
+        assertTrue(shouldCancelFocusNotification("MINE", "MINE"))
+        assertFalse(shouldCancelFocusNotification("HOST", "MINE"))
+        assertFalse(shouldCancelFocusNotification("NEWER", "MINE"))
+        assertFalse(shouldCancelFocusNotification(null, "MINE"))
     }
 }
