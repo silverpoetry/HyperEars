@@ -452,7 +452,11 @@ internal class NativePresentationRuntime(
                 hint?.show(p, device) == true
             }) {
                 NativeIslandRoute.NATIVE_SHOWN -> true
-                NativeIslandRoute.THIRD_PARTY -> NativeIslandPresentation.tryShow(context, p)
+                // The OS3 focus-notification route is the working channel on this generation; the
+                // direct setStatus path is kept only as a last-resort probe after a failed
+                // notification submission (it is silently dropped by SystemUI, island-spec §11).
+                NativeIslandRoute.THIRD_PARTY -> NativeIslandNotification.tryShow(context, p) ||
+                    NativeIslandPresentation.tryShow(context, p)
                 NativeIslandRoute.NOT_SHOWN -> false
             }
             NativePresentationTarget.POPUP -> {

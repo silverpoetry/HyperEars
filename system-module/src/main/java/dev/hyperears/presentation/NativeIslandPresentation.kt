@@ -71,7 +71,7 @@ internal object NativeIslandPresentation {
         }
         statusBar.javaClass.getMethod("setStatus", Int::class.javaPrimitiveType, String::class.java,
             Bundle::class.java).invoke(statusBar, STATUS_CODE, STRONG_TOAST_ACTION, bundle)
-        ModuleLog.debug(TAG, "island submitted address=${maskBluetoothAddress(projection.address)} " +
+        ModuleLog.debug(TAG, "setStatus probe submitted address=${maskBluetoothAddress(projection.address)} " +
             "left=${projection.left.percent} right=${projection.right.percent}")
         return true
     }
@@ -217,7 +217,7 @@ private fun islandAreaJson(area: IslandArea): String? = jsonObject(
     },
 )
 
-private fun jsonObject(vararg fields: Pair<String, String?>): String? =
+internal fun jsonObject(vararg fields: Pair<String, String?>): String? =
     fields.filter { it.second != null }
         .joinToString(separator = ",", prefix = "{", postfix = "}") { "\"${it.first}\":${it.second}" }
         .takeIf { it != "{}" }
