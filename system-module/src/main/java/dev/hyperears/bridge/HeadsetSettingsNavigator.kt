@@ -12,9 +12,11 @@ internal class HeadsetSettingsNavigator(
     private val openSystemSettings: (String) -> Boolean,
     private val openVendorApp: (List<ControlAppSpec>) -> Boolean,
     private val openHyperEars: () -> Boolean,
+    private val openNativeSettings: ((String) -> Boolean)? = null,
 ) {
     constructor(context: Context) : this(
         openSystemSettings = { address -> BluetoothDeviceSettings.open(context, address) },
+        openNativeSettings = { address -> BluetoothDeviceSettings.openNative(context,address) },
         openVendorApp = { candidates -> launchVendorApp(context, candidates) },
         openHyperEars = {
             launch(context, Intent(Intent.ACTION_MAIN)
@@ -23,18 +25,22 @@ internal class HeadsetSettingsNavigator(
         },
     )
 
+    private fun openSettings(address:String,state:EarbudState?):Boolean =
+        if(state?.address.equals(address,true)&&state?.adapter?.id=="rose-coral-rs-common-v2"&&state.sessionActive&&openNativeSettings!=null)
+            openNativeSettings.invoke(address) else openSystemSettings(address)
+
     /** Callers supply the current preference and accepted state at the time of the click. */
     fun open(address: String, state: EarbudState?, target: MoreSettingsTarget): Boolean = when (target) {
-        MoreSettingsTarget.SYSTEM_SETTINGS -> openSystemSettings(address)
+        MoreSettingsTarget.SYSTEM_SETTINGS -> openSettings(address,state)
         MoreSettingsTarget.VENDOR_APP -> {
             val current = state?.takeIf { it.address == address }
             val candidates = buildList {
                 current?.lifecycle?.externalControlApp?.let(::add)
                 current?.adapter?.controlApps?.let(::addAll)
             }.distinctBy(ControlAppSpec::packageName)
-            (candidates.isNotEmpty() && openVendorApp(candidates)) || openSystemSettings(address)
+            (candidates.isNotEmpty() && openVendorApp(candidates)) || openSettings(address,state)
         }
-        MoreSettingsTarget.HYPEREARS -> openHyperEars() || openSystemSettings(address)
+        MoreSettingsTarget.HYPEREARS -> openHyperEars() || openSettings(address,state)
     }
 
     private companion object {

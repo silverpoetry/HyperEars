@@ -37,6 +37,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -76,18 +78,27 @@ internal class EarbudDeviceSession(
         val adapter: AdapterSnapshot,
         val runtime: AdapterRuntimeState,
         val lifecycle: DeviceLifecycle,
+        val forceRevision:Boolean=false,
     )
 
     private val sessionJob = SupervisorJob()
     private val scope = CoroutineScope(sessionJob + Dispatchers.IO)
     private val closed = AtomicBoolean()
+    private val handoffLock=Any()
+    private val handoffLease=VendorHandoffLease()
+    private var handoffGraceJob:Job?=null
     private val connectionJobLock = Any()
     private val transportLock = Any()
     private val transactionMutex = Mutex()
+    private val cleanupMutex = Mutex()
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var transportStopping = false
+    @Volatile private var cleanupJob: Job? = null
     private val unknownFrameLogTimes = mutableMapOf<Int, Long>()
     private val controlPacingLock = Any()
     private val refreshRequestGate = RefreshRequestGate(REFRESH_COALESCE_MS)
     private val stateRequests = StateRequestDispatcher(scope)
+    private val protocolCleanups = ProtocolCleanupDispatcher(scope)
     private var lastControlAt = Long.MIN_VALUE
 
     @Volatile
@@ -192,9 +203,11 @@ internal class EarbudDeviceSession(
     }
 
     /** Applies one process-wide control-app presence snapshot to this device session. */
-    fun updateControlAppPresence(activePackages: Set<String>) {
+    fun updateControlAppPresence(activePackages: Set<String>):Unit = synchronized(handoffLock) {
         if (closed.get()) return
         activeControlAppPackages = activePackages.toSet()
+        handoffLease.presence(activeControlAppPackages)
+        if(handoffLease.current?.presenceSeen!=false) handoffGraceJob?.cancel()
         ModuleLog.debug(
             COMPONENT,
             "controller presence address=${maskBluetoothAddress(address)} active=$activeControlAppPackages " +
@@ -203,7 +216,7 @@ internal class EarbudDeviceSession(
         reconcileExternalControlOwner()
     }
 
-    fun updateExternalControlEnabled(enabled: Boolean) {
+    fun updateExternalControlEnabled(enabled: Boolean):Unit = synchronized(handoffLock) {
         if (closed.get() || externalControlEnabled == enabled) return
         externalControlEnabled = enabled
         reconcileExternalControlOwner()
@@ -216,11 +229,7 @@ internal class EarbudDeviceSession(
     }
 
     private fun reconcileExternalControlOwner() {
-        val nextOwner = if (externalControlEnabled) {
-            ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages)
-        } else {
-            null
-        }
+        val nextOwner=handoffLease.owner(adapter.controlApps,activeControlAppPackages,externalControlEnabled)
         val previousOwner = externalControlApp
         if (nextOwner == previousOwner) return
         if (nextOwner != null) {
@@ -237,7 +246,7 @@ internal class EarbudDeviceSession(
      * requests never create concurrent socket attempts for the same device.
      */
     fun requestConnection(): Boolean {
-        if (closed.get()) {
+        if (closed.get() || transportStopping) {
             ModuleLog.debug(COMPONENT, "ignored connection request; session closed")
             return false
         }
@@ -276,8 +285,43 @@ internal class EarbudDeviceSession(
         return true
     }
 
-    fun execute(request: ControlRequest): Boolean {
+    private fun executeHandoff(request: StandardControlRequest): Boolean = synchronized(handoffLock) {
         if (closed.get()) return false
+        when (request) {
+            is StandardControlRequest.BeginVendorHandoff -> {
+                if (request.leaseId.isBlank() || request.leaseId.length > 128 ||
+                    adapter.controlApps.none { it.packageName == request.packageName }) return false
+                handoffGraceJob?.cancel()
+                handoffLease.begin(request.packageName, request.leaseId, activeControlAppPackages)
+                reconcileExternalControlOwner()
+                // Even an unchanged external owner must acknowledge this request with a fresh revision.
+                listener.onSnapshotChanged(this, snapshot().copy(forceRevision = true))
+                if (handoffLease.current?.presenceSeen == false) {
+                    handoffGraceJob = scope.launch {
+                        delay(30_000L)
+                        synchronized(handoffLock) {
+                            if (handoffLease.expire(request.leaseId)) reconcileExternalControlOwner()
+                        }
+                    }
+                }
+                true
+            }
+            is StandardControlRequest.EndVendorHandoff -> {
+                if (!handoffLease.end(request.leaseId)) return false
+                handoffGraceJob?.cancel()
+                handoffGraceJob = null
+                reconcileExternalControlOwner()
+                true
+            }
+            else -> false
+        }
+    }
+
+    fun execute(request: ControlRequest): Boolean {
+        if(request is StandardControlRequest.BeginVendorHandoff || request is StandardControlRequest.EndVendorHandoff)
+            return executeHandoff(request)
+
+        if (closed.get() || transportStopping) return false
         if (request === StandardControlRequest.Refresh && !refreshRequestGate.tryAcquire()) {
             ModuleLog.debug(
                 COMPONENT,
@@ -302,6 +346,7 @@ internal class EarbudDeviceSession(
         scope.launch {
             runCatching {
                 transactionMutex.withLock {
+                    if (closed.get() || transportStopping || channel !== activeChannel || externalControlApp != null) return@withLock
                     val result = adapter.executeControl(request)
                     if (!result.accepted) return@withLock
                     val writeStartedAt = SystemClock.elapsedRealtime()
@@ -349,15 +394,12 @@ internal class EarbudDeviceSession(
     }
 
     override fun close() {
+        synchronized(handoffLock) { handoffGraceJob?.cancel();handoffLease.clear() }
         if (!closed.compareAndSet(false, true)) return
+        protocolCleanups.cancelAll()
         stateRequests.cancelAll("device session closed")
-        val activeChannel = synchronized(transportLock) {
-            channel.also {
-                channel = null
-                adapter.resetProtocolSession()
-            }
-        }
-        activeChannel?.close()
+        transportStopping = true
+        beginTransportCleanup(graceful = true) { cleanupScope.cancel() }
         synchronized(connectionJobLock) {
             connectionJob.also { connectionJob = null }
         }?.cancel()
@@ -571,7 +613,7 @@ internal class EarbudDeviceSession(
         bytes: ByteArray,
     ): AdapterIoResult = transactionMutex.withLock {
         ModuleLog.debug(COMPONENT) {
-            "received endpoint=${activeChannel.endpointId} bytes=${bytes.toHex()}"
+            "received endpoint=${activeChannel.endpointId} bytes=${wireForLog(bytes)}"
         }
         val receivingAdapter = adapter
         val result = receivingAdapter.receive(bytes)
@@ -663,6 +705,7 @@ internal class EarbudDeviceSession(
         activeChannel: EarbudChannel,
     ) {
         if (channel !== activeChannel) throw CancellationException("stale adapter replacement")
+        protocolCleanups.cancelAll()
         stateRequests.cancelAll("adapter replaced")
         adapter = replacement.adapter
         ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages)
@@ -763,7 +806,7 @@ internal class EarbudDeviceSession(
             activeChannel.write(command)
             ModuleLog.debug(
                 COMPONENT,
-                "$description wrote bytes=${command.toHex()}",
+                "$description wrote bytes=${wireForLog(command)}",
             )
         }
     }
@@ -776,6 +819,25 @@ internal class EarbudDeviceSession(
     ) {
         effects.forEach { effect ->
             when (effect) {
+                is AdapterEffect.ScheduleProtocolCleanup -> protocolCleanups.schedule(
+                    effect.key, effect.delayMs,
+                    expire = {
+                        transactionMutex.withLock {
+                            currentCoroutineContext().ensureActive()
+                            if (closed.get() || externalControlApp != null || channel !== activeChannel ||
+                                adapter !== expectedAdapter) return@withLock
+                            val commands = expectedAdapter.expireProtocolWorkflow(effect.key, effect.lease)
+                            if (commands.isNotEmpty()) sendCommands(activeChannel, commands, COMMAND_GAP_MS,
+                                "protocol workflow cleanup ${effect.key}")
+                        }
+                    },
+                    failed = { error ->
+                        ModuleLog.warn(COMPONENT, "protocol cleanup failed", error)
+                        activeChannel.close()
+                    },
+                )
+                is AdapterEffect.CancelProtocolCleanup -> protocolCleanups.cancel(effect.key)
+
                 is AdapterEffect.RequestState -> {
                     stateRequests.request(
                         featureId = effect.featureId,
@@ -833,43 +895,71 @@ internal class EarbudDeviceSession(
         }
     }
 
-    private fun clearTransport() {
-        stateRequests.cancelAll("vendor channel cleared")
-        val oldChannel = synchronized(transportLock) {
-            channel.also {
-                channel = null
-                adapter.resetProtocolSession()
-                if (adapter.effectiveBatterySource() == BatterySource.SYSTEM_AGGREGATE) {
-                    adapter.onSystemBatteryChanged(systemBatteryPercent)
-                }
-            }
+    private suspend fun clearTransport() {
+        transportStopping = true
+        withContext(NonCancellable) { performTransportCleanup(graceful = false) }
+        transportStopping = closed.get() || externalControlApp != null
+    }
+
+    private fun beginTransportCleanup(graceful: Boolean, after: () -> Unit = {}) {
+        val previous = cleanupJob
+        cleanupJob = cleanupScope.launch {
+            previous?.join()
+            performTransportCleanup(graceful)
+            after()
         }
-        oldChannel?.close()
+    }
+
+    private suspend fun performTransportCleanup(graceful: Boolean) = cleanupMutex.withLock {
+        val oldChannel = synchronized(transportLock) { channel.also { channel = null } }
+        stateRequests.cancelAll("vendor channel cleared")
+        protocolCleanups.cancelAll()
+        runCatching {
+            closeOwnedChannel(oldChannel, transactionMutex,
+                prepare = { if (graceful) adapter.prepareProtocolRelease() else emptyList() },
+                finished = {
+                    adapter.resetProtocolSession()
+                    if (adapter.effectiveBatterySource() == BatterySource.SYSTEM_AGGREGATE)
+                        adapter.onSystemBatteryChanged(systemBatteryPercent)
+                })
+        }.onFailure { ModuleLog.warn(COMPONENT, "Coral cleanup ended without confirmed restoration", it) }
     }
 
     private fun yieldToControlApp(owner: ControlAppSpec) {
         if (closed.get()) return
         externalControlApp = owner
-        synchronized(connectionJobLock) {
-            connectionJob.also { connectionJob = null }
-        }?.cancel(CancellationException("vendor control yielded to ${owner.packageName}"))
-        clearTransport()
-        updateLifecycle(
-            privateTransport = PrivateTransportState.NOT_REQUIRED,
-            protocolHandshake = ProtocolHandshakeState.NOT_REQUIRED,
-            controlOwnership = ControlOwnership.EXTERNAL_APP,
-            externalControlApp = owner,
-        )
-        ModuleLog.debug(
-            COMPONENT,
-            "yielded vendor control to ${owner.packageName} " +
-                "address=${maskBluetoothAddress(address)}",
-        )
+        transportStopping = true
+        synchronized(connectionJobLock) { connectionJob.also { connectionJob = null } }
+            ?.cancel(CancellationException("vendor control yielded to ${owner.packageName}"))
+        beginTransportCleanup(graceful = true) {
+            synchronized(handoffLock) {
+                if (!closed.get() && externalControlApp == owner) {
+                    updateLifecycle(privateTransport = PrivateTransportState.NOT_REQUIRED,
+                        protocolHandshake = ProtocolHandshakeState.NOT_REQUIRED,
+                        controlOwnership = ControlOwnership.EXTERNAL_APP, externalControlApp = owner)
+                } else if (!closed.get() && externalControlApp == null) {
+                    transportStopping = false
+                    requestConnection()
+                }
+            }
+        }
     }
 
     private fun resumeModuleControl(previousOwner: ControlAppSpec?) {
         if (closed.get() || externalControlApp == null) return
         externalControlApp = null
+        if (cleanupJob?.isActive == true) {
+            cleanupJob?.invokeOnCompletion {
+                if (!closed.get() && externalControlApp == null) {
+                    transportStopping = false
+                    updateLifecycle(privateTransport = if (adapter.privateProtocolRequired) PrivateTransportState.IDLE else PrivateTransportState.NOT_REQUIRED,
+                        protocolHandshake = adapter.initialHandshakeState(), controlOwnership = ControlOwnership.MODULE, externalControlApp = null)
+                    requestConnection()
+                }
+            }
+            return
+        }
+        transportStopping = false
         updateLifecycle(
             privateTransport = if (adapter.privateProtocolRequired) {
                 PrivateTransportState.IDLE
@@ -924,6 +1014,9 @@ internal class EarbudDeviceSession(
             }
         }
     }
+
+    private fun wireForLog(value:ByteArray):String =
+        if(adapter.id=="rose-coral-rs-common-v2") "<redacted ${value.size} bytes>" else value.toHex()
 
     private fun ByteArray.toHex(): String =
         joinToString(separator = " ") { "%02X".format(it.toInt() and 0xFF) }

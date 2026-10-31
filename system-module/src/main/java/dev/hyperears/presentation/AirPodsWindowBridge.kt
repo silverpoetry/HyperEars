@@ -58,6 +58,8 @@ internal class AirPodsWindowBridge(
         var bound = false
         var callback: Any? = null
         var caseVisibilityDisabled = false
+        var coralAnimationAttempted = false
+        var coralAnimation: CoralPopupAnimation? = null
         var navigation: ContentNavigation? = null
         lateinit var binder: Binder
         lateinit var death: IBinder.DeathRecipient
@@ -255,6 +257,16 @@ internal class AirPodsWindowBridge(
                 runCatching {
                     val root = args[0] as? View ?: return@runCatching
                     if (root !== NativeMembers.get(binding.controller, "mView")) return@runCatching
+                    if (binding.state.adapter?.id == dev.hyperears.integration.RoseCoralAdapter.ID &&
+                        !binding.coralAnimationAttempted) {
+                        binding.coralAnimationAttempted = true
+                        runCatching {
+                            CoralPopupAnimation.resolve(root, appClassLoader).also {
+                                binding.coralAnimation = it
+                                it.attach()
+                            }
+                        }.onFailure { ModuleLog.warn(TAG, "Coral entrance unavailable; retaining static artwork", it) }
+                    }
                     val p = projection(binding)
                     if (p.singleBattery) return@runCatching
                     if (visibility.apply(root, p.showCaseInPopup)) {
@@ -364,6 +376,7 @@ internal class AirPodsWindowBridge(
     private fun release(binding: Binding) {
         if (!binding.active) return
         binding.active = false
+        binding.coralAnimation?.close(); binding.coralAnimation = null
         binding.navigation?.release()
         binding.navigation = null
         binding.callback = null

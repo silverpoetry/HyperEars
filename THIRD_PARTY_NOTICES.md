@@ -295,3 +295,10 @@ Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不�
 所有。
 
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
+
+## ROSE Coral
+
+Coral protocol facts were researched from RoseLink 3.8.2 and independently implemented.
+No vendor application binaries, decompiled source, firmware or original product photographs
+are distributed. Illustrations were generated from the user-provided Coral product reference;
+product names and marks identify compatibility only.

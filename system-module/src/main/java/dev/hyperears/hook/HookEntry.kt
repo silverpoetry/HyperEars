@@ -28,6 +28,7 @@ class HookEntry : XposedModule() {
         )
 
         val hooks = when (param.packageName) {
+            "com.android.settings" -> listOf(SettingsHeadsetHook())
             "com.android.bluetooth" -> listOf(BluetoothProcessHook())
             "com.xiaomi.bluetooth" -> if (Application.getProcessName() in
                 setOf("com.xiaomi.bluetooth", "com.xiaomi.bluetooth:ui")) {

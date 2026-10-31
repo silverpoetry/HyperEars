@@ -323,6 +323,11 @@ enum class FeatureReportDecision {
 
 /** Ordered, declarative effects recorded while an Adapter handles one framework event. */
 sealed interface AdapterEffect {
+    data class ScheduleProtocolCleanup(val key: String, val lease: Long, val delayMs: Long) : AdapterEffect {
+        init { require(key.isNotBlank() && delayMs in 1..60_000) }
+    }
+    data class CancelProtocolCleanup(val key: String) : AdapterEffect
+
     data class RequestState(
         val featureId: String,
         val delayMs: Long,
@@ -349,6 +354,9 @@ sealed interface AdapterEffect {
  * call back into the Android runtime while Adapter code is executing.
  */
 interface AdapterEventScope {
+    fun scheduleProtocolCleanup(key: String, lease: Long, delayMs: Long)
+    fun cancelProtocolCleanup(key: String)
+
     fun requestState(featureId: String, delayMs: Long)
 
     fun cancelStateRequest(featureId: String)

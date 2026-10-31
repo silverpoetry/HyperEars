@@ -273,6 +273,9 @@ abstract class EarbudAdapter(
     fun effectiveSupportedNoiseModes(): Set<NoiseMode> =
         confirmedNoiseModes ?: supportedNoiseModes
 
+    open fun prepareProtocolRelease(): List<ByteArray> = emptyList()
+    open fun expireProtocolWorkflow(key: String, lease: Long): List<ByteArray> = emptyList()
+
     fun effectiveBatterySource(): BatterySource = confirmedBatterySource ?: batterySource
 
     /** Validates a control against the effective adapter capability and request contract. */
@@ -453,6 +456,10 @@ abstract class EarbudAdapter(
 private class RecordingAdapterEventScope : AdapterEventScope {
     private val recordedEffects = mutableListOf<AdapterEffect>()
 
+    override fun scheduleProtocolCleanup(key: String, lease: Long, delayMs: Long) {
+        recordedEffects += AdapterEffect.ScheduleProtocolCleanup(key, lease, delayMs)
+    }
+    override fun cancelProtocolCleanup(key: String) { recordedEffects += AdapterEffect.CancelProtocolCleanup(key) }
     override fun requestState(featureId: String, delayMs: Long) {
         recordedEffects += AdapterEffect.RequestState(featureId, delayMs)
     }
@@ -640,6 +647,7 @@ object EarbudAdapterRegistry {
         add(Registration(roseGroup, ::RoseEarfreeI5Adapter))
         add(Registration(roseGroup, ::RoseEarfreeProtocolFamilyAdapter))
         add(Registration(roseGroup, ::RoseBudsFeelMk2Adapter))
+        add(Registration(roseGroup, ::RoseCoralAdapter))
         add(Registration(roseGroup, ::RoseBudsFeelProtocolFamilyAdapter))
         add(Registration(roseGroup, ::RoseEarbudAdapter))
         add(Registration(niceHckGroup, ::NiceHckYuanDaoOrigAdapter))

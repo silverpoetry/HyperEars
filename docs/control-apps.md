@@ -217,3 +217,8 @@ adb shell pm path com.vivo.vivotws
 
 包名只定义控制权边界，不得加入设备匹配证据。若厂商更换包名，应作为新目录项单独验证，
 不能仅按相似名称或签名未知的兼容客户端放宽匹配。
+
+## ROSE Coral 原生详情页
+
+Coral 沿用目录中的 RoseLink 控制权配置；原生耳机详情另需 `com.android.settings`。
+固件检查只读取版本元数据，确认存在更新后打开 RoseLink 并交接私有通道。
