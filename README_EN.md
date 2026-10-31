@@ -10,7 +10,7 @@
 
 HyperEars integrates selected third-party Bluetooth headsets with Xiaomi HyperOS and the MiLink
 device center. It complements Android's existing audio stack with device identity, battery,
-noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, Technics, Bose, Edifier,
+noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, OnePlus, Technics, Bose, Edifier,
 StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Sony and Samsung devices.
 
 The project focuses on core system integration. Detailed EQ, gesture assignments and firmware
@@ -91,6 +91,7 @@ ROMs and Android releases below 15 remain outside the supported scope.
 |---|---|---|---|
 | vivo / iQOO TWS | hardware-verified, public implementation, family extrapolation | private components | noise cancellation, off, transparency |
 | OPPO Enco | reference protocol | private components | noise cancellation, off, transparency |
+| OnePlus Buds / Buds Pro | Buds 4 verified through the shared entry; automatic selection pending, other generations family-probed | private components | noise cancellation, off, transparency |
 | StarRing | Ultra hardware-verified; others standard fallback | Ultra private components; others Android aggregate | Ultra: noise cancellation, off, transparency, wind-noise reduction |
 | Bose | one hardware-verified model; public implementation, reference protocol and family extrapolation for others | private aggregate or components | explicit subset selected by BMAP product and control dialect |
 | Edifier | W860NB PRO, Huazai Evo Pro, FitClip Ultra and FitBuds Turbo device-verified; others family extrapolation | headphone aggregate, TWS components or aggregate | model-dependent noise cancellation, off, transparency and wind-noise reduction; FitClip Ultra has game mode only, Turbo also offers game mode |
