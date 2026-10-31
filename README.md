@@ -9,7 +9,7 @@
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 HyperEars 是面向 Xiaomi HyperOS 的第三方蓝牙耳机系统集成模块。它让受支持的
-vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Sony 和 Samsung 耳机
+vivo / iQOO、OPPO Enco、OnePlus、Technics、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Sony 和 Samsung 耳机
 进入 MiLink 融合设备中心，并在不接管 Android 音频路由的前提下补充电量、降噪状态和
 设备流转所需的兼容信息。
 
@@ -75,6 +75,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 |---|---|---|---|
 | vivo / iQOO TWS | 实机验证、公开实现、家族外推 | 私有组件电量 | 降噪、关闭、通透 |
 | OPPO Enco | 参考协议 | 私有组件电量 | 降噪、关闭、通透 |
+| OnePlus Buds / Buds Pro | Buds 4 共享入口实测；自动识别待复核，其他代际家族外推 | 私有组件电量 | 降噪、关闭、通透 |
 | StarRing / 籁特易耳 | Ultra 实机验证；其他标准回退 | Ultra 私有组件电量；其他系统整机电量 | Ultra 支持降噪、关闭、通透、抗风噪 |
 | Bose | 一个型号实机验证；其余公开实现、参考协议或家族外推 | 私有整机或组件电量 | 按 BMAP 产品和控制方言开放明确的模式子集 |
 | Edifier / 漫步者 | W860NB PRO、花再 Evo Pro、FitClip Ultra、FitBuds Turbo 实机验证；其余家族外推 | 头戴整机、TWS 组件或聚合电量 | 按型号提供降噪、关闭、通透、抗风噪；FitClip Ultra 仅游戏模式，Turbo 另有游戏模式 |
@@ -232,6 +233,7 @@ SHA-256 文件。
 - [vivo TWS Air3 Pro 协议](docs/vivo-tws-air3-pro-protocol.md)
 - [vivo/iQOO 家族画像](docs/vivo-family-support.md)
 - [OPPO Enco 协议](docs/oppo-enco-protocol.md)
+- [OnePlus OPO 家族](docs/oneplus-opo-protocol.md)
 - [Bose BMAP 协议](docs/bose-bmap-protocol.md)
 - [Sony Headphones 协议](docs/sony-headphones-protocol.md)
 - [MOONDROP Robin 协议](docs/moondrop-robin-protocol.md)

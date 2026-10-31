@@ -22,6 +22,13 @@ class CompatibilityFilterTest {
     }
 
     @Test
+    fun onePlusEntriesSeparateAProbeFromCompletedHardwareAcceptance() {
+        val entries = filterSupportBrands("OnePlus").single().entries
+        assertEquals(EvidenceLevel.REFERENCE_PROTOCOL, entries.single { it.name == "OnePlus Buds 4" }.evidence)
+        assertTrue(entries.any { it.evidence == EvidenceLevel.FAMILY_PROBE })
+    }
+
+    @Test
     fun multipleTermsFilterByModelAndCapability() {
         val result = filterSupportBrands("Sony 抗风噪")
 

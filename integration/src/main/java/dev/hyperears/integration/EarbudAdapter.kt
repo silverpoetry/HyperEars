@@ -596,6 +596,7 @@ object EarbudAdapterRegistry {
 
     private val vivoGroup = GroupMetadata("vivo", "vivo / iQOO")
     private val oppoGroup = GroupMetadata("oppo", "OPPO Enco")
+    private val onePlusGroup = GroupMetadata("oneplus", "OnePlus / 一加")
     private val starRingGroup =
         GroupMetadata("starring", "StarRing / 籁特易耳")
     private val boseGroup = GroupMetadata("bose", "Bose")
@@ -626,6 +627,8 @@ object EarbudAdapterRegistry {
         add(Registration(oppoGroup, ::OppoEncoX3Adapter))
         add(Registration(oppoGroup, ::OppoEncoAir5Adapter))
         add(Registration(oppoGroup, ::OppoEarbudAdapter))
+        add(Registration(onePlusGroup, ::OnePlusBuds4Adapter))
+        add(Registration(onePlusGroup, ::OnePlusEarbudAdapter))
         add(Registration(boseGroup, ::BoseHeadphonesAdapter))
         add(Registration(boseGroup, ::BoseEarbudAdapter))
         add(Registration(edifierGroup, ::EdifierW860NBProAdapter))
