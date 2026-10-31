@@ -97,6 +97,17 @@ internal fun resolveNativePresentationTarget(
 internal fun displayBlockedByNativeCirculation(flowOwns: Boolean?): Boolean = flowOwns == true
 
 /**
+ * Battery readiness for the third-party island on devices whose two ear readings arrive tens of
+ * milliseconds apart (device 2026-11-01: the connected island froze on "L 100%" while the right-ear
+ * frame was still in flight): submit as soon as both ears are available, otherwise wait out the
+ * short window, and submit whatever exists once it times out so genuinely single-sided devices are
+ * never stuck behind the wait.
+ */
+internal fun islandReadyToSubmit(left: BatteryReading, right: BatteryReading,
+    waitedMs: Long, timeoutMs: Long): Boolean =
+    (left.available && right.available) || waitedMs >= timeoutMs
+
+/**
  * The circulation fallback chain (island-spec §8): verified legacy record getters decide on their own
  * and keep the old-build verdict unchanged; only when this build lacks those names the stable wrapper
  * readings decide; neither being readable is indeterminate, which [displayBlockedByNativeCirculation]

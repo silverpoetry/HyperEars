@@ -245,4 +245,19 @@ class NativePresentationModelTest {
             }
         }
     }
+
+    @Test
+    fun islandSubmissionWaitsForBothEarsOrTimesOut() {
+        val left = BatteryReading(100, false)
+        val right = BatteryReading(90, false)
+        val missing = BatteryReading(null, false)
+        // Both ears in: submit immediately at the head of the wait window.
+        assertTrue(islandReadyToSubmit(left, right, 0, 600))
+        // One side still in flight (device 2026-11-01 trailing right-ear frames): wait.
+        assertFalse(islandReadyToSubmit(left, missing, 0, 600))
+        assertFalse(islandReadyToSubmit(left, missing, 599, 600))
+        // Timeout: partial data submits, so genuinely single-sided devices are never stuck.
+        assertTrue(islandReadyToSubmit(left, missing, 600, 600))
+        assertTrue(islandReadyToSubmit(missing, missing, 1000, 600))
+    }
 }

@@ -70,6 +70,9 @@ internal class NativePresentationRuntime(
     private var windowLifetime: IBinder? = null
     private var windowDeath: IBinder.DeathRecipient? = null
     private var windowDeadline: Runnable? = null
+    // One pending two-ear battery wait per device address; the handler and the map only ever touch
+    // each other on the main looper, and every runnable removes itself when it fires.
+    private val islandRetries = mutableMapOf<String, Runnable>()
 
     init {
         if (!uiProcess) {
@@ -394,8 +397,37 @@ internal class NativePresentationRuntime(
         }
     }
 
+    /**
+     * Resubmits a deferred third-party island once the trailing ear frame has had time to land.
+     * Cancellation-safety: the runnable verifies the record is still live and on the same connection
+     * before acting, and an expired or already-consumed connection is refused by the gate itself —
+     * the retry never bypasses the freshness guards to post onto a stale device.
+     */
+    private fun scheduleIslandRetry(record: Record, mode: HeadsetConnectionPresentation) {
+        val address = record.state.address ?: return
+        islandRetries.remove(address)?.let(handler::removeCallbacks)
+        val connection = record.metadata.connection
+        val retry = Runnable {
+            islandRetries.remove(address)
+            val current = records[address]
+            if (current == null || !current.active ||
+                current.metadata.connection.id != connection.id) {
+                ModuleLog.debug(TAG, "island retry skipped: connection no longer live")
+                return@Runnable
+            }
+            attemptPresentation(current) {
+                runCatching { present(current, mode, ISLAND_BATTERY_WAIT_MS) }
+                    .onFailure { ModuleLog.warn(TAG, "island retry presentation failed", it) }
+                    .getOrDefault(false)
+            }
+        }
+        islandRetries[address] = retry
+        handler.postDelayed(retry, ISLAND_BATTERY_WAIT_MS)
+    }
+
     @SuppressLint("MissingPermission")
-    private fun present(record: Record, mode: HeadsetConnectionPresentation): Boolean {
+    private fun present(record: Record, mode: HeadsetConnectionPresentation,
+        islandWaitedMs: Long = 0): Boolean {
         if (settings.modulePaused || mode == HeadsetConnectionPresentation.OFF) return false
         val p = NativeHeadsetProjection.from(record.state) ?: return false
         val power = context.getSystemService(PowerManager::class.java)
@@ -455,8 +487,16 @@ internal class NativePresentationRuntime(
                 // The OS3 focus-notification route is the working channel on this generation; the
                 // direct setStatus path is kept only as a last-resort probe after a failed
                 // notification submission (it is silently dropped by SystemUI, island-spec §11).
-                NativeIslandRoute.THIRD_PARTY -> NativeIslandNotification.tryShow(context, p) ||
-                    NativeIslandPresentation.tryShow(context, p)
+                // Two-ear readiness: a first attempt missing the later right-ear frame schedules one
+                // delayed re-submission instead of freezing the island on half the battery.
+                NativeIslandRoute.THIRD_PARTY ->
+                    if (!islandReadyToSubmit(p.left, p.right, islandWaitedMs, ISLAND_BATTERY_WAIT_MS)) {
+                        ModuleLog.debug(TAG, "island deferred: waiting for both ear readings " +
+                            "address=${maskBluetoothAddress(p.address)} waited=$islandWaitedMs")
+                        scheduleIslandRetry(record, mode)
+                        false
+                    } else NativeIslandNotification.tryShow(context, p) ||
+                        NativeIslandPresentation.tryShow(context, p)
                 NativeIslandRoute.NOT_SHOWN -> false
             }
             NativePresentationTarget.POPUP -> {
@@ -483,5 +523,10 @@ internal class NativePresentationRuntime(
         }
     }
 
-    private companion object { const val TAG = "NativePresentation" }
+    private companion object {
+        const val TAG = "NativePresentation"
+        // Right-ear battery frames trail the connection state by tens of ms on TWS hosts (device
+        // 2026-11-01); 600 ms covers the gap while staying inside the gate's freshness window.
+        const val ISLAND_BATTERY_WAIT_MS = 600L
+    }
 }
