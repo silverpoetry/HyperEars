@@ -61,6 +61,8 @@ vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、Nic
 - 详细日志关闭时不产生模块诊断记录；开启后，注入进程日志写入 LSPosed 守护进程，设置变更和快捷操作
   结果写入应用本地滚动日志，导出时合并为一个文本文件。
 
+RayNeo X3 Pro 的协议、原生界面和验证边界见[协议说明](docs/rayneo-x3-pro-protocol.md)。
+
 ## 运行边界
 
 HyperEars **不会**替换 Android 的 A2DP/HFP 音频链路，不会转发音频流，也不会持续扫描蓝牙。私有
@@ -120,8 +122,8 @@ FitBuds Turbo 的实测证据来自贡献者原版实现；维护后的共享卡
 3. 安装 APK，在 LSPosed 中启用 HyperEars，并至少确认 `com.android.bluetooth` 和
    `com.milink.service` 已选中。使用连接展示或电量通知时勾选 `com.xiaomi.bluetooth`。
    若使用厂商控制 App 退避，再按
-   [控制 App 目录](docs/control-apps.md#2-当前目录)选择对应且已安装的包名；不要选择
-   Settings、System UI 或所有应用。
+   [控制 App 目录](docs/control-apps.md#2-当前目录)选择对应且已安装的包名。RayNeo 原生详情页另需选择 Settings；
+   不要选择 System UI 或所有应用。
 4. 重启设备。仅强停 MiLink 不一定会让两个目标进程同时重新加载模块。
 5. 连接耳机后打开 HyperEars，确认对应会话显示正确的 Adapter、形态、传输和能力，
    并观察 MiLink 的状态接收、身份查询、能力查询与通知阶段。
@@ -171,7 +173,7 @@ MiLinkServiceHook         ── 最小身份、状态与控制映射
 系统整机电量与流转能力起步，合法电量和模式响应分别开放对应私有能力；Registry 在加载时
 验证这一门禁，防止新增适配再次把身份匹配当成能力证明。
 
-系统模块不注入 HyperOS 设置页，不轮询 UI，也不替换系统蓝牙音频服务。型号专属卡片
+RayNeo 原生详情页通过可选 Settings 作用域接入；不轮询 UI，也不替换系统蓝牙音频服务。型号专属卡片
 扩展只在 MiLink 卡片绑定时执行，并由具体 Adapter 声明。完整架构见
 [系统模块架构](docs/system-module-architecture.md)。
 

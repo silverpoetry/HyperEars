@@ -430,7 +430,7 @@ internal class EarbudConnectionManager(
                 lifecycle = update.lifecycle,
                 features = update.runtime.features,
             )
-            if (projected == previous) return
+            if (projected == previous && !update.forceRevision) return
             val next = projected.copy(revision = previous.revision + 1)
             record.state = next
             lastRevisions[key] = next.revision

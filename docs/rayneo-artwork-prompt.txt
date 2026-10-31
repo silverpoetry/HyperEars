@@ -1,0 +1,7 @@
+Use case: style-transfer
+Asset type: HyperOS Bluetooth device details header, premium product render.
+Input: the supplied RayNeo X3 Pro photograph is the exact product identity and camera-angle reference.
+Keep the same three-quarter view, both unfolded temples, lens outline, thick dark graphite frame, bridge camera/sensors, nose pads and RayNeo marking. Keep hardware proportions faithful; do not invent components or simplify into ordinary sunglasses.
+Restyle only the presentation into a clean, refined Xiaomi-style device-settings product render: subtle realistic 3D depth, crisp contours, smooth matte graphite surfaces, soft studio lighting and restrained highlights that remain legible on both pale gray and dark UI backgrounds.
+One complete pair of glasses, isolated on genuinely transparent alpha. Remove the navy background including the spaces inside and between the temples. Preserve optical lens tint/reflections subtly. No floor, cast shadow, glow, white outline, caption, extra logo, box or accessories. All parts must remain inside frame.
+Wide centered composition intended for a 2:1 UI area; keep compact vertical margins and 8% horizontal breathing room. Do not rotate or change the reference viewpoint.

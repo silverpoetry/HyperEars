@@ -24,7 +24,7 @@ internal object MiLinkCarrierIdentity {
 
     fun deviceId(adapter: AdapterSnapshot): String = when (adapter.formFactor) {
         HeadsetFormFactor.TWS -> TWS_DEVICE_ID
-        HeadsetFormFactor.HEADPHONES -> HEADPHONES_DEVICE_ID
+        HeadsetFormFactor.GLASSES, HeadsetFormFactor.HEADPHONES -> HEADPHONES_DEVICE_ID
     }
 }
 

@@ -47,11 +47,12 @@ internal object BoseCapabilityConfigRegistry {
     )
 
     private val definitions: List<Definition> = buildList {
-        HeadsetFormFactor.entries.forEach { formFactor ->
+        listOf(HeadsetFormFactor.TWS, HeadsetFormFactor.HEADPHONES).forEach { formFactor ->
             templates.values.forEach { template ->
                 val formSuffix = when (formFactor) {
                     HeadsetFormFactor.TWS -> "earbuds"
                     HeadsetFormFactor.HEADPHONES -> "headphones"
+                    HeadsetFormFactor.GLASSES -> error("Bose glasses are not registered")
                 }
                 val id = "bose-discovered-$formSuffix-${template.suffix}"
                 val configuration = BoseWireConfig(
@@ -80,7 +81,7 @@ internal object BoseCapabilityConfigRegistry {
     init {
         require(
             configurations.size ==
-                HeadsetFormFactor.entries.size * BoseDiscoveredDialect.entries.size,
+                2 * BoseDiscoveredDialect.entries.size,
         )
     }
 

@@ -82,4 +82,14 @@ class HeadsetSettingsNavigatorTest {
         assertTrue(navigator.open(address, state, MoreSettingsTarget.VENDOR_APP))
         assertEquals(listOf("module", "system:$address", "vendor"), calls)
     }
+
+    @Test fun nativeRouteIsLimitedToTheAcceptedRayNeoAddress() {
+        val nav=HeadsetSettingsNavigator({calls+="legacy";true},{false},{false},{calls+="native";true})
+        val rayneo=state.copy(adapter=dev.hyperears.integration.RayNeoX3ProAdapter().snapshot(),
+            lifecycle=DeviceLifecycle(systemProfile=dev.hyperears.integration.SystemProfileState.CONNECTED))
+        nav.open(address,state,MoreSettingsTarget.SYSTEM_SETTINGS)
+        nav.open(address,rayneo,MoreSettingsTarget.SYSTEM_SETTINGS)
+        nav.open("02:00:00:00:00:02",rayneo,MoreSettingsTarget.SYSTEM_SETTINGS)
+        assertEquals(listOf("legacy","native","legacy"),calls)
+    }
 }

@@ -60,6 +60,9 @@ StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Sony and Samsung dev
 - Provides root-only shortcuts for restarting MiLink, restarting Bluetooth and stopping supported vendor controllers.
 - No module diagnostics are produced while detailed logging is disabled. When enabled, injected-process logs are written through the LSPosed daemon; settings changes and shortcut results are kept in the app's bounded local log and merged during export.
 
+RayNeo X3 Pro controls, native UI and validation limits are described in the
+[protocol record](docs/rayneo-x3-pro-protocol.md).
+
 ## Runtime boundary
 
 HyperEars does not replace Android's A2DP/HFP audio path, proxy audio streams or continuously scan for
@@ -123,7 +126,7 @@ maintained in the [compatibility matrix](docs/compatibility.md).
 3. Install the APK, enable HyperEars in LSPosed and select at least `com.android.bluetooth` and
    `com.milink.service`. Also select `com.xiaomi.bluetooth` for native connection displays or battery
    notifications. If runtime yielding is needed, select the matching installed package
-   from the [controller-app catalog](docs/control-apps.md); do not select Settings, System UI or
+   from the [controller-app catalog](docs/control-apps.md); select Settings only for the RayNeo native details page. Do not select System UI or
    every application.
 4. Reboot the device, pair/connect the headset and inspect the HyperEars dashboard.
 

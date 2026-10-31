@@ -1,0 +1,6 @@
+<resources>
+    <string name="rayneo_launch_success">成功打开 %1$s</string>
+    <string name="rayneo_launch_failed">打开 %1$s 失败</string>
+    <string name="rayneo_launch_pending">正在打开 %1$s</string>
+    <string name="rayneo_launch_timeout">尚未收到 %1$s 的启动确认</string>
+</resources>

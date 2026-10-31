@@ -182,7 +182,7 @@ com.milink.service
 3. 修改作用域后重启对应控制 App 进程；首次安装或模块升级后建议重启设备；
 4. 在 HyperEars 中按需把“更多设置”设为“厂商 App”，并配置“运行时退避”。
 
-不要勾选 Settings、System UI 或所有应用。扩大作用域不会增加耳机协议兼容性，只会扩大注入面。
+RayNeo 原生详情页需要勾选 Settings；其他设备无需额外勾选。不要勾选 System UI 或所有应用。扩大作用域不会增加耳机协议兼容性，只会扩大注入面。
 LSPosed 的“禁用详细日志”和“输出日志到守护进程”只影响诊断日志，不影响控制 App 的跳转或
 退避；日志设置见[问题排查](troubleshooting.md#日志采集)。“Xposed API 调用保护”可以保持开启。
 
@@ -217,3 +217,7 @@ adb shell pm path com.vivo.vivotws
 
 包名只定义控制权边界，不得加入设备匹配证据。若厂商更换包名，应作为新目录项单独验证，
 不能仅按相似名称或签名未知的兼容客户端放宽匹配。
+
+## RayNeo X3 Pro
+
+雷鸟 AR 眼镜控制 App 包名为 `cn.rayneo.mercury`。该可选作用域仅用于 App 存活/退出时的私有协议交接，不参与设备型号识别。原生 RayNeo 详情页另外需要 `com.android.settings`，仅在经认证的设备状态确认 RayNeo 候选时接入。

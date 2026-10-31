@@ -41,6 +41,7 @@ object ModuleContract {
     const val ACTION_SYSTEM_OWNERSHIP_CLAIMED =
         "dev.hyperears.action.SYSTEM_OWNERSHIP_CLAIMED"
 
+    const val SETTINGS_PACKAGE = "com.android.settings"
     const val MODULE_PACKAGE = "dev.hyperears"
     const val BLUETOOTH_PACKAGE = "com.android.bluetooth"
     const val MILINK_PACKAGE = "com.milink.service"
@@ -90,6 +91,7 @@ object ModuleContract {
 
     val stateConsumerPackages = setOf(
         MODULE_PACKAGE,
+        SETTINGS_PACKAGE,
         MILINK_PACKAGE,
         NATIVE_HEADSET_PACKAGE,
     )

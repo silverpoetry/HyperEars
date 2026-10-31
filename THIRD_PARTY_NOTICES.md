@@ -295,3 +295,12 @@ Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不�
 所有。
 
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
+
+## RayNeo X3 Pro
+
+- Protocol behavior was researched from the installed RayNeo AR Glasses companion and
+  X3 Pro launcher firmware. No vendor application binaries or decompiled source are included.
+- Device controls and codecs are independently expressed through HyperEars typed requests.
+- The product illustration was generated from a user-provided product photograph;
+  provenance is recorded in `docs/rayneo-artwork-source.json` and the generation prompt in
+  `docs/rayneo-artwork-prompt.txt`. Product names and marks identify compatibility only.

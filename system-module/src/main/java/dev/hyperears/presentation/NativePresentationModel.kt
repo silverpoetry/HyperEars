@@ -52,7 +52,7 @@ data class NativeHeadsetProjection(
             if (!state.sessionActive) return null
             val battery = state.battery
             val single = adapter.batterySource == BatterySource.SYSTEM_AGGREGATE ||
-                battery.overall.available || adapter.formFactor == HeadsetFormFactor.HEADPHONES
+                battery.overall.available || adapter.formFactor != HeadsetFormFactor.TWS
             val unknown = BatteryReading(null, false)
             return NativeHeadsetProjection(
                 address = address,

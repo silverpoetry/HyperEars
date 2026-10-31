@@ -27,6 +27,11 @@ sealed interface ControlRequest
  */
 @Serializable
 sealed interface StandardControlRequest : ControlRequest {
+    @Serializable @SerialName("standard.begin_vendor_handoff")
+    data class BeginVendorHandoff(val packageName:String,val leaseId:String):StandardControlRequest
+    @Serializable @SerialName("standard.end_vendor_handoff")
+    data class EndVendorHandoff(val leaseId:String):StandardControlRequest
+
     @Serializable
     @SerialName("standard.refresh")
     data object Refresh : StandardControlRequest
@@ -74,6 +79,8 @@ fun interface ControlRequestContract {
 /** Baseline request contract inherited by all adapters. */
 object StandardControlRequestContract : ControlRequestContract {
     override fun supports(adapter: EarbudAdapter, request: ControlRequest): Boolean = when {
+        request is StandardControlRequest.BeginVendorHandoff -> request.leaseId.isNotBlank() && adapter.controlApps.any {it.packageName==request.packageName}
+        request is StandardControlRequest.EndVendorHandoff -> request.leaseId.isNotBlank()
         request === StandardControlRequest.Refresh -> true
         request is StandardControlRequest.SetNoiseMode ->
             adapter.effectiveCapabilities().noiseControl &&
@@ -110,6 +117,20 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(StandardControlRequest.BeginVendorHandoff::class,StandardControlRequest.BeginVendorHandoff.serializer())
+                subclass(StandardControlRequest.EndVendorHandoff::class,StandardControlRequest.EndVendorHandoff.serializer())
+                subclass(RayNeoControlRequest.LaunchApp::class, RayNeoControlRequest.LaunchApp.serializer())
+                subclass(RayNeoControlRequest.LaunchInstalledApp::class, RayNeoControlRequest.LaunchInstalledApp.serializer())
+                subclass(RayNeoControlRequest.SetWifi::class, RayNeoControlRequest.SetWifi.serializer())
+                subclass(RayNeoControlRequest.SetDeepSuspend::class, RayNeoControlRequest.SetDeepSuspend.serializer())
+                subclass(RayNeoControlRequest.SetAutoLock::class, RayNeoControlRequest.SetAutoLock.serializer())
+                subclass(RayNeoControlRequest.SetLevel::class, RayNeoControlRequest.SetLevel.serializer())
+                subclass(RayNeoControlRequest.SetAutomaticBrightness::class, RayNeoControlRequest.SetAutomaticBrightness.serializer())
+                subclass(RayNeoControlRequest.SetVoiceMode::class, RayNeoControlRequest.SetVoiceMode.serializer())
+                subclass(RayNeoControlRequest.CaptureShot::class, RayNeoControlRequest.CaptureShot.serializer())
+                subclass(RayNeoControlRequest.SetRecording::class, RayNeoControlRequest.SetRecording.serializer())
+                subclass(RayNeoControlRequest.ScanWifi::class, RayNeoControlRequest.ScanWifi.serializer())
+                subclass(RayNeoControlRequest.ConnectWifi::class, RayNeoControlRequest.ConnectWifi.serializer())
                 subclass(SamsungControlRequest.SetTouchGesture::class, SamsungControlRequest.SetTouchGesture.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldActions::class, SamsungControlRequest.SetTouchHoldActions.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldNoiseCycles::class, SamsungControlRequest.SetTouchHoldNoiseCycles.serializer())

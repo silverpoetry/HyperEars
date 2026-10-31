@@ -616,6 +616,7 @@ object EarbudAdapterRegistry {
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
 
     private val initialRegistrations: List<Registration> = buildList {
+        add(Registration(GroupMetadata("rayneo", "雷鸟"), ::RayNeoX3ProAdapter))
         add(Registration(vivoGroup, ::VivoTwsAir3ProAdapter))
         add(Registration(vivoGroup, ::VivoTws3eAdapter))
         add(Registration(vivoGroup, ::VivoEarbudAdapter))

@@ -14,7 +14,7 @@ object MiLinkStateCodec {
         state: EarbudState,
         formFactor: HeadsetFormFactor = HeadsetFormFactor.TWS,
     ): List<Int> {
-        if (formFactor == HeadsetFormFactor.HEADPHONES) {
+        if (formFactor != HeadsetFormFactor.TWS) {
             val aggregate = state.battery.overall.takeIf(BatteryReading::available)
                 ?: state.battery.right.takeIf(BatteryReading::available)
                 ?: state.battery.left

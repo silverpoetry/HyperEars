@@ -29,6 +29,7 @@ data class HeadsetArtwork(
         val HEADPHONES = HeadsetArtwork(HeadsetArtworkId("headset_generic_headphones"))
 
         fun defaultFor(form: HeadsetFormFactor): HeadsetArtwork = when (form) {
+            HeadsetFormFactor.GLASSES -> HeadsetArtwork(HeadsetArtworkId("headset_generic_glasses"))
             HeadsetFormFactor.TWS -> EARBUDS
             HeadsetFormFactor.HEADPHONES -> HEADPHONES
         }

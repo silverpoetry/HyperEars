@@ -272,7 +272,7 @@ private fun NoiseMode.controlOrder(): Int = when (this) {
 
 private fun HeadsetFormFactor.displayName(): String = when (this) {
     HeadsetFormFactor.TWS -> "TWS"
-    HeadsetFormFactor.HEADPHONES -> "头戴"
+    HeadsetFormFactor.GLASSES, HeadsetFormFactor.HEADPHONES -> "头戴"
 }
 
 private fun BatterySource.displayName(): String = when (this) {

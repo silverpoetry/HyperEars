@@ -1,0 +1,14 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "workflow": "imagegen CLI edit using current configured API",
+  "reference": "user supplied RayNeo X3 Pro image",
+  "reference_sha256": "6f13d42692d0685bea010d1021e737c527aa2790381843d53159660f0c29641c",
+  "prompt_file": "docs/rayneo-artwork-prompt.txt",
+  "resource": "system-module/src/main/res/drawable-nodpi/headset_generic_glasses.png",
+  "size": [
+    640,
+    320
+  ],
+  "alpha": true,
+  "note": "Preserved reference viewpoint; alpha-bound crop, uniform scaling, no image distortion."
+}
