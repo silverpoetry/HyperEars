@@ -4,12 +4,26 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.drawable.Icon
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import androidx.core.graphics.createBitmap
 import dev.hyperears.hook.ModuleLog
 import dev.hyperears.hook.maskBluetoothAddress
+import dev.hyperears.integration.BatteryReading
+
+// Drawn-battery colors live at file top level: object-level non-const vals would drag the whole
+// object (main-looper handler) into JVM unit-test class initialization.
+internal val COLOR_ON_TRANSPARENT = 0xFFFFFFFF.toInt()
+internal val COLOR_BATTERY_LOW = 0xFFE5392B.toInt()
+internal val COLOR_BATTERY_NORMAL = 0xFF2196F3.toInt()
 
 /**
  * The OS3 focus-notification island route (island-spec §11). The direct status-bar `setStatus`
@@ -32,9 +46,29 @@ internal object NativeIslandNotification {
     const val NOTIFY_ID = 999
     const val CANCEL_DELAY_MS = 5_000L
     const val FOCUS_PARAM_KEY = "miui.focus.param"
+    const val FOCUS_PICS_KEY = "miui.focus.pics"
+    const val FOCUS_ACTIONS_KEY = "miui.focus.actions"
     internal const val FOCUS_PIC_EARPHONE = "miui.focus.pic_earphone"
     internal const val FOCUS_PIC_CONNECT = "miui.focus.pic_connect_button"
+    // Own battery-artwork keys inside the host's pics bundle (custom names are host-legal: SystemUI
+    // resolves them only through the extras bundle; the JSON side stays the §11 L230-233 picInfo form).
+    internal const val FOCUS_PIC_BATTERY_LEFT = "hyperears_battery_left"
+    internal const val FOCUS_PIC_BATTERY_RIGHT = "hyperears_battery_right"
     internal const val FOCUS_BUSINESS = "btheadsetnotification"
+    private const val FOCUS_ACTION_TEST_KEY = "miui.focus.action_test"
+    // Host plugin resource ids for the visual fields (island-spec §11: smallIcon 0x7f0800af at
+    // MBN:6387, button pic 0x7f0805d1 at :6293, strings 0x7f1200ef at :6215 and 0x7f12023d at :822).
+    private const val RES_SMALL_ICON = 0x7f0800af
+    private const val RES_CONNECT_BUTTON = 0x7f0805d1
+    private const val RES_CONNECTED_TEXT = 0x7f1200ef
+    private const val RES_ACTION_TITLE = 0x7f12023d
+    // Reusing the host's own autoswitch broadcast keeps the action inert for a connected device and
+    // introduces no new receiver component (island-spec §11 action evidence :6125-6160).
+    private const val AUTOSWITCH_ACTION = "com.xiaomi.bluetooth.headset.autoswitch.connect"
+    private const val HOST_PACKAGE = "com.xiaomi.bluetooth"
+    private const val EXTRA_ADDRESS = "EXTRA_ADDRESS"
+    internal const val BATTERY_PIC_SIZE = 96
+    internal const val LOW_BATTERY_PERCENT = 20
     // Single object-owned main-looper handler: one pending generation at a time, no per-submit
     // handler instances and no runnable retention after the cancel fires or is replaced. Declared as
     // a plain object property, not a companion: this file already crashes lint's FIR analyzer in a
@@ -61,12 +95,24 @@ internal object NativeIslandNotification {
             ModuleLog.debug(TAG, "notification not submitted: usable ear battery unavailable")
             return false
         }
-        val battery = listOfNotNull(
-            islandBatteryText(projection.left)?.let { "L $it" },
-            islandBatteryText(projection.right)?.let { "R $it" },
-        ).joinToString(" · ")
+        // Host semantics (island-spec §11): device name is the ticker; the text slots carry the
+        // battery (user choice — island and popup never share the screen), falling back to the
+        // plugin status string only when no ear battery exists.
+        val statusText = hostString(context, RES_CONNECTED_TEXT, "已连接")
+        val actionTitle = hostString(context, RES_ACTION_TITLE, "连接")
+        val actionIntent = Intent(AUTOSWITCH_ACTION).setPackage(HOST_PACKAGE)
+            .putExtra(EXTRA_ADDRESS, projection.address)
+        // Artwork first: the JSON pic references are only emitted for battery icons that actually got
+        // drawn, so a drawing failure degrades to the earphone key / text-only content and never
+        // leaves the param pointing at pics that do not exist.
+        val leftBatteryIcon = batteryIcon(projection.left.percent)
+        val rightBatteryIcon = batteryIcon(projection.right.percent)
         val param = focusParamJson(FocusIslandText(
-            ticker = projection.name, title = projection.name, content = battery,
+            title = projection.name,
+            content = focusIslandContent(projection.left, projection.right, statusText),
+            actionTitle = actionTitle, actionIntentUri = actionIntent.toUri(0),
+            leftPic = islandLeftPicKey(projection.left, leftBatteryIcon != null),
+            rightPic = islandRightPicKey(projection.right, rightBatteryIcon != null),
         ))
         val manager = context.getSystemService(NotificationManager::class.java) ?: run {
             ModuleLog.debug(TAG, "notification not submitted: notification manager absent")
@@ -76,16 +122,17 @@ internal object NativeIslandNotification {
             CHANNEL_ID, CHANNEL_ID, NotificationManager.IMPORTANCE_DEFAULT,
         ))
         val extras = Bundle()
-        focusExtrasEntries(param).forEach { extras.putString(it.key, it.value) }
+        extras.putString(FOCUS_PARAM_KEY, param)
+        picsBundle(context, leftBatteryIcon, rightBatteryIcon)?.let { extras.putBundle(FOCUS_PICS_KEY, it) }
+        actionsBundle(context, actionTitle, actionIntent)?.let { extras.putBundle(FOCUS_ACTIONS_KEY, it) }
         val notification = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setSmallIcon(smallIconRes(context))
             .addExtras(extras)
             .build()
         manager.notify(CHANNEL_ID, NOTIFY_ID, notification)
         ModuleLog.debug(TAG, "notification submitted id=$NOTIFY_ID islandType=param_v2 " +
-            "channel=$CHANNEL_ID extras=${focusExtrasEntries(param).size} " +
-            "address=${maskBluetoothAddress(projection.address)} " +
-            "left=${projection.left.percent} right=${projection.right.percent}")
+            "channel=$CHANNEL_ID extras=${extras.keySet().size} " +
+            "address=${maskBluetoothAddress(projection.address)}")
         // The host leaves the notification resident; a third-party text island must not clutter the
         // shade, so the same tag+id is cancelled once the island window (the 5 s connect duration)
         // has passed. One shared handler owns at most one pending generation: a newer submission
@@ -111,16 +158,119 @@ internal object NativeIslandNotification {
             manager.cancel(CHANNEL_ID, NOTIFY_ID)
         }
     }
+
+    private fun hostString(context: Context, resId: Int, fallback: String): String =
+        runCatching { context.getString(resId) }.getOrDefault(fallback)
+
+    /** Never throws: a plugin resource id that this context cannot resolve falls back to the safe icon. */
+    private fun hostIcon(context: Context, resId: Int): Icon =
+        runCatching { Icon.createWithResource(context, resId) }.getOrDefault(
+            Icon.createWithResource(context, android.R.drawable.stat_sys_data_bluetooth),
+        )
+
+    private fun smallIconRes(context: Context): Int =
+        if (runCatching { context.resources.getResourceEntryName(RES_SMALL_ICON) }.isSuccess) {
+            RES_SMALL_ICON
+        } else android.R.drawable.stat_sys_data_bluetooth
+
+    private fun picsBundle(context: Context, leftIcon: Icon?, rightIcon: Icon?): Bundle? = runCatching {
+        Bundle().apply {
+            // The host stores a model-specific artwork under pic_earphone (getHeadsetPic); we keep
+            // the generic icon there and add our drawn battery artwork under own keys (§11 L224).
+            putParcelable(FOCUS_PIC_EARPHONE, hostIcon(context, RES_SMALL_ICON))
+            putParcelable(FOCUS_PIC_CONNECT, hostIcon(context, RES_CONNECT_BUTTON))
+            leftIcon?.let { putParcelable(FOCUS_PIC_BATTERY_LEFT, it) }
+            rightIcon?.let { putParcelable(FOCUS_PIC_BATTERY_RIGHT, it) }
+        }
+    }.getOrNull()
+
+    /**
+     * A drawn system-style battery: rounded shell and terminal on transparent background, proportional
+     * fill tinted by the §4 low-battery threshold, and the percent label below. 96x96 matches the
+     * square picInfo artwork slots; any drawing failure yields null and the text content remains the
+     * fallback — the notification submission never depends on this path.
+     */
+    private fun batteryIcon(percent: Int?): Icon? = runCatching {
+        val bitmap = createBitmap(BATTERY_PIC_SIZE, BATTERY_PIC_SIZE, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val ratio = batteryFillRatio(percent)
+        paint.color = COLOR_ON_TRANSPARENT
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 5f
+        canvas.drawRoundRect(8f, 30f, 80f, 66f, 10f, 10f, paint)
+        paint.style = Paint.Style.FILL
+        canvas.drawRect(84f, 42f, 90f, 54f, paint)
+        paint.color = batteryFillColorRgb(percent)
+        if (ratio > 0f) {
+            canvas.drawRoundRect(14f, 36f, 14f + 60f * ratio, 60f, 6f, 6f, paint)
+        }
+        paint.color = COLOR_ON_TRANSPARENT
+        paint.textSize = 22f
+        paint.textAlign = Paint.Align.CENTER
+        canvas.drawText(batteryLabel(percent), BATTERY_PIC_SIZE / 2f, 92f, paint)
+        Icon.createWithBitmap(bitmap)
+    }.getOrNull()
+
+    private fun actionsBundle(context: Context, actionTitle: String, actionIntent: Intent): Bundle? =
+        runCatching {
+            val pending = PendingIntent.getBroadcast(
+                context, 0, actionIntent, PendingIntent.FLAG_IMMUTABLE,
+            )
+            Bundle().apply {
+                putParcelable(FOCUS_ACTION_TEST_KEY, Notification.Action.Builder(
+                    hostIcon(context, RES_SMALL_ICON), actionTitle, pending,
+                ).build())
+            }
+        }.getOrNull()
 }
 
-/** The three text fields the host fills with device strings (island-spec §11). */
-internal data class FocusIslandText(val ticker: String, val title: String, val content: String)
+/**
+ * The text fields of the host param_v2 body (island-spec §11 L229-L238): the device name is the
+ * `ticker` and the `iconTextInfo.title`; the content carries the battery text (user choice: the
+ * island and the popup are mutually exclusive, so the battery belongs in the island too) and falls
+ * back to the host status string only when no battery reading is available.
+ */
+internal data class FocusIslandText(val title: String, val content: String,
+    val actionTitle: String, val actionIntentUri: String,
+    val leftPic: String, val rightPic: String?)
 
-/** The extras key table of the focus notification (v1: only the param JSON, spec §11). */
-internal data class FocusExtrasEntry(val key: String, val value: String)
+/** `L 85% · R 90%` / a single side without placeholder when the other is missing / status fallback. */
+internal fun focusIslandContent(left: BatteryReading, right: BatteryReading, fallback: String): String =
+    listOfNotNull(islandBatteryText(left)?.let { "L $it" }, islandBatteryText(right)?.let { "R $it" })
+        .joinToString(" · ").ifEmpty { fallback }
 
-internal fun focusExtrasEntries(paramJson: String): List<FocusExtrasEntry> =
-    listOf(FocusExtrasEntry(NativeIslandNotification.FOCUS_PARAM_KEY, paramJson))
+/**
+ * Pic-slot decisions (island-spec §11 L230-233): the left ear slot shows our battery artwork while
+ * a left reading exists and the generic earphone picture otherwise; the right slot — symmetric to
+ * the host's imageTextInfoLeft, absent whenever the right ear is missing — only ever carries battery
+ * artwork, so a null key means the whole imageTextInfoRight object is omitted like the host shape.
+ */
+internal fun islandLeftPicKey(left: BatteryReading, artworkAvailable: Boolean): String =
+    if (left.available && artworkAvailable) NativeIslandNotification.FOCUS_PIC_BATTERY_LEFT
+    else NativeIslandNotification.FOCUS_PIC_EARPHONE
+
+internal fun islandRightPicKey(right: BatteryReading, artworkAvailable: Boolean): String? =
+    if (right.available && artworkAvailable) NativeIslandNotification.FOCUS_PIC_BATTERY_RIGHT else null
+
+/** Fill fraction for the drawn battery: null percent draws empty, values clamp to 0..1. */
+internal fun batteryFillRatio(percent: Int?): Float =
+    ((percent ?: 0).coerceIn(0, 100)) / 100f
+
+/** The label under the battery shell; "-" marks a missing reading like the host's state source. */
+internal fun batteryLabel(percent: Int?): String = percent?.let { "$it%" } ?: "-"
+
+/** Low battery reuses the §4 twenty-percent threshold; colors are explicit ARGB (bitmap-drawn). */
+internal fun batteryFillColorRgb(percent: Int?): Int =
+    if (percent != null && percent <= NativeIslandNotification.LOW_BATTERY_PERCENT)
+        COLOR_BATTERY_LOW else COLOR_BATTERY_NORMAL
+
+/** The focus extras key table (island-spec §11 L220-L225); pics/actions may degrade to absent. */
+internal fun focusExtrasKeys(): List<String> = listOf(
+    NativeIslandNotification.FOCUS_PARAM_KEY,
+    NativeIslandNotification.FOCUS_PICS_KEY,
+    NativeIslandNotification.FOCUS_ACTIONS_KEY,
+)
 
 /**
  * Cancel ownership (review Minor): the delayed retract may delete the shared tag+id slot only while
@@ -135,16 +285,18 @@ internal fun shouldCancelFocusNotification(activeParam: String?, myParam: String
  * fixed constants stay verbatim, and the text slots take the caller's device/battery strings.
  */
 internal fun focusParamJson(text: FocusIslandText): String {
-    val earphone = jsonString(NativeIslandNotification.FOCUS_PIC_EARPHONE)
-    val picInfo = jsonObject("type" to "1", "pic" to earphone)
+    val picInfo = { pic: String -> jsonObject("type" to "1", "pic" to jsonString(pic)) }
     val island = jsonObject(
         "islandProperty" to "1",
         "islandTimeout" to "10",
         "bigIslandArea" to jsonObject(
-            "imageTextInfoLeft" to jsonObject("type" to "1", "picInfo" to picInfo),
-            "textInfo" to jsonObject("title" to jsonString(text.title)),
+            "imageTextInfoLeft" to jsonObject("type" to "1", "picInfo" to picInfo(text.leftPic)),
+            "imageTextInfoRight" to text.rightPic?.let {
+                jsonObject("type" to "1", "picInfo" to picInfo(it))
+            },
+            "textInfo" to jsonObject("title" to jsonString(text.content)),
         ),
-        "smallIslandArea" to jsonObject("picInfo" to picInfo),
+        "smallIslandArea" to jsonObject("picInfo" to picInfo(text.leftPic)),
     )
     val paramV2 = jsonObject(
         "protocol" to "1",
@@ -152,15 +304,24 @@ internal fun focusParamJson(text: FocusIslandText): String {
         "updatable" to "true",
         "enableFloat" to "true",
         "timeout" to "1",
-        "ticker" to jsonString(text.ticker),
+        "ticker" to jsonString(text.title),
         "tickerPic" to jsonString(NativeIslandNotification.FOCUS_PIC_CONNECT),
         "param_island" to island,
         "iconTextInfo" to jsonObject(
             "type" to "1",
             "title" to jsonString(text.title),
             "content" to jsonString(text.content),
-            "animIconInfo" to jsonObject("type" to "0", "src" to earphone),
+            "animIconInfo" to jsonObject("type" to "0", "src" to jsonString(text.leftPic)),
         ),
+        "actions" to "[" + jsonObject(
+            "type" to "2",
+            "actionTitle" to jsonString(text.actionTitle),
+            "actionTitleColor" to jsonString("#FF000000"),
+            "actionTitleColorDark" to jsonString("#FFFFFF"),
+            "actionBgColorDark" to jsonString("#0D84FF"),
+            "actionIntentType" to "2",
+            "actionIntent" to jsonString(text.actionIntentUri),
+        ) + "]",
     )
     return requireNotNull(jsonObject("param_v2" to paramV2))
 }
