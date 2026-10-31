@@ -9,9 +9,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
+import android.os.IBinder
+import dev.hyperears.presentation.NativePresentationMetadata
 import android.view.View
 import dev.hyperears.bridge.BridgeStage
 import dev.hyperears.bridge.HeadsetSettingsNavigator
+import dev.hyperears.bridge.VendorHandoffLauncher
 import dev.hyperears.bridge.ModuleContract
 import dev.hyperears.bridge.ModuleRuntimeGate
 import dev.hyperears.bridge.BroadcastIdentity
@@ -50,7 +53,7 @@ internal class MiLinkServiceHook : HookContext() {
     private val knownAddresses = Collections.synchronizedSet(mutableSetOf<String>())
     private val deviceOwnership = MiLinkDeviceOwnershipRegistry()
     private val pendingSystemOwnershipClaims =
-        Collections.synchronizedSet(mutableSetOf<String>())
+        Collections.synchronizedMap(mutableMapOf<String, Boolean>())
     private val runtimeOwners = Collections.synchronizedSet(
         Collections.newSetFromMap(WeakHashMap<Any, Boolean>()),
     )
@@ -264,7 +267,11 @@ internal class MiLinkServiceHook : HookContext() {
         val appContext = context ?: return false
         val current = ModuleSettingsRuntime.current
         if (current.modulePaused) return false
-        return HeadsetSettingsNavigator(appContext).open(address, stateForAddress(address), current.moreSettingsTarget)
+        return HeadsetSettingsNavigator(appContext, handoffVendorApp = { target, apps ->
+            VendorHandoffLauncher.open(appContext, target, apps, ::stateForAddress,
+                ProcessStateStore::sessionToken, ProcessStateStore::observe,
+                { targetAddress, request -> sendControl(request, targetAddress) })
+        }).open(address, stateForAddress(address), current.moreSettingsTarget)
     }
 
     /**
@@ -495,55 +502,82 @@ internal class MiLinkServiceHook : HookContext() {
     @SuppressLint("MissingPermission")
     private fun hookNativeHeadsetAdmission(className: String): Boolean =
         runCatching {
-            hookAfter(findMethod(className, "checkIsMiTWS", BluetoothDevice::class.java)) {
-                if (ModuleRuntimeGate.paused) return@hookAfter
-                val device = args[0] as? BluetoothDevice ?: return@hookAfter
-                val address = runCatching { device.address }.getOrNull() ?: return@hookAfter
-                captureContext(instance)
-
-                val candidateState = rawStateForAddress(address)
-                val decision = deviceOwnership.observeNativeAdmission(
-                    address = address,
-                    originalResult = result,
-                    hyperEarsCandidateAvailable =
-                        candidateState.sessionActive && candidateState.adapter != null,
-                )
-                ModuleLog.debug(
-                    "MiLink",
-                    "native admission original=$result candidate=${candidateState.sessionActive} " +
-                        "owner=${decision.owner} boundary=$className " +
-                        "process=${Application.getProcessName()} " +
-                        "address=${maskBluetoothAddress(address)}",
-                )
-                when (decision.owner) {
-                    MiLinkDeviceOwnershipRegistry.Owner.SYSTEM -> {
-                        knownAddresses.remove(normalizeAddress(address))
-                        headsetDetailExtension?.unbind(address)
-                        if (decision.systemOwnershipNewlyClaimed) {
-                            publishSystemOwnershipClaim(address)
-                            ModuleLog.debug(
-                                "MiLink",
-                                "preserved native headset ownership " +
-                                    "address=${maskBluetoothAddress(address)}",
-                            )
-                        }
-                    }
-
-                    MiLinkDeviceOwnershipRegistry.Owner.HYPEREARS -> {
-                        knownAddresses += normalizeAddress(address)
-                        recordBridgeStage(device, BridgeStage.IDENTITY_QUERIED)
-                        rememberRuntimeOwner(className, instance)
-                        result = NATIVE_HEADSET_SUPPORTED
-                    }
-
-                    MiLinkDeviceOwnershipRegistry.Owner.UNKNOWN -> Unit
-                }
+            module.hook(findMethod(className, "checkIsMiTWS", BluetoothDevice::class.java)).intercept { chain ->
+                val device = chain.args[0] as? BluetoothDevice ?: return@intercept chain.proceed()
+                invokeNativeHeadsetAdmission(className, chain.thisObject, device) { chain.proceed() }
             }
             true
         }.getOrElse {
             ModuleLog.debug("MiLink", "optional $className.checkIsMiTWS unavailable")
             false
         }
+
+    @SuppressLint("MissingPermission")
+    private fun invokeNativeHeadsetAdmission(className: String, owner: Any?, device: BluetoothDevice,
+        original: () -> Any?): Any? {
+        val address = device.address
+        val scope = deviceOwnership.connectionScope(address)
+        val result = original()
+        if (ModuleRuntimeGate.paused) return result
+        return deviceOwnership.withCurrentConnectionScope(address, scope) {
+            handleNativeHeadsetAdmission(className, owner, device, result)
+        } ?: result
+    }
+
+    /** Shared by the actual after-hook and the real-query JVM fixture; preserves original positives. */
+    @SuppressLint("MissingPermission")
+    private fun handleNativeHeadsetAdmission(className: String, owner: Any?, device: BluetoothDevice,
+        nativeResult: Any?): Any? {
+        val address = device.address
+        var result = nativeResult
+        captureContext(owner)
+
+        val candidateState = rawStateForAddress(address)
+        if (MiLinkDeviceOwnershipRegistry.isNativeAdmissionAccepted(nativeResult) ||
+            MiLinkDeviceOwnershipRegistry.isNativeAdmissionRejected(nativeResult)) {
+            ProcessStateStore.sessionToken(address)?.let { admissionQueries[address] = it }
+        }
+        val decision = deviceOwnership.observeNativeAdmission(
+            address = address,
+            originalResult = nativeResult,
+            hyperEarsCandidateAvailable =
+                candidateState.sessionActive && candidateState.adapter != null,
+        )
+        ModuleLog.debug(
+            "MiLink",
+            "native admission original=$nativeResult candidate=${candidateState.sessionActive} " +
+                "owner=${decision.owner} boundary=$className " +
+                "process=${Application.getProcessName()} " +
+                "address=${maskBluetoothAddress(address)}",
+        )
+        when (decision.owner) {
+            MiLinkDeviceOwnershipRegistry.Owner.SYSTEM -> {
+                knownAddresses.remove(normalizeAddress(address))
+                headsetDetailExtension?.unbind(address)
+                if (decision.systemOwnershipNewlyClaimed) {
+                    publishSystemOwnershipClaim(address)
+                    ModuleLog.debug(
+                        "MiLink",
+                        "preserved native headset ownership " +
+                            "address=${maskBluetoothAddress(address)}",
+                    )
+                }
+            }
+
+            MiLinkDeviceOwnershipRegistry.Owner.HYPEREARS -> {
+                knownAddresses += normalizeAddress(address)
+                recordBridgeStage(device, BridgeStage.IDENTITY_QUERIED)
+                rememberRuntimeOwner(className, owner)
+                result = NATIVE_HEADSET_SUPPORTED
+                if (MiLinkDeviceOwnershipRegistry.isNativeAdmissionRejected(nativeResult)) {
+                    publishNativeAdmission(address)
+                }
+            }
+
+            MiLinkDeviceOwnershipRegistry.Owner.UNKNOWN -> Unit
+        }
+        return result
+    }
 
     private fun hookAddressResult(
         className: String,
@@ -731,10 +765,24 @@ internal class MiLinkServiceHook : HookContext() {
         if (ModuleRuntimeGate.paused) return
         val incoming = with(ModuleContract) { intent.readState() } ?: return
         val sessionToken = with(ModuleContract) { intent.readSessionToken() } ?: return
+        val metadata = NativePresentationContract.metadata(intent)
+        val producer = NativePresentationContract.producer(intent)
+        val scope = if (metadata?.connectionScopedOwnership == true) {
+            if (producer == null || !producer.isBinderAlive) return
+            MiLinkDeviceOwnershipRegistry.ConnectionScope(producer, metadata.connection)
+                .also { if (!deviceOwnership.acceptsConnectionScope(incoming.address ?: return, it)) return }
+        } else null
         val previous = incoming.address
             ?.let(ProcessStateStore::knownSnapshot)
             ?: EarbudState()
-        val state = ProcessStateStore.accept(intent) ?: return
+        var scopedState: EarbudState? = null
+        val changedScope = if (scope != null) {
+            deviceOwnership.bindAcceptedConnectionScope(incoming.address ?: return, scope) {
+                scopedState = ProcessStateStore.accept(intent)
+                scopedState != null
+            } ?: return
+        } else false
+        val state = if (scope != null) scopedState ?: return else ProcessStateStore.accept(intent) ?: return
         if (NativePresentationContract.metadata(intent)?.admission == NativeAdmission.SYSTEM) {
             state.address?.let { address ->
                 deviceOwnership.claimSystemOwnership(address)
@@ -744,6 +792,14 @@ internal class MiLinkServiceHook : HookContext() {
         ModuleLog.debug("MiLink", "accepted state rev=${state.revision}")
         state.address?.let {
             val normalized = normalizeAddress(it)
+            if (scope != null) {
+                if (changedScope) {
+                    admissionQueries.remove(it)
+                    pendingSystemOwnershipClaims.remove(normalized)
+                }
+                if (metadata?.admission == NativeAdmission.SYSTEM) deviceOwnership.claimSystemOwnership(it)
+            }
+            if(scope != null) queryNativeAdmission(state)
             val systemOwned = deviceOwnership.isSystemOwned(it)
             if (state.sessionActive && !systemOwned) {
                 knownAddresses += normalized
@@ -751,6 +807,7 @@ internal class MiLinkServiceHook : HookContext() {
             } else {
                 if (systemOwned) {
                     knownAddresses.remove(normalized)
+                    if (state.sessionActive) sendSystemOwnershipClaim(it, requireActiveSession = true)
                 }
                 synchronized(observationLock) {
                     sessionStages.remove(normalized)
@@ -766,6 +823,41 @@ internal class MiLinkServiceHook : HookContext() {
         }
     }
 
+    private fun publishNativeAdmission(address: String) {
+        val appContext = context ?: return
+        val token = ProcessStateStore.sessionToken(address) ?: return
+        BroadcastIdentity.send(appContext, NativePresentationContract.admission(address, token, NativeAdmission.HYPEREARS))
+    }
+
+    /** Query the existing bound service once per candidate; no new service or retry timer. */
+    @SuppressLint("MissingPermission")
+    private fun queryNativeAdmission(state: EarbudState) {
+        if (deviceOwnership.connectionScope(state.address ?: return) == null &&
+            settings.headsetConnectionPresentation ==
+            dev.hyperears.settings.HeadsetConnectionPresentation.OFF &&
+            !settings.headsetDetailNotification) return
+        val address = state.address ?: return
+        if (deviceOwnership.isSystemOwned(address)) return
+        val token = ProcessStateStore.sessionToken(address) ?: return
+        if (admissionQueries[address] == token) return
+        val appContext = context ?: return
+        runCatching {
+            val type = findClass("com.xiaomi.mxbluetoothsdk.service.MxBluetoothService")
+            val owner = type.getDeclaredField("mMxBluetoothService")
+                .apply { isAccessible = true }.get(null) ?: return
+            if (type.getDeclaredField("mBluetoothHeadsetService")
+                    .apply { isAccessible = true }.get(owner) == null) return
+            val device = appContext.getSystemService(BluetoothManager::class.java)
+                ?.adapter?.getRemoteDevice(address) ?: return
+            // Our existing after Hook observes the original result. The final result is ignored.
+            type.getDeclaredMethod("checkIsMiTWS", BluetoothDevice::class.java).invoke(owner, device)
+        }.onFailure {
+            ModuleLog.debug("MiLink", "native admission query unavailable: ${it.javaClass.simpleName}")
+        }
+    }
+
+    private val admissionQueries = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     private fun handleSystemOwnershipClaim(
         context: Context?,
         intent: Intent,
@@ -778,19 +870,27 @@ internal class MiLinkServiceHook : HookContext() {
         val address = with(ModuleContract) {
             intent.readSystemOwnershipClaimAddress()
         } ?: return
-        if (!deviceOwnership.claimSystemOwnership(address)) return
-        val normalized = normalizeAddress(address)
-        knownAddresses.remove(normalized)
-        synchronized(observationLock) {
-            sessionStages.remove(normalized)
-            pendingStages.remove(normalized)
+        val metadata = NativePresentationContract.metadata(intent)
+        val claimScope = if (metadata?.connectionScopedOwnership == true) {
+            val producer = NativePresentationContract.producer(intent)?.takeIf { it.isBinderAlive } ?: return
+            MiLinkDeviceOwnershipRegistry.ConnectionScope(producer, metadata.connection)
+        } else null
+        // Binding an initial scoped positive and applying it are one atomic ownership operation.
+        if (!deviceOwnership.claimSharedSystemOwnership(address, claimScope)) return
+        deviceOwnership.withCurrentConnectionScope(address, claimScope) {
+            val normalized = normalizeAddress(address)
+            knownAddresses.remove(normalized)
+            synchronized(observationLock) {
+                sessionStages.remove(normalized)
+                pendingStages.remove(normalized)
+            }
+            headsetDetailExtension?.unbind(address)
+            ModuleLog.debug(
+                "MiLink",
+                "received shared system ownership address=${maskBluetoothAddress(address)} " +
+                    "process=${Application.getProcessName()}",
+            )
         }
-        headsetDetailExtension?.unbind(address)
-        ModuleLog.debug(
-            "MiLink",
-            "received shared system ownership address=${maskBluetoothAddress(address)} " +
-                "process=${Application.getProcessName()}",
-        )
     }
 
     private fun isAuthenticatedMiLinkSender(
@@ -1213,42 +1313,65 @@ internal class MiLinkServiceHook : HookContext() {
     }
 
     private fun publishSystemOwnershipClaim(address: String) {
-        val targetContext = context
-        if (targetContext == null) {
-            pendingSystemOwnershipClaims += normalizeAddress(address)
-            return
-        }
-        var deliveryFailed = false
-        listOf(ModuleContract.MILINK_PACKAGE, ModuleContract.BLUETOOTH_PACKAGE)
-            .forEach { targetPackage ->
-                runCatching {
-                    targetContext.sendBroadcast(
-                        ModuleContract.systemOwnershipClaimed(address, targetPackage)
-                            .addFlags(Intent.FLAG_RECEIVER_FOREGROUND),
-                        null,
-                        ModuleContract.systemOwnershipClaimOptions(),
-                    )
-                }.onFailure {
-                    deliveryFailed = true
-                    ModuleLog.warn(
-                        "MiLink",
-                        "system-ownership broadcast failed target=$targetPackage",
-                        it,
-                    )
+        sendSystemOwnershipClaim(address, requireActiveSession = false)
+    }
+
+    private fun sendSystemOwnershipClaim(address: String, requireActiveSession: Boolean) {
+        // ProcessStateStore exposes tokens only for accepted active sessions. Never infer a token
+        // from a retained known snapshot after disconnect or replay an unaccepted broadcast.
+        val token = ProcessStateStore.sessionToken(address)?.takeIf(String::isNotBlank)
+        if (requireActiveSession && token == null) return
+        val normalized = normalizeAddress(address)
+        deviceOwnership.deliverSystemOwnershipClaim(address, token) {
+            val targetContext = context
+            var deliveryFailed = targetContext == null
+            if (targetContext != null) {
+                listOf(ModuleContract.MILINK_PACKAGE, ModuleContract.BLUETOOTH_PACKAGE)
+                    .forEach { targetPackage ->
+                        runCatching {
+                            targetContext.sendBroadcast(
+                                ModuleContract.systemOwnershipClaimed(address, targetPackage).also { claim ->
+                                    deviceOwnership.connectionScope(address)?.let { scope ->
+                                        NativePresentationContract.attach(claim,
+                                            NativePresentationMetadata(scope.connection, NativeAdmission.SYSTEM,
+                                                connectionScopedOwnership = true), scope.producer as IBinder)
+                                    }
+                                }.addFlags(Intent.FLAG_RECEIVER_FOREGROUND),
+                                null,
+                                ModuleContract.systemOwnershipClaimOptions(),
+                            )
+                        }.onFailure {
+                            deliveryFailed = true
+                            ModuleLog.warn(
+                                "MiLink",
+                                "system-ownership broadcast failed target=$targetPackage",
+                                it,
+                            )
+                        }
+                    }
+            }
+            synchronized(pendingSystemOwnershipClaims) {
+                if (deliveryFailed) {
+                    // A pending first authoritative claim must still work before state arrives.
+                    pendingSystemOwnershipClaims[normalized] = requireActiveSession &&
+                        pendingSystemOwnershipClaims[normalized] != false
+                } else {
+                    pendingSystemOwnershipClaims.remove(normalized)
                 }
             }
-        if (deliveryFailed) {
-            pendingSystemOwnershipClaims += normalizeAddress(address)
+            !deliveryFailed
         }
     }
 
     private fun flushPendingSystemOwnershipClaims() {
         val pending = synchronized(pendingSystemOwnershipClaims) {
-            pendingSystemOwnershipClaims.toList().also {
+            pendingSystemOwnershipClaims.toMap().also {
                 pendingSystemOwnershipClaims.clear()
             }
         }
-        pending.forEach(::publishSystemOwnershipClaim)
+        pending.forEach { (address, requireActiveSession) ->
+            sendSystemOwnershipClaim(address, requireActiveSession)
+        }
     }
 
     @SuppressLint("MissingPermission")

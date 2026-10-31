@@ -295,3 +295,12 @@ Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不�
 所有。
 
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
+
+## AirPods5 interoperability research
+
+AAP behavior and model fields were cross-checked against the installed AndPods 4.3.8,
+Art-Chen/HyperPods and NEORUAA/HyperPods-X (`018765be`). LibrePods model/protocol declarations
+are an additional reference, under the upstream license described above. The closed-source
+companion was examined for protocol facts only; no application code, APK, pairing keys,
+raw captures or vendor product artwork is distributed. Native Apple presentation uses
+resources already supplied by the system host, without changing its resource files.

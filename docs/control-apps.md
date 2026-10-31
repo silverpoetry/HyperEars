@@ -217,3 +217,9 @@ adb shell pm path com.vivo.vivotws
 
 包名只定义控制权边界，不得加入设备匹配证据。若厂商更换包名，应作为新目录项单独验证，
 不能仅按相似名称或签名未知的兼容客户端放宽匹配。
+
+## Apple 控制 App 与原生详情
+
+Apple 会话声明 AndPods（`cn.xiaolongonly.andpodsop`）及 LibrePods（`me.kavishdevar.librepods`），
+用于导航与运行时私有通道退避，安装状态不作为型号证据。新型号原生详情另需
+`com.android.settings`。小米已原生接管的连接保持系统路径。

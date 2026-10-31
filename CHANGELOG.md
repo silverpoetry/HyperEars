@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+- Add native-first AirPods5 AAP integration, system Apple popup and native detail routing.
+- Add report-gated Apple settings and host behaviors, scoped ownership rechecks and explicit companion handoff.
+
 ## [3.2.0] - 2026-10-30
 
 本版新增按设备选择适配器的调试功能和水月雨 ZZZ-ANGELS-OWS 支持，修复原生电量弹窗

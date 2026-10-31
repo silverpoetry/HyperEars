@@ -1,11 +1,16 @@
 package dev.hyperears.runtime
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothProfile
+import dev.hyperears.integration.PlatformReservedHeadsetPolicy
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import dev.hyperears.bridge.AppleCaseDiscoveryContract
+import dev.hyperears.bridge.AppleNativeAdmissionContract
 import dev.hyperears.bridge.ModuleContract
 import dev.hyperears.bridge.StateBroadcaster
 import dev.hyperears.bridge.BroadcastIdentity
@@ -41,10 +46,15 @@ internal object EarbudSessionService {
         ModuleLog.debug(COMPONENT, "created")
     }
 
+    fun observeDevice(device: BluetoothDevice, identity: EarbudIdentity): Boolean =
+        runtime?.connectionManager?.observeDevice(device,identity) == true
+
     fun registerDevice(
         device: BluetoothDevice,
         identity: EarbudIdentity,
     ): Boolean = runtime?.connectionManager?.registerDevice(device, identity) == true
+
+
 
     fun onPhysicalConnected(address: String) {
         runtime?.connectionManager?.onPhysicalConnected(address)
@@ -79,6 +89,44 @@ internal object EarbudSessionService {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (context == null || intent == null) return
                 when (intent.action) {
+                    AppleCaseDiscoveryContract.SCANS, AppleCaseDiscoveryContract.READY -> {
+                        if (!BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
+                                ModuleContract.NATIVE_HEADSET_PACKAGE)) return
+                        if (intent.action == AppleCaseDiscoveryContract.READY) connectionManager.announceAppleDiscovery()
+                        else connectionManager.observeAppleDiscovery(AppleCaseDiscoveryContract.readScans(intent))
+                    }
+                    AppleNativeAdmissionContract.READY, AppleNativeAdmissionContract.DECISION -> {
+                        if (!BroadcastIdentity.accepts(context, sentFromPackage, sentFromUid,
+                                ModuleContract.NATIVE_HEADSET_PACKAGE)) return
+                        if (intent.action == AppleNativeAdmissionContract.READY) connectionManager.requestAppleNativeDecisions()
+                        else {
+                            val decision = AppleNativeAdmissionContract.readDecision(intent) ?: return
+                            connectionManager.acceptAppleNativeDecision(decision.request, decision.accepted, decision.revision)
+                        }
+                    }
+                    BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED -> {
+                        val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+                        when (intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)) {
+                            BluetoothProfile.STATE_CONNECTING -> {
+                                val identity = device.toEarbudIdentity()
+                                if (dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device) && PlatformReservedHeadsetPolicy.isAppleCandidate(identity)) {
+                                    connectionManager.onPhysicalConnecting(device.address)
+                                    connectionManager.observeDevice(device, identity)
+                                }
+                            }
+                            BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_DISCONNECTING -> connectionManager.cancelPhysicalConnecting(device)
+                        }
+                    }
+                    BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                        val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+                        if (!dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device)) {
+                            connectionManager.forgetAppleModel(device.address)
+                        }
+                    }
+                    BluetoothDevice.ACTION_UUID -> {
+                        val device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java) ?: return
+                        connectionManager.refreshIdentity(device)
+                    }
                     BluetoothSystemBattery.ACTION_LEVEL_CHANGED -> {
                         val device = BluetoothSystemBattery.device(intent) ?: return
                         connectionManager.updateSystemBattery(
@@ -203,6 +251,13 @@ internal object EarbudSessionService {
 
         init {
             val filter = IntentFilter().apply {
+                addAction(AppleCaseDiscoveryContract.SCANS)
+                addAction(AppleCaseDiscoveryContract.READY)
+                addAction(AppleNativeAdmissionContract.READY)
+                addAction(AppleNativeAdmissionContract.DECISION)
+                addAction(BluetoothDevice.ACTION_UUID)
+                addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
+                addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
                 addAction(ModuleContract.ACTION_REQUEST_STATE)
                 addAction(ModuleContract.ACTION_CONTROL)
                 addAction(ModuleContract.ACTION_CONTROL_APP_REGISTER)

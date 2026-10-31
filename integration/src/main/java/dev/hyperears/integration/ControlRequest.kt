@@ -27,6 +27,11 @@ sealed interface ControlRequest
  */
 @Serializable
 sealed interface StandardControlRequest : ControlRequest {
+    @Serializable @SerialName("standard.begin_vendor_handoff")
+    data class BeginVendorHandoff(val packageName:String,val leaseId:String):StandardControlRequest
+    @Serializable @SerialName("standard.end_vendor_handoff")
+    data class EndVendorHandoff(val leaseId:String):StandardControlRequest
+
     @Serializable
     @SerialName("standard.refresh")
     data object Refresh : StandardControlRequest
@@ -74,6 +79,8 @@ fun interface ControlRequestContract {
 /** Baseline request contract inherited by all adapters. */
 object StandardControlRequestContract : ControlRequestContract {
     override fun supports(adapter: EarbudAdapter, request: ControlRequest): Boolean = when {
+        request is StandardControlRequest.BeginVendorHandoff -> request.leaseId.isNotBlank() && adapter.controlApps.any {it.packageName==request.packageName}
+        request is StandardControlRequest.EndVendorHandoff -> request.leaseId.isNotBlank()
         request === StandardControlRequest.Refresh -> true
         request is StandardControlRequest.SetNoiseMode ->
             adapter.effectiveCapabilities().noiseControl &&
@@ -110,6 +117,16 @@ object ControlRequestTransport {
     private val json = Json {
         serializersModule = SerializersModule {
             polymorphic(ControlRequest::class) {
+                subclass(AppleHostLongPressLeaseRequest::class, AppleHostLongPressLeaseRequest.serializer())
+                subclass(AppleSpatialControlRequest.SetMode::class, AppleSpatialControlRequest.SetMode.serializer())
+                subclass(AppleSpatialControlRequest.BeginCalibration::class, AppleSpatialControlRequest.BeginCalibration.serializer())
+                subclass(AppleSpatialControlRequest.CalibrationStep::class, AppleSpatialControlRequest.CalibrationStep.serializer())
+                subclass(AppleSpatialControlRequest.Recenter::class, AppleSpatialControlRequest.Recenter.serializer())
+                subclass(AppleControlRequest.SetLongPress::class, AppleControlRequest.SetLongPress.serializer())
+                subclass(AppleControlRequest.SetListeningCycle::class, AppleControlRequest.SetListeningCycle.serializer())
+                subclass(AppleControlRequest.SetEqualizer::class, AppleControlRequest.SetEqualizer.serializer())
+                subclass(StandardControlRequest.BeginVendorHandoff::class,StandardControlRequest.BeginVendorHandoff.serializer())
+                subclass(StandardControlRequest.EndVendorHandoff::class,StandardControlRequest.EndVendorHandoff.serializer())
                 subclass(SamsungControlRequest.SetTouchGesture::class, SamsungControlRequest.SetTouchGesture.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldActions::class, SamsungControlRequest.SetTouchHoldActions.serializer())
                 subclass(SamsungControlRequest.SetTouchHoldNoiseCycles::class, SamsungControlRequest.SetTouchHoldNoiseCycles.serializer())

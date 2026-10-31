@@ -172,6 +172,7 @@ enum class ControlConfirmationPolicy {
 
 enum class SystemProfileState {
     DISCONNECTED,
+    CONNECTING,
     CONNECTED,
 }
 
@@ -212,7 +213,7 @@ data class DeviceLifecycle(
         ) { "External control ownership requires exactly one control app identity" }
     }
 
-    val active: Boolean get() = systemProfile == SystemProfileState.CONNECTED
+    val active: Boolean get() = systemProfile != SystemProfileState.DISCONNECTED
     val privateTransportRequired: Boolean
         get() = privateTransport != PrivateTransportState.NOT_REQUIRED
     val privateTransportConnected: Boolean
@@ -225,7 +226,7 @@ data class DeviceLifecycle(
             ProtocolHandshakeState.CONFIRMED,
         )
     val operational: Boolean
-        get() = active && (
+        get() = systemProfile == SystemProfileState.CONNECTED && (
             !privateTransportRequired ||
                 privateTransportConnected && protocolReady
             )
@@ -323,6 +324,13 @@ enum class FeatureReportDecision {
 
 /** Ordered, declarative effects recorded while an Adapter handles one framework event. */
 sealed interface AdapterEffect {
+    /** Bounded cancellation of an already user-started workflow, never a delayed start. */
+    data class ScheduleProtocolCleanup(val key: String, val lease: Long, val delayMs: Long) : AdapterEffect {
+        init { require(key.isNotBlank() && lease > 0 && delayMs in 1..60_000) }
+    }
+    data class CancelProtocolCleanup(val key: String) : AdapterEffect {
+        init { require(key.isNotBlank()) }
+    }
     data class RequestState(
         val featureId: String,
         val delayMs: Long,
@@ -349,6 +357,8 @@ sealed interface AdapterEffect {
  * call back into the Android runtime while Adapter code is executing.
  */
 interface AdapterEventScope {
+    fun scheduleProtocolCleanup(key: String, lease: Long, delayMs: Long)
+    fun cancelProtocolCleanup(key: String)
     fun requestState(featureId: String, delayMs: Long)
 
     fun cancelStateRequest(featureId: String)
@@ -356,6 +366,8 @@ interface AdapterEventScope {
 
 /** A model-declared private-protocol transport candidate. */
 sealed interface EarbudTransportSpec {
+    /** Candidate-scoped cooldown before connecting, never a post-handshake sleep. */
+    val connectDelayMs: Long get() = 0L
     val id: String
 }
 
@@ -370,7 +382,10 @@ sealed interface RfcommEndpointSpec : EarbudTransportSpec {
         val number: Int,
         val secure: Boolean = true,
         override val id: String = "rfcomm-$number${if (secure) "" else "-insecure"}",
-    ) : RfcommEndpointSpec
+        override val connectDelayMs: Long = 0L,
+    ) : RfcommEndpointSpec {
+        init { require(connectDelayMs in 0L..5_000L) }
+    }
 }
 
 /**
@@ -467,6 +482,7 @@ enum class GattWriteMode {
  * UUIDs are authoritative. Optional instance IDs pin a captured attribute table when a device
  * exposes duplicate characteristic UUIDs; runtimes still validate characteristic properties.
  */
+/** Opt-in readiness probe and big-endian writable-length preparation for framed Tandem endpoints. */
 data class GattTransportSpec(
     /** Optional service boundary used to disambiguate otherwise common characteristic UUIDs. */
     val serviceUuid: String? = null,

@@ -1,5 +1,6 @@
 package dev.hyperears.hook
 
+import dev.hyperears.bridge.ProcessStateStore
 import android.os.Looper
 import android.view.View
 import dev.hyperears.integration.ControlRequest
@@ -19,6 +20,7 @@ internal class MiLinkHeadsetDetailExtension(
     hostClassLoader: ClassLoader,
     stateProvider: (String) -> EarbudState,
     controlSender: (String, ControlRequest) -> Unit,
+    sessionTokenProvider: (String) -> String? = ProcessStateStore::sessionToken,
 ) {
     private class Target(
         root: View,
@@ -35,6 +37,7 @@ internal class MiLinkHeadsetDetailExtension(
         hostClassLoader = hostClassLoader,
         stateProvider = stateProvider,
         controlSender = controlSender,
+        sessionTokenProvider = sessionTokenProvider,
         observeState = { address, observer ->
             val key = Any()
             stateObservers[key] = address.uppercase(Locale.ROOT) to observer

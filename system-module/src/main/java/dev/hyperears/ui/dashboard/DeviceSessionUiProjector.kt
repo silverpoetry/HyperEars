@@ -231,7 +231,8 @@ private fun AdapterResolution.displayName(): String = when (this) {
 }
 
 private fun SystemProfileState.displayName(): String = when (this) {
-    SystemProfileState.DISCONNECTED -> "未连接"
+    SystemProfileState.CONNECTING -> "正在连接"
+            SystemProfileState.DISCONNECTED -> "未连接"
     SystemProfileState.CONNECTED -> "已连接"
 }
 

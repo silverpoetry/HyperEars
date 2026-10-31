@@ -61,7 +61,7 @@ internal class NativeConnectionHint : HookContext() {
         return try {
             NativeMembers.method(notificationType, "showConnectToastForAirPods",
                 Int::class.javaPrimitiveType!!, BluetoothDevice::class.java, Int::class.javaPrimitiveType!!)
-                .invoke(native, 2, device, if (projection.singleBattery) 3 else 0)
+                .invoke(native, 2, device, projection.nativeWearType)
             ModuleLog.debug("NativeHint", "submitted address=${maskBluetoothAddress(projection.address)} " +
                 "left=${projection.left.percent} right=${projection.right.percent} single=${projection.singleBattery}")
             true

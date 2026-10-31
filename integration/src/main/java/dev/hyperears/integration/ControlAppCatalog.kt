@@ -7,6 +7,16 @@ package dev.hyperears.integration
  * opt into one or more entries; an installed application alone never changes adapter matching.
  */
 object ControlAppCatalog {
+    val andPods = ControlAppSpec(
+        packageName = "cn.xiaolongonly.andpodsop",
+        displayName = "AndPods",
+    )
+    val librePods = ControlAppSpec(
+        packageName = "me.kavishdevar.librepods",
+        displayName = "LibrePods",
+    )
+
+
     val vivoEarphones = ControlAppSpec(
         packageName = "com.vivo.vivotws",
         displayName = "vEarphones",
@@ -152,6 +162,8 @@ object ControlAppCatalog {
     )
 
     val all: List<ControlAppSpec> = listOf(
+        andPods,
+        librePods,
         vivoEarphones,
         heyMelody,
         oplusWirelessEarphones,

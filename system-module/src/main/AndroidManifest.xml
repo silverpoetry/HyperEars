@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <queries>
+        <package android:name="cn.xiaolongonly.andpodsop" />
+        <package android:name="me.kavishdevar.librepods" />
+
+        <package android:name="com.android.settings" />
         <package android:name="com.android.bluetooth" />
         <package android:name="com.milink.service" />
         <package android:name="com.xiaomi.bluetooth" />

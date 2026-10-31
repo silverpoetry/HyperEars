@@ -17,6 +17,7 @@ internal object NativePresentationContract {
     private const val CONNECTED_AT = "native_connected_at"
     private const val ADMISSION = "native_admission"
     private const val REPLAY = "native_replay"
+    private const val CONNECTION_SCOPED = "native_connection_scoped_ownership"
     private const val PRODUCER = "native_producer"
     private const val ADDRESS = "native_address"
     private const val SESSION = "native_session"
@@ -27,6 +28,7 @@ internal object NativePresentationContract {
             .putExtra(CONNECTED_AT, metadata.connection.connectedAtElapsedMs)
             .putExtra(ADMISSION, metadata.admission.name)
             .putExtra(REPLAY, metadata.replay)
+            .putExtra(CONNECTION_SCOPED, metadata.connectionScopedOwnership)
             .putExtras(Bundle().apply { putBinder(PRODUCER, producer) })
 
     fun metadata(intent: Intent): NativePresentationMetadata? {
@@ -38,6 +40,7 @@ internal object NativePresentationContract {
             HeadsetConnection(id, intent.getLongExtra(CONNECTED_AT, -1)),
             admission,
             intent.getBooleanExtra(REPLAY, false),
+            intent.getBooleanExtra(CONNECTION_SCOPED, false),
         )
     }
 

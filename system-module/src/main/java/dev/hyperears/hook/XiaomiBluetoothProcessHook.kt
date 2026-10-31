@@ -9,6 +9,8 @@ import dev.hyperears.presentation.NativePresentationRuntime
 /** Native Bluetooth host bootstrap, including its event-driven Qigsaw plugin loader. */
 internal class XiaomiBluetoothProcessHook : HookContext() {
     private var runtime: NativePresentationRuntime? = null
+    private var admissionStarted = false
+    private var discoveryStarted = false
     private val main = Handler(Looper.getMainLooper())
 
     override fun install() {
@@ -36,5 +38,39 @@ internal class XiaomiBluetoothProcessHook : HookContext() {
                 bridge.packageName = packageName
             })
         runtime?.pluginReady(app.classLoader)
+        if (process != "$packageName:ui" && !discoveryStarted) {
+            discoveryStarted = true
+            runCatching {
+                AppleNativeScanObservationHook(app).also {
+                    it.module = module
+                    it.appClassLoader = app.classLoader
+                    it.packageName = packageName
+                    it.install()
+                }
+            }.onFailure { ModuleLog.warn("AppleDiscovery", "native scan observation unavailable", it) }
+        }
+        if (process != "$packageName:ui" && !admissionStarted && runCatching {
+                Class.forName(AppleNativeConnectionResolver.STORAGE, false, app.classLoader)
+            }.isSuccess) {
+            admissionStarted = true
+            val executor = java.util.concurrent.Executors.newSingleThreadExecutor()
+            executor.execute {
+                val resolved = runCatching {
+                    AppleNativeConnectionResolver.resolve(app.applicationInfo.sourceDir, app.classLoader)
+                }
+                main.post {
+                    resolved.onSuccess { method -> runCatching {
+                        AppleNativeConnectionHook(app, method).also {
+                            it.module = module
+                            it.appClassLoader = app.classLoader
+                            it.packageName = packageName
+                            it.install()
+                        }
+                    }.onFailure { ModuleLog.warn("AppleNativeAdmission", "observer unavailable", it) } }
+                        .onFailure { ModuleLog.warn("AppleNativeAdmission", "native connection fingerprint unavailable", it) }
+                }
+                executor.shutdown()
+            }
+        }
     }
 }

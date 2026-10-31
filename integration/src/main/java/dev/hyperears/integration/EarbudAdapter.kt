@@ -7,6 +7,7 @@ data class EarbudIdentity(
     val deviceAddress: String? = null,
     val bluetoothDeviceClass: Int? = null,
     val serviceUuids: Set<String> = emptySet(),
+    val manufacturerData: Map<Int, List<Int>> = emptyMap(),
 )
 
 /**
@@ -134,6 +135,16 @@ abstract class EarbudAdapter(
 
     protected open fun createProtocolSession(): ProtocolSession = StandardBluetoothProtocolSession()
 
+    /**
+     * Drain cancellation for a locally initiated protocol workflow before graceful channel release.
+     * Called under the old channel's transaction lock; never starts a workflow or borrows a new
+     * owner's channel. Overrides must consume their lease once. Reset handles abrupt disconnects.
+     */
+    open fun prepareProtocolRelease(): List<ByteArray> = emptyList()
+
+    /** Expire only the exact local workflow lease that requested this transport-owned deadline. */
+    open fun expireProtocolWorkflow(key: String, lease: Long): List<ByteArray> = emptyList()
+
     /** Begins the one adapter-owned protocol confirmation phase. */
     fun beginHandshake(): AdapterIoResult {
         if (!privateProtocolRequired) {
@@ -145,8 +156,13 @@ abstract class EarbudAdapter(
         } else {
             HandshakeResult.Ready
         }
-        return AdapterIoResult(commands = commands, handshake = handshake)
+        val scope = RecordingAdapterEventScope()
+        onHandshakeStarted(scope)
+        return AdapterIoResult(commands = commands, handshake = handshake, effects = scope.effects())
     }
+
+    /** Optional bounded model reads; transport owns scheduling and cancellation. */
+    protected open fun onHandshakeStarted(scope: AdapterEventScope) = Unit
 
     /**
      * Consumes one transport read. Protocol events remain private to the adapter aggregate.
@@ -165,14 +181,17 @@ abstract class EarbudAdapter(
             when (event) {
                 is ProtocolEvent.FeatureStateChanged -> {
                     if (!featureStateContract.accepts(this, event.state)) return@forEach
-                    when (onFeatureReported(event.state, eventScope)) {
+                    val report = normalizeFeatureReport(event.state)
+                    if (report.featureId != event.state.featureId ||
+                        !featureStateContract.accepts(this, report)) return@forEach
+                    when (onFeatureReported(report, eventScope)) {
                         FeatureReportDecision.ACCEPT -> {
-                            if (event.state is BatteryFeatureState) {
+                            if (report is BatteryFeatureState) {
                                 batterySourceAfterProtocolEvidence()?.let {
                                     confirmedBatterySource = it
                                 }
                             }
-                            val nextFeatures = runtimeState.features.update(event.state)
+                            val nextFeatures = runtimeState.features.update(report)
                             if (nextFeatures != runtimeState.features) {
                                 runtimeState = runtimeState.copy(features = nextFeatures)
                                 changed = true
@@ -243,6 +262,13 @@ abstract class EarbudAdapter(
         state: DeviceFeatureState,
         scope: AdapterEventScope,
     ): FeatureReportDecision = FeatureReportDecision.ACCEPT
+
+    /**
+     * Model-owned normalization before each report's admission, including coalesced reads.
+     * The result must retain the feature ID and satisfy the adapter's declared contract.
+     * Defaults to identity; bounded bootstrap policy remains in the adapter, not the decoder.
+     */
+    protected open fun normalizeFeatureReport(state: DeviceFeatureState): DeviceFeatureState = state
 
     /** Maps authoritative vendor identity evidence to a new concrete adapter when needed. */
     protected open fun onProductIdentified(productId: Int): HandshakeResult? = null
@@ -453,6 +479,13 @@ abstract class EarbudAdapter(
 private class RecordingAdapterEventScope : AdapterEventScope {
     private val recordedEffects = mutableListOf<AdapterEffect>()
 
+    override fun scheduleProtocolCleanup(key: String, lease: Long, delayMs: Long) {
+        recordedEffects += AdapterEffect.ScheduleProtocolCleanup(key, lease, delayMs)
+    }
+    override fun cancelProtocolCleanup(key: String) {
+        recordedEffects += AdapterEffect.CancelProtocolCleanup(key)
+    }
+
     override fun requestState(featureId: String, delayMs: Long) {
         recordedEffects += AdapterEffect.RequestState(featureId, delayMs)
     }
@@ -611,8 +644,10 @@ object EarbudAdapterRegistry {
     private val huaweiGroup = GroupMetadata("huawei", "华为")
     private val sonyGroup = GroupMetadata("sony", "Sony")
     private val qcyGroup = GroupMetadata("qcy", "QCY")
+    private val flos2Group = GroupMetadata("flos2", "Dreame / TheAstro")
     private val technicsGroup = GroupMetadata("technics", "Technics")
     private val samsungGroup = GroupMetadata("samsung", "Samsung Galaxy Buds")
+    private val appleGroup = GroupMetadata("apple", "Apple AirPods")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
 
     private val initialRegistrations: List<Registration> = buildList {
@@ -661,8 +696,9 @@ object EarbudAdapterRegistry {
         dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.entries.forEach { model ->
             add(Registration(samsungGroup) { SamsungBuds2ProAdapter(model) })
         }
-        // Apple devices are handled by the platform; keep AAP code available for explicit use,
-        // but do not add Apple adapters to HyperEars' default matching chain.
+        add(Registration(appleGroup, ::AppleAirPodsProAdapter))
+        add(Registration(appleGroup, ::AppleAirPodsMaxAdapter))
+        add(Registration(appleGroup, ::AppleAirPodsAdapter))
         addAll(SonyAdapterRegistry.factories.map { Registration(sonyGroup, it) })
         add(Registration(standardGroup, ::StandardEarbudAdapter))
     }
@@ -718,8 +754,9 @@ object EarbudAdapterRegistry {
     fun resolve(
         identity: EarbudIdentity,
         disabledAdapterIds: Set<String> = emptySet(),
+        appleNativeDeclined: Boolean = false,
     ): EarbudAdapter? {
-        if (PlatformReservedHeadsetPolicy.reserves(identity)) return null
+        if (PlatformReservedHeadsetPolicy.reserves(identity, appleNativeDeclined)) return null
         return initialRegistrations.asSequence()
             .filterNot { it.descriptor.id in disabledAdapterIds }
             .map { it.factory() }
@@ -729,12 +766,13 @@ object EarbudAdapterRegistry {
     fun forIntegration(
         identity: EarbudIdentity,
         disabledAdapterIds: Set<String> = emptySet(),
+        appleNativeDeclined: Boolean = false,
         forcedAdapterId: String? = null,
     ): EarbudAdapter? {
         if (forcedAdapterId == null) {
-            return resolve(identity, disabledAdapterIds)?.takeIf(EarbudAdapter::integrationEnabled)
+            return resolve(identity, disabledAdapterIds, appleNativeDeclined)?.takeIf(EarbudAdapter::integrationEnabled)
         }
-        if (!identity.standardHeadset || PlatformReservedHeadsetPolicy.reserves(identity)) return null
+        if (!identity.standardHeadset || PlatformReservedHeadsetPolicy.reserves(identity, appleNativeDeclined)) return null
         val candidate = initialRegistrations.firstOrNull {
             it.descriptor.id == forcedAdapterId && it.descriptor.id !in disabledAdapterIds
         }?.factory?.invoke()

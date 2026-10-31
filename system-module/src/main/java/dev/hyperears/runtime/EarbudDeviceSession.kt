@@ -5,9 +5,25 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.SystemClock
+import android.os.Handler
+import android.os.Looper
+import android.os.IBinder
+import android.os.Binder
+import dev.hyperears.presentation.AppleLongPressRuntime
+import dev.hyperears.hook.AppleSpatialSession
+import dev.hyperears.hook.RemoteAppleSpatialHost
+import dev.hyperears.integration.AppleHostLongPressLeaseRequest
+import dev.hyperears.integration.AppleSpatialControlRequest
+import dev.hyperears.integration.AppleWearFeatureState
+import dev.hyperears.integration.EarbudState
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import dev.hyperears.hook.ModuleLog
 import dev.hyperears.hook.maskBluetoothAddress
 import dev.hyperears.integration.ControlRequest
+import dev.hyperears.integration.AppleAirPodsAdapter
 import dev.hyperears.integration.StandardControlRequest
 import dev.hyperears.integration.ControlAppSpec
 import dev.hyperears.integration.ControlAppCatalog
@@ -67,6 +83,14 @@ internal class EarbudDeviceSession(
     private val channelFactory: EarbudChannelFactory = AndroidEarbudChannelFactory,
     initialActiveControlApps: Set<String> = emptySet(),
     initialExternalControlEnabled: Boolean = true,
+    private val appleRetention: AppleProximityRetention? = null,
+    private val sessionIdentity: String = java.util.UUID.randomUUID().toString(),
+    private val presentationProducer: IBinder = Binder(),
+    private val previousClosure: Deferred<Unit>? = null,
+    initialProfileConnected: Boolean = true,
+    val controlDevice: BluetoothDevice = device,
+    val preferGatt: Boolean = false,
+    private val previousRouteClosures: List<Deferred<Unit>> = emptyList(),
 ) : Closeable {
     fun interface Listener {
         fun onSnapshotChanged(session: EarbudDeviceSession, snapshot: Snapshot)
@@ -76,18 +100,52 @@ internal class EarbudDeviceSession(
         val adapter: AdapterSnapshot,
         val runtime: AdapterRuntimeState,
         val lifecycle: DeviceLifecycle,
+        val forceRevision: Boolean = false,
     )
 
     private val sessionJob = SupervisorJob()
     private val scope = CoroutineScope(sessionJob + Dispatchers.IO)
     private val closed = AtomicBoolean()
+    val closedCompletion = CompletableDeferred<Unit>()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var transportStopping = false
+    @Volatile private var cleanupJob: Job? = null
+    private var hostGeneration = 0L
+    private var spatialSession: AppleSpatialSession? = null
+    private var spatialHost: RemoteAppleSpatialHost? = null
+    private var spatialChannel: EarbudChannel? = null
+    private var spatialWasEligible = false
+    private val spatialWrites = java.util.ArrayDeque<ByteArray>()
+    private val closingHostRequests = java.util.concurrent.ConcurrentLinkedQueue<ControlRequest>()
+    @Volatile private var collectingHostCleanup = false
+    private val longPress by lazy { AppleLongPressRuntime(context, mainHandler,
+        leaseSender = { target, identity, acquire ->
+            if (target != address || identity != hostIdentity()) false
+            else {
+                val request = AppleHostLongPressLeaseRequest(identity, acquire)
+                if (collectingHostCleanup && !acquire) { closingHostRequests.add(request); true }
+                else executeInternal(request, internalHostLease = true)
+            }
+        }, controlSender = { target, request -> target == address && execute(request) }) }
+    private fun hostIdentity() = "$sessionIdentity:$hostGeneration"
+
+    @Volatile private var redactProtocolPayloads = initialAdapter is AppleAirPodsAdapter
+    private var appleProximity: AppleProximityRuntime? = null
+    private var appleRegistration: AppleProximityRuntime.Registration? = null
+    private var appleProximityChannel: EarbudChannel? = null
+    private val handoffLock = Any()
+    private val handoffLease = VendorHandoffLease()
+    private var handoffGraceJob: Job? = null
     private val connectionJobLock = Any()
     private val transportLock = Any()
     private val transactionMutex = Mutex()
+    private val cleanupMutex = Mutex()
     private val unknownFrameLogTimes = mutableMapOf<Int, Long>()
     private val controlPacingLock = Any()
     private val refreshRequestGate = RefreshRequestGate(REFRESH_COALESCE_MS)
     private val stateRequests = StateRequestDispatcher(scope)
+    private val protocolCleanups = ProtocolCleanupDispatcher(scope)
     private var lastControlAt = Long.MIN_VALUE
 
     @Volatile
@@ -119,7 +177,7 @@ internal class EarbudDeviceSession(
 
     @Volatile
     private var lifecycle = DeviceLifecycle(
-        systemProfile = SystemProfileState.CONNECTED,
+        systemProfile = if (initialProfileConnected) SystemProfileState.CONNECTED else SystemProfileState.CONNECTING,
         privateTransport = if (externalControlApp != null) {
             PrivateTransportState.NOT_REQUIRED
         } else if (initialAdapter.privateProtocolRequired) {
@@ -167,7 +225,16 @@ internal class EarbudDeviceSession(
         )
     }
 
+    fun onSystemProfileConnected() {
+        synchronized(handoffLock) {
+            if (closed.get() || lifecycle.systemProfile != SystemProfileState.CONNECTING) return
+            updateLifecycle(systemProfile = SystemProfileState.CONNECTED)
+            start()
+        }
+    }
+
     fun start() {
+        if (lifecycle.systemProfile != SystemProfileState.CONNECTED) { publishSnapshot(); return }
         publishCachedSystemBattery()
         if (externalControlApp != null) {
             publishSnapshot()
@@ -192,7 +259,7 @@ internal class EarbudDeviceSession(
     }
 
     /** Applies one process-wide control-app presence snapshot to this device session. */
-    fun updateControlAppPresence(activePackages: Set<String>) {
+    fun updateControlAppPresence(activePackages: Set<String>): Unit = synchronized(handoffLock) {
         if (closed.get()) return
         activeControlAppPackages = activePackages.toSet()
         ModuleLog.debug(
@@ -200,10 +267,12 @@ internal class EarbudDeviceSession(
             "controller presence address=${maskBluetoothAddress(address)} active=$activeControlAppPackages " +
                 "candidates=${adapter.controlApps.map(ControlAppSpec::packageName)}",
         )
+        handoffLease.presence(activeControlAppPackages)
+        if (handoffLease.current?.presenceSeen != false) handoffGraceJob?.cancel()
         reconcileExternalControlOwner()
     }
 
-    fun updateExternalControlEnabled(enabled: Boolean) {
+    fun updateExternalControlEnabled(enabled: Boolean): Unit = synchronized(handoffLock) {
         if (closed.get() || externalControlEnabled == enabled) return
         externalControlEnabled = enabled
         reconcileExternalControlOwner()
@@ -216,11 +285,7 @@ internal class EarbudDeviceSession(
     }
 
     private fun reconcileExternalControlOwner() {
-        val nextOwner = if (externalControlEnabled) {
-            ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages)
-        } else {
-            null
-        }
+        val nextOwner = handoffLease.owner(adapter.controlApps, activeControlAppPackages, externalControlEnabled)
         val previousOwner = externalControlApp
         if (nextOwner == previousOwner) return
         if (nextOwner != null) {
@@ -237,8 +302,9 @@ internal class EarbudDeviceSession(
      * requests never create concurrent socket attempts for the same device.
      */
     fun requestConnection(): Boolean {
-        if (closed.get()) {
-            ModuleLog.debug(COMPONENT, "ignored connection request; session closed")
+        if (lifecycle.systemProfile != SystemProfileState.CONNECTED) return false
+        if (closed.get() || transportStopping) {
+            ModuleLog.debug(COMPONENT, "ignored connection request; session closed or cleaning up")
             return false
         }
         if (externalControlApp != null) {
@@ -276,8 +342,47 @@ internal class EarbudDeviceSession(
         return true
     }
 
-    fun execute(request: ControlRequest): Boolean {
+    private fun executeHandoff(request: StandardControlRequest): Boolean = synchronized(handoffLock) {
         if (closed.get()) return false
+        when (request) {
+            is StandardControlRequest.BeginVendorHandoff -> {
+                if (request.leaseId.isBlank() || request.leaseId.length > 128 ||
+                    adapter.controlApps.none { it.packageName == request.packageName }) return false
+                handoffGraceJob?.cancel()
+                handoffLease.begin(request.packageName, request.leaseId, activeControlAppPackages)
+                reconcileExternalControlOwner()
+                // Even an unchanged external owner must acknowledge this request with a fresh revision.
+                listener.onSnapshotChanged(this, snapshot().copy(forceRevision = true))
+                if (handoffLease.current?.presenceSeen == false) {
+                    handoffGraceJob = scope.launch {
+                        delay(30_000L)
+                        synchronized(handoffLock) {
+                            if (handoffLease.expire(request.leaseId)) reconcileExternalControlOwner()
+                        }
+                    }
+                }
+                true
+            }
+            is StandardControlRequest.EndVendorHandoff -> {
+                if (!handoffLease.end(request.leaseId)) return false
+                handoffGraceJob?.cancel()
+                handoffGraceJob = null
+                reconcileExternalControlOwner()
+                true
+            }
+            else -> false
+        }
+    }
+
+    fun execute(request: ControlRequest): Boolean = executeInternal(request, internalHostLease = false)
+
+    private fun executeInternal(request: ControlRequest, internalHostLease: Boolean): Boolean {
+        if (request is AppleHostLongPressLeaseRequest && (!internalHostLease || request.leaseId != hostIdentity())) return false
+        if (closed.get() || transportStopping) return false
+        if (request is StandardControlRequest.BeginVendorHandoff ||
+            request is StandardControlRequest.EndVendorHandoff) {
+            return executeHandoff(request)
+        }
         if (request === StandardControlRequest.Refresh && !refreshRequestGate.tryAcquire()) {
             ModuleLog.debug(
                 COMPONENT,
@@ -295,6 +400,19 @@ internal class EarbudDeviceSession(
         if (!adapter.supportsControl(request)) {
             return false
         }
+        if (request is AppleSpatialControlRequest) {
+            val current = spatialSession ?: return false
+            val currentChannel = channel ?: return false
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                transactionMutex.withLock {
+                    if (closed.get() || transportStopping || channel !== currentChannel || spatialSession !== current || externalControlApp != null) return@withLock
+                    current.updateEligibility(spatialEligible())
+                    current.request(request)
+                    drainSpatialWrites(currentChannel)
+                }
+            }
+            return true
+        }
         val policy = adapter.controlPolicy(request)
         val activeChannel = channel ?: return false
         if (!isControlPacingReady(policy.cooldownMs)) return false
@@ -302,6 +420,7 @@ internal class EarbudDeviceSession(
         scope.launch {
             runCatching {
                 transactionMutex.withLock {
+                    if (closed.get() || transportStopping || channel !== activeChannel || externalControlApp != null) return@withLock
                     val result = adapter.executeControl(request)
                     if (!result.accepted) return@withLock
                     val writeStartedAt = SystemClock.elapsedRealtime()
@@ -311,18 +430,20 @@ internal class EarbudDeviceSession(
                         gapMs = policy.commandGapMs,
                         description = request.description(),
                     )
+                    if (closed.get() || transportStopping || channel !== activeChannel) return@withLock
                     ModuleLog.debug(COMPONENT) {
                         "${request.description()} dispatched frames=${result.commands.size} " +
                             "queueMs=${writeStartedAt - queuedAt} " +
                             "writeMs=${SystemClock.elapsedRealtime() - writeStartedAt} " +
                             "gapMs=${policy.commandGapMs}"
                     }
+                    val written = writtenControlEffects(adapter, request)
                     applyAdapterEffects(
                         activeChannel = activeChannel,
                         expectedAdapter = adapter,
-                        effects = adapter.controlWritten(request),
+                        effects = written.effects,
                     )
-                    if (result.stateChanged) publishSnapshot()
+                    if (result.stateChanged || written.localStateChanged) publishSnapshot()
                     val readback = result.readback
                     if (readback.isNotEmpty()) {
                         delay(policy.readbackDelayMs)
@@ -350,18 +471,17 @@ internal class EarbudDeviceSession(
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        stateRequests.cancelAll("device session closed")
-        val activeChannel = synchronized(transportLock) {
-            channel.also {
-                channel = null
-                adapter.resetProtocolSession()
-            }
+        synchronized(handoffLock) {
+            handoffGraceJob?.cancel()
+            handoffGraceJob = null
+            handoffLease.clear()
         }
-        activeChannel?.close()
-        synchronized(connectionJobLock) {
-            connectionJob.also { connectionJob = null }
-        }?.cancel()
+        stateRequests.cancelAll("device session closed")
+        protocolCleanups.cancelAll()
+        transportStopping = true
+        synchronized(connectionJobLock) { connectionJob.also { connectionJob = null } }?.cancel()
         scope.cancel()
+        beginTransportCleanup(graceful = true) { closedCompletion.complete(Unit); cleanupScope.cancel() }
         lifecycle = lifecycle.copy(
             systemProfile = SystemProfileState.DISCONNECTED,
             privateTransport = if (adapter.privateProtocolRequired) {
@@ -382,6 +502,9 @@ internal class EarbudDeviceSession(
 
     @SuppressLint("MissingPermission")
     private suspend fun runConnectionCycle() {
+        previousClosure?.await()
+        previousRouteClosures.forEach { it.await() }
+        currentCoroutineContext().ensureActive()
         var consecutiveFailures = 0
         cancelDiscoveryOnce()
 
@@ -485,13 +608,14 @@ internal class EarbudDeviceSession(
 
     private suspend fun connectFirstTransportSerially(): ConnectedTransport {
         var lastError: Throwable? = null
-        adapter.transports.forEach { transport ->
+        val candidates = if (preferGatt) adapter.transports.sortedBy { if (it is dev.hyperears.integration.GattTransportSpec) 0 else 1 } else adapter.transports
+        candidates.forEach { transport ->
             currentCoroutineContext().ensureActive()
             if (externalControlApp != null) {
                 throw CancellationException("vendor control owned by external app")
             }
             val candidate = try {
-                channelFactory.create(context, device, transport)
+                channelFactory.create(context, controlDevice, transport)
             } catch (error: Throwable) {
                 lastError = error
                 return@forEach
@@ -499,7 +623,11 @@ internal class EarbudDeviceSession(
             adapter.resetProtocolSession()
             synchronized(transportLock) { channel = candidate }
             try {
-                withTimeout(CONNECT_TIMEOUT_MS) { candidate.connect() }
+                withTimeout(CONNECT_TIMEOUT_MS + transport.connectDelayMs) {
+                    candidate.connectAfterCooldown(transport) {
+                        externalControlApp == null && synchronized(transportLock) { channel === candidate }
+                    }
+                }
                 updateLifecycle(
                     privateTransport = PrivateTransportState.CONNECTED,
                     protocolHandshake = adapter.initialHandshakeState(),
@@ -511,6 +639,7 @@ internal class EarbudDeviceSession(
                     gapMs = INITIAL_COMMAND_GAP_MS,
                     description = "adapter handshake",
                 )
+                applyAdapterEffects(candidate, adapter, initial.effects)
                 when (val handshake = initial.handshake) {
                     HandshakeResult.Ready, null -> return ConnectedTransport(candidate)
                     HandshakeResult.AwaitingEvidence -> awaitAcceptedHandshake(candidate)
@@ -519,6 +648,8 @@ internal class EarbudDeviceSession(
                 }
                 return ConnectedTransport(candidate)
             } catch (error: Throwable) {
+                stateRequests.cancelAll("handshake candidate failed")
+                protocolCleanups.cancelAll()
                 adapter.resetProtocolSession()
                 candidate.close()
                 synchronized(transportLock) {
@@ -570,8 +701,11 @@ internal class EarbudDeviceSession(
         activeChannel: EarbudChannel,
         bytes: ByteArray,
     ): AdapterIoResult = transactionMutex.withLock {
+        if (closed.get() || transportStopping || channel !== activeChannel) throw CancellationException("stale receiver")
+        prepareAppleHosts(activeChannel)
+        redactProtocolPayloads = redactProtocolPayloads || adapter is AppleAirPodsAdapter
         ModuleLog.debug(COMPONENT) {
-            "received endpoint=${activeChannel.endpointId} bytes=${bytes.toHex()}"
+            "received endpoint=${activeChannel.endpointId} bytes=${protocolPayloadLog(bytes, redactProtocolPayloads)}"
         }
         val receivingAdapter = adapter
         val result = receivingAdapter.receive(bytes)
@@ -621,6 +755,7 @@ internal class EarbudDeviceSession(
                             INITIAL_COMMAND_GAP_MS,
                             "replacement handshake",
                         )
+                        applyAdapterEffects(activeChannel, adapter, restart.effects)
                         when (restart.handshake) {
                             HandshakeResult.Ready, null -> {
                                 publishRequired = setLifecycle(
@@ -654,8 +789,103 @@ internal class EarbudDeviceSession(
                 effects = result.effects,
             )
         }
+        prepareAppleProximity(activeChannel)
+        prepareAppleHosts(activeChannel)
+        updateSpatialEligibility()
+        drainSpatialWrites(activeChannel)
         if (publishRequired) publishSnapshot()
         result
+    }
+
+    private fun spatialEligible(): Boolean = !closed.get() && !transportStopping && externalControlApp == null &&
+        lifecycle.privateTransportConnected && lifecycle.protocolReady &&
+        adapter.runtimeState().features.get<AppleWearFeatureState>()?.inEarCount != 0
+
+    private fun updateSpatialEligibility() {
+        val eligible = spatialEligible()
+        spatialSession?.updateEligibility(eligible)
+        if (eligible && !spatialWasEligible) {
+            publishSnapshot()
+            spatialHost?.connect()
+        }
+        spatialWasEligible = eligible
+    }
+
+    /** Called under the transaction mutex, including before the first full decoded ownership frame. */
+    private fun prepareAppleHosts(activeChannel: EarbudChannel) {
+        val apple = adapter as? AppleAirPodsAdapter ?: return
+        if (spatialChannel === activeChannel || closed.get() || transportStopping || externalControlApp != null) return
+        val generation = hostGeneration
+        fun current() = !closed.get() && !transportStopping && channel === activeChannel &&
+            adapter === apple && hostGeneration == generation && spatialChannel === activeChannel
+        lateinit var spatial: AppleSpatialSession
+        val host = RemoteAppleSpatialHost(context, address, sessionIdentity, presentationProducer) {
+            scope.launch {
+                transactionMutex.withLock {
+                    if (!current()) return@withLock
+                    updateSpatialEligibility()
+                    drainSpatialWrites(activeChannel)
+                }
+            }
+        }
+        spatial = AppleSpatialSession(host, write = { bytes ->
+            if (current() || collectingHostCleanup) { spatialWrites.add(bytes.copyOf()); true } else false
+        }, publish = { state ->
+            if (current() && apple.publishSpatialHostState(state)) publishSnapshot()
+        }, clock = SystemClock::elapsedRealtime, schedule = { delayMs, task ->
+            val job = scope.launch {
+                delay(delayMs)
+                transactionMutex.withLock {
+                    if (current()) { task(); drainSpatialWrites(activeChannel) }
+                }
+            }
+            ({ job.cancel() })
+        })
+        spatialSession = spatial; spatialHost = host; spatialChannel = activeChannel
+        apple.privateMotionReceiver = { frame -> if (current()) spatial.onPacket(frame) }
+        // Broadcast the normal session state first; the host rendezvous has a bounded retry window.
+        publishSnapshot()
+    }
+
+    private suspend fun drainSpatialWrites(activeChannel: EarbudChannel) {
+        while (spatialWrites.isNotEmpty()) {
+            sendCommands(activeChannel, listOf(spatialWrites.removeFirst()), 0L, "Apple spatial control")
+        }
+    }
+
+    /** Keys remain within the admitted Bluetooth owner; only projected telemetry is broadcast. */
+    @SuppressLint("MissingPermission")
+    private suspend fun prepareAppleProximity(activeChannel: EarbudChannel) {
+        val apple = adapter as? AppleAirPodsAdapter ?: return
+        if (appleProximityChannel === activeChannel || !lifecycle.protocolReady ||
+            !lifecycle.privateTransportConnected || externalControlApp != null || closed.get()) return
+        if (runCatching { device.bondState }.getOrNull() != BluetoothDevice.BOND_BONDED) return
+        redactProtocolPayloads = true
+        fun eligible(): Boolean = !closed.get() && channel === activeChannel && adapter === apple &&
+            externalControlApp == null && lifecycle.protocolReady && lifecycle.privateTransportConnected
+        val runtime = AppleProximityRuntime(context)
+        lateinit var registration: AppleProximityRuntime.Registration
+        registration = runtime.register(device, ::eligible, onReport = { report ->
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                transactionMutex.withLock {
+                    if (registration.eligible() && apple.acceptProximityReport(report)) publishSnapshot()
+                }
+            }
+        }, onCaseOpen = {
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                transactionMutex.withLock {
+                    if (registration.eligible() && apple.acceptProximityCaseOpen()) publishSnapshot()
+                }
+            }
+        })
+        appleProximity = runtime
+        appleRegistration = registration
+        appleProximityChannel = activeChannel
+        apple.privateKeyReceiver = { keys ->
+            if (registration.eligible()) appleRetention?.retain(device, apple, keys.copy())
+            registration.acceptKeys(keys)
+        }
+        sendCommands(activeChannel, apple.proximityBootstrapCommands(), 0L, "Apple private bootstrap")
     }
 
     private fun applyReplacement(
@@ -664,6 +894,7 @@ internal class EarbudDeviceSession(
     ) {
         if (channel !== activeChannel) throw CancellationException("stale adapter replacement")
         stateRequests.cancelAll("adapter replaced")
+        protocolCleanups.cancelAll()
         adapter = replacement.adapter
         ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages)
             ?.takeIf { externalControlEnabled }
@@ -743,7 +974,18 @@ internal class EarbudDeviceSession(
     }
 
     private fun publishSnapshot() {
-        listener.onSnapshotChanged(this, snapshot())
+        val value = snapshot()
+        listener.onSnapshotChanged(this, value)
+        if (adapter is AppleAirPodsAdapter && !closed.get() && !transportStopping) {
+            val identity = hostIdentity()
+            val currentChannel = channel
+            val state = EarbudState(address = address, deviceName = deviceName, adapter = value.adapter,
+                lifecycle = value.lifecycle, features = value.runtime.features)
+            mainHandler.post {
+                if (!closed.get() && !transportStopping && channel === currentChannel && identity == hostIdentity())
+                    longPress.update(state, identity)
+            }
+        }
     }
 
     private suspend fun sendCommands(
@@ -754,16 +996,18 @@ internal class EarbudDeviceSession(
     ) {
         writeCommandSequence(commands, gapMs) { command ->
             currentCoroutineContext().ensureActive()
-            if (closed.get() || channel !== activeChannel) {
+            if (closed.get() || transportStopping || channel !== activeChannel) {
                 throw CancellationException("stale vendor-channel writer")
             }
             if (externalControlApp != null) {
                 throw CancellationException("vendor control owned by external app")
             }
-            activeChannel.write(command)
+            if (adapter is AppleAirPodsAdapter) {
+                activeChannel.withIoDeadline(2_000, "Apple control write") { write(command) }
+            } else activeChannel.write(command)
             ModuleLog.debug(
                 COMPONENT,
-                "$description wrote bytes=${command.toHex()}",
+                "$description wrote bytes=${protocolPayloadLog(command, redactProtocolPayloads || adapter is AppleAirPodsAdapter)}",
             )
         }
     }
@@ -776,6 +1020,25 @@ internal class EarbudDeviceSession(
     ) {
         effects.forEach { effect ->
             when (effect) {
+                is AdapterEffect.ScheduleProtocolCleanup -> protocolCleanups.schedule(
+                    effect.key, effect.delayMs,
+                    expire = {
+                        transactionMutex.withLock {
+                            currentCoroutineContext().ensureActive()
+                            if (closed.get() || transportStopping || externalControlApp != null ||
+                                channel !== activeChannel || adapter !== expectedAdapter) return@withLock
+                            val commands = expectedAdapter.expireProtocolWorkflow(effect.key, effect.lease)
+                            if (commands.isNotEmpty()) sendCommands(activeChannel, commands, COMMAND_GAP_MS,
+                                "protocol workflow cleanup ${effect.key}")
+                            publishSnapshot()
+                        }
+                    },
+                    failed = { error ->
+                        ModuleLog.warn(COMPONENT, "protocol workflow cleanup failed key=${effect.key}", error)
+                        activeChannel.close()
+                    },
+                )
+                is AdapterEffect.CancelProtocolCleanup -> protocolCleanups.cancel(effect.key)
                 is AdapterEffect.RequestState -> {
                     stateRequests.request(
                         featureId = effect.featureId,
@@ -833,43 +1096,102 @@ internal class EarbudDeviceSession(
         }
     }
 
-    private fun clearTransport() {
-        stateRequests.cancelAll("vendor channel cleared")
-        val oldChannel = synchronized(transportLock) {
-            channel.also {
-                channel = null
-                adapter.resetProtocolSession()
-                if (adapter.effectiveBatterySource() == BatterySource.SYSTEM_AGGREGATE) {
-                    adapter.onSystemBatteryChanged(systemBatteryPercent)
-                }
-            }
+    /** Transport read failure is already a lost channel; restoration is only best effort. */
+    private suspend fun clearTransport() {
+        transportStopping = true
+        withContext(NonCancellable) { performTransportCleanup(graceful = false) }
+        transportStopping = closed.get() || externalControlApp != null
+    }
+
+    private fun beginTransportCleanup(graceful: Boolean, after: () -> Unit = {}) {
+        val previous = cleanupJob
+        cleanupJob = cleanupScope.launch {
+            previousClosure?.await()
+            previousRouteClosures.forEach { it.await() }
+            previous?.join()
+            performTransportCleanup(graceful)
+            after()
         }
-        oldChannel?.close()
+    }
+
+    private suspend fun performTransportCleanup(graceful: Boolean) = cleanupMutex.withLock {
+        val oldChannel = synchronized(transportLock) { channel.also { channel = null } }
+        (adapter as? AppleAirPodsAdapter)?.privateKeyReceiver = null
+        appleRegistration?.close(); appleRegistration = null
+        appleProximity?.close(); appleProximity = null; appleProximityChannel = null
+        stateRequests.cancelAll("vendor channel cleared")
+        protocolCleanups.cancelAll()
+        runCatching {
+            closeOwnedChannel(oldChannel, transactionMutex, prepare = {
+                collectingHostCleanup = graceful
+                val cleared = CompletableDeferred<Unit>()
+                mainHandler.post {
+                    try { longPress.clear() } finally { cleared.complete(Unit) }
+                }
+                cleared.await()
+                spatialSession?.close()
+                spatialSession = null; spatialHost = null; spatialChannel = null; spatialWasEligible = false
+                (adapter as? AppleAirPodsAdapter)?.privateMotionReceiver = null
+                val commands = mutableListOf<ByteArray>()
+                if (graceful) {
+                    commands.addAll(adapter.prepareProtocolRelease())
+                    while (true) {
+                        val request = closingHostRequests.poll() ?: break
+                        val result = adapter.executeControl(request)
+                        if (result.accepted) commands.addAll(result.commands)
+                    }
+                    while (spatialWrites.isNotEmpty()) commands.add(spatialWrites.removeFirst())
+                }
+                commands
+            }, finished = {
+                collectingHostCleanup = false
+                runCatching { spatialSession?.close() }
+                spatialSession = null; spatialHost = null; spatialChannel = null; spatialWasEligible = false
+                (adapter as? AppleAirPodsAdapter)?.privateMotionReceiver = null
+                closingHostRequests.clear(); spatialWrites.clear()
+                hostGeneration++
+                adapter.resetProtocolSession()
+                if (adapter.effectiveBatterySource() == BatterySource.SYSTEM_AGGREGATE)
+                    adapter.onSystemBatteryChanged(systemBatteryPercent)
+            })
+        }.onFailure { ModuleLog.warn(COMPONENT, "host cleanup ended without confirmed restoration", it) }
     }
 
     private fun yieldToControlApp(owner: ControlAppSpec) {
         if (closed.get()) return
         externalControlApp = owner
-        synchronized(connectionJobLock) {
-            connectionJob.also { connectionJob = null }
-        }?.cancel(CancellationException("vendor control yielded to ${owner.packageName}"))
-        clearTransport()
-        updateLifecycle(
-            privateTransport = PrivateTransportState.NOT_REQUIRED,
-            protocolHandshake = ProtocolHandshakeState.NOT_REQUIRED,
-            controlOwnership = ControlOwnership.EXTERNAL_APP,
-            externalControlApp = owner,
-        )
-        ModuleLog.debug(
-            COMPONENT,
-            "yielded vendor control to ${owner.packageName} " +
-                "address=${maskBluetoothAddress(address)}",
-        )
+        transportStopping = true
+        synchronized(connectionJobLock) { connectionJob.also { connectionJob = null } }
+            ?.cancel(CancellationException("vendor control yielded to ${owner.packageName}"))
+        beginTransportCleanup(graceful = true) {
+            synchronized(handoffLock) {
+                if (!closed.get() && externalControlApp == owner) {
+                    updateLifecycle(privateTransport = PrivateTransportState.NOT_REQUIRED,
+                        protocolHandshake = ProtocolHandshakeState.NOT_REQUIRED,
+                        controlOwnership = ControlOwnership.EXTERNAL_APP, externalControlApp = owner)
+                } else if (!closed.get() && externalControlApp == null) {
+                    transportStopping = false
+                    requestConnection()
+                }
+            }
+        }
     }
 
     private fun resumeModuleControl(previousOwner: ControlAppSpec?) {
         if (closed.get() || externalControlApp == null) return
         externalControlApp = null
+        if (cleanupJob?.isActive == true) {
+            cleanupJob?.invokeOnCompletion {
+                if (!closed.get() && externalControlApp == null) {
+                    transportStopping = false
+                    updateLifecycle(privateTransport = if (adapter.privateProtocolRequired) PrivateTransportState.IDLE else PrivateTransportState.NOT_REQUIRED,
+                        protocolHandshake = adapter.initialHandshakeState(), controlOwnership = ControlOwnership.MODULE, externalControlApp = null)
+                    requestConnection()
+                }
+            }
+            return
+        }
+        transportStopping = false
         updateLifecycle(
             privateTransport = if (adapter.privateProtocolRequired) {
                 PrivateTransportState.IDLE

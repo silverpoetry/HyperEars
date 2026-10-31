@@ -5,6 +5,41 @@ import org.junit.Test
 
 class AppleAapWireCodecTest {
     @Test
+    fun everyListeningModeSurvivesEveryFragmentBoundary() {
+        AppleAapWireCodec.NoiseMode.entries.forEach { mode ->
+            val packet = byteArrayOf(4, 0, 4, 0, 9, 0, 0x0d, mode.value.toByte(), 0, 0, 0)
+            assertEquals(packet.toList(), AppleAapWireCodec.setNoiseMode(mode).toList())
+            for (split in 1 until packet.size) {
+                val decoder = AppleAapWireCodec.Decoder()
+                assertEquals(emptyList<AppleAapWireCodec.State>(), decoder.offer(packet.copyOfRange(0, split)))
+                assertEquals(listOf(AppleAapWireCodec.State.Noise(mode)), decoder.offer(packet.copyOfRange(split, packet.size)))
+            }
+        }
+    }
+
+    @Test
+    fun invalidListeningValuesDoNotPoisonFollowingReports() {
+        val valid = AppleAapWireCodec.setNoiseMode(AppleAapWireCodec.NoiseMode.ADAPTIVE)
+        (0..255).filterNot { it in 1..4 }.forEach { invalid ->
+            val packet = valid.copyOf().also { it[7] = invalid.toByte() }
+            assertEquals(
+                listOf(AppleAapWireCodec.State.Noise(AppleAapWireCodec.NoiseMode.ADAPTIVE)),
+                AppleAapWireCodec.Decoder().offer(packet + valid),
+            )
+        }
+    }
+
+    @Test
+    fun resetDiscardsIncompleteListeningReport() {
+        val packet = AppleAapWireCodec.setNoiseMode(AppleAapWireCodec.NoiseMode.ADAPTIVE)
+        val decoder = AppleAapWireCodec.Decoder()
+        decoder.offer(packet.take(8).toByteArray())
+        decoder.reset()
+        assertEquals(emptyList<AppleAapWireCodec.State>(), decoder.offer(packet.drop(8).toByteArray()))
+        assertEquals(listOf(AppleAapWireCodec.State.Noise(AppleAapWireCodec.NoiseMode.ADAPTIVE)), decoder.offer(packet))
+    }
+
+    @Test
     fun notificationStreamDecodesComponentBatteryAndNoiseState() {
         val battery = batteryPacket(
             component(4, 91, 1),

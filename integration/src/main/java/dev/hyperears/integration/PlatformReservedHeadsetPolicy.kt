@@ -8,7 +8,7 @@ package dev.hyperears.integration
  * for devices whose SDP UUID cache is not populated when A2DP first connects.
  */
 object PlatformReservedHeadsetPolicy {
-    fun reserves(identity: EarbudIdentity): Boolean {
+    fun reserves(identity: EarbudIdentity, appleNativeDeclined: Boolean = false): Boolean {
         if (identity.nativeSystemEarbud) return true
         val normalizedName = identity.deviceName.orEmpty()
             .lowercase()
@@ -19,8 +19,14 @@ object PlatformReservedHeadsetPolicy {
                 it.equals(uuid, ignoreCase = true)
             }
         }
-        return appleName || appleService
+        return (appleName || appleService) && !(appleNativeDeclined && appleService && identity.standardHeadset)
     }
+
+    fun isAppleCandidate(identity: EarbudIdentity): Boolean =
+        !identity.nativeSystemEarbud && (identity.deviceName.orEmpty().lowercase()
+            .filter(Char::isLetterOrDigit).contains("airpods") || identity.serviceUuids.any { uuid ->
+            AppleAirPodsAdapter.AAP_SERVICE_UUIDS.any { it.equals(uuid, ignoreCase = true) }
+        })
 
     private val APPLE_NAME_MARKERS = setOf("airpods")
 }

@@ -59,6 +59,8 @@ internal data class MiLinkCardEnvironment(
     val controlSender: (String, ControlRequest) -> Unit,
     /** Observe accepted state while a details window is open; returned callback unsubscribes. */
     val observeState: (String, (EarbudState) -> Unit) -> (() -> Unit),
+    /** Accepted bridge session identity; null disables session-bound advanced controls. */
+    val sessionTokenProvider: (String) -> String? = { null },
 )
 
 /**
@@ -69,6 +71,8 @@ internal data class MiLinkCardEnvironment(
  */
 internal object MiLinkCardAdapterRegistry {
     private val adapters = listOf(
+        AppleListeningMiLinkCardAdapter,
+        AppleSettingsOnlyMiLinkCardAdapter,
         StarRingUltraMiLinkCardAdapter,
         RoseLuliXMiLinkCardAdapter,
         RoseEarfreeI5MiLinkCardAdapter,

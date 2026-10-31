@@ -19,6 +19,8 @@ data class NativePresentationMetadata(
     val connection: HeadsetConnection,
     val admission: NativeAdmission = NativeAdmission.UNKNOWN,
     val replay: Boolean = false,
+    /** This connection's transport owner was decided by the native Apple connection gate. */
+    val connectionScopedOwnership: Boolean = false,
 )
 
 /** A read-only projection. Aggregate values copied into MiLink slots are not component telemetry. */
@@ -34,6 +36,9 @@ data class NativeHeadsetProjection(
 ) {
     val hasBattery: Boolean get() = left.available || right.available || chargingCase.available
 
+    /** Resource form must not change when Android supplies only an aggregate battery value. */
+    val nativeWearType: Int get() = if (form != HeadsetFormFactor.TWS) 3 else 2
+
     val showCaseInPopup: Boolean
         get() = form == HeadsetFormFactor.TWS && !singleBattery && chargingCase.available
 
@@ -46,13 +51,19 @@ data class NativeHeadsetProjection(
         get() = if (form == HeadsetFormFactor.TWS) "earphone" else "single_battery_head"
 
     companion object {
-        fun from(state: EarbudState): NativeHeadsetProjection? {
+        fun from(state: EarbudState): NativeHeadsetProjection? =
+            if (state.sessionActive) project(state) else null
+
+        /** Only the authenticated paired-discovery presentation path may use this projection. */
+        fun fromPairedDiscovery(state: EarbudState): NativeHeadsetProjection? =
+            if (!state.sessionActive) project(state) else null
+
+        private fun project(state: EarbudState): NativeHeadsetProjection? {
             val adapter = state.adapter ?: return null
             val address = state.address ?: return null
-            if (!state.sessionActive) return null
             val battery = state.battery
             val single = adapter.batterySource == BatterySource.SYSTEM_AGGREGATE ||
-                battery.overall.available || adapter.formFactor == HeadsetFormFactor.HEADPHONES
+                battery.overall.available || adapter.formFactor != HeadsetFormFactor.TWS
             val unknown = BatteryReading(null, false)
             return NativeHeadsetProjection(
                 address = address,
@@ -121,3 +132,11 @@ internal class ConnectionPresentationGate(private val freshnessMs: Long = 10_000
     fun retire(id: String) { consumed.remove(id); pending.remove(id) }
     fun clear() { consumed.clear(); pending.clear() }
 }
+
+/** Primary/secondary AAP sensors are not fixed left/right; preserve ambiguity instead of swapping ears. */
+internal fun nativeAppleWearFlags(state: EarbudState): Pair<String, String> =
+    when (state.features.get<dev.hyperears.integration.AppleWearFeatureState>()?.inEarCount) {
+        2 -> "true" to "true"
+        1 -> "" to ""
+        else -> "false" to "false"
+    }

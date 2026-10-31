@@ -46,5 +46,7 @@ object StateBroadcaster {
                     }
                 },
         )
+        if (targetPackage == ModuleContract.MODULE_PACKAGE) {
+        }
     }
 }

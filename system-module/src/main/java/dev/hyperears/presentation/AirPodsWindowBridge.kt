@@ -53,25 +53,15 @@ internal class AirPodsWindowBridge(
         val connection: ServiceConnection,
     ) {
         val state: EarbudState get() = request.state
+        val nativeService = usesNativeAppleResources(request.state) && !request.pairedDiscovery
         var active = true
         var closing = false
         var bound = false
         var callback: Any? = null
         var caseVisibilityDisabled = false
-        var navigation: ContentNavigation? = null
+        var navigation: NativePopupNavigation? = null
         lateinit var binder: Binder
         lateinit var death: IBinder.DeathRecipient
-    }
-
-    private class ContentNavigation(val view: View) {
-        private val clickable = view.isClickable
-        private val focusable = view.isFocusable
-
-        fun release() {
-            view.setOnClickListener(null)
-            view.isClickable = clickable
-            view.isFocusable = focusable
-        }
     }
 
     override fun install() {
@@ -96,7 +86,9 @@ internal class AirPodsWindowBridge(
                 activity.finish()
                 return@intercept null
             }
-            val request = runCatching { NativeWindowRequest.read(activity)?.let(forBinding) }.getOrNull()
+            val request = runCatching { NativeWindowRequest.read(activity)?.let { candidate ->
+                forBinding(candidate).also { if (it == null) ModuleLog.warn(TAG, "window state binding rejected") }
+            } }.onFailure { ModuleLog.warn(TAG, "window request validation threw", it) }.getOrNull()
             if (request == null || !consumedTickets.add(request.id)) {
                 ModuleLog.warn(TAG, "rejected invalid native window authorization")
                 activity.finish()
@@ -104,13 +96,15 @@ internal class AirPodsWindowBridge(
             }
             val device = activity.intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
             if (device == null || device.address != request.state.address ||
-                BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true) {
+                !dev.hyperears.bridge.BluetoothHostIdentity.isPaired(device) ||
+                (!request.pairedDiscovery && BluetoothDevice::class.java.getMethod("isConnected").invoke(device) != true)) {
                 activity.finish()
                 return@intercept null
             }
             val binding = Binding(request, controller, activity,
                 NativeMembers.get(controller, "mFastConnectServiceConnection") as ServiceConnection)
-            binding.binder = localService(binding)
+            binding.binder = if (binding.nativeService) Binder() else localService(binding)
+            if (binding.nativeService) binding.callback = NativeMembers.get(controller, "mFastConnectClientCallBack")
             binding.death = IBinder.DeathRecipient { handler.post { close(binding, "producer died") } }
             runCatching { request.producer.linkToDeath(binding.death, 0) }.getOrElse {
                 activity.finish()
@@ -143,7 +137,7 @@ internal class AirPodsWindowBridge(
             if (args[0] != binding.state.address) return@hookAfter
             val info = result ?: return@hookAfter
             val p = projection(binding)
-            setInt(info, "setConnectState", 2)
+            setInt(info, "setConnectState", if (binding.state.lifecycle.systemProfile == dev.hyperears.integration.SystemProfileState.CONNECTING) 1 else 2)
             setInt(info, "setLeftBattery", p.left.percent ?: -1)
             setInt(info, "setRightBattery", p.right.percent ?: -1)
             setInt(info, "setBoxBattery", p.chargingCase.percent ?: -1)
@@ -156,11 +150,24 @@ internal class AirPodsWindowBridge(
             if (binding.active && args[0] == binding.state.address) result = binding.request.stateArray()
         }
 
-        // The Controller uses an in-process display service. Only its exact Activity/connection
-        // pair is intercepted; no real FastConnect service, BLE scanner, or global Binder is used.
+        // Active Apple windows retain the same display-service binding as the stock controller.
+        // Only this admitted window's connection-state read comes from the existing protocol session.
+        val nativeProxy = symbols.serviceProxy
+        hookBefore(NativeMembers.method(nativeProxy, "getDeviceConnectStateForAirPods", String::class.java)) {
+            val binding = activities.values.firstOrNull {
+                it.active && it.nativeService && it.state.address == args[0]
+            } ?: return@hookBefore
+            result = when (binding.state.lifecycle.systemProfile) {
+                dev.hyperears.integration.SystemProfileState.CONNECTED -> 2
+                dev.hyperears.integration.SystemProfileState.CONNECTING -> 1
+                else -> 0
+            }
+        }
+        // Other existing windows retain their read-only facade; no transport behavior is expanded.
         hookBefore(ContextWrapper::class.java.getMethod("bindService", Intent::class.java,
             ServiceConnection::class.java, Int::class.javaPrimitiveType)) {
             val binding = activities[instance] ?: return@hookBefore
+            if (binding.nativeService) return@hookBefore
             val intent = args[0] as? Intent ?: return@hookBefore
             if (args[1] !== binding.connection || intent.component?.className != "$PREFIX.MiuiFastConnectService") return@hookBefore
             binding.bound = true
@@ -174,6 +181,7 @@ internal class AirPodsWindowBridge(
         }
         hookBefore(ContextWrapper::class.java.getMethod("unbindService", ServiceConnection::class.java)) {
             val binding = activities[instance] ?: return@hookBefore
+            if (binding.nativeService) return@hookBefore
             if (args[0] !== binding.connection || !binding.bound) return@hookBefore
             binding.bound = false
             result = null
@@ -181,6 +189,7 @@ internal class AirPodsWindowBridge(
 
         hookBefore(load) {
             val binding = controllers[instance] ?: return@hookBefore
+            if (usesNativeAppleResources(binding.state)) return@hookBefore
             val owner = binding.controller
             val record = requireNotNull(NativeMembers.get(owner, "mCloudResRecord"))
             NativeMembers.set(record, "mLayout", 1)
@@ -201,6 +210,7 @@ internal class AirPodsWindowBridge(
             val defaults = HeadsetArtwork.defaultFor(p.form)
             @Suppress("UNCHECKED_CAST")
             val icons = NativeMembers.get(binding.controller, "mHeadsetIconDrawable") as Array<Drawable?>
+            if (usesNativeAppleResources(binding.state)) return@hookAfter
             icons.indices.forEach { icons[it] = artwork.load(p.artwork.headset, defaults.headset) }
             NativeMembers.set(binding.controller, "mHeadsetBoxIconDrawable",
                 artwork.load(p.artwork.chargingCase ?: HeadsetArtwork.EARBUDS.chargingCase!!,
@@ -226,21 +236,18 @@ internal class AirPodsWindowBridge(
                 if (!binding.active || binding.closing || binding.activity.isFinishing) return@hookAfter
                 runCatching {
                     val view = content.get(binding.controller) as? View ?: return@runCatching
-                    if (binding.navigation?.view === view) return@runCatching
+                    if (binding.navigation?.view === view && binding.navigation?.ownsClick() == true) return@runCatching
                     binding.navigation?.release()
                     binding.navigation = null
-                    // Only the authorized Controller's content is clickable. Native dialog controls
-                    // (including close/retry) retain their own actions; an existing root action wins.
-                    if (view.hasOnClickListeners()) return@runCatching
-                    binding.navigation = ContentNavigation(view)
-                    view.setOnClickListener {
+                    // A stock root click may launch legacy details. Always replace that action
+                    // for this authenticated binding; child close/retry buttons stay untouched.
+                    binding.navigation = NativePopupNavigation(view) {
                         if (!binding.active || binding.closing || binding.activity.isFinishing ||
-                            !binding.request.producer.isBinderAlive) return@setOnClickListener
+                            !binding.request.producer.isBinderAlive) return@NativePopupNavigation
                         runCatching { openSettings(binding.activity, binding.state) }
                             .onSuccess { if (it) close(binding, "settings opened") }
                             .onFailure { ModuleLog.warn(TAG, "unable to open headset settings", it) }
                     }
-                    view.isFocusable = true
                 }.onFailure { ModuleLog.warn(TAG, "native content navigation unavailable", it) }
             }
         }.onFailure { ModuleLog.warn(TAG, "native content navigation hook unavailable", it) }
@@ -279,13 +286,15 @@ internal class AirPodsWindowBridge(
                 close(binding, "session ended or ownership changed")
             } else if (state.revision > binding.state.revision) {
                 val previous = projection(binding)
+                val oldProfile = binding.state.lifecycle.systemProfile
                 binding.request = updated
                 val p = projection(binding)
-                if (previous.singleBattery != p.singleBattery || previous.artwork != p.artwork) {
+                if (previous.nativeWearType != p.nativeWearType ||
+                    (!usesNativeAppleResources(state) && previous.artwork != p.artwork)) {
                     // PairingDialog.setCustomView only applies before the first show. Retire this
                     // owned Dialog and let the native Activity create its replacement; no View edits.
                     val info = requireNotNull(NativeMembers.get(binding.controller, "mAirPodsInfo"))
-                    setInt(info, "setWearType", if (p.singleBattery) 3 else 0)
+                    setInt(info, "setWearType", p.nativeWearType)
                     if (NativeMembers.call(binding.controller, "initParameter") != true) {
                         close(binding, "resource initialization failed")
                         return@forEach
@@ -300,6 +309,11 @@ internal class AirPodsWindowBridge(
                 }
                 binding.callback?.let { callback ->
                     runCatching {
+                        if (oldProfile != state.lifecycle.systemProfile) {
+                            callbackType.getMethod("deviceConnectionState", String::class.java,
+                                Int::class.javaPrimitiveType, String::class.java).invoke(callback, p.address,
+                                if (state.lifecycle.systemProfile == dev.hyperears.integration.SystemProfileState.CONNECTED) 2 else 1, p.name)
+                        }
                         callbackType.getMethod("deviceBatteryStateUpdate", String::class.java,
                             Boolean::class.javaPrimitiveType, Int::class.javaPrimitiveType,
                             Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
@@ -339,7 +353,7 @@ internal class AirPodsWindowBridge(
         return binder
     }
 
-    private fun projection(binding: Binding) = requireNotNull(NativeHeadsetProjection.from(binding.state))
+    private fun projection(binding: Binding) = requireNotNull(binding.request.projection())
 
     private fun charging(p: NativeHeadsetProjection): Int =
         (if (p.left.charging) 1 else 0) or (if (p.right.charging) 2 else 0) or

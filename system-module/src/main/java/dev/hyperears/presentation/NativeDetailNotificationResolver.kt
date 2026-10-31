@@ -1,6 +1,7 @@
 package dev.hyperears.presentation
 
 import java.lang.reflect.Method
+import android.annotation.SuppressLint
 import org.luckypray.dexkit.DexKitBridge
 
 /** Unique operation fingerprints; no obfuscated class/method names are stored in the module. */
@@ -12,6 +13,9 @@ internal object NativeDetailNotificationResolver {
         val notificationType: Method,
     )
 
+    // Independent optional features resolve once on host readiness and promptly release the DEX
+    // mapping. Keeping a process-global native bridge alive would retain memory indefinitely.
+    @SuppressLint("DuplicateCreateDexKit")
     fun resolve(apk: String, loader: ClassLoader): Methods {
         System.loadLibrary("dexkit")
         return DexKitBridge.create(apk).use { dex ->
