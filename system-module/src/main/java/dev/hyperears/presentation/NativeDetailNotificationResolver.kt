@@ -10,7 +10,6 @@ internal object NativeDetailNotificationResolver {
         val cancel: Method,
         val support: Method,
         val notificationType: Method,
-        val click: Method,
     )
 
     fun resolve(apk: String, loader: ClassLoader): Methods {
@@ -19,7 +18,7 @@ internal object NativeDetailNotificationResolver {
             dex.setThreadNum(1)
             fun unique(result: List<org.luckypray.dexkit.result.MethodData>): Method =
                 result.single().getMethodInstance(loader).apply { isAccessible = true }
-            val create = unique(dex.findMethod {
+            val createData = dex.findMethod {
                 searchPackages("com.android.bluetooth.ble.app.headset")
                 matcher {
                     returnType = "void"
@@ -27,7 +26,12 @@ internal object NativeDetailNotificationResolver {
                     usingEqStrings("create HeadsetNotification", "notification is not permit open",
                         "com.android.bluetooth.headset.click.detail_notification")
                 }
-            })
+            }.single()
+            require(createData.invokes.any {
+                it.declaredClassName == "android.app.NotificationManager" && it.name == "notify" &&
+                    it.paramTypeNames == listOf("java.lang.String", "int", "android.app.Notification")
+            }) { "Native detail publication boundary unavailable" }
+            val create = createData.getMethodInstance(loader).apply { isAccessible = true }
             val owner = create.declaringClass.name
             val cancel = unique(dex.findMethod {
                 matcher {
@@ -53,7 +57,7 @@ internal object NativeDetailNotificationResolver {
                     usingEqStrings("getNotifyType deviceId=", "show_new_notification_type")
                 }
             })
-            Methods(create, cancel, support, type, NativeHostResolver.notificationClick(dex, loader))
+            Methods(create, cancel, support, type)
         }
     }
 }

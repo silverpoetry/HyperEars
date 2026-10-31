@@ -306,6 +306,30 @@ class NativeWindowRequestTest {
         )
     }
 
+    @Test
+    fun aggregateAndComponentReportsRetainOneWindowAndNeverDuplicateAggregateValues() {
+        val launched = request(100)
+        val components = launched.copy(state = launched.state.copy(
+            adapter = launched.state.adapter!!.copy(batterySource = BatterySource.PRIVATE_PROTOCOL),
+            revision = 2,
+        ).withFeature(BatteryFeatureState(EarbudBattery(
+            left = BatteryReading(92, true), right = BatteryReading(89, false),
+            case = BatteryReading(72, true),
+        ))))
+        // Both the before-bind race and the already-visible path must use the same accepted data.
+        val bound = requireNotNull(launched.forBinding(components, producer))
+        val updated = requireNotNull(launched.updated(components.state, launched.session, metadata, producer))
+        for (window in listOf(bound, updated)) {
+            assertEquals(launched.id, window.id)
+            assertEquals(listOf("92", "89", "72"), window.stateArray().take(3))
+            assertEquals(false, requireNotNull(NativeHeadsetProjection.from(window.state)).singleBattery)
+        }
+        val fallback = request(80, revision = 3)
+        val restored = requireNotNull(updated.updated(fallback.state, launched.session, metadata, producer))
+        assertEquals(launched.id, restored.id)
+        assertEquals(listOf("80", "-", "-"), restored.stateArray().take(3))
+    }
+
     private fun binder(): IBinder =
         Proxy.newProxyInstance(
             IBinder::class.java.classLoader,

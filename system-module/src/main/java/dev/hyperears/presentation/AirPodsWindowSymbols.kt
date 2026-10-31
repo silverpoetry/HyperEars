@@ -19,6 +19,7 @@ internal class AirPodsWindowSymbols(private val loader: ClassLoader) {
         "buildPodsStatus", String::class.java)
     val load = NativeMembers.method(controller, "loadDynamicPicture", String::class.java)
     val init = NativeMembers.method(controller, "initParameter")
+    val batteryLayout = NativePopupBatteryLayout.resolve(controller, loader)
     val resourceInit = NativeMembers.method(type("${AirPodsWindowBridge.PREFIX}.MiuiFastConnectResource"),
         "initParameter", String::class.java, String::class.java, Boolean::class.javaPrimitiveType!!,
         *Array(10) { Int::class.javaPrimitiveType!! },

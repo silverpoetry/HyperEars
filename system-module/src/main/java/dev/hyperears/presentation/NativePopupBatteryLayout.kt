@@ -6,33 +6,40 @@ import android.widget.RelativeLayout
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
-/** Optional adaptation of the existing case containers after the native battery renderer finishes. */
-internal class NativeCaseVisibility private constructor(
+/** Both battery layouts already live in the native content View; switching needs no new Dialog. */
+internal class NativePopupBatteryLayout private constructor(
     val render: Method,
-    private val imageId: Int,
-    private val batteryId: Int,
+    private val ids: Map<String, Int>,
 ) {
-    fun apply(root: View, visible: Boolean): Boolean {
-        // Validate the complete layout contract before changing either container.
-        fun container(id: Int, name: String): RelativeLayout {
+    fun apply(root: View, projection: NativeHeadsetProjection): Boolean {
+        // Validate every named container before making any change. Never infer a View hierarchy.
+        val containers = ids.mapValues { (name, id) ->
             require(root.resources.getResourceTypeName(id) == "id")
             require(root.resources.getResourceEntryName(id) == name)
-            return requireNotNull(root.findViewById<View>(id) as? RelativeLayout) {
-                "Native case container unavailable: $name"
+            requireNotNull(root.findViewById<View>(id) as? RelativeLayout) {
+                "Native battery container unavailable: $name"
             }
         }
-        val image = container(imageId, IMAGE)
-        val battery = container(batteryId, BATTERY)
-        val visibility = if (visible) View.VISIBLE else View.GONE
-        val changed = image.visibility != visibility || battery.visibility != visibility
-        image.visibility = visibility
-        battery.visibility = visibility
+        var changed = false
+        containers.forEach { (name, view) ->
+            val visible = when (name) {
+                SINGLE -> projection.singleBattery
+                EARS -> !projection.singleBattery
+                else -> projection.showCaseInPopup
+            }
+            val visibility = if (visible) View.VISIBLE else View.GONE
+            changed = changed || view.visibility != visibility
+            view.visibility = visibility
+        }
         return changed
     }
 
     companion object {
         private const val IMAGE = "imageViewBoxLayout"
         private const val BATTERY = "textViewBoxBattery"
+        private const val SINGLE = "textViewHeadsetBatterySingle"
+        private const val EARS = "textViewHeadsetBattery"
+        private val CONTAINERS = listOf(IMAGE, BATTERY, SINGLE, EARS)
 
         // Exact R classes from the verified host plugins; numeric IDs are read from the loaded APK.
         private val RESOURCE_CLASSES = listOf(
@@ -42,7 +49,7 @@ internal class NativeCaseVisibility private constructor(
 
         // These are the scoped host's plugin classes, not Android hidden framework APIs.
         @SuppressLint("PrivateApi")
-        fun resolve(controller: Class<*>, loader: ClassLoader): NativeCaseVisibility {
+        fun resolve(controller: Class<*>, loader: ClassLoader): NativePopupBatteryLayout {
             val render = controller.getDeclaredMethod("setConnectSuccessLayoutDetail", View::class.java)
                 .apply { isAccessible = true }
             require(render.returnType == Void.TYPE)
@@ -54,12 +61,12 @@ internal class NativeCaseVisibility private constructor(
                         require(Modifier.isStatic(field.modifiers) && field.type == Int::class.javaPrimitiveType)
                         return field.getInt(null).also { require(it != 0) }
                     }
-                    id(IMAGE) to id(BATTERY)
+                    CONTAINERS.associateWith(::id)
                 }.getOrNull() ?: continue
-                require(ids.first != ids.second)
-                return NativeCaseVisibility(render, ids.first, ids.second)
+                require(ids.values.toSet().size == CONTAINERS.size)
+                return NativePopupBatteryLayout(render, ids)
             }
-            throw NoSuchFieldException("Native case resource contract unavailable")
+            throw NoSuchFieldException("Native battery layout contract unavailable")
         }
     }
 }

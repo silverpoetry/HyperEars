@@ -1,7 +1,6 @@
 package dev.hyperears.presentation
 
 import android.app.Activity
-import android.app.Dialog
 import android.bluetooth.BluetoothDevice
 import android.content.ComponentName
 import android.content.Context
@@ -57,7 +56,6 @@ internal class AirPodsWindowBridge(
         var closing = false
         var bound = false
         var callback: Any? = null
-        var caseVisibilityDisabled = false
         var navigation: ContentNavigation? = null
         lateinit var binder: Binder
         lateinit var death: IBinder.DeathRecipient
@@ -195,23 +193,21 @@ internal class AirPodsWindowBridge(
                 "", "", false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 800, false, false)
             result = true
         }
+        hookBefore(init) {
+            val binding = controllers[instance] ?: return@hookBefore
+            // forBinding may have accepted component telemetry newer than the launch Intent.
+            updateBatteryKind(binding)
+        }
         hookAfter(init) {
             val binding = controllers[instance] ?: return@hookAfter
-            val p = projection(binding)
-            val defaults = HeadsetArtwork.defaultFor(p.form)
-            @Suppress("UNCHECKED_CAST")
-            val icons = NativeMembers.get(binding.controller, "mHeadsetIconDrawable") as Array<Drawable?>
-            icons.indices.forEach { icons[it] = artwork.load(p.artwork.headset, defaults.headset) }
-            NativeMembers.set(binding.controller, "mHeadsetBoxIconDrawable",
-                artwork.load(p.artwork.chargingCase ?: HeadsetArtwork.EARBUDS.chargingCase!!,
-                    HeadsetArtwork.EARBUDS.chargingCase!!))
+            updateArtwork(binding)
         }
 
         module.hook(destroy).intercept { chain ->
             val binding = controllers[chain.thisObject]
             try { chain.proceed() } finally { binding?.let(::release) }
         }
-        installCaseVisibility()
+        installBatteryLayout(symbols.batteryLayout)
         installContentNavigation(symbols.createDialog)
         enabled = true
         ModuleLog.debug(TAG, "native window semantic hooks ready")
@@ -246,29 +242,25 @@ internal class AirPodsWindowBridge(
         }.onFailure { ModuleLog.warn(TAG, "native content navigation hook unavailable", it) }
     }
 
-    private fun installCaseVisibility() {
-        runCatching {
-            val visibility = NativeCaseVisibility.resolve(controllerType, appClassLoader)
-            hookAfter(visibility.render) {
-                val binding = controllers[instance] ?: return@hookAfter
-                if (!binding.active || binding.activity.isFinishing || binding.caseVisibilityDisabled) return@hookAfter
-                runCatching {
-                    val root = args[0] as? View ?: return@runCatching
-                    if (root !== NativeMembers.get(binding.controller, "mView")) return@runCatching
-                    val p = projection(binding)
-                    if (p.singleBattery) return@runCatching
-                    if (visibility.apply(root, p.showCaseInPopup)) {
-                        ModuleLog.debug(TAG) {
-                            "case visibility=${p.showCaseInPopup} battery=${p.chargingCase.percent} " +
-                                "charging=${p.chargingCase.charging} revision=${binding.state.revision}"
-                        }
+    private fun installBatteryLayout(layout: NativePopupBatteryLayout) {
+        hookAfter(layout.render) {
+            val binding = controllers[instance] ?: return@hookAfter
+            if (!binding.active || binding.closing || binding.activity.isFinishing) return@hookAfter
+            runCatching {
+                val root = args[0] as? View ?: return@runCatching
+                if (root !== NativeMembers.get(binding.controller, "mView")) return@runCatching
+                val p = projection(binding)
+                if (layout.apply(root, p)) {
+                    ModuleLog.debug(TAG) {
+                        "battery layout updated in place single=${p.singleBattery} " +
+                            "case=${p.showCaseInPopup} revision=${binding.state.revision}"
                     }
-                }.onFailure {
-                    binding.caseVisibilityDisabled = true
-                    ModuleLog.warn(TAG, "native case layout incompatible; retaining native rendering", it)
                 }
+            }.onFailure {
+                ModuleLog.warn(TAG, "native battery layout incompatible", it)
+                close(binding, "battery layout unavailable")
             }
-        }.onFailure { ModuleLog.warn(TAG, "native case visibility extension unavailable", it) }
+        }
     }
 
     fun update(state: EarbudState, session: String, metadata: NativePresentationMetadata, producer: IBinder) {
@@ -281,23 +273,9 @@ internal class AirPodsWindowBridge(
                 val previous = projection(binding)
                 binding.request = updated
                 val p = projection(binding)
-                if (previous.singleBattery != p.singleBattery || previous.artwork != p.artwork) {
-                    // PairingDialog.setCustomView only applies before the first show. Retire this
-                    // owned Dialog and let the native Activity create its replacement; no View edits.
-                    val info = requireNotNull(NativeMembers.get(binding.controller, "mAirPodsInfo"))
-                    setInt(info, "setWearType", if (p.singleBattery) 3 else 0)
-                    if (NativeMembers.call(binding.controller, "initParameter") != true) {
-                        close(binding, "resource initialization failed")
-                        return@forEach
-                    }
-                    val dialog = NativeMembers.get(binding.controller, "mAlert") as Dialog
-                    dialog.setOnDismissListener(null)
-                    dialog.setOnCancelListener(null)
-                    dialog.dismiss()
-                    NativeMembers.set(binding.activity, "mPairingAlert", null)
-                    setInt(binding.controller, "setConnectDeviceDialog", 0)
-                    setInt(binding.controller, "goToSuitableDialog", 0)
-                }
+                // Keep the existing View, Dialog, animation state and close/navigation listeners.
+                updateBatteryKind(binding)
+                if (previous.artwork != p.artwork || previous.form != p.form) updateArtwork(binding)
                 binding.callback?.let { callback ->
                     runCatching {
                         callbackType.getMethod("deviceBatteryStateUpdate", String::class.java,
@@ -340,6 +318,25 @@ internal class AirPodsWindowBridge(
     }
 
     private fun projection(binding: Binding) = requireNotNull(NativeHeadsetProjection.from(binding.state))
+
+    private fun updateBatteryKind(binding: Binding) {
+        val p = projection(binding)
+        val info = requireNotNull(NativeMembers.get(binding.controller, "mAirPodsInfo"))
+        setInt(info, "setWearType", if (p.singleBattery) 3 else 0)
+        val record = requireNotNull(NativeMembers.get(binding.controller, "mCloudResRecord"))
+        NativeMembers.set(record, "mTwsHeadset", !p.singleBattery)
+    }
+
+    private fun updateArtwork(binding: Binding) {
+        val p = projection(binding)
+        val defaults = HeadsetArtwork.defaultFor(p.form)
+        @Suppress("UNCHECKED_CAST")
+        val icons = NativeMembers.get(binding.controller, "mHeadsetIconDrawable") as Array<Drawable?>
+        icons.indices.forEach { icons[it] = artwork.load(p.artwork.headset, defaults.headset) }
+        NativeMembers.set(binding.controller, "mHeadsetBoxIconDrawable",
+            artwork.load(p.artwork.chargingCase ?: HeadsetArtwork.EARBUDS.chargingCase!!,
+                HeadsetArtwork.EARBUDS.chargingCase!!))
+    }
 
     private fun charging(p: NativeHeadsetProjection): Int =
         (if (p.left.charging) 1 else 0) or (if (p.right.charging) 2 else 0) or

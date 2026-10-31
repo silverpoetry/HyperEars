@@ -2,7 +2,6 @@ package dev.hyperears.presentation
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
-import android.content.BroadcastReceiver
 import android.content.Context
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
@@ -121,18 +120,6 @@ internal object NativeHostResolver {
         }.distinctBy(MethodData::descriptor).single().reflected(loader)
         require(!Modifier.isStatic(requestFlag.modifiers))
         return NativePresentationFlow(loader, requestFlag)
-    }
-
-    fun notificationClick(dex: DexKitBridge, loader: ClassLoader): Method = dex.findMethod {
-        matcher {
-            name = "onReceive"
-            returnType = "void"
-            paramTypes("android.content.Context", "android.content.Intent")
-            usingEqStrings("BluetoothHeadsetService", "headset receviver ",
-                "com.android.bluetooth.headset.click.detail_notification", "miui.bluetooth.action.HEADSET_SETTINGS")
-        }
-    }.single().reflected(loader).also {
-        require(BroadcastReceiver::class.java.isAssignableFrom(it.declaringClass))
     }
 
     private fun MethodData.reflected(loader: ClassLoader): Method =

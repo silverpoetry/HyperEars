@@ -327,7 +327,10 @@ internal class NativePresentationRuntime(
         val current = ModuleSettingsRuntime.current
         val address = state.address ?: return false
         if (current.modulePaused || !state.sessionActive) return false
-        return HeadsetSettingsNavigator(launchContext).open(address, state, current.moreSettingsTarget)
+        return HeadsetSettingsNavigator(launchContext).open(address, state, current.moreSettingsTarget).also { opened ->
+            ModuleLog.debug(TAG, "settings address=${maskBluetoothAddress(address)} " +
+                "target=${current.moreSettingsTarget} opened=$opened")
+        }
     }
 
     @SuppressLint("MissingPermission")
