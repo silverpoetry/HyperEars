@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+- Add TOZO NC20 Pro private battery, six noise choices and native HyperOS details.
+- Add report-gated daily controls, touch assignment and ten-band EQ editing, with explicit
+  companion handoff and serialized Android GATT write completion.
+
 ## [3.2.0] - 2026-10-30
 
 本版新增按设备选择适配器的调试功能和水月雨 ZZZ-ANGELS-OWS 支持，修复原生电量弹窗

@@ -295,3 +295,11 @@ Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不�
 所有。
 
 所有商标、产品名称和厂商应用名称仅用于描述兼容性，归其各自权利人所有。
+
+## TOZO NC20 Pro
+
+Protocol facts were researched from TOZO 5.4.3 (`com.woertec.tozo`) and address-free
+Bluetooth frames. HyperEars independently implements the codecs and typed controls;
+no vendor application binaries, decompiled source or original product photograph is distributed.
+The model illustrations were generated from the user-provided NC20 Pro product reference.
+Product names and marks identify compatibility only.

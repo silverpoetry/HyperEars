@@ -319,6 +319,24 @@ private class AndroidGattChannel(
     private var connectedDetails: String? = null
 
     private var pendingRead = ByteArray(0)
+    @Volatile private var settledMtu: Int? = null
+    @Volatile private var awaitingMtu = false
+    private val discoveryStarted = AtomicBoolean()
+    private val servicesAccepted = AtomicBoolean()
+
+    private fun discover(active: BluetoothGatt) {
+        if (!owns(active) || !discoveryStarted.compareAndSet(false,true)) return
+        if (!active.discoverServices()) terminate(IOException("GATT service discovery did not start"))
+    }
+    private fun settleMtu(active: BluetoothGatt, value: Int) {
+        if (!owns(active)) return
+        if (value < spec.minimumMtu || value !in 23..517) {
+            terminate(IOException("GATT MTU $value below required ${spec.minimumMtu}"));return
+        }
+        settledMtu=value
+        if(awaitingMtu) { awaitingMtu=false;discover(active) }
+    }
+
 
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -328,14 +346,23 @@ private class AndroidGattChannel(
                     terminate(IOException("GATT connection status=$status"))
 
                 newState == BluetoothProfile.STATE_CONNECTED -> {
-                    if (!gatt.discoverServices()) {
-                        terminate(IOException("GATT service discovery did not start"))
+                    if(discoveryStarted.get() || awaitingMtu) return
+                    val requested=spec.requestedMtu
+                    if(requested==null) discover(gatt) else {
+                        awaitingMtu=true
+                        val started=runCatching { gatt.requestMtu(requested) }.getOrDefault(false)
+                        if(!started && awaitingMtu) settleMtu(gatt,23)
                     }
                 }
 
                 newState == BluetoothProfile.STATE_DISCONNECTED ->
                     terminate(IOException("GATT disconnected"))
             }
+        }
+
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            if(!owns(gatt)) return
+            settleMtu(gatt,if(status==BluetoothGatt.GATT_SUCCESS) mtu else 23)
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -345,6 +372,7 @@ private class AndroidGattChannel(
                 return
             }
 
+            if(!discoveryStarted.get() || !servicesAccepted.compareAndSet(false,true)) return
             val requestedService = spec.serviceUuid?.let(UUID::fromString)
             val service = requestedService?.let(gatt::getService)
             if (requestedService != null && service == null) {
@@ -443,7 +471,7 @@ private class AndroidGattChannel(
             characteristic: BluetoothGattCharacteristic,
             status: Int,
         ) {
-            if (!owns(gatt)) return
+            if (!owns(gatt) || characteristic !== writeCharacteristic) return
             val completion = pendingWrite ?: return
             pendingWrite = null
             if (status == BluetoothGatt.GATT_SUCCESS) {
@@ -609,22 +637,16 @@ private class AndroidGattChannel(
     override suspend fun write(bytes: ByteArray) {
         require(bytes.isNotEmpty())
         writeMutex.withLock {
+            if(spec.requestedMtu!=null && bytes.size>(settledMtu?:23)-3)
+                throw IOException("GATT payload exceeds negotiated MTU")
             val active = gatt ?: error("GATT is not connected")
             val characteristic = writeCharacteristic ?: error("GATT write characteristic is not ready")
             val writeType = when (spec.writeMode) {
                 GattWriteMode.WITH_RESPONSE -> BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 GattWriteMode.WITHOUT_RESPONSE -> BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             }
-            if (spec.writeMode == GattWriteMode.WITHOUT_RESPONSE) {
-                val started = active.writeCharacteristic(
-                    characteristic,
-                    bytes,
-                    writeType,
-                ) == BluetoothStatusCodes.SUCCESS
-                if (!started) throw IOException("GATT write command did not start")
-                return@withLock
-            }
-
+            // Android still reports local completion for ATT writes without a response.
+            // Serialize against that callback before submitting the next control frame.
             val completion = CompletableDeferred<Unit>()
             pendingWrite = completion
             val started = active.writeCharacteristic(

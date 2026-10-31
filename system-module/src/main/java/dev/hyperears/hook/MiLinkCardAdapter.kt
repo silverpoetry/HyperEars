@@ -59,6 +59,7 @@ internal data class MiLinkCardEnvironment(
     val controlSender: (String, ControlRequest) -> Unit,
     /** Observe accepted state while a details window is open; returned callback unsubscribes. */
     val observeState: (String, (EarbudState) -> Unit) -> (() -> Unit),
+    val sessionTokenProvider: (String) -> String? = { null },
 )
 
 /**

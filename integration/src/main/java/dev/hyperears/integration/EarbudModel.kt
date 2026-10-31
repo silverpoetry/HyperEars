@@ -477,9 +477,13 @@ data class GattTransportSpec(
     val writeMode: GattWriteMode = GattWriteMode.WITH_RESPONSE,
     val notificationsRequired: Boolean = false,
     val peerSelection: GattPeerSelection = GattPeerSelection.SessionDevice,
+    val requestedMtu: Int? = null,
+    val minimumMtu:Int = 23,
     override val id: String,
 ) : EarbudTransportSpec {
     init {
+        require(minimumMtu in 23..517)
+        require(requestedMtu?.let {it in minimumMtu..517} ?: (minimumMtu==23))
         require(serviceUuid == null || serviceUuid.isNotBlank())
         require(writeCharacteristicUuid.isNotBlank())
         require(notifyCharacteristicUuid.isNotBlank())

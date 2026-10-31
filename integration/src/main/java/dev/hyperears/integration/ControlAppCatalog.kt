@@ -7,6 +7,7 @@ package dev.hyperears.integration
  * opt into one or more entries; an installed application alone never changes adapter matching.
  */
 object ControlAppCatalog {
+    val tozo = ControlAppSpec(packageName = "com.woertec.tozo", displayName = "TOZO")
     val vivoEarphones = ControlAppSpec(
         packageName = "com.vivo.vivotws",
         displayName = "vEarphones",
@@ -152,6 +153,7 @@ object ControlAppCatalog {
     )
 
     val all: List<ControlAppSpec> = listOf(
+        tozo,
         vivoEarphones,
         heyMelody,
         oplusWirelessEarphones,

@@ -14,7 +14,10 @@ libxposed-service = "102.0.0"
 dexkit = "2.3.0"
 miuix = "0.9.4"
 
+robolectric = "4.17"
+
 [libraries]
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }

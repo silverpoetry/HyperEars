@@ -11,7 +11,7 @@
 | `HEADPHONES` | `headset_generic_headphones` | 无 |
 
 `EarbudAdapter.artwork` 按 `formFactor` 返回默认值，具体型号可以继承家族声明，也可以单独覆盖。
-目前已注册的全部型号及协议识别型号均使用上述默认映射，`HeadsetArtworkTest` 遍历完整
+NC20 Pro 覆盖耳机与充电盒资源，其余既有型号沿用上述默认映射；`HeadsetArtworkTest` 遍历完整
 `EarbudAdapterRegistry.adapters` 验证覆盖。型号目录仍以[兼容性表](compatibility.md)为准；
 不在 UI 后端复制品牌／型号列表。
 
@@ -52,6 +52,11 @@ AirPods 原生 Controller 的资源初始化入口使用这些图片。该窗口
 本模块窗口在原生电量绘制完成后，可按已知盒电量显示既有的充电盒区域。
 这项扩展只改变经过资源与类型校验的盒区域可见性，不修改充电状态、原生文字或图标，
 也不影响真实 Apple 窗口。未知盒电量或不兼容的原生布局保留相应的隐藏／原生处理。
+
+## NC20 Pro 展示资源
+
+新增型号插图根据用户提供的 NC20 Pro 产品参考图经生成模型转换；保留产品形态与标识，
+参考原图不随项目分发。下述无参考图、无品牌的说明只适用于原有三个通用耳机资源。
 
 ## 通用资源来源
 

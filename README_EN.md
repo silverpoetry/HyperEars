@@ -123,7 +123,7 @@ maintained in the [compatibility matrix](docs/compatibility.md).
 3. Install the APK, enable HyperEars in LSPosed and select at least `com.android.bluetooth` and
    `com.milink.service`. Also select `com.xiaomi.bluetooth` for native connection displays or battery
    notifications. If runtime yielding is needed, select the matching installed package
-   from the [controller-app catalog](docs/control-apps.md); do not select Settings, System UI or
+   from the [controller-app catalog](docs/control-apps.md); select Settings for the optional NC20 Pro native page; do not select System UI or
    every application.
 4. Reboot the device, pair/connect the headset and inspect the HyperEars dashboard.
 
@@ -210,3 +210,8 @@ a complete personal Bluetooth MAC, account data, credentials or proprietary vend
 HyperEars is licensed under [GNU GPL-3.0-only](LICENSE). Protocol research references and
 attributions are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Product and trademark
 names are used only to describe compatibility and remain the property of their respective owners.
+
+### TOZO NC20 Pro native details
+
+Enable `com.android.settings` for the optional HyperOS headset page. Controls are report-gated;
+the page remains visible during companion handoff. See [protocol and validation scope](docs/tozo-nc20-pro-protocol.md).
