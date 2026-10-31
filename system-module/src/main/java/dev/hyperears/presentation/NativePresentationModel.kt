@@ -85,6 +85,53 @@ internal fun resolveNativePresentationTarget(
     HeadsetConnectionPresentation.OFF -> null
 }
 
+/**
+ * Whether the native circulation flow currently owns the earbud display and the module must stand down.
+ * A null reading means the native hint subsystem could not be installed at all, so circulation is neither
+ * observable nor provable: that alone must not keep the popup closed, while the native window occupancy
+ * guard and the connection gate still decide. A present subsystem keeps its exact verdict. An absent
+ * singleton (the subsystem is installed but the native instance is not created yet) is reported by the
+ * query as true and does block: that is a different kind of indeterminacy from a missing subsystem and
+ * the two must not be merged.
+ */
+internal fun displayBlockedByNativeCirculation(flowOwns: Boolean?): Boolean = flowOwns == true
+
+/**
+ * Battery readiness for the third-party island on devices whose two ear readings arrive tens of
+ * milliseconds apart (device 2026-11-01: the connected island froze on "L 100%" while the right-ear
+ * frame was still in flight): submit as soon as both ears are available, otherwise wait out the
+ * short window, and submit whatever exists once it times out so genuinely single-sided devices are
+ * never stuck behind the wait.
+ */
+internal fun islandReadyToSubmit(left: BatteryReading, right: BatteryReading,
+    waitedMs: Long, timeoutMs: Long): Boolean =
+    (left.available && right.available) || waitedMs >= timeoutMs
+
+/**
+ * The circulation fallback chain (island-spec §8): verified legacy record getters decide on their own
+ * and keep the old-build verdict unchanged; only when this build lacks those names the stable wrapper
+ * readings decide; neither being readable is indeterminate, which [displayBlockedByNativeCirculation]
+ * never reads as a block. A null pair/triple means that probe could not run, and inner nulls mean an
+ * unreadable single flag.
+ */
+internal fun flowOwnsFromReadings(
+    legacy: Triple<Int?, Boolean?, Boolean?>?,
+    wrappers: Pair<Boolean?, Boolean?>?,
+): Boolean? = when {
+    legacy != null -> legacy.first == 1 || legacy.second == true || legacy.third == true
+    wrappers != null -> wrappers.first == true || wrappers.second == true
+    else -> null
+}
+
+/**
+ * The popup's charging-case area on contract-absent builds: the host window layout generation there
+ * has no third-party case artwork, so showing it produced a blank block and stacked buttons (device
+ * 2026-10-31 01:03). The area keeps the explicit hidden shape on those builds, and every other build
+ * applies the projection's own verdict unchanged.
+ */
+internal fun caseAreaEffective(contractMissing: Boolean, showCase: Boolean): Boolean =
+    if (contractMissing) false else showCase
+
 /** No timers or IO; failed eligibility/display checks do not consume a connection. */
 internal class ConnectionPresentationGate(private val freshnessMs: Long = 10_000) {
     private val consumed = mutableMapOf<String, Long>()

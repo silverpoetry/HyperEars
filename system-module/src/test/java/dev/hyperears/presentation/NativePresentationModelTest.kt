@@ -184,4 +184,80 @@ class NativePresentationModelTest {
             assertNull(resolveNativePresentationTarget(HeadsetConnectionPresentation.OFF, scene))
         }
     }
+
+    @Test
+    fun absentNativeCirculationSubsystemDoesNotBlockDisplay() {
+        assertFalse(displayBlockedByNativeCirculation(flowOwns = null))
+    }
+
+    @Test
+    fun observedNativeCirculationKeepsItsVerdict() {
+        assertTrue(displayBlockedByNativeCirculation(flowOwns = true))
+        assertFalse(displayBlockedByNativeCirculation(flowOwns = false))
+    }
+
+    /**
+     * The reported build has no installable native hint subsystem (plugin ready hint=false), so every
+     * circulation reading is null there. That absence alone must never read as "the native flow owns the
+     * display": the popup stays gated only by the native window occupancy tag and the connection gate.
+     */
+    @Test
+    fun missingHintSubsystemNeverGrantsACirculationBlock() {
+        for (flowOwns in listOf<Boolean?>(null, true, false)) {
+            assertEquals(flowOwns.toString(), flowOwns == true, displayBlockedByNativeCirculation(flowOwns))
+        }
+    }
+
+    @Test
+    fun legacyRecordReadersDecideBeforeTheStableWrappers() {
+        // Old builds carry the three record getters; their verdict expression must stay unchanged and
+        // the wrappers must never override it, even when they would disagree.
+        assertTrue(flowOwnsFromReadings(Triple(1, false, false), Pair(false, false)) == true)
+        assertTrue(flowOwnsFromReadings(Triple(0, true, false), null) == true)
+        assertTrue(flowOwnsFromReadings(Triple(0, false, true), null) == true)
+        assertEquals(false, flowOwnsFromReadings(Triple(0, false, false), Pair(true, true)))
+    }
+
+    @Test
+    fun stableWrappersOnlyDecideWhenLegacyNamesAreAbsent() {
+        assertTrue(flowOwnsFromReadings(null, Pair(true, false)) == true)
+        assertTrue(flowOwnsFromReadings(null, Pair(false, true)) == true)
+        assertEquals(false, flowOwnsFromReadings(null, Pair(false, false)))
+    }
+
+    @Test
+    fun missingLegacyAndWrapperNamesBothReportIndeterminate() {
+        // Neither the record's old names nor the MBN wrappers exist: no verdict, and an indeterminate
+        // reading must never block the display through displayBlockedByNativeCirculation.
+        assertNull(flowOwnsFromReadings(null, null))
+        assertFalse(displayBlockedByNativeCirculation(flowOwnsFromReadings(null, null)))
+    }
+
+    @Test
+    fun caseAreaIsForcedHiddenOnlyOnContractAbsentBuilds() {
+        // Exhaustive 2x2: a contract-bearing build applies the projection verdict unchanged, and a
+        // contract-absent build hides the area even when the projection wanted to show it.
+        for (missing in listOf(true, false)) {
+            for (showCase in listOf(true, false)) {
+                val expected = if (missing) false else showCase
+                assertEquals("missing=$missing showCase=$showCase",
+                    expected, caseAreaEffective(missing, showCase))
+            }
+        }
+    }
+
+    @Test
+    fun islandSubmissionWaitsForBothEarsOrTimesOut() {
+        val left = BatteryReading(100, false)
+        val right = BatteryReading(90, false)
+        val missing = BatteryReading(null, false)
+        // Both ears in: submit immediately at the head of the wait window.
+        assertTrue(islandReadyToSubmit(left, right, 0, 600))
+        // One side still in flight (device 2026-11-01 trailing right-ear frames): wait.
+        assertFalse(islandReadyToSubmit(left, missing, 0, 600))
+        assertFalse(islandReadyToSubmit(left, missing, 599, 600))
+        // Timeout: partial data submits, so genuinely single-sided devices are never stuck.
+        assertTrue(islandReadyToSubmit(left, missing, 600, 600))
+        assertTrue(islandReadyToSubmit(missing, missing, 1000, 600))
+    }
 }
