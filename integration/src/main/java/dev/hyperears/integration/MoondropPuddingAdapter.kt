@@ -9,10 +9,17 @@ import dev.hyperears.protocol.moondrop.MoondropPuddingWireCodec
  * `0A 03 00` handshake command and `0A 83 00 00 04 03 01` confirmation, and a
  * `1D 40/41 03/04` noise-mode query/write pair. Private component battery and
  * noise control are exposed only after their corresponding valid responses.
+ *
+ * Pudding's noise surface covers the full five-tier byte range (each tier device-confirmed
+ * 2026-10-26): the standard ANC switch maps to the adaptive tier (`04`), wind (`03`) is
+ * exposed through the wind-noise card toggle, and basic-tier (`01`) reports project back onto
+ * the standard ANC state.
  */
 class MoondropPuddingAdapter : MoondropJieliAdapter("moondrop-pudding-spp") {
     override val id: String = ID
     override val displayName: String = "MOONDROP Pudding"
+    override val miLinkCardPresentationId: MiLinkCardPresentationId?
+        get() = PRESENTATION_ID.takeIf { effectiveCapabilities().noiseControl }
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
@@ -20,12 +27,23 @@ class MoondropPuddingAdapter : MoondropJieliAdapter("moondrop-pudding-spp") {
         return ("moondrop" in name || "水月雨" in name) && "pudding" in name
     }
 
+    override fun createProtocolSession(): ProtocolSession =
+        MoondropPuddingProtocolSession(
+            supportedTiers = PUDDING_NOISE_TIERS,
+            ancWriteTier = MoondropPuddingWireCodec.NoiseMode.ADAPTIVE,
+        )
+
     companion object {
         const val ID = "moondrop-pudding"
+        val PRESENTATION_ID = MiLinkCardPresentationId(ID)
         const val STANDARD_SPP_UUID = MoondropJieliAdapter.STANDARD_SPP_UUID
         internal const val INITIAL_MODE_QUERY_DELAY_MS = MoondropJieliAdapter.INITIAL_MODE_QUERY_DELAY_MS
         internal val BATTERY_BOOTSTRAP_DELAYS_MS = MoondropJieliAdapter.BATTERY_BOOTSTRAP_DELAYS_MS
         internal val MODE_CONFIRMATION_DELAYS_MS = MoondropJieliAdapter.MODE_CONFIRMATION_DELAYS_MS
+
+        /** Recognize all captured tiers; ANC writes adaptive (`04`), while basic (`01`) is read-only. */
+        internal val PUDDING_NOISE_TIERS: Set<MoondropPuddingWireCodec.NoiseMode> =
+            MoondropPuddingWireCodec.NoiseMode.entries.toSet()
     }
 }
 
@@ -148,7 +166,24 @@ abstract class MoondropJieliAdapter(
     }
 }
 
-internal class MoondropPuddingProtocolSession : ProtocolSession {
+internal class MoondropPuddingProtocolSession(
+    /**
+     * Wire tiers this model may control and recognize. Pudding passes the full five-tier set;
+     * the default keeps MIRAGE's verified three-state surface (basic `01`, off, transparency),
+     * where `03`/`04` stay unrecognized and wind writes are rejected.
+     */
+    private val supportedTiers: Set<MoondropPuddingWireCodec.NoiseMode> = THREE_STATE_TIERS,
+    /**
+     * The wire tier the standard ANC switch writes: adaptive (`04`) on Pudding, basic (`01`)
+     * on MIRAGE whose verified surface never adopted the adaptive tier.
+     */
+    private val ancWriteTier: MoondropPuddingWireCodec.NoiseMode =
+        MoondropPuddingWireCodec.NoiseMode.BASIC,
+) : ProtocolSession {
+    init {
+        check(ancWriteTier in supportedTiers) { "ANC write tier must be a supported tier" }
+    }
+
     private val decoder = MoondropPuddingWireCodec.Decoder()
     private var handshakeAccepted = false
     private var battery = EarbudBattery()
@@ -200,31 +235,35 @@ internal class MoondropPuddingProtocolSession : ProtocolSession {
                     ),
                 )
             }
-            MoondropPuddingWireCodec.parseNoiseModeQuery(frame)?.let { mode ->
-                add(
-                    ProtocolEvent.CapabilitiesIdentified(
-                        battery = false,
-                        noiseModes = SUPPORTED_NOISE_MODES,
-                    ),
-                )
-                add(
-                    ProtocolEvent.FeatureStateChanged(
-                        NoiseModeFeatureState(mode.toDomainMode()),
-                    ),
-                )
+            MoondropPuddingWireCodec.parseNoiseModeQuery(frame)?.let { wireMode ->
+                if (wireMode in supportedTiers) {
+                    add(
+                        ProtocolEvent.CapabilitiesIdentified(
+                            battery = false,
+                            noiseModes = supportedNoiseModes,
+                        ),
+                    )
+                    add(
+                        ProtocolEvent.FeatureStateChanged(
+                            NoiseModeFeatureState(wireMode.toDomainMode()),
+                        ),
+                    )
+                }
             }
-            MoondropPuddingWireCodec.parseNoiseModeConfirm(frame)?.let { mode ->
-                add(
-                    ProtocolEvent.CapabilitiesIdentified(
-                        battery = false,
-                        noiseModes = SUPPORTED_NOISE_MODES,
-                    ),
-                )
-                add(
-                    ProtocolEvent.FeatureStateChanged(
-                        NoiseModeFeatureState(mode.toDomainMode()),
-                    ),
-                )
+            MoondropPuddingWireCodec.parseNoiseModeConfirm(frame)?.let { wireMode ->
+                if (wireMode in supportedTiers) {
+                    add(
+                        ProtocolEvent.CapabilitiesIdentified(
+                            battery = false,
+                            noiseModes = supportedNoiseModes,
+                        ),
+                    )
+                    add(
+                        ProtocolEvent.FeatureStateChanged(
+                            NoiseModeFeatureState(wireMode.toDomainMode()),
+                        ),
+                    )
+                }
             }
         }
     }
@@ -248,24 +287,42 @@ internal class MoondropPuddingProtocolSession : ProtocolSession {
         MoondropPuddingWireCodec.queryNoiseMode,
     )
 
-    private fun NoiseMode.toWireMode(): MoondropPuddingWireCodec.NoiseMode = when (this) {
-        NoiseMode.ANC -> MoondropPuddingWireCodec.NoiseMode.ANC
-        NoiseMode.OFF -> MoondropPuddingWireCodec.NoiseMode.OFF
-        NoiseMode.TRANSPARENCY -> MoondropPuddingWireCodec.NoiseMode.TRANSPARENCY
-        NoiseMode.WIND -> error("Pudding does not support wind-noise control")
+    /**
+     * The standard ANC switch writes the model's [MoondropPuddingProtocolSession] ANC tier
+     * (adaptive `04` on Pudding, basic `01` on MIRAGE); the other ANC-family tier exists only
+     * as a report value and projects back onto standard ANC in [toDomainMode].
+     */
+    private fun NoiseMode.toWireMode(): MoondropPuddingWireCodec.NoiseMode {
+        val tier = when (this) {
+            NoiseMode.ANC -> ancWriteTier
+            NoiseMode.OFF -> MoondropPuddingWireCodec.NoiseMode.OFF
+            NoiseMode.TRANSPARENCY -> MoondropPuddingWireCodec.NoiseMode.TRANSPARENCY
+            NoiseMode.WIND -> MoondropPuddingWireCodec.NoiseMode.WIND
+        }
+        check(tier in supportedTiers) { "Noise tier $tier is outside this model's confirmed set" }
+        return tier
     }
 
     private fun MoondropPuddingWireCodec.NoiseMode.toDomainMode(): NoiseMode = when (this) {
-        MoondropPuddingWireCodec.NoiseMode.ANC -> NoiseMode.ANC
+        MoondropPuddingWireCodec.NoiseMode.ADAPTIVE -> NoiseMode.ANC
+        MoondropPuddingWireCodec.NoiseMode.BASIC -> NoiseMode.ANC
         MoondropPuddingWireCodec.NoiseMode.OFF -> NoiseMode.OFF
         MoondropPuddingWireCodec.NoiseMode.TRANSPARENCY -> NoiseMode.TRANSPARENCY
+        MoondropPuddingWireCodec.NoiseMode.WIND -> NoiseMode.WIND
     }
 
+    private val supportedNoiseModes: Set<NoiseMode> =
+        supportedTiers.mapTo(mutableSetOf()) { it.toDomainMode() }
+
     private companion object {
-        val SUPPORTED_NOISE_MODES = setOf(
-            NoiseMode.ANC,
-            NoiseMode.OFF,
-            NoiseMode.TRANSPARENCY,
+        /**
+         * The three-state surface MIRAGE verified on-device: `01` lands on basic ANC there.
+         * Wind and the unverified `04` tier stay unrecognized.
+         */
+        val THREE_STATE_TIERS = setOf(
+            MoondropPuddingWireCodec.NoiseMode.OFF,
+            MoondropPuddingWireCodec.NoiseMode.BASIC,
+            MoondropPuddingWireCodec.NoiseMode.TRANSPARENCY,
         )
     }
 }

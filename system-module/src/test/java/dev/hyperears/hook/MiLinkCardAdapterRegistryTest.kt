@@ -7,6 +7,7 @@ import dev.hyperears.integration.EarbudState
 import dev.hyperears.integration.EdifierGameModeFeatureState
 import dev.hyperears.integration.EdifierMiLinkPresentationIds
 import dev.hyperears.integration.MiLinkCardPresentationId
+import dev.hyperears.integration.MoondropPuddingAdapter
 import dev.hyperears.integration.NiceHckYuanDaoOrigAdapter
 import dev.hyperears.integration.NoiseMode
 import dev.hyperears.integration.PrivateTransportState
@@ -38,6 +39,10 @@ class MiLinkCardAdapterRegistryTest {
         assertSame(
             StarRingUltraMiLinkCardAdapter,
             MiLinkCardAdapterRegistry.resolve(StarRingUltraAdapter.PRESENTATION_ID),
+        )
+        assertSame(
+            MoondropPuddingMiLinkCardAdapter,
+            MiLinkCardAdapterRegistry.resolve(MoondropPuddingAdapter.PRESENTATION_ID),
         )
         assertSame(
             RoseEarfreeI5MiLinkCardAdapter,

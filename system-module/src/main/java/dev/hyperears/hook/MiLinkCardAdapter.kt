@@ -70,6 +70,7 @@ internal data class MiLinkCardEnvironment(
 internal object MiLinkCardAdapterRegistry {
     private val adapters = listOf(
         StarRingUltraMiLinkCardAdapter,
+        MoondropPuddingMiLinkCardAdapter,
         RoseLuliXMiLinkCardAdapter,
         RoseEarfreeI5MiLinkCardAdapter,
         RoseBudsFeelMk2MiLinkCardAdapter,

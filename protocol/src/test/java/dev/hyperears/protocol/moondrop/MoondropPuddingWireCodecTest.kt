@@ -21,13 +21,21 @@ class MoondropPuddingWireCodecTest {
         )
         assertEquals(
             "FF 04 00 01 00 1D 40 04 01",
-            MoondropPuddingWireCodec.setNoiseMode(MoondropPuddingWireCodec.NoiseMode.ANC).hex(),
+            MoondropPuddingWireCodec.setNoiseMode(MoondropPuddingWireCodec.NoiseMode.BASIC).hex(),
         )
         assertEquals(
             "FF 04 00 01 00 1D 40 04 02",
             MoondropPuddingWireCodec
                 .setNoiseMode(MoondropPuddingWireCodec.NoiseMode.TRANSPARENCY)
                 .hex(),
+        )
+        assertEquals(
+            "FF 04 00 01 00 1D 40 04 03",
+            MoondropPuddingWireCodec.setNoiseMode(MoondropPuddingWireCodec.NoiseMode.WIND).hex(),
+        )
+        assertEquals(
+            "FF 04 00 01 00 1D 40 04 04",
+            MoondropPuddingWireCodec.setNoiseMode(MoondropPuddingWireCodec.NoiseMode.ADAPTIVE).hex(),
         )
     }
 
@@ -67,7 +75,7 @@ class MoondropPuddingWireCodecTest {
             ),
         )
         assertEquals(
-            MoondropPuddingWireCodec.NoiseMode.ANC,
+            MoondropPuddingWireCodec.NoiseMode.BASIC,
             MoondropPuddingWireCodec.parseNoiseModeConfirm(
                 MoondropPuddingWireCodec.Decoder().offer(confirmResponse).single(),
             ),
@@ -202,7 +210,7 @@ class MoondropPuddingWireCodecTest {
         val frames = decoder.offer(query.copyOfRange(5, query.size) + confirm)
         assertEquals(2, frames.size)
         assertEquals(
-            MoondropPuddingWireCodec.NoiseMode.ANC,
+            MoondropPuddingWireCodec.NoiseMode.BASIC,
             MoondropPuddingWireCodec.parseNoiseModeQuery(frames[0]),
         )
         assertEquals(
@@ -224,7 +232,7 @@ class MoondropPuddingWireCodecTest {
             command = 0x1D,
             subcommand = 0x41,
             opcode = 0x04,
-            parameters = byteArrayOf(0x03),
+            parameters = byteArrayOf(0x7F),
         )
         val wrongOpcode = MoondropPuddingWireCodec.frame(
             command = 0x1D,
