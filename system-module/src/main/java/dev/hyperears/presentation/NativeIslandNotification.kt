@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import dev.hyperears.hook.ModuleLog
 import dev.hyperears.hook.maskBluetoothAddress
 import dev.hyperears.integration.BatteryReading
@@ -52,8 +53,10 @@ internal object NativeIslandNotification {
     internal const val FOCUS_PIC_CONNECT = "miui.focus.pic_connect_button"
     // Own battery-artwork keys inside the host's pics bundle (custom names are host-legal: SystemUI
     // resolves them only through the extras bundle; the JSON side stays the §11 L230-233 picInfo form).
+    // The expanded island has one key only: the host ignores imageTextInfoRight (device 2026-10-31:
+    // the symmetric right slot we mounted was never consumed), so both ears share one strip image.
     internal const val FOCUS_PIC_BATTERY_LEFT = "hyperears_battery_left"
-    internal const val FOCUS_PIC_BATTERY_RIGHT = "hyperears_battery_right"
+    internal const val FOCUS_PIC_BATTERY_COMBINED = "hyperears_battery_combined"
     internal const val FOCUS_BUSINESS = "btheadsetnotification"
     private const val FOCUS_ACTION_TEST_KEY = "miui.focus.action_test"
     // Host plugin resource ids for the visual fields (island-spec §11: smallIcon 0x7f0800af at
@@ -68,6 +71,9 @@ internal object NativeIslandNotification {
     private const val HOST_PACKAGE = "com.xiaomi.bluetooth"
     private const val EXTRA_ADDRESS = "EXTRA_ADDRESS"
     internal const val BATTERY_PIC_SIZE = 96
+    // The expanded strip is two 96 px cells side by side; each glyph keeps 6 px to its cell edge, so
+    // the shells stand 14 px apart and the 8 px gutter requirement holds without rescaling the glyph.
+    internal const val COMBINED_PIC_WIDTH = BATTERY_PIC_SIZE * 2
     internal const val LOW_BATTERY_PERCENT = 20
     // Single object-owned main-looper handler: one pending generation at a time, no per-submit
     // handler instances and no runnable retention after the cancel fires or is replaced. Declared as
@@ -105,14 +111,17 @@ internal object NativeIslandNotification {
         // Artwork first: the JSON pic references are only emitted for battery icons that actually got
         // drawn, so a drawing failure degrades to the earphone key / text-only content and never
         // leaves the param pointing at pics that do not exist.
-        val leftBatteryIcon = batteryIcon(projection.left.percent)
-        val rightBatteryIcon = batteryIcon(projection.right.percent)
+        val layout = batteryArtworkLayout(projection.left, projection.right)
+        // Collapsed state keeps a single left-ear glyph (the folded island has no room for two), the
+        // expanded state carries the combined strip in the host's only consumed pic slot.
+        val leftBatteryIcon = if (projection.left.available) batteryIcon(projection.left.percent) else null
+        val combinedIcon = combinedBatteryIcon(layout, projection.left.percent, projection.right.percent)
         val param = focusParamJson(FocusIslandText(
             title = projection.name,
             content = focusIslandContent(projection.left, projection.right, statusText),
             actionTitle = actionTitle, actionIntentUri = actionIntent.toUri(0),
-            leftPic = islandLeftPicKey(projection.left, leftBatteryIcon != null),
-            rightPic = islandRightPicKey(projection.right, rightBatteryIcon != null),
+            bigPic = islandBigPicKey(layout, combinedIcon != null),
+            smallPic = islandSmallPicKey(projection.left, leftBatteryIcon != null),
         ))
         val manager = context.getSystemService(NotificationManager::class.java) ?: run {
             ModuleLog.debug(TAG, "notification not submitted: notification manager absent")
@@ -123,7 +132,7 @@ internal object NativeIslandNotification {
         ))
         val extras = Bundle()
         extras.putString(FOCUS_PARAM_KEY, param)
-        picsBundle(context, leftBatteryIcon, rightBatteryIcon)?.let { extras.putBundle(FOCUS_PICS_KEY, it) }
+        picsBundle(context, leftBatteryIcon, combinedIcon)?.let { extras.putBundle(FOCUS_PICS_KEY, it) }
         actionsBundle(context, actionTitle, actionIntent)?.let { extras.putBundle(FOCUS_ACTIONS_KEY, it) }
         val notification = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(smallIconRes(context))
@@ -173,44 +182,80 @@ internal object NativeIslandNotification {
             RES_SMALL_ICON
         } else android.R.drawable.stat_sys_data_bluetooth
 
-    private fun picsBundle(context: Context, leftIcon: Icon?, rightIcon: Icon?): Bundle? = runCatching {
+    private fun picsBundle(context: Context, leftIcon: Icon?, combinedIcon: Icon?): Bundle? = runCatching {
         Bundle().apply {
             // The host stores a model-specific artwork under pic_earphone (getHeadsetPic); we keep
             // the generic icon there and add our drawn battery artwork under own keys (§11 L224).
             putParcelable(FOCUS_PIC_EARPHONE, hostIcon(context, RES_SMALL_ICON))
             putParcelable(FOCUS_PIC_CONNECT, hostIcon(context, RES_CONNECT_BUTTON))
             leftIcon?.let { putParcelable(FOCUS_PIC_BATTERY_LEFT, it) }
-            rightIcon?.let { putParcelable(FOCUS_PIC_BATTERY_RIGHT, it) }
+            combinedIcon?.let { putParcelable(FOCUS_PIC_BATTERY_COMBINED, it) }
         }
     }.getOrNull()
 
     /**
-     * A drawn system-style battery: rounded shell and terminal on transparent background, proportional
-     * fill tinted by the §4 low-battery threshold, and the percent label below. 96x96 matches the
-     * square picInfo artwork slots; any drawing failure yields null and the text content remains the
-     * fallback — the notification submission never depends on this path.
+     * A drawn system-style battery for the collapsed slot: rounded shell and terminal on transparent
+     * background, proportional fill tinted by the §4 low-battery threshold, and the percent label
+     * below. 96x96 matches the square picInfo artwork slots; any drawing failure yields null and the
+     * text content remains the fallback — the notification submission never depends on this path.
      */
     private fun batteryIcon(percent: Int?): Icon? = runCatching {
         val bitmap = createBitmap(BATTERY_PIC_SIZE, BATTERY_PIC_SIZE, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val ratio = batteryFillRatio(percent)
-        paint.color = COLOR_ON_TRANSPARENT
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 5f
-        canvas.drawRoundRect(8f, 30f, 80f, 66f, 10f, 10f, paint)
-        paint.style = Paint.Style.FILL
-        canvas.drawRect(84f, 42f, 90f, 54f, paint)
-        paint.color = batteryFillColorRgb(percent)
-        if (ratio > 0f) {
-            canvas.drawRoundRect(14f, 36f, 14f + 60f * ratio, 60f, 6f, 6f, paint)
-        }
-        paint.color = COLOR_ON_TRANSPARENT
-        paint.textSize = 22f
-        paint.textAlign = Paint.Align.CENTER
-        canvas.drawText(batteryLabel(percent), BATTERY_PIC_SIZE / 2f, 92f, paint)
+        drawBatteryGlyph(Canvas(bitmap), Paint(Paint.ANTI_ALIAS_FLAG), percent, 0f)
         Icon.createWithBitmap(bitmap)
     }.getOrNull()
+
+    /**
+     * The expanded-slot strip: both ears share one image because the host consumes imageTextInfoLeft
+     * only. Two readings occupy one 96 px cell each inside the 192x96 transparent strip; a lone
+     * reading is drawn alone in the plain square (centred by being the only cell); no reading draws
+     * nothing, leaving the host earphone picture as the caller's fallback.
+     */
+    private fun combinedBatteryIcon(
+        layout: BatteryArtworkLayout, leftPercent: Int?, rightPercent: Int?,
+    ): Icon? {
+        if (layout == BatteryArtworkLayout.NONE) return null
+        return runCatching {
+            val both = layout == BatteryArtworkLayout.BOTH
+            val width = if (both) COMBINED_PIC_WIDTH else BATTERY_PIC_SIZE
+            val bitmap = createBitmap(width, BATTERY_PIC_SIZE, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            when (layout) {
+                BatteryArtworkLayout.BOTH -> {
+                    drawBatteryGlyph(canvas, paint, leftPercent, 0f)
+                    drawBatteryGlyph(canvas, paint, rightPercent, BATTERY_PIC_SIZE.toFloat())
+                }
+                BatteryArtworkLayout.LEFT_ONLY -> drawBatteryGlyph(canvas, paint, leftPercent, 0f)
+                BatteryArtworkLayout.RIGHT_ONLY -> drawBatteryGlyph(canvas, paint, rightPercent, 0f)
+                // Unreachable: NONE returned above, listed so the when stays exhaustive.
+                BatteryArtworkLayout.NONE -> Unit
+            }
+            Icon.createWithBitmap(bitmap)
+        }.getOrNull()
+    }
+
+    /** One battery glyph inside a 96 px cell whose left edge sits at [offsetX]. */
+    private fun drawBatteryGlyph(canvas: Canvas, paint: Paint, percent: Int?, offsetX: Float) {
+        val ratio = batteryFillRatio(percent)
+        // KTX save/restore pair: a bare save()/restore() trips lint's UseKtx.
+        canvas.withTranslation(offsetX, 0f) {
+            paint.color = COLOR_ON_TRANSPARENT
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 5f
+            drawRoundRect(8f, 30f, 80f, 66f, 10f, 10f, paint)
+            paint.style = Paint.Style.FILL
+            drawRect(84f, 42f, 90f, 54f, paint)
+            paint.color = batteryFillColorRgb(percent)
+            if (ratio > 0f) {
+                drawRoundRect(14f, 36f, 14f + 60f * ratio, 60f, 6f, 6f, paint)
+            }
+            paint.color = COLOR_ON_TRANSPARENT
+            paint.textSize = 22f
+            paint.textAlign = Paint.Align.CENTER
+            drawText(batteryLabel(percent), BATTERY_PIC_SIZE / 2f, 92f, paint)
+        }
+    }
 
     private fun actionsBundle(context: Context, actionTitle: String, actionIntent: Intent): Bundle? =
         runCatching {
@@ -229,29 +274,46 @@ internal object NativeIslandNotification {
  * The text fields of the host param_v2 body (island-spec §11 L229-L238): the device name is the
  * `ticker` and the `iconTextInfo.title`; the content carries the battery text (user choice: the
  * island and the popup are mutually exclusive, so the battery belongs in the island too) and falls
- * back to the host status string only when no battery reading is available.
+ * back to the host status string only when no battery reading is available. `bigPic` feeds the
+ * expanded slot (the combined strip), `smallPic` the collapsed slot and the icon animation source.
  */
 internal data class FocusIslandText(val title: String, val content: String,
     val actionTitle: String, val actionIntentUri: String,
-    val leftPic: String, val rightPic: String?)
+    val bigPic: String, val smallPic: String)
 
 /** `L 85% · R 90%` / a single side without placeholder when the other is missing / status fallback. */
 internal fun focusIslandContent(left: BatteryReading, right: BatteryReading, fallback: String): String =
     listOfNotNull(islandBatteryText(left)?.let { "L $it" }, islandBatteryText(right)?.let { "R $it" })
         .joinToString(" · ").ifEmpty { fallback }
 
+/** Which ears the expanded-slot artwork has to carry; [NONE] leaves the host earphone picture. */
+internal enum class BatteryArtworkLayout { BOTH, LEFT_ONLY, RIGHT_ONLY, NONE }
+
+internal fun batteryArtworkLayout(left: BatteryReading, right: BatteryReading): BatteryArtworkLayout =
+    when {
+        left.available && right.available -> BatteryArtworkLayout.BOTH
+        left.available -> BatteryArtworkLayout.LEFT_ONLY
+        right.available -> BatteryArtworkLayout.RIGHT_ONLY
+        else -> BatteryArtworkLayout.NONE
+    }
+
 /**
- * Pic-slot decisions (island-spec §11 L230-233): the left ear slot shows our battery artwork while
- * a left reading exists and the generic earphone picture otherwise; the right slot — symmetric to
- * the host's imageTextInfoLeft, absent whenever the right ear is missing — only ever carries battery
- * artwork, so a null key means the whole imageTextInfoRight object is omitted like the host shape.
+ * Collapsed slot: one left-ear glyph only — the folded island is too small for a second battery, so
+ * the generic earphone picture stands in whenever a left reading or the drawing is missing.
  */
-internal fun islandLeftPicKey(left: BatteryReading, artworkAvailable: Boolean): String =
+internal fun islandSmallPicKey(left: BatteryReading, artworkAvailable: Boolean): String =
     if (left.available && artworkAvailable) NativeIslandNotification.FOCUS_PIC_BATTERY_LEFT
     else NativeIslandNotification.FOCUS_PIC_EARPHONE
 
-internal fun islandRightPicKey(right: BatteryReading, artworkAvailable: Boolean): String? =
-    if (right.available && artworkAvailable) NativeIslandNotification.FOCUS_PIC_BATTERY_RIGHT else null
+/**
+ * Expanded slot (island-spec §11 L230-233): the host consumes `imageTextInfoLeft` only (device
+ * 2026-10-31: a symmetric `imageTextInfoRight` was ignored), so its picInfo points at the combined
+ * strip as soon as any ear produced artwork; otherwise the generic earphone picture keeps the shape.
+ */
+internal fun islandBigPicKey(layout: BatteryArtworkLayout, artworkAvailable: Boolean): String =
+    if (layout != BatteryArtworkLayout.NONE && artworkAvailable)
+        NativeIslandNotification.FOCUS_PIC_BATTERY_COMBINED
+    else NativeIslandNotification.FOCUS_PIC_EARPHONE
 
 /** Fill fraction for the drawn battery: null percent draws empty, values clamp to 0..1. */
 internal fun batteryFillRatio(percent: Int?): Float =
@@ -290,13 +352,10 @@ internal fun focusParamJson(text: FocusIslandText): String {
         "islandProperty" to "1",
         "islandTimeout" to "10",
         "bigIslandArea" to jsonObject(
-            "imageTextInfoLeft" to jsonObject("type" to "1", "picInfo" to picInfo(text.leftPic)),
-            "imageTextInfoRight" to text.rightPic?.let {
-                jsonObject("type" to "1", "picInfo" to picInfo(it))
-            },
+            "imageTextInfoLeft" to jsonObject("type" to "1", "picInfo" to picInfo(text.bigPic)),
             "textInfo" to jsonObject("title" to jsonString(text.content)),
         ),
-        "smallIslandArea" to jsonObject("picInfo" to picInfo(text.leftPic)),
+        "smallIslandArea" to jsonObject("picInfo" to picInfo(text.smallPic)),
     )
     val paramV2 = jsonObject(
         "protocol" to "1",
@@ -311,7 +370,7 @@ internal fun focusParamJson(text: FocusIslandText): String {
             "type" to "1",
             "title" to jsonString(text.title),
             "content" to jsonString(text.content),
-            "animIconInfo" to jsonObject("type" to "0", "src" to jsonString(text.leftPic)),
+            "animIconInfo" to jsonObject("type" to "0", "src" to jsonString(text.smallPic)),
         ),
         "actions" to "[" + jsonObject(
             "type" to "2",

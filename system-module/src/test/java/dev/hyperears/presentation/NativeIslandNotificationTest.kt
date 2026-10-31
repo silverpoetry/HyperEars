@@ -3,7 +3,6 @@ package dev.hyperears.presentation
 import dev.hyperears.integration.BatteryReading
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -11,23 +10,23 @@ class NativeIslandNotificationTest {
 
     @Test
     fun focusParamJsonMatchesTheHostParamV2KeyTable() {
-        // Exact host shape (island-spec §11 L228-238) plus the symmetric imageTextInfoRight carrying
-        // both battery artworks (user decision: graphics in the island, text keeps its slot too).
-        assertEquals("""{"param_v2":{"protocol":1,"business":"btheadsetnotification","updatable":true,"enableFloat":true,"timeout":1,"ticker":"Mi","tickerPic":"miui.focus.pic_connect_button","param_island":{"islandProperty":1,"islandTimeout":10,"bigIslandArea":{"imageTextInfoLeft":{"type":1,"picInfo":{"type":1,"pic":"hyperears_battery_left"}},"imageTextInfoRight":{"type":1,"picInfo":{"type":1,"pic":"hyperears_battery_right"}},"textInfo":{"title":"L 85% · R 90%"}},"smallIslandArea":{"picInfo":{"type":1,"pic":"hyperears_battery_left"}}},"iconTextInfo":{"type":1,"title":"Mi","content":"L 85% · R 90%","animIconInfo":{"type":0,"src":"hyperears_battery_left"}},"actions":[{"type":2,"actionTitle":"连接","actionTitleColor":"#FF000000","actionTitleColorDark":"#FFFFFF","actionBgColorDark":"#0D84FF","actionIntentType":2,"actionIntent":"URI"}]}}""",
+        // Exact host shape (island-spec §11 L228-238): the expanded pic lives in imageTextInfoLeft only
+        // (the host ignores imageTextInfoRight), so both ears travel as one combined strip image.
+        assertEquals("""{"param_v2":{"protocol":1,"business":"btheadsetnotification","updatable":true,"enableFloat":true,"timeout":1,"ticker":"Mi","tickerPic":"miui.focus.pic_connect_button","param_island":{"islandProperty":1,"islandTimeout":10,"bigIslandArea":{"imageTextInfoLeft":{"type":1,"picInfo":{"type":1,"pic":"hyperears_battery_combined"}},"textInfo":{"title":"L 85% · R 90%"}},"smallIslandArea":{"picInfo":{"type":1,"pic":"hyperears_battery_left"}}},"iconTextInfo":{"type":1,"title":"Mi","content":"L 85% · R 90%","animIconInfo":{"type":0,"src":"hyperears_battery_left"}},"actions":[{"type":2,"actionTitle":"连接","actionTitleColor":"#FF000000","actionTitleColorDark":"#FFFFFF","actionBgColorDark":"#0D84FF","actionIntentType":2,"actionIntent":"URI"}]}}""",
             focusParamJson(FocusIslandText(
                 title = "Mi", content = "L 85% · R 90%", actionTitle = "连接", actionIntentUri = "URI",
-                leftPic = "hyperears_battery_left", rightPic = "hyperears_battery_right",
+                bigPic = "hyperears_battery_combined", smallPic = "hyperears_battery_left",
             )))
     }
 
     @Test
     fun focusParamJsonKeepsTheHostShapeWhenArtworkDegrades() {
         // A failed battery drawing (or a missing reading) must reproduce the untouched host §11 form:
-        // earphone key left, no imageTextInfoRight object at all.
+        // earphone key in the one expanded slot, no extra image object at all.
         assertEquals("""{"param_v2":{"protocol":1,"business":"btheadsetnotification","updatable":true,"enableFloat":true,"timeout":1,"ticker":"Mi","tickerPic":"miui.focus.pic_connect_button","param_island":{"islandProperty":1,"islandTimeout":10,"bigIslandArea":{"imageTextInfoLeft":{"type":1,"picInfo":{"type":1,"pic":"miui.focus.pic_earphone"}},"textInfo":{"title":"已连接"}},"smallIslandArea":{"picInfo":{"type":1,"pic":"miui.focus.pic_earphone"}}},"iconTextInfo":{"type":1,"title":"Mi","content":"已连接","animIconInfo":{"type":0,"src":"miui.focus.pic_earphone"}},"actions":[{"type":2,"actionTitle":"连接","actionTitleColor":"#FF000000","actionTitleColorDark":"#FFFFFF","actionBgColorDark":"#0D84FF","actionIntentType":2,"actionIntent":"URI"}]}}""",
             focusParamJson(FocusIslandText(
                 title = "Mi", content = "已连接", actionTitle = "连接", actionIntentUri = "URI",
-                leftPic = "miui.focus.pic_earphone", rightPic = null,
+                bigPic = "miui.focus.pic_earphone", smallPic = "miui.focus.pic_earphone",
             )))
     }
 
@@ -35,13 +34,29 @@ class NativeIslandNotificationTest {
     fun picKeysRequireBothAReadingAndSuccessfulArtwork() {
         val ear = BatteryReading(85, false)
         val missing = BatteryReading(null, false)
-        assertEquals("hyperears_battery_left", islandLeftPicKey(ear, artworkAvailable = true))
+        assertEquals("hyperears_battery_left", islandSmallPicKey(ear, artworkAvailable = true))
         // Fallback chain: no artwork drawn -> the JSON never references the missing pics key.
-        assertEquals("miui.focus.pic_earphone", islandLeftPicKey(ear, artworkAvailable = false))
-        assertEquals("miui.focus.pic_earphone", islandLeftPicKey(missing, artworkAvailable = true))
-        assertEquals("hyperears_battery_right", islandRightPicKey(ear, artworkAvailable = true))
-        assertNull(islandRightPicKey(ear, artworkAvailable = false))
-        assertNull(islandRightPicKey(missing, artworkAvailable = true))
+        assertEquals("miui.focus.pic_earphone", islandSmallPicKey(ear, artworkAvailable = false))
+        assertEquals("miui.focus.pic_earphone", islandSmallPicKey(missing, artworkAvailable = true))
+        assertEquals("hyperears_battery_combined",
+            islandBigPicKey(BatteryArtworkLayout.BOTH, artworkAvailable = true))
+        assertEquals("miui.focus.pic_earphone",
+            islandBigPicKey(BatteryArtworkLayout.BOTH, artworkAvailable = false))
+        assertEquals("miui.focus.pic_earphone",
+            islandBigPicKey(BatteryArtworkLayout.NONE, artworkAvailable = true))
+    }
+
+    @Test
+    fun combinedArtworkLayoutCoversBothSingleAndNoEar() {
+        // The strip is one image, so the three drawing decisions are taken before any canvas work.
+        assertEquals(BatteryArtworkLayout.BOTH,
+            batteryArtworkLayout(BatteryReading(85, false), BatteryReading(90, false)))
+        assertEquals(BatteryArtworkLayout.LEFT_ONLY,
+            batteryArtworkLayout(BatteryReading(85, false), BatteryReading(null, false)))
+        assertEquals(BatteryArtworkLayout.RIGHT_ONLY,
+            batteryArtworkLayout(BatteryReading(null, false), BatteryReading(90, false)))
+        assertEquals(BatteryArtworkLayout.NONE,
+            batteryArtworkLayout(BatteryReading(null, false), BatteryReading(null, false)))
     }
 
     @Test
