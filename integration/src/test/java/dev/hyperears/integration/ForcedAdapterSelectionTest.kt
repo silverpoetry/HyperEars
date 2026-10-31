@@ -11,10 +11,11 @@ class ForcedAdapterSelectionTest {
 
     @Test
     fun compatibleOppoResponsesUnlockControlsAfterBypassingOnlyNameMatching() {
-        assertEquals(StandardEarbudAdapter.ID, EarbudAdapterRegistry.forIntegration(onePlus)?.id)
-        val adapter = requireNotNull(EarbudAdapterRegistry.forIntegration(onePlus,
+        val unregistered = onePlus.copy(deviceName = "Unregistered OPO headset")
+        assertEquals(StandardEarbudAdapter.ID, EarbudAdapterRegistry.forIntegration(unregistered)?.id)
+        val adapter = requireNotNull(EarbudAdapterRegistry.forIntegration(unregistered,
             forcedAdapterId = OppoEarbudAdapter.ID))
-        assertFalse(adapter.matches(onePlus))
+        assertFalse(adapter.matches(unregistered))
         assertEquals(OppoEarbudAdapter.ID, adapter.id)
         val request = StandardControlRequest.SetNoiseMode(NoiseMode.ANC)
         assertFalse(adapter.executeControl(request).accepted)
@@ -33,6 +34,17 @@ class ForcedAdapterSelectionTest {
         assertTrue(result.stateChanged)
         assertTrue(adapter.snapshot().capabilities.noiseControl)
         assertArrayEquals(OppoWireCodec.setAnc(primary = 2), adapter.executeControl(request).commands.single())
+    }
+
+    @Test
+    fun explicitOverrideStillWinsWhenTheDeviceGainsAutomaticSupport() {
+        assertEquals(OnePlusBuds4Adapter.ID, EarbudAdapterRegistry.forIntegration(onePlus)?.id)
+        val forced = requireNotNull(EarbudAdapterRegistry.forIntegration(onePlus,
+            forcedAdapterId = OppoEarbudAdapter.ID))
+        assertEquals(OppoEarbudAdapter.ID, forced.id)
+        assertFalse(forced.matches(onePlus))
+        assertFalse(forced.snapshot().capabilities.noiseControl)
+        assertEquals(OnePlusBuds4Adapter.ID, EarbudAdapterRegistry.forIntegration(onePlus)?.id)
     }
 
     @Test
