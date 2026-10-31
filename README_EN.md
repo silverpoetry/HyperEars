@@ -13,6 +13,10 @@ device center. It complements Android's existing audio stack with device identit
 noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, Technics, Bose, Edifier,
 StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Sony and Samsung devices.
 
+The project focuses on core system integration. Detailed EQ, gesture assignments and firmware
+settings remain in vendor control apps, reached through shared settings navigation and runtime
+yielding. New integrations follow the [project scope and contribution boundaries](docs/project-scope.md).
+
 > [!WARNING]
 > HyperEars requires root, LSPosed and private HyperOS APIs. Be prepared to recover your system
 > before installing it. ROM updates may temporarily break compatibility. This project is not

@@ -13,6 +13,9 @@ vivo / iQOO、OPPO Enco、Technics、Bose、Edifier、StarRing、ROSESELSA、Nic
 进入 MiLink 融合设备中心，并在不接管 Android 音频路由的前提下补充电量、降噪状态和
 设备流转所需的兼容信息。
 
+项目聚焦系统核心能力。EQ、手势分配、固件等详细设置交给厂商控制 App，HyperEars 提供
+统一的设置跳转和运行时退避。新增适配遵循[项目范围与贡献边界](docs/project-scope.md)。
+
 > [!WARNING]
 > HyperEars 依赖 root、LSPosed 和 HyperOS 私有接口。安装前请确认能够恢复系统；ROM
 > 更新可能暂时破坏兼容性。本项目与 Xiaomi、vivo、iQOO、OPPO、Bose、Edifier、

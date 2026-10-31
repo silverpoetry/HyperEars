@@ -8,6 +8,11 @@
 
 <!-- Which adapter, protocol, process or HyperOS surface is affected? -->
 
+<!-- Identify the core system capability covered by docs/project-scope.md.
+     Keep detailed device configuration in the vendor app; explain any necessary shared changes. -->
+
+- [ ] This change follows the project scope; detailed configuration remains in vendor control apps
+
 ## Evidence
 
 <!-- Link protocol sources or provide redacted captures and device reports. -->
