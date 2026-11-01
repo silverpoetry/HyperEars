@@ -26,13 +26,20 @@ open class SennheiserEarbudAdapter : StandardEarbudAdapter() {
     }
 }
 
-/** GAIA noise-control dialects differ between the MOMENTUM 4 and the ACCENTUM generation. */
+/**
+ * How a model composes the noise mode out of GAIA's two master switches.
+ *
+ * Every model answers `1A04` (ANC) and `1804` (transparent hearing), but the MOMENTUM 4 keeps
+ * transparent hearing formally on while ANC is off and only lets it take effect once ANC is on, so
+ * its "off" is the ANC switch alone. The ACCENTUM generation has an independent transparency path
+ * and needs both switches driven.
+ */
 internal enum class SennheiserNoiseDialect {
-    /** One command selects a mode and its state: `1A00 [mode, state]`. */
-    COMBINED_MODES,
+    /** MOMENTUM 4: transparency rides on the ANC master switch; off is `1A04 [00]` alone. */
+    MOMENTUM_4,
 
-    /** ANC and transparency are independent switches: `1A04` and `1804`. */
-    TOGGLE_PAIR,
+    /** ACCENTUM: ANC and transparency are independent switches. */
+    ACCENTUM,
 }
 
 internal data class SennheiserAdapterConfig(
@@ -109,7 +116,7 @@ object SennheiserAdapterRegistry {
             displayName = "Sennheiser MOMENTUM 4",
             nameMarkers = setOf("momentum4"),
             formFactor = HeadsetFormFactor.HEADPHONES,
-            noiseDialect = SennheiserNoiseDialect.COMBINED_MODES,
+            noiseDialect = SennheiserNoiseDialect.MOMENTUM_4,
             supportsAntiWind = true,
             miLinkPresentationId = MiLinkCardPresentationId(
                 SennheiserEarbudAdapter.MOMENTUM_4_PRESENTATION_ID,
@@ -120,7 +127,7 @@ object SennheiserAdapterRegistry {
             displayName = "Sennheiser ACCENTUM True Wireless",
             nameMarkers = setOf("accentumtws", "accentumtruewireless"),
             formFactor = HeadsetFormFactor.TWS,
-            noiseDialect = SennheiserNoiseDialect.TOGGLE_PAIR,
+            noiseDialect = SennheiserNoiseDialect.ACCENTUM,
             supportsAntiWind = false,
         ),
         SennheiserAdapterConfig(
@@ -128,7 +135,7 @@ object SennheiserAdapterRegistry {
             displayName = "Sennheiser ACCENTUM",
             nameMarkers = setOf("accentum"),
             formFactor = HeadsetFormFactor.HEADPHONES,
-            noiseDialect = SennheiserNoiseDialect.TOGGLE_PAIR,
+            noiseDialect = SennheiserNoiseDialect.ACCENTUM,
             supportsAntiWind = false,
         ),
     )
@@ -157,9 +164,18 @@ private class SennheiserProtocolSession(
     private var batteryPublished = false
     private var noisePublished = false
 
-    /** Latest independent toggle states, used to synthesise a mode for the TOGGLE_PAIR dialect. */
+    /**
+     * Latest independent noise-control observations.
+     *
+     * Every model projects from the same three facts: the ANC master switch (`1A05`), the
+     * transparent-hearing switch (`1805`) and — where the model has it — the anti-wind selector from
+     * the `1A01` mode table. A mode is only publishable once every fact it needs has been observed.
+     */
     private var ancEnabled: Boolean? = null
     private var transparencyEnabled: Boolean? = null
+
+    /** Anti-wind selector state from the `1A01` mode table: 0 off, 1 max, 2 automatic. */
+    private var antiWindState: Int? = null
 
     override fun initialReadCommands(): List<ByteArray> = listOf(
         SennheiserGaiaWireCodec.queryQualcommApiVersion,
@@ -244,34 +260,41 @@ private class SennheiserProtocolSession(
     private fun combinedNoiseEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent> {
         val entries = SennheiserGaiaWireCodec.parseCombinedNoiseMode(frame.payload)
             ?: return emptyList()
-        return noiseEvents(entries.toNoiseMode())
+        // Only the anti-wind selector is a fact here; the mode table says nothing authoritative
+        // about the master switch or transparent hearing, which have their own commands.
+        antiWindState = entries.firstOrNull { it.mode == ANTI_WIND }?.state
+        return projectedNoiseEvents()
     }
 
     private fun ancToggleEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent> {
         val state = frame.payload.singleOrNull()?.toInt()?.and(0xFF) ?: return emptyList()
-        if (configuration.noiseDialect != SennheiserNoiseDialect.TOGGLE_PAIR) return emptyList()
         ancEnabled = state != SennheiserGaiaWireCodec.STATE_OFF
-        return toggleNoiseEvents()
+        return projectedNoiseEvents()
     }
 
     private fun transparencyToggleEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent> {
         val state = frame.payload.singleOrNull()?.toInt()?.and(0xFF) ?: return emptyList()
-        if (configuration.noiseDialect != SennheiserNoiseDialect.TOGGLE_PAIR) return emptyList()
         transparencyEnabled = state != SennheiserGaiaWireCodec.STATE_OFF
-        return toggleNoiseEvents()
+        return projectedNoiseEvents()
     }
 
     /**
-     * The toggle dialect only becomes publishable once both switches reported a value; a half
-     * observation cannot be projected onto a single [NoiseMode] without inventing one.
+     * A mode is only publishable once the facts it needs have been observed.
+     *
+     * Switching the ANC master switch off silences transparent hearing on this headset even though
+     * the switch itself stays on, so the master switch decides between off and everything else. A
+     * half observation cannot be projected onto a single [NoiseMode] without inventing one.
      */
-    private fun toggleNoiseEvents(): List<ProtocolEvent> {
+    private fun projectedNoiseEvents(): List<ProtocolEvent> {
         val anc = ancEnabled ?: return emptyList()
         val transparency = transparencyEnabled ?: return emptyList()
         val mode = when {
+            !anc -> NoiseMode.OFF
             transparency -> NoiseMode.TRANSPARENCY
-            anc -> NoiseMode.ANC
-            else -> NoiseMode.OFF
+            (antiWindState ?: SennheiserGaiaWireCodec.STATE_OFF) != SennheiserGaiaWireCodec.STATE_OFF ->
+                NoiseMode.WIND
+
+            else -> NoiseMode.ANC
         }
         return noiseEvents(mode)
     }
@@ -291,41 +314,46 @@ private class SennheiserProtocolSession(
     }
 
     private fun setFrames(mode: NoiseMode): List<ByteArray> = when (configuration.noiseDialect) {
-        SennheiserNoiseDialect.COMBINED_MODES -> combinedModeFrames(mode)
-        SennheiserNoiseDialect.TOGGLE_PAIR -> toggleModeFrames(mode)
+        SennheiserNoiseDialect.MOMENTUM_4 -> momentum4ModeFrames(mode)
+        SennheiserNoiseDialect.ACCENTUM -> accentumModeFrames(mode)
     }
 
     /**
-     * MOMENTUM 4 writes each selector separately. Anti-wind is engaged only together with adaptive
-     * ANC; the shared disable pass runs last so a stale selector can never win.
+     * MOMENTUM 4 drives the ANC master switch (`1A04`) and transparent hearing (`1804`) directly.
+     *
+     * The `1A00` table only tunes sub-behaviours that ride on top of the master switch, so writing it
+     * alone can never leave the pass-through state: with the master switch on and no sub-selector
+     * active the headset simply passes audio through, which is indistinguishable from transparency.
+     * Transparency also needs the master switch on first, because switching ANC on ends transparent
+     * hearing on this headset.
      */
-    private fun combinedModeFrames(mode: NoiseMode): List<ByteArray> = when (mode) {
+    private fun momentum4ModeFrames(mode: NoiseMode): List<ByteArray> = when (mode) {
         NoiseMode.ANC -> listOf(
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ADAPTIVE, SennheiserGaiaWireCodec.STATE_ON),
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(TRANSPARENCY, SennheiserGaiaWireCodec.STATE_OFF),
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ANTI_WIND, SennheiserGaiaWireCodec.STATE_OFF),
+            SennheiserGaiaWireCodec.setAncToggle(true),
+            SennheiserGaiaWireCodec.setTransparencyToggle(false),
         )
 
         NoiseMode.TRANSPARENCY -> listOf(
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(TRANSPARENCY, SennheiserGaiaWireCodec.STATE_ON),
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ADAPTIVE, SennheiserGaiaWireCodec.STATE_OFF),
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ANTI_WIND, SennheiserGaiaWireCodec.STATE_OFF),
+            SennheiserGaiaWireCodec.setAncToggle(true),
+            SennheiserGaiaWireCodec.setTransparencyToggle(true),
         )
 
         NoiseMode.WIND -> listOf(
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ADAPTIVE, SennheiserGaiaWireCodec.STATE_ON),
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ANTI_WIND, SennheiserGaiaWireCodec.STATE_ON),
+            SennheiserGaiaWireCodec.setAncToggle(true),
+            SennheiserGaiaWireCodec.setTransparencyToggle(false),
+            SennheiserGaiaWireCodec.setCombinedNoiseMode(
+                ANTI_WIND,
+                SennheiserGaiaWireCodec.STATE_ANTI_WIND_AUTO,
+            ),
         )
 
-        NoiseMode.OFF -> listOf(
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ADAPTIVE, SennheiserGaiaWireCodec.STATE_OFF),
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(TRANSPARENCY, SennheiserGaiaWireCodec.STATE_OFF),
-            SennheiserGaiaWireCodec.setCombinedNoiseMode(ANTI_WIND, SennheiserGaiaWireCodec.STATE_OFF),
-        )
+        // Switching the master switch off is the whole of "off": transparent hearing stays formally
+        // on but has no effect without ANC, and writing it off would destroy the remembered level.
+        NoiseMode.OFF -> listOf(SennheiserGaiaWireCodec.setAncToggle(false))
     }
 
     /** ACCENTUM exposes two independent switches; wind control is not part of this dialect. */
-    private fun toggleModeFrames(mode: NoiseMode): List<ByteArray> = when (mode) {
+    private fun accentumModeFrames(mode: NoiseMode): List<ByteArray> = when (mode) {
         NoiseMode.ANC -> listOf(
             SennheiserGaiaWireCodec.setAncToggle(true),
             SennheiserGaiaWireCodec.setTransparencyToggle(false),
@@ -351,45 +379,23 @@ private class SennheiserProtocolSession(
         SennheiserGaiaWireCodec.registerNotification(SennheiserGaiaWireCodec.FEATURE_BATTERY),
     )
 
-    private fun noiseQueries(): List<ByteArray> = when (configuration.noiseDialect) {
-        SennheiserNoiseDialect.COMBINED_MODES -> noiseReadback() + listOf(
-            SennheiserGaiaWireCodec.registerNotification(SennheiserGaiaWireCodec.FEATURE_ANC),
-        )
-
-        SennheiserNoiseDialect.TOGGLE_PAIR -> noiseReadback() + listOf(
-            SennheiserGaiaWireCodec.registerNotification(
-                SennheiserGaiaWireCodec.FEATURE_TRANSPARENT_HEARING,
-            ),
-        )
-    }
+    /**
+     * Both dialects expose the ANC master switch and transparent hearing; only the mode table that
+     * carries the anti-wind selector is MOMENTUM-4-specific.
+     */
+    private fun noiseQueries(): List<ByteArray> = noiseReadback() + listOf(
+        SennheiserGaiaWireCodec.registerNotification(SennheiserGaiaWireCodec.FEATURE_ANC),
+        SennheiserGaiaWireCodec.registerNotification(
+            SennheiserGaiaWireCodec.FEATURE_TRANSPARENT_HEARING,
+        ),
+    )
 
     /** Post-write verification reads state only; notification registration is a one-time setup. */
-    private fun noiseReadback(): List<ByteArray> = when (configuration.noiseDialect) {
-        SennheiserNoiseDialect.COMBINED_MODES -> listOf(
-            SennheiserGaiaWireCodec.queryCombinedNoiseMode,
-        )
-
-        SennheiserNoiseDialect.TOGGLE_PAIR -> listOf(
-            SennheiserGaiaWireCodec.queryAncToggle,
-            SennheiserGaiaWireCodec.queryTransparencyToggle,
-        )
-    }
-
-    private fun List<SennheiserGaiaWireCodec.NoiseModeEntry>.toNoiseMode(): NoiseMode {
-        val transparency = firstOrNull { it.mode == TRANSPARENCY }
-        val antiWind = firstOrNull { it.mode == ANTI_WIND }
-        val adaptive = firstOrNull { it.mode == ADAPTIVE }
-        return when {
-            transparency != null && transparency.state != SennheiserGaiaWireCodec.STATE_OFF ->
-                NoiseMode.TRANSPARENCY
-
-            antiWind != null && antiWind.state != SennheiserGaiaWireCodec.STATE_OFF ->
-                NoiseMode.WIND
-
-            adaptive != null && adaptive.state != SennheiserGaiaWireCodec.STATE_OFF ->
-                NoiseMode.ANC
-
-            else -> NoiseMode.OFF
+    private fun noiseReadback(): List<ByteArray> = buildList {
+        add(SennheiserGaiaWireCodec.queryAncToggle)
+        add(SennheiserGaiaWireCodec.queryTransparencyToggle)
+        if (configuration.supportsAntiWind) {
+            add(SennheiserGaiaWireCodec.queryCombinedNoiseMode)
         }
     }
 
@@ -408,9 +414,7 @@ private class SennheiserProtocolSession(
         )
 
     private companion object {
-        const val ADAPTIVE = SennheiserGaiaWireCodec.NOISE_MODE_ADAPTIVE
         const val ANTI_WIND = SennheiserGaiaWireCodec.NOISE_MODE_ANTI_WIND
-        const val TRANSPARENCY = SennheiserGaiaWireCodec.NOISE_MODE_TRANSPARENCY
 
         // Frames are dispatched on baseCommandId, which has the type bits already stripped.
         const val COMMAND_CORE_VERSION = 0x0000

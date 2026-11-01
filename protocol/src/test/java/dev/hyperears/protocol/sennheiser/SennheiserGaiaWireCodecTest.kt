@@ -87,7 +87,7 @@ class SennheiserGaiaWireCodecTest {
         assertEquals(
             listOf(
                 SennheiserGaiaWireCodec.NoiseModeEntry(ANTI_WIND, ANTI_WIND_AUTO),
-                SennheiserGaiaWireCodec.NoiseModeEntry(TRANSPARENCY, 0),
+                SennheiserGaiaWireCodec.NoiseModeEntry(COMFORT, 0),
                 SennheiserGaiaWireCodec.NoiseModeEntry(ADAPTIVE, 1),
             ),
             SennheiserGaiaWireCodec.parseCombinedNoiseMode(frames.single().payload),
@@ -255,8 +255,8 @@ class SennheiserGaiaWireCodecTest {
 
     private companion object {
         const val ANTI_WIND = SennheiserGaiaWireCodec.NOISE_MODE_ANTI_WIND
-        const val TRANSPARENCY = SennheiserGaiaWireCodec.NOISE_MODE_TRANSPARENCY
+        const val COMFORT = SennheiserGaiaWireCodec.NOISE_MODE_COMFORT
         const val ADAPTIVE = SennheiserGaiaWireCodec.NOISE_MODE_ADAPTIVE
-        const val ANTI_WIND_AUTO = 2
+        const val ANTI_WIND_AUTO = SennheiserGaiaWireCodec.STATE_ANTI_WIND_AUTO
     }
 }

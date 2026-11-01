@@ -23,6 +23,8 @@
 
 - 新增 Qualcomm GAIA V3 适配：MOMENTUM 4 支持降噪、关闭、通透、抗风噪四态，
   ACCENTUM 与 ACCENTUM True Wireless 支持降噪、关闭、通透三态。
+- 噪声控制改用 GAIA 的两个主开关（`0x1A04` ANC、`0x1804` 通透）。`0x1A00` 只是叠加在主开关
+  之上的子模式表，单写它无法离开直通态；MOMENTUM 4 的「关闭」因此是单独关 ANC 主开关。
 - 私有整机电量与噪声控制均在合法 GAIA 响应确认后开放；未确认时保持系统整机电量。
 - MOMENTUM 4 增加 MiLink 抗风噪卡片开关。
 - 协议细节见 [docs/sennheiser-gaia-protocol.md](docs/sennheiser-gaia-protocol.md)。

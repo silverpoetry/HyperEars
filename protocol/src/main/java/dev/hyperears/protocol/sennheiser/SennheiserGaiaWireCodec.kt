@@ -39,13 +39,22 @@ object SennheiserGaiaWireCodec {
     const val FEATURE_ANC = 13
     const val FEATURE_BATTERY = 3
 
-    /** Sub-selectors carried inside the combined noise-mode payload. */
+    /**
+     * Sub-selectors carried inside the combined noise-mode payload.
+     *
+     * `0x1A00` is *not* the master noise switch: it only tunes the three sub-behaviours that ride on
+     * top of the ANC master switch (`0x1A04`) and the transparent-hearing switch (`0x1804`). Selector
+     * 2 is Comfort, not transparency — transparency is its own `0x1804` command.
+     */
     const val NOISE_MODE_ANTI_WIND = 1
-    const val NOISE_MODE_TRANSPARENCY = 2
+    const val NOISE_MODE_COMFORT = 2
     const val NOISE_MODE_ADAPTIVE = 3
 
     const val STATE_OFF = 0
     const val STATE_ON = 1
+
+    /** Anti-wind accepts a third state on top of [STATE_OFF] and [STATE_ON] (maximum). */
+    const val STATE_ANTI_WIND_AUTO = 2
 
     /** Type of a GAIA command id, encoded in bits 7-8 of the command id. */
     enum class FrameType(val value: Int) {

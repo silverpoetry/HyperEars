@@ -125,9 +125,14 @@ class SennheiserEarbudAdapterTest {
                 SennheiserGaiaWireCodec.registerNotification(
                     SennheiserGaiaWireCodec.FEATURE_BATTERY,
                 ),
+                SennheiserGaiaWireCodec.queryAncToggle,
+                SennheiserGaiaWireCodec.queryTransparencyToggle,
                 SennheiserGaiaWireCodec.queryCombinedNoiseMode,
                 SennheiserGaiaWireCodec.registerNotification(
                     SennheiserGaiaWireCodec.FEATURE_ANC,
+                ),
+                SennheiserGaiaWireCodec.registerNotification(
+                    SennheiserGaiaWireCodec.FEATURE_TRANSPARENT_HEARING,
                 ),
             ).map(ByteArray::toList),
             result.commands.map(ByteArray::toList),
@@ -153,9 +158,10 @@ class SennheiserEarbudAdapterTest {
     fun combinedNoiseReportUnlocksAllFourMomentumModes() {
         val adapter = resolve("MOMENTUM 4")
 
-        val result = adapter.receive(combinedNoiseResponse(2, 0, 1, 0, 3, 1))
+        assertEquals(HandshakeResult.Ready, adapter.receive(gaiaResponse(0x1B05, 1)).handshake)
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
 
-        assertEquals(HandshakeResult.Ready, result.handshake)
         assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
         assertTrue(adapter.snapshot().capabilities.noiseControl)
         assertTrue(adapter.snapshot().capabilities.windNoiseControl)
@@ -171,10 +177,12 @@ class SennheiserEarbudAdapterTest {
     }
 
     @Test
-    fun transparencyWinsTheProjectionWhenBothSelectorsAreActive() {
+    fun transparencyWinsTheProjectionOnceTheSwitchIsOn() {
         val adapter = resolve("MOMENTUM 4")
 
-        adapter.receive(combinedNoiseResponse(2, 1, 1, 1, 3, 1))
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 1))
+        adapter.receive(combinedNoiseResponse(1, 1, 2, 0, 3, 1))
 
         assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
     }
@@ -183,10 +191,15 @@ class SennheiserEarbudAdapterTest {
     fun antiWindWinsOverAdaptiveButLosesToTransparency() {
         val adapter = resolve("MOMENTUM 4")
 
-        adapter.receive(combinedNoiseResponse(2, 0, 1, 1, 3, 1))
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 2, 2, 0, 3, 1))
         assertEquals(NoiseMode.WIND, adapter.runtimeState().noiseMode)
 
-        adapter.receive(combinedNoiseResponse(2, 0, 1, 0, 3, 0))
+        adapter.receive(gaiaResponse(0x1905, 1))
+        assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
+
+        adapter.receive(gaiaResponse(0x1B05, 0))
         assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
     }
 
@@ -219,38 +232,82 @@ class SennheiserEarbudAdapterTest {
     }
 
     @Test
-    fun momentumWritesEachSelectorSeparately() {
+    fun momentumWritesBothMasterSwitchesForAncAndTransparency() {
         val adapter = resolve("MOMENTUM 4")
-        adapter.receive(combinedNoiseResponse(2, 0, 1, 0, 3, 1))
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
 
         val anc = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
         assertTrue(anc.accepted)
         assertEquals(
             listOf(
-                SennheiserGaiaWireCodec.setCombinedNoiseMode(3, 1),
-                SennheiserGaiaWireCodec.setCombinedNoiseMode(2, 0),
-                SennheiserGaiaWireCodec.setCombinedNoiseMode(1, 0),
+                SennheiserGaiaWireCodec.setAncToggle(true),
+                SennheiserGaiaWireCodec.setTransparencyToggle(false),
             ).map(ByteArray::toList),
             anc.commands.map(ByteArray::toList),
         )
         assertEquals(
-            listOf(SennheiserGaiaWireCodec.queryCombinedNoiseMode).map(ByteArray::toList),
+            listOf(
+                SennheiserGaiaWireCodec.queryAncToggle,
+                SennheiserGaiaWireCodec.queryTransparencyToggle,
+                SennheiserGaiaWireCodec.queryCombinedNoiseMode,
+            ).map(ByteArray::toList),
             anc.readback.map(ByteArray::toList),
+        )
+
+        val transparency = adapter.executeControl(
+            StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY),
+        )
+        assertTrue(transparency.accepted)
+        assertEquals(
+            listOf(
+                SennheiserGaiaWireCodec.setAncToggle(true),
+                SennheiserGaiaWireCodec.setTransparencyToggle(true),
+            ).map(ByteArray::toList),
+            transparency.commands.map(ByteArray::toList),
+        )
+    }
+
+    /**
+     * Off is the ANC master switch alone: transparent hearing stays formally on but has no effect
+     * without ANC, and switching it off would discard the remembered level.
+     */
+    @Test
+    fun momentumOffOnlySwitchesTheAncMasterSwitchOff() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 1))
+
+        val off = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.OFF))
+
+        assertTrue(off.accepted)
+        assertEquals(
+            listOf(SennheiserGaiaWireCodec.setAncToggle(false)).map(ByteArray::toList),
+            off.commands.map(ByteArray::toList),
+        )
+        assertFalse(
+            off.commands.map(ByteArray::toList)
+                .contains(SennheiserGaiaWireCodec.setTransparencyToggle(false).toList()),
         )
     }
 
     @Test
-    fun momentumAntiWindEngagesAdaptiveFirst() {
+    fun momentumAntiWindEngagesTheMasterSwitchThenTheSelector() {
         val adapter = resolve("MOMENTUM 4")
-        adapter.receive(combinedNoiseResponse(2, 0, 1, 0, 3, 1))
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
 
         val wind = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.WIND))
 
         assertTrue(wind.accepted)
         assertEquals(
             listOf(
-                SennheiserGaiaWireCodec.setCombinedNoiseMode(3, 1),
-                SennheiserGaiaWireCodec.setCombinedNoiseMode(1, 1),
+                SennheiserGaiaWireCodec.setAncToggle(true),
+                SennheiserGaiaWireCodec.setTransparencyToggle(false),
+                SennheiserGaiaWireCodec.setCombinedNoiseMode(
+                    SennheiserGaiaWireCodec.NOISE_MODE_ANTI_WIND,
+                    SennheiserGaiaWireCodec.STATE_ANTI_WIND_AUTO,
+                ),
             ).map(ByteArray::toList),
             wind.commands.map(ByteArray::toList),
         )
@@ -286,11 +343,19 @@ class SennheiserEarbudAdapterTest {
     @Test
     fun deviceInitiatedNotificationsUpdateThePublishedMode() {
         val adapter = resolve("MOMENTUM 4")
-        adapter.receive(combinedNoiseResponse(2, 0, 1, 0, 3, 1))
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
         assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
 
-        adapter.receive(gaiaNotification(0x1A81, 2, 1, 1, 0, 3, 0))
+        adapter.receive(gaiaNotification(0x1A85, 0))
+        assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
 
+        // Transparent hearing only takes effect while the ANC master switch is on.
+        adapter.receive(gaiaNotification(0x1A85, 1))
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+
+        adapter.receive(gaiaNotification(0x1885, 1))
         assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
     }
 
@@ -326,7 +391,9 @@ class SennheiserEarbudAdapterTest {
         val adapter = resolve("MOMENTUM 4")
         adapter.onSystemBatteryChanged(68)
         adapter.receive(gaiaResponse(0x0703, 42))
-        adapter.receive(combinedNoiseResponse(2, 0, 1, 0, 3, 1))
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
 
         assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.snapshot().batterySource)
         assertTrue(adapter.snapshot().capabilities.noiseControl)
@@ -339,7 +406,9 @@ class SennheiserEarbudAdapterTest {
         assertNull(adapter.snapshot().presentationId)
         assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
 
-        adapter.receive(combinedNoiseResponse(2, 0, 1, 0, 3, 1))
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
         assertTrue(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
     }
 
