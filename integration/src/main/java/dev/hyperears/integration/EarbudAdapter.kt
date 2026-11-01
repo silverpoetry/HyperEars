@@ -612,6 +612,7 @@ object EarbudAdapterRegistry {
     private val sonyGroup = GroupMetadata("sony", "Sony")
     private val qcyGroup = GroupMetadata("qcy", "QCY")
     private val technicsGroup = GroupMetadata("technics", "Technics")
+    private val sennheiserGroup = GroupMetadata("sennheiser", "Sennheiser")
     private val samsungGroup = GroupMetadata("samsung", "Samsung Galaxy Buds")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
 
@@ -663,6 +664,7 @@ object EarbudAdapterRegistry {
         }
         // Apple devices are handled by the platform; keep AAP code available for explicit use,
         // but do not add Apple adapters to HyperEars' default matching chain.
+        addAll(SennheiserAdapterRegistry.factories.map { Registration(sennheiserGroup, it) })
         addAll(SonyAdapterRegistry.factories.map { Registration(sonyGroup, it) })
         add(Registration(standardGroup, ::StandardEarbudAdapter))
     }

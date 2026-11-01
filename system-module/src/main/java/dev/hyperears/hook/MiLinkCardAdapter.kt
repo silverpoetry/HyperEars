@@ -83,6 +83,7 @@ internal object MiLinkCardAdapterRegistry {
         FitClipUltraGameModeMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
         SamsungBuds2ProMiLinkCardAdapter,
+        SennheiserMomentum4MiLinkCardAdapter,
     )
     private val byId = adapters.associateBy(MiLinkCardAdapter::presentationId)
 

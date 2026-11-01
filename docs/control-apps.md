@@ -36,6 +36,7 @@ Sony | Headphones Connect。
 | QCY | QCY（中国版） | `com.qcymall.earphonesetup` | 2 |
 | Sony | Sony \| Sound Connect | `com.sony.songpal.mdr` | 1 |
 | Technics EAH-AZ TWS | Technics Audio Connect | `com.panasonic.technicsaudioconnect` | 1 |
+| Sennheiser MOMENTUM 4 / ACCENTUM | Sennheiser Smart Control | `com.sonova.chb.control` | 1 |
 | 华为 FreeBuds 系列 | 智慧音频 | `com.huawei.smartaudio` | 1 |
 | 华为 FreeBuds 系列 | 智慧生活 / AI Life | `com.huawei.smarthome` | 2 |
 | Samsung Galaxy Buds2 Pro | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
@@ -88,7 +89,8 @@ App 仍优先。智慧生活还管理其他智能设备，勾选其作用域后�
 [籁特易耳](https://app.mi.com/details?id=cn.lightyeartech.android)、
 [原道](https://app.mi.com/details?id=com.yuandao.nicehck)、
 [Sony Sound Connect](https://play.google.com/store/apps/details?id=com.sony.songpal.mdr)、
-[Technics Audio Connect](https://play.google.com/store/apps/details?id=com.panasonic.technicsaudioconnect)，
+[Technics Audio Connect](https://play.google.com/store/apps/details?id=com.panasonic.technicsaudioconnect)、
+[Sennheiser Smart Control](https://play.google.com/store/apps/details?id=com.sonova.chb.control)，
 以及[水月雨官网下载页](https://moondroplab.com/en/download)指向的 MOONDROP Android 包。
 这些来源未提供需要另外登记的地区包证据；应用显示名称变化本身不新增包名。
 

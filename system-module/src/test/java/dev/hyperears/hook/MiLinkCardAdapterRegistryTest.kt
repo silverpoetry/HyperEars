@@ -14,6 +14,7 @@ import dev.hyperears.integration.PrivateTransportState
 import dev.hyperears.integration.ProtocolHandshakeState
 import dev.hyperears.integration.RoseBudsFeelMk2Adapter
 import dev.hyperears.integration.RoseEarfreeI5Adapter
+import dev.hyperears.integration.SennheiserEarbudAdapter
 import dev.hyperears.integration.StarRingUltraAdapter
 import dev.hyperears.integration.SystemProfileState
 import dev.hyperears.integration.SonyMiLinkPresentationIds
@@ -89,6 +90,14 @@ class MiLinkCardAdapterRegistryTest {
         assertSame(
             SonyAmbientOnlyMiLinkCardAdapter,
             MiLinkCardAdapterRegistry.resolve(SonyMiLinkPresentationIds.AMBIENT_ONLY),
+        )
+        assertSame(
+            SennheiserMomentum4MiLinkCardAdapter,
+            MiLinkCardAdapterRegistry.resolve(
+                MiLinkCardPresentationId(
+                    SennheiserEarbudAdapter.MOMENTUM_4_PRESENTATION_ID,
+                ),
+            ),
         )
         assertNull(
             MiLinkCardAdapterRegistry.resolve(
