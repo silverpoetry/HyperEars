@@ -232,18 +232,19 @@ class SennheiserEarbudAdapterTest {
     }
 
     @Test
-    fun momentumWritesBothMasterSwitchesForAncAndTransparency() {
+    fun momentumWritesOneFramePerRealStateChange() {
         val adapter = resolve("MOMENTUM 4")
         adapter.receive(gaiaResponse(0x1B05, 1))
         adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
 
+        // ANC is already on and transparency already off, so nothing needs to change; the runtime
+        // rejects an empty write as a failed control, so the primary frame is written anyway.
         val anc = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
         assertTrue(anc.accepted)
         assertEquals(
-            listOf(
-                SennheiserGaiaWireCodec.setAncToggle(true),
-                SennheiserGaiaWireCodec.setTransparencyToggle(false),
-            ).map(ByteArray::toList),
+            listOf(SennheiserGaiaWireCodec.setAncToggle(true)).map(ByteArray::toList),
             anc.commands.map(ByteArray::toList),
         )
         assertEquals(
@@ -255,15 +256,13 @@ class SennheiserEarbudAdapterTest {
             anc.readback.map(ByteArray::toList),
         )
 
+        // The master switch is already on, so transparency is the whole of the transition.
         val transparency = adapter.executeControl(
             StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY),
         )
         assertTrue(transparency.accepted)
         assertEquals(
-            listOf(
-                SennheiserGaiaWireCodec.setAncToggle(true),
-                SennheiserGaiaWireCodec.setTransparencyToggle(true),
-            ).map(ByteArray::toList),
+            listOf(SennheiserGaiaWireCodec.setTransparencyToggle(true)).map(ByteArray::toList),
             transparency.commands.map(ByteArray::toList),
         )
     }
@@ -291,19 +290,36 @@ class SennheiserEarbudAdapterTest {
         )
     }
 
+    /** Switching the master switch on already ends transparent hearing, so off is one frame. */
     @Test
-    fun momentumAntiWindEngagesTheMasterSwitchThenTheSelector() {
+    fun momentumOffToAncWritesTheMasterSwitchAlone() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 0))
+        adapter.receive(gaiaResponse(0x1905, 1))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
+        assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
+
+        val anc = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+
+        assertTrue(anc.accepted)
+        assertEquals(
+            listOf(SennheiserGaiaWireCodec.setAncToggle(true)).map(ByteArray::toList),
+            anc.commands.map(ByteArray::toList),
+        )
+    }
+
+    @Test
+    fun momentumAntiWindWritesTheSelectorOnceTheMasterSwitchIsOn() {
         val adapter = resolve("MOMENTUM 4")
         adapter.receive(gaiaResponse(0x1B05, 1))
         adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
 
         val wind = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.WIND))
 
         assertTrue(wind.accepted)
         assertEquals(
             listOf(
-                SennheiserGaiaWireCodec.setAncToggle(true),
-                SennheiserGaiaWireCodec.setTransparencyToggle(false),
                 SennheiserGaiaWireCodec.setCombinedNoiseMode(
                     SennheiserGaiaWireCodec.NOISE_MODE_ANTI_WIND,
                     SennheiserGaiaWireCodec.STATE_ANTI_WIND_AUTO,
@@ -311,6 +327,165 @@ class SennheiserEarbudAdapterTest {
             ).map(ByteArray::toList),
             wind.commands.map(ByteArray::toList),
         )
+    }
+
+    /** The mode table is the only command that clears a selector the previous mode left behind. */
+    @Test
+    fun momentumWindToAncClearsTheStaleSelector() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 2, 2, 0, 3, 1))
+        assertEquals(NoiseMode.WIND, adapter.runtimeState().noiseMode)
+
+        val anc = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+
+        assertTrue(anc.accepted)
+        assertEquals(
+            listOf(
+                SennheiserGaiaWireCodec.setCombinedNoiseMode(
+                    SennheiserGaiaWireCodec.NOISE_MODE_ANTI_WIND,
+                    SennheiserGaiaWireCodec.STATE_OFF,
+                ),
+            ).map(ByteArray::toList),
+            anc.commands.map(ByteArray::toList),
+        )
+    }
+
+    @Test
+    fun momentumTransparencyToWindEndsTransparencyWithTheSelector() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 1))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
+        assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
+
+        val wind = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.WIND))
+
+        assertTrue(wind.accepted)
+        assertEquals(
+            listOf(
+                SennheiserGaiaWireCodec.setCombinedNoiseMode(
+                    SennheiserGaiaWireCodec.NOISE_MODE_ANTI_WIND,
+                    SennheiserGaiaWireCodec.STATE_ANTI_WIND_AUTO,
+                ),
+            ).map(ByteArray::toList),
+            wind.commands.map(ByteArray::toList),
+        )
+    }
+
+    /** A write is several independent frames, and the headset reports each one as it lands. */
+    @Test
+    fun intermediateNoiseReportsAreHeldUntilTheRequestedModeArrives() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 0))
+        adapter.receive(gaiaResponse(0x1905, 1))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
+        assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
+
+        adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+        adapter.controlWritten(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+
+        // The master switch lands first, while the cached transparency switch is still on.
+        val intermediate = adapter.receive(gaiaNotification(0x1A85, 1))
+        assertFalse(intermediate.stateChanged)
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+        assertEquals(
+            listOf(AdapterEffect.RequestState(NoiseModeFeatureState.FEATURE_ID, 150L)),
+            intermediate.effects,
+        )
+
+        // The optimistic publish already showed the requested mode, so the confirming report must
+        // not move the snapshot a second time.
+        val settled = adapter.receive(gaiaNotification(0x1885, 0))
+        assertFalse(settled.stateChanged)
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+        assertEquals(
+            listOf(AdapterEffect.CancelStateRequest(NoiseModeFeatureState.FEATURE_ID)),
+            settled.effects,
+        )
+    }
+
+    /** The delay ladder is bounded, so a headset that never settles still publishes a real report. */
+    @Test
+    fun heldNoiseReportsAreBoundedByTheSettleLadder() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
+
+        adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+        adapter.controlWritten(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
+
+        listOf(150L, 300L, 500L).forEach { delayMs ->
+            val held = adapter.receive(gaiaNotification(0x1A85, 0))
+            assertFalse(held.stateChanged)
+            assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+            assertEquals(
+                listOf(AdapterEffect.RequestState(NoiseModeFeatureState.FEATURE_ID, delayMs)),
+                held.effects,
+            )
+        }
+
+        val forced = adapter.receive(gaiaNotification(0x1A85, 0))
+        assertTrue(forced.stateChanged)
+        assertEquals(NoiseMode.OFF, adapter.runtimeState().noiseMode)
+    }
+
+    /** A device report after the expectation cleared must reach the snapshot untouched. */
+    @Test
+    fun unsolicitedNoiseReportsPassThroughOnceTheExpectationCleared() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
+
+        adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY))
+        adapter.controlWritten(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY))
+
+        // The optimistic publish already showed transparency, so this report confirms rather than
+        // changes the snapshot.
+        val confirmed = adapter.receive(gaiaNotification(0x1885, 1))
+        assertFalse(confirmed.stateChanged)
+        assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
+
+        val unsolicited = adapter.receive(gaiaNotification(0x1885, 0))
+        assertTrue(unsolicited.stateChanged)
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+        assertTrue(unsolicited.effects.isEmpty())
+    }
+
+    @Test
+    fun protocolResetDropsThePendingNoiseExpectation() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+
+        adapter.controlWritten(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY))
+        adapter.resetProtocolSession()
+
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        val result = adapter.receive(gaiaResponse(0x1905, 0))
+
+        assertTrue(result.stateChanged)
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+    }
+
+    /** A cached selector must not survive a reconnection. */
+    @Test
+    fun protocolResetClearsTheCachedAntiWindSelector() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 2, 2, 0, 3, 1))
+        assertEquals(NoiseMode.WIND, adapter.runtimeState().noiseMode)
+
+        adapter.resetProtocolSession()
+
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+
+        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
     }
 
     @Test
