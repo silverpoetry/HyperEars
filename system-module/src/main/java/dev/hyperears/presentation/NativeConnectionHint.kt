@@ -9,7 +9,7 @@ import dev.hyperears.integration.HeadsetFormFactor
 import java.lang.reflect.Method
 
 /** Reuses the native AirPods connection notification, with a call-scoped read-only state source. */
-internal class NativeConnectionHint(private val stateGetter: Method) : HookContext() {
+internal class NativeConnectionHint(private val stateGetter: Method) : HookContext(), NativeConnectionPresenter {
     private val current = ThreadLocal<NativeHeadsetProjection?>()
     private lateinit var notificationType: Class<*>
     private var singleBatteryResource: Method? = null
@@ -43,7 +43,12 @@ internal class NativeConnectionHint(private val stateGetter: Method) : HookConte
         }.onFailure { ModuleLog.debug("NativeHint", "single-battery TWS resource entry unavailable") }
     }
 
-    fun show(projection: NativeHeadsetProjection, device: BluetoothDevice): NativePresentationResult {
+    override fun show(
+        projection: NativeHeadsetProjection,
+        device: BluetoothDevice,
+        latest: () -> NativeHeadsetProjection?,
+    ): NativePresentationResult {
+        if (latest() == null) return NativePresentationResult.NO_DEVICE
         if (!projection.canShowConnectionHint) {
             ModuleLog.debug("NativeHint", "not submitted: usable ear battery unavailable " +
                 "form=${projection.form} single=${projection.singleBattery}")

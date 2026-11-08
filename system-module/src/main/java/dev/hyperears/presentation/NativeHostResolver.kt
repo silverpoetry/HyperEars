@@ -13,19 +13,23 @@ import org.luckypray.dexkit.result.MethodData
 internal object NativeHostResolver {
     data class Core(
         val ownership: Result<NativeOwnershipStore>,
-        val airPodsState: Result<Method>,
+        val connectionHint: Result<NativeHintSource>,
         val flow: Result<NativePresentationFlow>,
+        val legacyVerified: Boolean,
+        val legacyFingerprint: String?,
     )
 
     fun resolve(context: Context, onOwnershipChanged: (String?) -> Unit): Core {
         val loader = context.classLoader
+        val legacy = LegacyNativeHostContract.inspect(context)
+        val legacyVerified = legacy.verified
         val stable = Core(
             ownership = runCatching { stableOwnership(context, onOwnershipChanged) },
-            airPodsState = runCatching {
+            connectionHint = runCatching {
                 NativeMembers.method(Class.forName(OFFLINE_PROVIDER, false, loader),
                     "getAirPodsState", String::class.java, Context::class.java).also {
                     require(Modifier.isStatic(it.modifiers) && it.returnType == Array<String>::class.java)
-                }
+                }.let(NativeHintSource::AirPods)
             },
             flow = runCatching {
                 val record = Class.forName("$NOTIFICATION\$ConnectManager", false, loader)
@@ -33,28 +37,59 @@ internal object NativeHostResolver {
                 require(getter.returnType == Int::class.javaPrimitiveType && !Modifier.isStatic(getter.modifiers))
                 NativePresentationFlow(loader, getter)
             },
+            legacyVerified = legacyVerified,
+            legacyFingerprint = legacy.digest,
         )
-        if (stable.ownership.isSuccess && stable.airPodsState.isSuccess && stable.flow.isSuccess) return stable
+        if (stable.ownership.isSuccess && stable.connectionHint.isSuccess && stable.flow.isSuccess) return stable
         return runCatching {
             System.loadLibrary("dexkit")
             DexKitBridge.create(context.applicationInfo.sourceDir).use { dex ->
                 dex.setThreadNum(1)
                 Core(
                     ownership = stable.ownership.recoverCatching {
-                        verifyOwnershipReaders(dex)
+                        verifyOwnershipReaders(dex, legacyVerified)
                         NativeOwnershipStore.openVerified(context, onOwnershipChanged)
                     },
-                    airPodsState = stable.airPodsState.recoverCatching { airPodsState(dex, loader) },
+                    connectionHint = stable.connectionHint.recoverCatching {
+                        if (legacyVerified) {
+                            legacyHint(dex, loader)
+                        } else {
+                            NativeHintSource.AirPods(airPodsState(dex, loader))
+                        }
+                    },
                     flow = stable.flow.recoverCatching { resolveFlow(dex, loader) },
+                    legacyVerified = legacyVerified,
+                    legacyFingerprint = legacy.digest,
                 )
             }
         }.getOrElse { error ->
             Core(stable.ownership.recoverCatching { throw error },
-                stable.airPodsState.recoverCatching { throw error }, stable.flow.recoverCatching { throw error })
+                stable.connectionHint.recoverCatching { throw error }, stable.flow.recoverCatching { throw error },
+                legacyVerified, legacy.digest)
         }
     }
 
-    private fun verifyOwnershipReaders(dex: DexKitBridge) {
+    private fun legacyHint(dex: DexKitBridge, loader: ClassLoader): NativeHintSource.LegacyXiaomi {
+        val predicate = dex.findMethod {
+            matcher {
+                declaredClass = NOTIFICATION
+                name = "isSupportShowNotificationForSpecialHeadsets"
+                returnType = "boolean"
+                paramTypes("java.lang.String", "android.content.Context")
+                usingEqStrings("singlebatteryheadset")
+            }
+        }.singleNativeContract("native single-battery renderer predicate")
+        // R8's direct access bridge can contain an inlined predicate. Resolve this exact call
+        // relation, never an obfuscated name or an unrelated signature scan.
+        val accessors = predicate.callers.filter {
+            it.declaredClassName == NOTIFICATION && it.returnTypeName == "boolean" &&
+                it.paramTypeNames == listOf(NOTIFICATION, "java.lang.String", "android.content.Context")
+        }
+        return NativeHintSource.LegacyXiaomi(NativeDetailNotificationResolver.notificationType(dex, loader),
+            (listOf(predicate) + accessors).distinctBy(MethodData::descriptor).map { it.reflected(loader) })
+    }
+
+    private fun verifyOwnershipReaders(dex: DexKitBridge, legacyVerified: Boolean) {
         // Validate actual identity readers, not a permission-filtered Binder call. Both formats
         // read the same stores; absence only authorizes display after this proof succeeds.
         dex.findMethod {
@@ -66,6 +101,9 @@ internal object NativeHostResolver {
                     "DeviceIdCached", "HEADSET_DEVICE_ID_INFO", "saved")
             }
         }.singleNativeContract("Xiaomi registration reader")
+        // This audited host has only the Xiaomi registration schema. A missing Apple reader in
+        // any other build remains a failure; it can never silently authorize a device.
+        if (legacyVerified) return
         dex.findMethod {
             matcher {
                 returnType = "boolean"

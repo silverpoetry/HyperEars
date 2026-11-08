@@ -31,6 +31,7 @@ import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.settings.ModuleSettingsRuntime
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.ConcurrentHashMap
 
 /** One serialized consumer of accepted Adapter state in each native headset host process. */
 internal class NativePresentationRuntime(
@@ -46,7 +47,9 @@ internal class NativePresentationRuntime(
     private val registry = DeviceStateRegistry()
     // Keep the latest lifecycle (including its closing/system-owned record) to invalidate delayed
     // Activity tickets. Only active records may render or resolve ownership.
-    private val records = linkedMapOf<String, Record>()
+    // Main-thread writes publish immutable records; the legacy native renderer revalidates them
+    // on its own Handler immediately before displaying an already accepted connection.
+    private val records = ConcurrentHashMap<String, Record>()
     private val gate = ConnectionPresentationGate()
     private val gateDecisions = mutableMapOf<String, Pair<String, String>>()
     private var ownershipStore: NativeOwnershipStore? = null
@@ -56,11 +59,13 @@ internal class NativePresentationRuntime(
     private var producer: IBinder? = null
     private var producerDeath: IBinder.DeathRecipient? = null
     private val retiredProducers = ArrayDeque<IBinder>()
-    private var windowBridge: AirPodsWindowBridge? = null
+    private var windowBridge: NativeWindowBridge? = null
+    private var windowKind = NativeWindowKind.AIRPODS
+    private var legacyVerified = false
     private var windowAttempted = false
     private var popupCompatible = false
     private var scene: NativePresentationScene? = null
-    private var hint: NativeConnectionHint? = null
+    private var hint: NativeConnectionPresenter? = null
     private var details: NativeDetailNotification? = null
     private var detailResolutionStarted = false
     private var settings = ModuleSettingsRuntime.current
@@ -138,12 +143,17 @@ internal class NativePresentationRuntime(
                 result.onSuccess { symbols ->
                     symbols.ownership.onSuccess { ownershipStore = it }
                     symbols.flow.onSuccess { flow = it }
-                    val hintResult = symbols.airPodsState.mapCatching { getter ->
-                        NativeConnectionHint(getter).also {
-                            configure(it, context.classLoader); it.install()
-                        }.also { hint = it }
+                    legacyVerified = symbols.legacyVerified
+                    val hintResult = symbols.connectionHint.mapCatching { source ->
+                        val bridge = when (source) {
+                            is NativeHintSource.AirPods -> NativeConnectionHint(source.stateReader)
+                            is NativeHintSource.LegacyXiaomi -> LegacyNativeConnectionHint(context, source.notificationType, source.inlineBoundaries)
+                        }
+                        configure(bridge, context.classLoader)
+                        bridge.install()
+                        hint = bridge as NativeConnectionPresenter
                     }
-                    hostAvailability.complete(environment, linkedMapOf(
+                    hostAvailability.complete(environment + " legacyFingerprint=${symbols.legacyFingerprint}", linkedMapOf(
                         "ownership" to symbols.ownership.map { Unit },
                         "circulation" to symbols.flow.map { Unit },
                         "connection-hint" to hintResult.map { Unit },
@@ -151,7 +161,8 @@ internal class NativePresentationRuntime(
                     reportHostAvailability("initialization")
                     ownershipReadings.clear()
                     ModuleLog.debug(TAG) {
-                        "host ready ownership=${ownershipStore != null} flow=${flow != null} hint=${hint != null}"
+                        "host ready ownership=${ownershipStore != null} flow=${flow != null} hint=${hint != null} " +
+                            "legacyVerified=$legacyVerified"
                     }
                     records.values.toList().forEach { render(it, allowTransient = true) }
                 }.onFailure { error ->
@@ -183,16 +194,22 @@ internal class NativePresentationRuntime(
     @SuppressLint("PrivateApi")
     fun pluginReady(loader: ClassLoader) {
         if (windowAttempted) return
-        if (runCatching { Class.forName(AirPodsWindowBridge.CONTROLLER, false, loader) }.isFailure) return
+        val modern = runCatching { Class.forName(AirPodsWindowBridge.CONTROLLER, false, loader) }.isSuccess
+        val legacy = !modern && runCatching { LegacyNativeHostContract.isCandidate(context) &&
+            Class.forName(LegacyWindowSymbols.CONTROLLER, false, loader) != null }.getOrDefault(false)
+        if (!modern && !legacy) return
+        windowKind = if (legacy) NativeWindowKind.LEGACY_XIAOMI else NativeWindowKind.AIRPODS
         windowAttempted = true
         if (!uiProcess) {
-            runCatching { NativePresentationScene.resolve(loader) }
+            runCatching { NativePresentationScene.resolve(loader, legacy) }
                 .onSuccess { scene = it }
                 .onFailure { ModuleLog.warn(TAG, "native scene query unavailable", it) }
         }
-        popupCompatible = runCatching { AirPodsWindowSymbols(loader) }.isSuccess
+        popupCompatible = runCatching {
+            if (legacy) LegacyWindowSymbols(loader) else AirPodsWindowSymbols(loader)
+        }.onFailure { ModuleLog.warn(TAG, "native popup contract unavailable kind=$windowKind", it) }.isSuccess
         ModuleLog.debug(TAG) {
-            "plugin ready ui=$uiProcess popup=$popupCompatible scene=${scene != null} hint=${hint != null}"
+            "plugin ready ui=$uiProcess popup=$popupCompatible scene=${scene != null} hint=${hint != null} kind=$windowKind"
         }
         if (!popupCompatible) {
             ModuleLog.debug(TAG, "popup contract unavailable for loaded plugin")
@@ -203,21 +220,21 @@ internal class NativePresentationRuntime(
         }
         if (!popupCompatible) return
         runCatching {
-            AirPodsWindowBridge(context,
-                forBinding = { request ->
+            val forBinding: (NativeWindowRequest) -> NativeWindowRequest? = { request ->
                     val address = request.state.address
                     val record = address?.let(records::get)
                     request.forBinding(
                         latest = record?.let {
-                            NativeWindowRequest(request.id, it.state, it.session, it.metadata, it.producer)
+                            NativeWindowRequest(request.id, it.state, it.session, it.metadata, it.producer, request.kind)
                         },
                         currentProducer = producer,
                     )
-                },
-                onOpened = { id, token -> sendWindowEvent(id, token) },
-                onClosed = { id -> sendWindowEvent(id, null) },
-                openSettings = ::openHeadsetSettings,
-            ).also { configure(it, loader); it.install() }
+                }
+            val onOpened: (String, IBinder) -> Unit = { id, token -> sendWindowEvent(id, token) }
+            val onClosed: (String) -> Unit = { id -> sendWindowEvent(id, null) }
+            val bridge = if (legacy) LegacyXiaomiWindowBridge(context, forBinding, onOpened, onClosed, ::openHeadsetSettings)
+                else AirPodsWindowBridge(context, forBinding, onOpened, onClosed, ::openHeadsetSettings)
+            bridge.also { configure(it, loader); it.install() }
         }.onSuccess { windowBridge = it }
             .onFailure { ModuleLog.warn(TAG, "native popup unavailable", it) }
     }
@@ -464,11 +481,26 @@ internal class NativePresentationRuntime(
             return NativePresentationResult.HOST_UNAVAILABLE
         }
         ModuleLog.debug(TAG, "selected target=$target mode=$mode home=$onHomeOrCoverScreen")
+        val selectedSetting = ModuleSettingsRuntime.current.headsetConnectionPresentation
+        val registrations = ownershipStore
         return when (target) {
-            NativePresentationTarget.ISLAND -> hint?.show(p, device) ?: NativePresentationResult.HOST_UNAVAILABLE
+            NativePresentationTarget.ISLAND -> hint?.show(p, device) {
+                val latest = records[p.address]
+                if (ModuleSettingsRuntime.current.modulePaused ||
+                    ModuleSettingsRuntime.current.headsetConnectionPresentation != selectedSetting ||
+                    !record.producer.isBinderAlive || latest == null ||
+                    latest.producer != record.producer || latest.session != record.session ||
+                    latest.metadata.connection != record.metadata.connection ||
+                    latest.metadata.admission != NativeAdmission.HYPEREARS || !latest.state.sessionActive ||
+                    registrations?.read(p.address) != NativeAdmission.HYPEREARS
+                ) null else NativeHeadsetProjection.from(latest.state)
+            } ?: NativePresentationResult.HOST_UNAVAILABLE
             NativePresentationTarget.POPUP -> {
                 if (!popupCompatible) {
                     ModuleLog.debug(TAG, "popup unavailable: host contract not ready")
+                    return NativePresentationResult.HOST_UNAVAILABLE
+                }
+                if (windowKind == NativeWindowKind.LEGACY_XIAOMI && !legacyVerified) {
                     return NativePresentationResult.HOST_UNAVAILABLE
                 }
                 val id = UUID.randomUUID().toString()
@@ -476,7 +508,8 @@ internal class NativePresentationRuntime(
                 windowDeadline = Runnable { if (activeWindow == id && windowLifetime == null) releaseWindow() }
                     .also { handler.postDelayed(it, 5_000) }
                 runCatching { NativeWindowRequest.launch(context,
-                    NativeWindowRequest(id, record.state, record.session, record.metadata, record.producer), device)
+                    NativeWindowRequest(id, record.state, record.session, record.metadata, record.producer,
+                        windowKind), device)
                 }.getOrElse {
                     releaseWindow()
                     ModuleLog.warn(TAG, "popup launch failed", it)
