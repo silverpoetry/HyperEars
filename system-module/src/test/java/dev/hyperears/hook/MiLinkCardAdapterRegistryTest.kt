@@ -28,6 +28,15 @@ import org.junit.Test
 
 class MiLinkCardAdapterRegistryTest {
     @Test
+    fun swarmooUsesTheSharedWindToggleOnlyAfterEvidence() {
+        val adapter = dev.hyperears.integration.SwarmooMo3ProAdapter()
+        assertNull(adapter.snapshot().presentationId)
+        assertEquals(
+            SwarmooMo3MiLinkCardAdapter,
+            MiLinkCardAdapterRegistry.resolve(dev.hyperears.integration.SwarmooMo3ProAdapter.PRESENTATION_ID),
+        )
+    }
+    @Test
     fun defaultExtendedModeRemainsInTheNativeAncBranch() {
         assertEquals(
             NoiseMode.ANC,

@@ -11,7 +11,7 @@
 HyperEars integrates selected third-party Bluetooth headsets with Xiaomi HyperOS and the MiLink
 device center. It complements Android's existing audio stack with device identity, battery,
 noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, OnePlus, Technics, Bose, Edifier,
-StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Dreame/TheAstro, Sony and Samsung devices.
+StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Dreame/TheAstro, SWARMOO, Sony and Samsung devices.
 
 The project focuses on core system integration. Detailed EQ, gesture assignments and firmware
 settings remain in vendor control apps, reached through shared settings navigation and runtime

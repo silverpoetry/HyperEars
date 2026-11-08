@@ -9,7 +9,7 @@
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 HyperEars 是面向 Xiaomi HyperOS 的第三方蓝牙耳机系统集成模块。它让受支持的
-vivo / iQOO、OPPO Enco、OnePlus、Technics、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Dreame / TheAstro、Sony 和 Samsung 耳机
+vivo / iQOO、OPPO Enco、OnePlus、Technics、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Dreame / TheAstro、SWARMOO、Sony 和 Samsung 耳机
 进入 MiLink 融合设备中心，并在不接管 Android 音频路由的前提下补充电量、降噪状态和
 设备流转所需的兼容信息。
 

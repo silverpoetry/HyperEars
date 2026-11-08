@@ -82,6 +82,7 @@ internal object MiLinkCardAdapterRegistry {
         EdifierFitBudsTurboMiLinkCardAdapter,
         FitClipUltraGameModeMiLinkCardAdapter,
         FloS2SoundEffectMiLinkCardAdapter,
+        SwarmooMo3MiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
         SamsungBuds2ProMiLinkCardAdapter,
     )

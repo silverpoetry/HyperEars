@@ -50,6 +50,13 @@ abstract class EarbudAdapter(
     /** Evidence required before a transport candidate becomes the session's active channel. */
     open val transportReadiness: TransportReadiness = TransportReadiness.PROTOCOL_HANDSHAKE
 
+    /**
+     * Opt-in firmware exception for an acknowledged GATT error. This does not confirm state or
+     * delivery; the model must use DEVICE_REPORT and validate subsequent protocol responses.
+     * Submission errors, timeouts and connection errors never pass through this policy.
+     */
+    open fun permitsUnconfirmedGattWrite(command: ByteArray, route: String?, status: Int): Boolean = false
+
     /** Vendor applications that must own the private channel while their process is alive. */
     open val controlApps: List<ControlAppSpec> = emptyList()
 
@@ -151,9 +158,9 @@ abstract class EarbudAdapter(
     /**
      * Consumes one transport read. Protocol events remain private to the adapter aggregate.
      */
-    fun receive(bytes: ByteArray): AdapterIoResult {
+    fun receive(bytes: ByteArray, route: String? = null): AdapterIoResult {
         val previousSnapshot = snapshot()
-        val events = protocolSession.offer(bytes)
+        val events = protocolSession.offer(bytes, route)
         var changed = false
         var handshake: HandshakeResult? = null
         val unknown = mutableListOf<ProtocolEvent.UnknownFrame>()
@@ -613,6 +620,7 @@ object EarbudAdapterRegistry {
     private val sonyGroup = GroupMetadata("sony", "Sony")
     private val qcyGroup = GroupMetadata("qcy", "QCY")
     private val flos2Group = GroupMetadata("flos2", "Dreame / TheAstro")
+    private val swarmooGroup = GroupMetadata("swarmoo", "SWARMOO / 贝壳王子")
     private val technicsGroup = GroupMetadata("technics", "Technics")
     private val samsungGroup = GroupMetadata("samsung", "Samsung Galaxy Buds")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
@@ -663,6 +671,8 @@ object EarbudAdapterRegistry {
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))
         add(Registration(flos2Group, ::TheAstroOpenProS2Adapter))
         add(Registration(flos2Group, ::FloS2SportGattAdapter))
+        add(Registration(swarmooGroup, ::SwarmooMo3ProAdapter))
+        add(Registration(swarmooGroup, ::SwarmooEarbudAdapter))
         add(Registration(technicsGroup, ::TechnicsEarbudAdapter))
         dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.entries.forEach { model ->
             add(Registration(samsungGroup) { SamsungBuds2ProAdapter(model) })
