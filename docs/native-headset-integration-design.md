@@ -682,7 +682,35 @@ Android 15 的后续定位记录：Issue #102 于 2026-11-07 收到 OPPO Enco Ai
 
 维护分支保留当前初始化结果，在详细日志启用和失败预览时报告原始错误，分别标明登记读取、
 流转入口和提示入口是否就绪。解析仍要求唯一匹配，登记未知仍不授权展示；当前方案不加入
-周期重试或不经确认的回退。目标设备结果与宿主构建资料仍需补充，诊断完成不代表展示已修复。
+周期重试或不经确认的回退。诊断完成不代表展示已修复。
+
+2026-11-08，[反馈者的定位包日志](https://github.com/silverpoetry/HyperEars/issues/102#issuecomment-6721098064)
+确认宿主为 `com.xiaomi.bluetooth` 15/35，系统 `OS3.0.5.0.VMNCNXM` / SDK 35；初始化时已解锁，
+流转入口就绪，Apple 登记和 AirPods 状态两个唯一指纹均为 0 匹配，通知发布边界也不匹配。
+
+从小米官方 ROM `mondrian-ota_full-OS3.0.5.0.VMNCNXM-user-15.0-d9db2e6dd9.zip` 的 system_ext
+分区按范围提取宿主与内置插件，校验读取的 payload 操作散列及宿主 APK 签名，得到：
+
+| 样本 | SHA-256 |
+|---|---|
+| BluetoothExtension 15/35 | `5d6945fbbed73be58ad0408097fc10bb1266083f8ad79fe1baa3ab88f5145a72` |
+| 内置 preloadedFeature 插件 | `d817a82f933951b21413b5c4477bddc636766e154d580bda7941af97adc69a3b` |
+
+静态结果与日志一致：
+
+- 宿主保留小米设备的 `DeviceIdCached` / `HEADSET_DEVICE_ID_INFO` 读取和流转记录。
+- 宿主及内置插件缺少当前实现使用的 AirPods 登记/状态读取、`showConnectToastForAirPods`、
+  `MiuiAirPodsFastConnectController` 及对应 AirPods Binder 回调；不能将它们视为单纯混淆改名。
+- 电量通知构造器仍存在，使用 `notifyAsUser(String, int, Notification, UserHandle)`，当前后端
+  只验证和拦截 `notify(String, int, Notification)`，所以独立的通知发布契约也不兼容。
+- 旧小米弹窗 `MiuiFastConnectController` 仍存在；其 `initParameter(): boolean`、无参
+  `goToSuitableDialog()`、`MiuiHeadsetInfo` 与服务绑定均不同于当前 AirPods 路径。
+
+后续兼容须单独验证旧小米原生后端：先确认只读登记边界，再核对原生控制器的已连接展示、资源、
+状态回调、关闭与恢复，避免触发配对或私有连接；电量通知按实际发布重载接入并保留原生用户范围、
+唯一通知及设置跳转。没有有效原生连接提示入口时明确记录不支持，继续保留 MiLink 核心能力。
+不把 `UNKNOWN` 改为授权，不自行拼接超级岛。本次仅完成这份具体构建的定位，不能外推为所有
+Android 15 / HyperOS 3 均缺少这些接口，也不把当前维护包标记为展示修复已通过。
 
 ## 10. 来源与引用
 

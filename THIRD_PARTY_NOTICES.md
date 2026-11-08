@@ -314,6 +314,10 @@ Conastin 在 [PR #90](https://github.com/silverpoetry/HyperEars/pull/90) 提供�
 HyperEars 独立实现解析与接入代码，不分发厂商 APK、反编译代码、图片或其他资源；
 系统组件及相关商标的权利归其各自权利人所有。
 
+Android 15 的追加研究样本为 Redmi K60 官方 OS3.0.5.0.VMNCNXM ROM 中的 BluetoothExtension
+15/35 及内置插件，仅记录缺失接口、存储键与通知调用签名等互操作事实；散列和结论边界见
+[Android 15 定位记录](docs/native-headset-integration-design.md#95-android-15-登记检查定位)。
+
 ## OnePlus OPO compatibility research
 
 OnePlus 的核心三态与经典 RFCOMM 端点依据 #94 用户 zyanvan 的复核日志，以及以下公开实现
