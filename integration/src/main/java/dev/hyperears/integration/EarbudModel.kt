@@ -40,8 +40,8 @@ data class EarbudBattery(
 ) {
     companion object {
         /** Projects one authoritative aggregate value without inventing component telemetry. */
-        fun fromAggregate(percent: Int?): EarbudBattery {
-            val reading = BatteryReading(percent?.takeIf { it in 0..100 }, charging = false)
+        fun fromAggregate(percent: Int?, charging: Boolean = false): EarbudBattery {
+            val reading = BatteryReading(percent?.takeIf { it in 0..100 }, charging = charging)
             return EarbudBattery(
                 left = reading,
                 right = reading,

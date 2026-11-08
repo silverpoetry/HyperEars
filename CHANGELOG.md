@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Dreame / TheAstro（FloS2 运动耳机）
+
+- 新增 OpenPro S2 具体型号与 Dreame Flo S2 家族候选，确认协议后提供整机电量、充电位及
+  标准/游泳/人声/增强四档音效，复用原生模式卡片。
+- OpenPro S2 维护包已通过电量、充电、音效、重开卡片、重连、流宇导航与退避恢复复核。
+  感谢 [Conastin](https://github.com/Conastin) 的协议资料、适配和验证。
+
 ### OnePlus OPO 家族
 
 - 新增 Buds 4 自动名称候选，以及 Buds / Buds Pro 数字代际的经典 OPO 家族入口，复用 OPPO
