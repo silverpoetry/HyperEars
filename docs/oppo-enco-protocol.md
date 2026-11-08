@@ -117,17 +117,22 @@ WireCodec 或 MiLink Hook 中。
 
 ```text
 StandardEarbudAdapter
-  └─ OppoEarbudAdapter (保守家族入口，等待协议证据)
-       ├─ OppoEncoAir2ProAdapter (兼容 ANC 编码)
-       ├─ OppoEncoFree4Adapter
-       ├─ OppoEncoX3Adapter
-       └─ OppoEncoAir5Adapter
+  └─ OpoProtocolAdapter (共享经典 OPO 协议)
+       ├─ OppoEarbudAdapter (OPPO/Enco 家族入口)
+       │    ├─ OppoEncoAir2ProAdapter (兼容 ANC 编码)
+       │    ├─ OppoEncoFree4Adapter
+       │    ├─ OppoEncoX3Adapter
+       │    └─ OppoEncoAir5Adapter
+       └─ OnePlusEarbudAdapter (OnePlus 家族入口)
 ```
 
 四个具体型号保留独立 ID，但名称只决定候选线配置。所有 OPPO Adapter 初始都只发布
 系统整机电量与流转能力；通知支持响应只确认协议并建立订阅，合法电量响应开放私有组件
 电量，合法 ANC 状态响应才开放降噪、关闭和通透。当前具体型号除 Air2 Pro 的编码例外外，
 均复用家族 `ProtocolSession`。
+
+OnePlus 的经典 OPO 候选在独立品牌组登记，与 OPPO 继承同一协议基类及控制 App 配置，
+不把共享 UUID 作为品牌判断。新增范围与验证边界见[OnePlus OPO 家族](oneplus-opo-protocol.md)。
 
 ## 8. MiLink 边界
 

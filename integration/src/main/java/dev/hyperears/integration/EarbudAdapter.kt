@@ -596,6 +596,7 @@ object EarbudAdapterRegistry {
 
     private val vivoGroup = GroupMetadata("vivo", "vivo / iQOO")
     private val oppoGroup = GroupMetadata("oppo", "OPPO Enco")
+    private val onePlusGroup = GroupMetadata("oneplus", "OnePlus / 一加")
     private val starRingGroup =
         GroupMetadata("starring", "StarRing / 籁特易耳")
     private val boseGroup = GroupMetadata("bose", "Bose")
@@ -611,6 +612,7 @@ object EarbudAdapterRegistry {
     private val huaweiGroup = GroupMetadata("huawei", "华为")
     private val sonyGroup = GroupMetadata("sony", "Sony")
     private val qcyGroup = GroupMetadata("qcy", "QCY")
+    private val flos2Group = GroupMetadata("flos2", "Dreame / TheAstro")
     private val technicsGroup = GroupMetadata("technics", "Technics")
     private val sennheiserGroup = GroupMetadata("sennheiser", "Sennheiser")
     private val samsungGroup = GroupMetadata("samsung", "Samsung Galaxy Buds")
@@ -627,6 +629,8 @@ object EarbudAdapterRegistry {
         add(Registration(oppoGroup, ::OppoEncoX3Adapter))
         add(Registration(oppoGroup, ::OppoEncoAir5Adapter))
         add(Registration(oppoGroup, ::OppoEarbudAdapter))
+        add(Registration(onePlusGroup, ::OnePlusBuds4Adapter))
+        add(Registration(onePlusGroup, ::OnePlusEarbudAdapter))
         add(Registration(boseGroup, ::BoseHeadphonesAdapter))
         add(Registration(boseGroup, ::BoseEarbudAdapter))
         add(Registration(edifierGroup, ::EdifierW860NBProAdapter))
@@ -658,6 +662,8 @@ object EarbudAdapterRegistry {
         add(Registration(huaweiGroup, ::HuaweiFreebudsFamilyAdapter))
         add(Registration(qcyGroup, ::QcyCrosskyC50sAdapter))
         add(Registration(qcyGroup, ::QcyStandardGattAdapter))
+        add(Registration(flos2Group, ::TheAstroOpenProS2Adapter))
+        add(Registration(flos2Group, ::FloS2SportGattAdapter))
         add(Registration(technicsGroup, ::TechnicsEarbudAdapter))
         dev.hyperears.protocol.samsung.SamsungBudsCodec.Model.entries.forEach { model ->
             add(Registration(samsungGroup) { SamsungBuds2ProAdapter(model) })

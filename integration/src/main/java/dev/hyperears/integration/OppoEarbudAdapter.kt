@@ -2,18 +2,12 @@ package dev.hyperears.integration
 
 import dev.hyperears.protocol.oppo.OppoWireCodec
 
-/**
- * Shared OPPO Enco family adapter.
- *
- * OppoPods uses the same private RFCOMM service and standard three-state ANC mapping for the
- * family, with explicitly documented model exceptions. Unknown OPPO/Enco headsets therefore use
- * this candidate configuration, but private capabilities remain closed until a valid OPPO response;
- * a concrete adapter overrides only a verified difference.
- */
-open class OppoEarbudAdapter : StandardEarbudAdapter() {
-    override val id: String = ID
-    override val displayName: String = "OPPO Enco headset"
-    override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
+/** Shared classic OPO protocol behavior. Each brand supplies its own identity and matching rule. */
+abstract class OpoProtocolAdapter : StandardEarbudAdapter() {
+    abstract override val id: String
+    abstract override val displayName: String
+    abstract override val resolution: AdapterResolution
+    abstract override fun matches(identity: EarbudIdentity): Boolean
     override val controlApps: List<ControlAppSpec> = listOf(
         ControlAppCatalog.heyMelody,
         ControlAppCatalog.oplusWirelessEarphones,
@@ -25,11 +19,25 @@ open class OppoEarbudAdapter : StandardEarbudAdapter() {
     override val supportedNoiseModes: Set<NoiseMode> = emptySet()
     override val transports: List<EarbudTransportSpec> = listOf(
         RfcommEndpointSpec.ServiceUuid(
-            uuid = OPPO_RFCOMM_UUID,
+            uuid = RFCOMM_UUID,
             id = "oppo-private-rfcomm",
         ),
     )
     open val wireConfig: OppoWireConfig = OppoWireConfig.STANDARD
+
+    override fun createProtocolSession(): ProtocolSession =
+        OppoProtocolSession(wireConfig)
+
+    companion object {
+        const val RFCOMM_UUID = "0000079a-d102-11e1-9b23-00025b00a5a5"
+    }
+}
+
+/** OPPO/Enco names select a candidate; valid protocol reports unlock private capabilities. */
+open class OppoEarbudAdapter : OpoProtocolAdapter() {
+    override val id: String = ID
+    override val displayName: String = "OPPO Enco headset"
+    override val resolution: AdapterResolution = AdapterResolution.FAMILY_MATCH
 
     override fun matches(identity: EarbudIdentity): Boolean {
         if (!identity.standardHeadset || identity.nativeSystemEarbud) return false
@@ -37,12 +45,8 @@ open class OppoEarbudAdapter : StandardEarbudAdapter() {
         return name.contains("oppo") || name.contains("enco")
     }
 
-    override fun createProtocolSession(): ProtocolSession =
-        OppoProtocolSession(wireConfig)
-
     companion object {
         const val ID = "oppo-enco-family"
-        const val OPPO_RFCOMM_UUID = "0000079a-d102-11e1-9b23-00025b00a5a5"
     }
 }
 

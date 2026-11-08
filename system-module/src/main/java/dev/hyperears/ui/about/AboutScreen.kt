@@ -117,6 +117,23 @@ internal val supportBrands = listOf(
         ),
     ),
     SupportBrand(
+        name = "OnePlus / 一加",
+        entries = listOf(
+            SupportEntry(
+                name = "OnePlus Buds 4",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
+            SupportEntry(
+                name = "Buds / Buds Pro 数字代际（经典 OPO）",
+                evidence = EvidenceLevel.FAMILY_PROBE,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
+        ),
+    ),
+    SupportBrand(
         name = "StarRing / 籁特易耳",
         entries = listOf(
             SupportEntry(
@@ -374,6 +391,23 @@ internal val supportBrands = listOf(
                 evidence = EvidenceLevel.FAMILY_PROBE,
                 battery = BatteryCapability.COMPONENT,
                 noiseControl = "降噪 / 关闭 / 通透",
+            ),
+        ),
+    ),
+    SupportBrand(
+        name = "Dreame / TheAstro",
+        entries = listOf(
+            SupportEntry(
+                name = "TheAstro OpenPro S2",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.DEVICE,
+                noiseControl = "无（音效四档）",
+            ),
+            SupportEntry(
+                name = "Dreame Flo S2",
+                evidence = EvidenceLevel.FAMILY_PROBE,
+                battery = BatteryCapability.DEVICE,
+                noiseControl = "无（音效四档）",
             ),
         ),
     ),

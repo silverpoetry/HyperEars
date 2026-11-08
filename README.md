@@ -9,7 +9,8 @@
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 HyperEars 是面向 Xiaomi HyperOS 的第三方蓝牙耳机系统集成模块。它让受支持的
-vivo / iQOO、OPPO Enco、Technics、Sennheiser、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Sony 和 Samsung 耳机
+vivo / iQOO、OPPO Enco、OnePlus、Technics、Sennheiser、Bose、Edifier、StarRing、ROSESELSA、NiceHCK、
+水月雨、荣耀、华为、QCY、Dreame / TheAstro、Sony 和 Samsung 耳机
 进入 MiLink 融合设备中心，并在不接管 Android 音频路由的前提下补充电量、降噪状态和
 设备流转所需的兼容信息。
 
@@ -19,7 +20,7 @@ vivo / iQOO、OPPO Enco、Technics、Sennheiser、Bose、Edifier、StarRing、RO
 > [!WARNING]
 > HyperEars 依赖 root、LSPosed 和 HyperOS 私有接口。安装前请确认能够恢复系统；ROM
 > 更新可能暂时破坏兼容性。本项目与 Xiaomi、vivo、iQOO、OPPO、Bose、Edifier、
-> Panasonic、Technics、Sennheiser、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Sony、Samsung 及相关品牌无关。
+> Panasonic、Technics、Sennheiser、ROSESELSA、NiceHCK、水月雨、荣耀、华为、QCY、Dreame、TheAstro、Sony、Samsung 及相关品牌无关。
 
 ## 能做什么
 
@@ -75,6 +76,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 |---|---|---|---|
 | vivo / iQOO TWS | 实机验证、公开实现、家族外推 | 私有组件电量 | 降噪、关闭、通透 |
 | OPPO Enco | 参考协议 | 私有组件电量 | 降噪、关闭、通透 |
+| OnePlus Buds / Buds Pro | Buds 4 维护版实机复核通过；其他代际家族外推 | 私有组件电量 | 降噪、关闭、通透 |
 | StarRing / 籁特易耳 | Ultra 实机验证；其他标准回退 | Ultra 私有组件电量；其他系统整机电量 | Ultra 支持降噪、关闭、通透、抗风噪 |
 | Bose | 一个型号实机验证；其余公开实现、参考协议或家族外推 | 私有整机或组件电量 | 按 BMAP 产品和控制方言开放明确的模式子集 |
 | Edifier / 漫步者 | W860NB PRO、花再 Evo Pro、FitClip Ultra、FitBuds Turbo 实机验证；其余家族外推 | 头戴整机、TWS 组件或聚合电量 | 按型号提供降噪、关闭、通透、抗风噪；FitClip Ultra 仅游戏模式，Turbo 另有游戏模式 |
@@ -84,6 +86,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 | 荣耀 | X5s Pro 实机验证；其他标准回退 | X5s Pro 协议确认后提供私有组件电量；回退设备使用系统整机电量 | X5s Pro 协议确认后支持降噪、关闭、通透 |
 | 华为 | FreeBuds 5i、FreeBuds Pro 3 实机验证；FreeBuds 4 公开实现；FreeBuds / FreeClip / FreeLace 家族探测；其余标准回退 | 合法协议响应后提供私有组件或整机电量；回退设备使用系统整机电量 | 5i、Pro 3 支持三态；Pro 3 另有型号专属档位；FreeBuds 4 支持降噪、关闭；家族候选在协议确认后支持三态，不开放档位 |
 | QCY | Crossky C50S 公开协议；同协议家族探测；其余标准回退 | 协议确认后提供私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透 |
+| Dreame / TheAstro（FloS2 运动耳机） | OpenPro S2 维护版实机复核通过；Dreame Flo S2 家族外推 | 协议确认后提供私有整机电量（10% 一档量化）；未确认时使用系统整机电量 | 无；音效切换为型号专属控制 |
 | Technics EAH-AZ TWS | AZ80 实机验证；其他型号采用公开实现，参考实现由贡献者在 AZ60、AZ80、AZ100 等型号验证 | 协议确认后提供私有组件电量 | 合法模式状态响应后支持降噪、关闭、通透；AZ80 已完成三态写入和设备回读实测 |
 | Sennheiser MOMENTUM 4 / ACCENTUM | MOMENTUM 4 实机验证；ACCENTUM 与 ACCENTUM True Wireless 参考协议，待实机验证 | 合法 GAIA 电量响应后提供私有整机电量；未确认时使用系统整机电量 | MOMENTUM 4 支持降噪、关闭、通透、抗风噪；ACCENTUM 与 ACCENTUM True Wireless 支持降噪、关闭、通透 |
 | Sony | 公开实现、家族外推、标准回退 | 按设备形态提供私有整机、私有组件或系统整机电量 | 按具体型号开放表中明确列出的模式 |
@@ -233,12 +236,14 @@ SHA-256 文件。
 - [vivo TWS Air3 Pro 协议](docs/vivo-tws-air3-pro-protocol.md)
 - [vivo/iQOO 家族画像](docs/vivo-family-support.md)
 - [OPPO Enco 协议](docs/oppo-enco-protocol.md)
+- [OnePlus OPO 家族](docs/oneplus-opo-protocol.md)
 - [Bose BMAP 协议](docs/bose-bmap-protocol.md)
 - [Sony Headphones 协议](docs/sony-headphones-protocol.md)
 - [MOONDROP Robin 协议](docs/moondrop-robin-protocol.md)
 - [MOONDROP Pudding 协议](docs/moondrop-pudding-protocol.md)
 - [MOONDROP ZZZ-ANGELS-OWS 协议](docs/moondrop-zzz-angels-protocol.md)
 - [QCY 标准 GATT 协议](docs/qcy-standard-gatt-protocol.md)
+- [Dreame / TheAstro FloS2 协议](docs/flos2-sport-protocol.md)
 - [StarRing Ultra 协议](docs/starring-ultra-protocol.md)
 - [Edifier (BES) 协议](docs/edifier-bes-protocol.md)
 - [荣耀 X5s Pro 协议](docs/honor-x5s-protocol.md)

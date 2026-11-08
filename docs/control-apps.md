@@ -20,9 +20,9 @@ Sony | Headphones Connect。
 | 耳机适配范围 | 控制 App | Android 包名 | Adapter 声明顺序 |
 |---|---|---|---:|
 | vivo / iQOO TWS | vEarphones | `com.vivo.vivotws` | 1 |
-| OPPO Enco | HeyMelody | `com.heytap.headset` | 1 |
-| OPPO Enco | Wireless Earphones | `com.oplus.melody` | 2 |
-| OPPO Enco | Wireless Earphones (ColorOS 11) | `com.coloros.oppopods` | 3 |
+| OPPO Enco / OnePlus OPO 家族 | HeyMelody | `com.heytap.headset` | 1 |
+| OPPO Enco / OnePlus OPO 家族 | Wireless Earphones | `com.oplus.melody` | 2 |
+| OPPO Enco / OnePlus OPO 家族 | Wireless Earphones (ColorOS 11) | `com.coloros.oppopods` | 3 |
 | Bose | Bose | `com.bose.bosemusic` | 1 |
 | Bose | Bose（中国版） | `com.bose.bosemusic.china` | 2 |
 | Bose | Bose Connect | `com.bose.monet` | 3 |
@@ -32,6 +32,7 @@ Sony | Headphones Connect。
 | StarRing / 籁特易耳 | LightYear | `cn.lightyeartech.android` | 1 |
 | NiceHCK / YuanDao | 原道 | `com.yuandao.nicehck` | 1 |
 | MOONDROP 家族（Pudding / MIRAGE / ZZZ-ANGELS-OWS） | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
+| TheAstro OpenPro S2 | 流宇 | `com.tytech.theastro.wear` | 1 |
 | QCY | QCY | `com.qcymall.googleearphonesetup` | 1 |
 | QCY | QCY（中国版） | `com.qcymall.earphonesetup` | 2 |
 | Sony | Sony \| Sound Connect | `com.sony.songpal.mdr` | 1 |
@@ -61,6 +62,10 @@ Sony | Headphones Connect。
 | Samsung Galaxy Buds4 / Buds4 Pro | Galaxy Buds | `com.samsung.accessory.budsunitemgr` | 2 |
 | 其余已配置的 Samsung Galaxy Buds 具体型号 | Galaxy Buds | `com.samsung.accessory.budsunitemgr` | 3 |
 | Samsung Galaxy Buds（共享服务回退） | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+
+流宇包名由 [PR #90 实机记录](https://github.com/silverpoetry/HyperEars/pull/90#issuecomment-6481315378)
+确认，版本 1.4.3（10）；当前仅为 TheAstro 具体型号登记，导航与退避待最终维护包复核。
+Dreame 变体的候选包名未获安装验证，暂不登记。
 
 三星新增控制器包名与显示名已于 2026-10-03 核对 Samsung 发布的
 [Google Play 列表](https://play.google.com/store/apps/dev?id=5200379633052405703)；
