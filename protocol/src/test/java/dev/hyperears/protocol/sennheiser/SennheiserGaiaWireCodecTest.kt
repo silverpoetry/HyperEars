@@ -219,7 +219,17 @@ class SennheiserGaiaWireCodecTest {
     fun rejectsBatteryPercentAboveOneHundred() {
         assertNull(SennheiserGaiaWireCodec.parseBatteryPercent(hex("65")))
         assertNull(SennheiserGaiaWireCodec.parseBatteryPercent(ByteArray(0)))
+        assertNull(SennheiserGaiaWireCodec.parseBatteryPercent(hex("64 32")))
         assertEquals(100, SennheiserGaiaWireCodec.parseBatteryPercent(hex("64")))
+    }
+
+    @Test
+    fun acceptsOnlyBooleanMasterSwitchPayloads() {
+        assertEquals(false, SennheiserGaiaWireCodec.parseToggle(hex("00")))
+        assertEquals(true, SennheiserGaiaWireCodec.parseToggle(hex("01")))
+        listOf("", "02", "FF", "01 00").forEach { payload ->
+            assertNull(SennheiserGaiaWireCodec.parseToggle(hex(payload)))
+        }
     }
 
     private fun assertFrame(

@@ -49,7 +49,6 @@ internal data class SennheiserAdapterConfig(
     val formFactor: HeadsetFormFactor,
     val noiseDialect: SennheiserNoiseDialect,
     val supportsAntiWind: Boolean,
-    val exactName: Boolean = false,
     val miLinkPresentationId: MiLinkCardPresentationId? = null,
     val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH,
 )
@@ -161,12 +160,7 @@ private class SennheiserModelAdapter(
 ) : SennheiserProtocolFamilyAdapter(
     configuration = configuration,
     matcher = { identity ->
-        val name = identity.normalizedSennheiserName()
-        if (configuration.exactName) {
-            name in configuration.nameMarkers
-        } else {
-            configuration.nameMarkers.any(name::contains)
-        }
+        identity.normalizedSennheiserName().removePrefix("sennheiser") in configuration.nameMarkers
     },
 )
 
@@ -176,7 +170,7 @@ object SennheiserAdapterRegistry {
         SennheiserAdapterConfig(
             id = "sennheiser-momentum-4",
             displayName = "Sennheiser MOMENTUM 4",
-            nameMarkers = setOf("momentum4"),
+            nameMarkers = setOf("momentum4", "momentum4wireless"),
             formFactor = HeadsetFormFactor.HEADPHONES,
             noiseDialect = SennheiserNoiseDialect.MOMENTUM_4,
             supportsAntiWind = true,
@@ -195,7 +189,7 @@ object SennheiserAdapterRegistry {
         SennheiserAdapterConfig(
             id = "sennheiser-accentum",
             displayName = "Sennheiser ACCENTUM",
-            nameMarkers = setOf("accentum"),
+            nameMarkers = setOf("accentum", "accentumwireless"),
             formFactor = HeadsetFormFactor.HEADPHONES,
             noiseDialect = SennheiserNoiseDialect.ACCENTUM,
             supportsAntiWind = false,
@@ -205,7 +199,7 @@ object SennheiserAdapterRegistry {
     private val modelFactories: List<() -> EarbudAdapter> =
         modelConfigs.map { config -> { SennheiserModelAdapter(config) } }
 
-    /** Exact models first, then the name-agnostic family fallback. */
+    /** Known complete model names first, then the brand-name standard fallback. */
     val factories: List<() -> EarbudAdapter> = buildList {
         addAll(modelFactories)
         add(::SennheiserEarbudAdapter)
@@ -279,14 +273,17 @@ private class SennheiserProtocolSession(
                 continue
             }
 
-            // A null result means the command is outside this dialect and proves nothing.
-            val events = when (frame.baseCommandId) {
-                COMMAND_BATTERY -> batteryEvents(frame)
-                COMMAND_COMBINED_NOISE -> combinedNoiseEvents(frame)
-                COMMAND_ANC_TOGGLE -> ancToggleEvents(frame)
-                COMMAND_TRANSPARENCY_TOGGLE -> transparencyToggleEvents(frame)
-                // Core API version and model identity prove only that GAIA answers at all.
-                COMMAND_CORE_VERSION, COMMAND_MODEL_ID -> emptyList()
+            // Qualcomm core responses and Sennheiser telemetry have separate vendor namespaces.
+            val events = when {
+                frame.vendorId == SennheiserGaiaWireCodec.VENDOR_QUALCOMM &&
+                    frame.baseCommandId == COMMAND_CORE_VERSION ->
+                    emptyList<ProtocolEvent>().takeIf {
+                        frame.payload.size == 2 && frame.payload[0] == 3.toByte()
+                    }
+
+                frame.vendorId == SennheiserGaiaWireCodec.VENDOR_SENNHEISER ->
+                    vendorEvents(frame)
+
                 else -> null
             }
             if (events == null) {
@@ -299,6 +296,18 @@ private class SennheiserProtocolSession(
         }
     }
 
+    private fun vendorEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent>? =
+        when (frame.baseCommandId) {
+            COMMAND_BATTERY -> batteryEvents(frame)
+            COMMAND_COMBINED_NOISE -> combinedNoiseEvents(frame)
+            COMMAND_ANC_TOGGLE -> ancToggleEvents(frame)
+            COMMAND_TRANSPARENCY_TOGGLE -> transparencyToggleEvents(frame)
+            COMMAND_MODEL_ID -> emptyList<ProtocolEvent>().takeIf {
+                SennheiserGaiaWireCodec.parseModelId(frame.payload) != null
+            }
+            else -> null
+        }
+
     override fun reset() {
         reader.reset()
         battery = EarbudBattery()
@@ -310,8 +319,8 @@ private class SennheiserProtocolSession(
         antiWindState = null
     }
 
-    private fun batteryEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent> {
-        val percent = SennheiserGaiaWireCodec.parseBatteryPercent(frame.payload) ?: return emptyList()
+    private fun batteryEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent>? {
+        val percent = SennheiserGaiaWireCodec.parseBatteryPercent(frame.payload) ?: return null
         battery = battery.copy(overall = BatteryReading(percent, charging = false))
         return buildList {
             if (!batteryPublished) {
@@ -322,24 +331,26 @@ private class SennheiserProtocolSession(
         }
     }
 
-    private fun combinedNoiseEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent> {
+    private fun combinedNoiseEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent>? {
+        if (!configuration.supportsAntiWind) return null
         val entries = SennheiserGaiaWireCodec.parseCombinedNoiseMode(frame.payload)
-            ?: return emptyList()
+            ?: return null
         // Only the anti-wind selector is a fact here; the mode table says nothing authoritative
         // about the master switch or transparent hearing, which have their own commands.
-        antiWindState = entries.firstOrNull { it.mode == ANTI_WIND }?.state
+        val wind = entries.singleOrNull { it.mode == ANTI_WIND }?.state
+            ?.takeIf { it in SennheiserGaiaWireCodec.STATE_OFF..SennheiserGaiaWireCodec.STATE_ANTI_WIND_AUTO }
+            ?: return null
+        antiWindState = wind
         return projectedNoiseEvents()
     }
 
-    private fun ancToggleEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent> {
-        val state = frame.payload.singleOrNull()?.toInt()?.and(0xFF) ?: return emptyList()
-        ancEnabled = state != SennheiserGaiaWireCodec.STATE_OFF
+    private fun ancToggleEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent>? {
+        ancEnabled = SennheiserGaiaWireCodec.parseToggle(frame.payload) ?: return null
         return projectedNoiseEvents()
     }
 
-    private fun transparencyToggleEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent> {
-        val state = frame.payload.singleOrNull()?.toInt()?.and(0xFF) ?: return emptyList()
-        transparencyEnabled = state != SennheiserGaiaWireCodec.STATE_OFF
+    private fun transparencyToggleEvents(frame: SennheiserGaiaFrame): List<ProtocolEvent>? {
+        transparencyEnabled = SennheiserGaiaWireCodec.parseToggle(frame.payload) ?: return null
         return projectedNoiseEvents()
     }
 
@@ -353,13 +364,21 @@ private class SennheiserProtocolSession(
     private fun projectedNoiseEvents(): List<ProtocolEvent> {
         val anc = ancEnabled ?: return emptyList()
         val transparency = transparencyEnabled ?: return emptyList()
-        val mode = when {
-            !anc -> NoiseMode.OFF
-            transparency -> NoiseMode.TRANSPARENCY
-            (antiWindState ?: SennheiserGaiaWireCodec.STATE_OFF) != SennheiserGaiaWireCodec.STATE_OFF ->
-                NoiseMode.WIND
-
-            else -> NoiseMode.ANC
+        val mode = when (configuration.noiseDialect) {
+            SennheiserNoiseDialect.MOMENTUM_4 -> {
+                val wind = antiWindState ?: return emptyList()
+                when {
+                    !anc -> NoiseMode.OFF
+                    transparency -> NoiseMode.TRANSPARENCY
+                    wind != SennheiserGaiaWireCodec.STATE_OFF -> NoiseMode.WIND
+                    else -> NoiseMode.ANC
+                }
+            }
+            SennheiserNoiseDialect.ACCENTUM -> when {
+                transparency -> NoiseMode.TRANSPARENCY
+                anc -> NoiseMode.ANC
+                else -> NoiseMode.OFF
+            }
         }
         return noiseEvents(mode)
     }
@@ -421,7 +440,8 @@ private class SennheiserProtocolSession(
 
         NoiseMode.TRANSPARENCY -> buildList {
             if (ancEnabled != true) add(SennheiserGaiaWireCodec.setAncToggle(true))
-            if (transparencyEnabled != true) {
+            // Enabling ANC clears transparency even when its previous report was still true.
+            if (ancEnabled != true || transparencyEnabled != true) {
                 add(SennheiserGaiaWireCodec.setTransparencyToggle(true))
             }
         }.ifEmpty { listOf(SennheiserGaiaWireCodec.setTransparencyToggle(true)) }
@@ -546,13 +566,5 @@ private fun EarbudIdentity.hasSennheiserName(): Boolean =
     normalizedSennheiserName().let { name ->
         name.startsWith("sennheiser") || SENNHEISER_NAME_MARKERS.any(name::contains)
     }
-
-/**
- * SDP caches that advertise the GAIA endpoint are strong positive evidence, but no ROM is required
- * to publish it, so it may only ever widen an already eligible headset.
- */
-private fun EarbudIdentity.hasSennheiserPrivateService(): Boolean = serviceUuids.any { uuid ->
-    uuid.equals(SennheiserGaiaWireCodec.GAIA_SERVICE_UUID, ignoreCase = true)
-}
 
 private val SENNHEISER_NAME_MARKERS = setOf("momentum", "accentum", "sennheiser")

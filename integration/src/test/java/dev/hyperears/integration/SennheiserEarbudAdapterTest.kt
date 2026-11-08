@@ -71,7 +71,7 @@ class SennheiserEarbudAdapterTest {
     }
 
     @Test
-    fun gaiaServiceUuidWidensAnAlreadyEligibleSennheiserHeadset() {
+    fun gaiaServiceUuidDoesNotAddPrivateCapabilitiesToUnknownSennheiserModels() {
         val adapter = requireNotNull(
             EarbudAdapterRegistry.resolve(
                 identity(
@@ -83,6 +83,7 @@ class SennheiserEarbudAdapterTest {
 
         assertTrue(adapter is SennheiserEarbudAdapter)
         assertEquals("sennheiser-family", adapter.id)
+        assertTrue(adapter.transports.isEmpty())
     }
 
     @Test
@@ -276,6 +277,7 @@ class SennheiserEarbudAdapterTest {
         val adapter = resolve("MOMENTUM 4")
         adapter.receive(gaiaResponse(0x1B05, 1))
         adapter.receive(gaiaResponse(0x1905, 1))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
 
         val off = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.OFF))
 
@@ -460,12 +462,14 @@ class SennheiserEarbudAdapterTest {
         val adapter = resolve("MOMENTUM 4")
         adapter.receive(gaiaResponse(0x1B05, 1))
         adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
 
         adapter.controlWritten(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY))
         adapter.resetProtocolSession()
 
         adapter.receive(gaiaResponse(0x1B05, 1))
-        val result = adapter.receive(gaiaResponse(0x1905, 0))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        val result = adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
 
         assertTrue(result.stateChanged)
         assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
@@ -485,7 +489,79 @@ class SennheiserEarbudAdapterTest {
         adapter.receive(gaiaResponse(0x1B05, 1))
         adapter.receive(gaiaResponse(0x1905, 0))
 
+        assertNull(adapter.runtimeState().noiseMode)
+        assertFalse(adapter.snapshot().capabilities.windNoiseControl)
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
         assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
+    }
+
+    @Test
+    fun independentAccentumTransparencyIsNotProjectedAsOff() {
+        listOf("ACCENTUM Wireless", "ACCENTUM True Wireless").forEach { name ->
+            val adapter = resolve(name)
+            adapter.receive(gaiaResponse(0x1B05, 0))
+            adapter.receive(gaiaResponse(0x1905, 1))
+            assertEquals(name, NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
+        }
+    }
+
+    @Test
+    fun momentumOffToTransparencyReenablesTheSwitchClearedByAnc() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 0))
+        adapter.receive(gaiaResponse(0x1905, 1))
+        adapter.receive(combinedNoiseResponse(1, 0, 2, 0, 3, 1))
+        val control = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.TRANSPARENCY))
+        assertTrue(control.accepted)
+        assertEquals(
+            listOf(
+                SennheiserGaiaWireCodec.setAncToggle(true),
+                SennheiserGaiaWireCodec.setTransparencyToggle(true),
+            ).map(ByteArray::toList),
+            control.commands.map(ByteArray::toList),
+        )
+    }
+
+    @Test
+    fun momentumNeedsValidSelectorEvidenceBeforeOfferingFourModes() {
+        val adapter = resolve("MOMENTUM 4")
+        adapter.receive(gaiaResponse(0x1B05, 1))
+        adapter.receive(gaiaResponse(0x1905, 0))
+        listOf(
+            combinedNoiseResponse(2, 0, 3, 1, 4, 0),
+            combinedNoiseResponse(1, 9, 2, 0, 3, 1),
+            combinedNoiseResponse(1, 0, 1, 2, 3, 1),
+        ).forEach { adapter.receive(it) }
+        assertFalse(adapter.snapshot().capabilities.noiseControl)
+        assertNull(adapter.runtimeState().noiseMode)
+        adapter.receive(combinedNoiseResponse(1, 2, 2, 0, 3, 1))
+        assertEquals(NoiseMode.WIND, adapter.runtimeState().noiseMode)
+    }
+
+    @Test
+    fun unknownVariantsKeepTheStandardFamilyFallback() {
+        listOf("MOMENTUM 40", "ACCENTUM Plus", "ACCENTUM Open").forEach { name ->
+            val adapter = resolve(name)
+            assertEquals(name, "sennheiser-family", adapter.id)
+            assertTrue(adapter.transports.isEmpty())
+        }
+        assertEquals("sennheiser-momentum-4", resolve("Sennheiser MOMENTUM 4 Wireless").id)
+    }
+
+    @Test
+    fun invalidPayloadsAndOtherVendorsNeverConfirmTheProtocol() {
+        listOf(
+            gaiaResponse(0x0703, 42, 43),
+            gaiaResponse(0x1B05, 2),
+            gaiaResponse(0x1905, 255),
+            gaiaResponse(0x0100),
+            SennheiserGaiaWireCodec.encode(0x1234, 0x0703, byteArrayOf(42)),
+        ).forEach { bytes ->
+            val adapter = resolve("MOMENTUM 4")
+            assertNull(adapter.receive(bytes).handshake)
+            assertFalse(adapter.snapshot().capabilities.noiseControl)
+            assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.snapshot().batterySource)
+        }
     }
 
     @Test
@@ -615,7 +691,8 @@ class SennheiserEarbudAdapterTest {
 
     private fun gaiaResponse(commandId: Int, vararg payload: Int): ByteArray =
         SennheiserGaiaWireCodec.encode(
-            SennheiserGaiaWireCodec.VENDOR_SENNHEISER,
+            if (commandId == 0x0100) SennheiserGaiaWireCodec.VENDOR_QUALCOMM
+            else SennheiserGaiaWireCodec.VENDOR_SENNHEISER,
             responseId(commandId),
             payload.map(Int::toByte).toByteArray(),
         )

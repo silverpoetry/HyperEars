@@ -162,8 +162,15 @@ object SennheiserGaiaWireCodec {
 
     /** Battery percentage carried by a `0x0603` response, or null when out of range. */
     fun parseBatteryPercent(payload: ByteArray): Int? {
-        val raw = payload.firstOrNull()?.toInt()?.and(BYTE_MASK) ?: return null
+        val raw = payload.singleOrNull()?.toInt()?.and(BYTE_MASK) ?: return null
         return raw.takeIf { it in 0..100 }
+    }
+
+    /** Master switches report one byte: 0 off, 1 on. Other values carry no confirmed state. */
+    fun parseToggle(payload: ByteArray): Boolean? = when (payload.singleOrNull()?.toInt()) {
+        STATE_OFF -> false
+        STATE_ON -> true
+        else -> null
     }
 
     /** Model string carried by a `0x1206` response, trimmed of its NUL terminator. */
