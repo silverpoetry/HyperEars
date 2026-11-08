@@ -151,6 +151,29 @@ internal val supportBrands = listOf(
         ),
     ),
     SupportBrand(
+        name = "Sennheiser / 森海塞尔",
+        entries = listOf(
+            SupportEntry(
+                name = "MOMENTUM 4（维护版待复核）",
+                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                battery = BatteryCapability.DEVICE,
+                noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
+            ),
+            SupportEntry(
+                name = "ACCENTUM / ACCENTUM True Wireless",
+                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                battery = BatteryCapability.DEVICE,
+                noiseControl = "降噪 / 关闭 / 通透",
+            ),
+            SupportEntry(
+                name = "其他 Sennheiser 耳机",
+                evidence = EvidenceLevel.STANDARD_FALLBACK,
+                battery = BatteryCapability.SYSTEM,
+                noiseControl = "无",
+            ),
+        ),
+    ),
+    SupportBrand(
         name = "Bose",
         entries = listOf(
             SupportEntry(

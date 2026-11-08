@@ -10,7 +10,7 @@
 
 HyperEars integrates selected third-party Bluetooth headsets with Xiaomi HyperOS and the MiLink
 device center. It complements Android's existing audio stack with device identity, battery,
-noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, OnePlus, Technics, Bose, Edifier,
+noise-control state and handoff metadata for supported vivo/iQOO, OPPO Enco, OnePlus, Technics, Sennheiser, Bose, Edifier,
 StarRing, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Dreame/TheAstro, Sony and Samsung devices.
 
 The project focuses on core system integration. Detailed EQ, gesture assignments and firmware
@@ -20,7 +20,7 @@ yielding. New integrations follow the [project scope and contribution boundaries
 > [!WARNING]
 > HyperEars requires root, LSPosed and private HyperOS APIs. Be prepared to recover your system
 > before installing it. ROM updates may temporarily break compatibility. This project is not
-> affiliated with Xiaomi, vivo, iQOO, OPPO, Panasonic, Technics, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Dreame, TheAstro, Sony, Samsung or any
+> affiliated with Xiaomi, vivo, iQOO, OPPO, Panasonic, Technics, Sennheiser, Bose, Edifier, ROSESELSA, NiceHCK, MOONDROP, Honor, Huawei, QCY, Dreame, TheAstro, Sony, Samsung or any
 > other device vendor.
 
 ## Scope
@@ -103,6 +103,7 @@ ROMs and Android releases below 15 remain outside the supported scope.
 | QCY | Crossky C50S public protocol; same-protocol family probe; others standard fallback | private components after protocol confirmation; Android aggregate on fallback | noise cancellation, off and transparency after protocol confirmation |
 | Dreame / TheAstro (FloS2) | OpenPro S2 maintenance hardware-verified; Dreame Flo S2 family extrapolation | private whole-device battery after protocol confirmation (10% steps); Android aggregate before confirmation | none; sound-effect switching as a model-specific control |
 | Technics EAH-AZ TWS | AZ80 hardware-verified; public implementation for other models, with the reference implementation contributor-verified on AZ60, AZ80, AZ100 and others | private components after protocol confirmation | noise cancellation, off and transparency after a valid mode report; all three writes and device readback verified on AZ80 |
+| Sennheiser MOMENTUM 4 / ACCENTUM | MOMENTUM 4 hardware-verified; ACCENTUM and ACCENTUM True Wireless use the reference protocol pending validation | private aggregate after a valid GAIA battery report; Android aggregate before confirmation | MOMENTUM 4 offers cancellation, off, transparency and anti-wind; ACCENTUM and ACCENTUM True Wireless offer cancellation, off and transparency |
 | Sony | public implementation, family extrapolation and standard fallback | private aggregate, private components or Android aggregate by form factor | explicit model-specific modes listed in the detailed matrix |
 | Samsung Galaxy Buds | Buds2 Pro original device-verified, maintenance revalidation pending; other models use reference implementations or family extrapolation | private components after valid reports; Android aggregate before confirmation | model-specific cancellation, off and ambient; Live, Buds3 and Buds4 offer cancellation and off |
 | other standard A2DP/HFP headsets | standard fallback | Android aggregate | none |
@@ -208,6 +209,7 @@ Android Lint and the Release build.
 - [Dreame / TheAstro FloS2 protocol](docs/flos2-sport-protocol.md)
 - [Huawei FreeBuds protocol record, including FreeBuds 5i capture evidence](docs/huawei-freebuds-protocol.md)
 - [Technics EAH-AZ / Airoha RACE protocol](docs/technics-race-protocol.md)
+- [Sennheiser MOMENTUM 4 / ACCENTUM GAIA protocol](docs/sennheiser-gaia-protocol.md)
 - [Release signing and artifact verification](docs/release-signing.md)
 
 ## Contributing and licensing

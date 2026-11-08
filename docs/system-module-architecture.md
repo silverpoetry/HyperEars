@@ -83,6 +83,7 @@ EarbudAdapter
        ├─ ROSESELSA
        ├─ NiceHCK
        ├─ MOONDROP
+       ├─ Sennheiser
        └─ Sony
 ```
 

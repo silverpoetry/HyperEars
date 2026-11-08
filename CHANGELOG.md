@@ -33,6 +33,21 @@
 - 补录 MIRAGE（初音未来）的应用内支持条目，同步维护版协议复核记录。
   感谢 [Te-River](https://github.com/Te-River) 补充资料和验证。
 
+### Sennheiser MOMENTUM 4 / ACCENTUM
+
+- 新增 Qualcomm GAIA V3 适配：MOMENTUM 4 支持降噪、关闭、通透、抗风噪四态，
+  ACCENTUM 与 ACCENTUM True Wireless 支持降噪、关闭、通透三态。
+- 噪声控制改用 GAIA 的两个主开关（`0x1A04` ANC、`0x1804` 通透）。`0x1A00` 只是叠加在主开关
+  之上的子模式表，单写它无法离开直通态；MOMENTUM 4 的「关闭」因此是单独关 ANC 主开关。
+- 噪声写入按已观测状态做差异计算，只发真正会改变设备的命令，避免每次切换都重发相同值而多响
+  提示音；写入后乐观发布请求模式，并对过渡期报告启用有界延迟抑制，避免界面闪出中间态。
+- 私有整机电量与噪声控制均在合法 GAIA 响应确认后开放；未确认时保持系统整机电量。
+- MOMENTUM 4 增加 MiLink 抗风噪卡片开关；两主开关及抗风噪选择器确认后才开放四态。
+- 维护版修正关闭后切通透的写入顺序、ACCENTUM 通透回读及非法帧确认，完整名称匹配防止误用其他型号方言。
+- 协议细节见 [docs/sennheiser-gaia-protocol.md](docs/sennheiser-gaia-protocol.md)。
+  MOMENTUM 4 原 PR 已有实机验证，最终维护版待复核；
+  ACCENTUM 与 ACCENTUM True Wireless 仍为参考协议，待对应设备复核。
+
 ## [3.2.1] - 2026-10-31
 
 本版修复部分 HyperOS 3 设备的弹窗、超级岛兼容问题，以及电量更新时弹窗重复出现、通知

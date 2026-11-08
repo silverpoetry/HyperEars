@@ -196,6 +196,20 @@ Gadgetbridge 的 AGPL 程序代码，也不分发 SonyHeadphonesClient、厂商�
 MiLink 所需子集，不分发 TechincsPods 的应用、界面、图片、APK、抓包或厂商品牌资源。
 上游许可证状态按固定提交如实记录，具体条款以其仓库声明为准。
 
+## Sennheiser GAIA protocol research
+
+- Oein/sennheiser-desktop-client (`PROTOCOL.md`):
+  <https://github.com/Oein/sennheiser-desktop-client>
+- HellzYeahh/earshot: <https://github.com/HellzYeahh/earshot> (MIT)
+- Picazsoo/android-momentum-4-widget: <https://github.com/Picazsoo/android-momentum-4-widget> (MIT)
+
+用于核对 Sennheiser MOMENTUM 4 与 ACCENTUM 的 Qualcomm GAIA V3 帧结构、RFCOMM 服务 UUID、
+电量查询、组合模式与双开关方言的噪声写入序列。协议事实以实机抓包向量为准，已固化为
+`protocol/src/test` 下的单元测试。HyperEars 只在自身 WireCodec、ProtocolSession 与 Adapter
+边界内重新实现 MiLink 所需子集，不复制上述项目的程序代码、界面、图片或品牌资源；MIT 项目的
+署名义务以各自仓库的许可证原文为准。无许可证项目（Young-Lord/momentum4-control-android）
+只用于理解重同步与通道探测思路，未复制任何代码。
+
 ## OpenFreebuds (Huawei protocol research)
 
 - melianmiko/OpenFreebuds: <https://github.com/melianmiko/OpenFreebuds>

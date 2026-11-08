@@ -87,6 +87,11 @@ object ControlAppCatalog {
         displayName = "Technics Audio Connect",
     )
 
+    val sennheiserSmartControl = ControlAppSpec(
+        packageName = "com.sonova.chb.control",
+        displayName = "Sennheiser Smart Control",
+    )
+
     val huaweiSmartAudio = ControlAppSpec(
         packageName = "com.huawei.smartaudio",
         displayName = "智慧音频",
@@ -173,6 +178,7 @@ object ControlAppCatalog {
         qcy,
         qcyChina,
         technicsAudioConnect,
+        sennheiserSmartControl,
         huaweiSmartAudio,
         huaweiAiLife,
         moondrop,

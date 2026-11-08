@@ -84,6 +84,7 @@ internal object MiLinkCardAdapterRegistry {
         FloS2SoundEffectMiLinkCardAdapter,
         SonyAmbientOnlyMiLinkCardAdapter,
         SamsungBuds2ProMiLinkCardAdapter,
+        SennheiserMomentum4MiLinkCardAdapter,
     )
     private val byId = adapters.associateBy(MiLinkCardAdapter::presentationId)
 
