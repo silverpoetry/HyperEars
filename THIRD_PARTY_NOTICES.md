@@ -304,3 +304,17 @@ Adapter、ProtocolSession 与 WireCodec 边界内合并和维护该贡献；不�
 [原生展示设计](docs/native-headset-integration-design.md#25-hyperos-3-静态兼容核对)。
 HyperEars 独立实现解析与接入代码，不分发厂商 APK、反编译代码、图片或其他资源；
 系统组件及相关商标的权利归其各自权利人所有。
+
+## OnePlus OPO compatibility research
+
+OnePlus 的核心三态与经典 RFCOMM 端点依据 #94 用户 zyanvan 的复核日志，以及以下公开实现
+交叉核对。HyperEars 继承原有 OPPO ProtocolSession/WireCodec，不复制这些工程的控制软件、
+认证逻辑或厂商资源；新增名称匹配、注册与测试独立实现。
+
+- `Megalodon-sharky/OP-Buds-4-PC-Controls`，提交 `de25f9eda94da80234c9f8dfb1112fd2fd8c1d25`，MIT。
+- `nic0manz/oneplus_buds3_pro_python`，提交 `faec7e5fe66acba7b89a907610ba1d0c86bdbba9`，
+  未发现明确许可证，仅作协议事实参考，不复制源码。
+- `Sarfraz-droid/OnePlusBudsManager`，提交 `de6625c1102369e30cdf883b56777cd44d0fdde9`，
+  未发现明确许可证，仅核对另一路 BLE/型号方言边界，不引入源码。
+
+固定来源链接、适用范围及测试状态见[OnePlus OPO 协议说明](docs/oneplus-opo-protocol.md)。

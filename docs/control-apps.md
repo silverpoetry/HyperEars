@@ -20,9 +20,9 @@ Sony | Headphones Connect。
 | 耳机适配范围 | 控制 App | Android 包名 | Adapter 声明顺序 |
 |---|---|---|---:|
 | vivo / iQOO TWS | vEarphones | `com.vivo.vivotws` | 1 |
-| OPPO Enco | HeyMelody | `com.heytap.headset` | 1 |
-| OPPO Enco | Wireless Earphones | `com.oplus.melody` | 2 |
-| OPPO Enco | Wireless Earphones (ColorOS 11) | `com.coloros.oppopods` | 3 |
+| OPPO Enco / OnePlus OPO 家族 | HeyMelody | `com.heytap.headset` | 1 |
+| OPPO Enco / OnePlus OPO 家族 | Wireless Earphones | `com.oplus.melody` | 2 |
+| OPPO Enco / OnePlus OPO 家族 | Wireless Earphones (ColorOS 11) | `com.coloros.oppopods` | 3 |
 | Bose | Bose | `com.bose.bosemusic` | 1 |
 | Bose | Bose（中国版） | `com.bose.bosemusic.china` | 2 |
 | Bose | Bose Connect | `com.bose.monet` | 3 |
