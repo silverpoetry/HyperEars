@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 构建与依赖
+
+- 独立验证并更新 Gradle 9.8.2、Android Gradle Plugin 9.5.0、Kotlin 2.4.21、
+  Kotlin serialization 1.12.0、AndroidX Core 1.19.1 与 setup-java 6.1.0。
+- 核对 Gradle Wrapper 官方校验值并固定发行包 SHA-256；同步验证 Windows 启动脚本与请求/状态序列化。
+
 ### Dreame / TheAstro（FloS2 运动耳机）
 
 - 新增 OpenPro S2 具体型号与 Dreame Flo S2 家族候选，确认协议后提供整机电量、充电位及
