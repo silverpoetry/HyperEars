@@ -65,14 +65,14 @@ internal object NativeHostResolver {
                 usingEqStrings("BluetoothHeadsetService", "isMiTWS: deviceId = ",
                     "DeviceIdCached", "HEADSET_DEVICE_ID_INFO", "saved")
             }
-        }.single()
+        }.singleNativeContract("Xiaomi registration reader")
         dex.findMethod {
             matcher {
                 returnType = "boolean"
                 paramTypes("java.lang.String", "android.content.Context")
                 usingEqStrings("OfflineFindProvider", "isAirPods: model = ", "AirpodsModel", "-type")
             }
-        }.single()
+        }.singleNativeContract("Apple registration reader")
     }
 
     private fun airPodsState(dex: DexKitBridge, loader: ClassLoader): Method = dex.findMethod {
@@ -81,7 +81,7 @@ internal object NativeHostResolver {
             paramTypes("java.lang.String", "android.content.Context")
             usingEqStrings("OfflineFindProvider", "getAirPodsState: state = ", "AirpodsModel", "-state", "\\|")
         }
-    }.single().reflected(loader).also { require(Modifier.isStatic(it.modifiers)) }
+    }.singleNativeContract("AirPods state reader").reflected(loader).also { require(Modifier.isStatic(it.modifiers)) }
 
     private fun stableOwnership(context: Context, onChanged: (String?) -> Unit): NativeOwnershipStore {
         val binder = Class.forName("$HEADSET_SERVICE\$HeadsetBinder", false, context.classLoader)
@@ -101,7 +101,7 @@ internal object NativeHostResolver {
                 returnType = "void"
                 paramCount = 2
             }
-        }.single()
+        }.singleNativeContract("circulation record boundary")
         require(insertion.paramTypeNames.first() == BluetoothDevice::class.java.name)
         val recordType = insertion.paramTypeNames[1]
         val handler = dex.findMethod {
@@ -112,12 +112,12 @@ internal object NativeHostResolver {
                 usingEqStrings("MiuiBluetoothNotification", "addConnectManager : connectManager is exist.",
                     "com.xiaomi.bluetooth.headset.autoswitch.connect")
             }
-        }.single()
+        }.singleNativeContract("circulation message handler")
         // In the verified handler this is the only zero-argument int read from the exact record
         // type accepted by addConnectManagerList: requestFlag. connectCount is only written here.
         val requestFlag = handler.invokes.filter {
             it.declaredClassName == recordType && it.paramCount == 0 && it.returnTypeName == "int"
-        }.distinctBy(MethodData::descriptor).single().reflected(loader)
+        }.distinctBy(MethodData::descriptor).singleNativeContract("circulation request flag").reflected(loader)
         require(!Modifier.isStatic(requestFlag.modifiers))
         return NativePresentationFlow(loader, requestFlag)
     }

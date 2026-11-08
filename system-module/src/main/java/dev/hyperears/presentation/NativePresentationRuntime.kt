@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -49,6 +50,7 @@ internal class NativePresentationRuntime(
     private val gate = ConnectionPresentationGate()
     private val gateDecisions = mutableMapOf<String, Pair<String, String>>()
     private var ownershipStore: NativeOwnershipStore? = null
+    private val hostAvailability = NativeHostAvailability()
     private val ownershipReadings = NativeAdmissionCache()
     private var flow: NativePresentationFlow? = null
     private var producer: IBinder? = null
@@ -105,6 +107,7 @@ internal class NativePresentationRuntime(
         ModuleSettingsRuntime.observe { updated -> handler.post {
             val old = settings
             settings = updated
+            if (!uiProcess && updated.diagnosticLogging && !old.diagnosticLogging) reportHostAvailability("logging-enabled")
             if (old != updated) {
                 ModuleLog.debug(TAG) {
                     "settings applied mode=${updated.headsetConnectionPresentation} " +
@@ -126,29 +129,53 @@ internal class NativePresentationRuntime(
     private fun prepareHost() {
         val executor = Executors.newSingleThreadExecutor { Thread(it, "HyperEars-native-host") }
         executor.execute {
+            val environment = runCatching(::hostEnvironment)
+                .getOrElse { "host environment unavailable: ${it.javaClass.simpleName}" }
             val result = runCatching { NativeHostResolver.resolve(context) { key ->
                 handler.post { nativeOwnershipChanged(key) }
             } }
             handler.post {
                 result.onSuccess { symbols ->
                     symbols.ownership.onSuccess { ownershipStore = it }
-                        .onFailure { ModuleLog.warn(TAG, "native ownership contract unavailable", it) }
                     symbols.flow.onSuccess { flow = it }
-                        .onFailure { ModuleLog.warn(TAG, "native circulation contract unavailable", it) }
-                    symbols.airPodsState.onSuccess { getter ->
-                        runCatching { NativeConnectionHint(getter).also {
+                    val hintResult = symbols.airPodsState.mapCatching { getter ->
+                        NativeConnectionHint(getter).also {
                             configure(it, context.classLoader); it.install()
-                        } }.onSuccess { hint = it }
-                            .onFailure { ModuleLog.warn(TAG, "connection hint hook unavailable", it) }
-                    }.onFailure { ModuleLog.warn(TAG, "connection hint contract unavailable", it) }
+                        }.also { hint = it }
+                    }
+                    hostAvailability.complete(environment, linkedMapOf(
+                        "ownership" to symbols.ownership.map { Unit },
+                        "circulation" to symbols.flow.map { Unit },
+                        "connection-hint" to hintResult.map { Unit },
+                    ))
+                    reportHostAvailability("initialization")
                     ownershipReadings.clear()
                     ModuleLog.debug(TAG) {
                         "host ready ownership=${ownershipStore != null} flow=${flow != null} hint=${hint != null}"
                     }
                     records.values.toList().forEach { render(it, allowTransient = true) }
-                }.onFailure { ModuleLog.warn(TAG, "native host resolution failed", it) }
+                }.onFailure { error ->
+                    hostAvailability.complete(environment, mapOf("host-resolution" to Result.failure(error)))
+                    reportHostAvailability("initialization")
+                }
             }
             executor.shutdown()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun hostEnvironment(): String {
+        val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }
+            .getOrNull()?.let { "${it.versionName}/${it.longVersionCode}" } ?: "unavailable"
+        val unlocked = runCatching { context.getSystemService(UserManager::class.java).isUserUnlocked }.getOrNull()
+        return "package=${context.packageName} version=$version sdk=${Build.VERSION.SDK_INT} " +
+            "unlockedAtInitialization=$unlocked deviceProtected=${context.isDeviceProtectedStorage} " +
+            "startedAt=${SystemClock.elapsedRealtime()} build=${Build.FINGERPRINT} apk=${context.applicationInfo.sourceDir}"
+    }
+
+    private fun reportHostAvailability(reason: String) {
+        hostAvailability.report(ModuleSettingsRuntime.current.diagnosticLogging, reason) { message, error ->
+            if (error == null) ModuleLog.debug(TAG, message) else ModuleLog.warn(TAG, message, error)
         }
     }
 
@@ -385,6 +412,8 @@ internal class NativePresentationRuntime(
             NativePresentationResult.FAILED
         }
         ModuleLog.debug(TAG, "preview kind=${NativePresentationContract.kind(intent)} result=$result")
+        if (result == NativePresentationResult.OWNERSHIP_UNAVAILABLE ||
+            result == NativePresentationResult.HOST_UNAVAILABLE) reportHostAvailability("preview-$result")
         NativePresentationContract.previewId(intent)?.let { id ->
             BroadcastIdentity.send(context, NativePresentationContract.previewResult(id, result))
         }
