@@ -102,6 +102,11 @@ object ControlAppCatalog {
         displayName = "MOONDROP",
     )
 
+    val dailing = ControlAppSpec(
+        packageName = "com.dailing.audio",
+        displayName = "戴灵耳机",
+    )
+
     val theAstro = ControlAppSpec(
         packageName = "com.tytech.theastro.wear",
         displayName = "流宇",
@@ -176,6 +181,7 @@ object ControlAppCatalog {
         huaweiSmartAudio,
         huaweiAiLife,
         moondrop,
+        dailing,
         theAstro,
         galaxyWearable,
         galaxyBuds2ProManager,
