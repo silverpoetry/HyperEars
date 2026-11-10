@@ -34,6 +34,7 @@ internal object EarbudSessionService {
 
     fun onCreate(context: Context?) {
         if (context == null || runtime != null) return
+        ModelDepthPreferences.bind(context.applicationContext ?: context)
         synchronized(lock) {
             if (runtime != null) return
             runtime = Runtime(context.applicationContext ?: context)

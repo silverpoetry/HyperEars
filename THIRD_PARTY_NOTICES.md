@@ -12,6 +12,18 @@ HyperEars 的原创代码整体按 GNU GPL-3.0-only 发布。以下项目为协�
 README 声明 GPL-3.0。HyperEars 不随 APK 分发该项目的代码、应用或资源；本项目许可证
 及其与外部资料的关系以各自仓库中的许可证原文为准。
 
+## JieLi RCSP authentication SDK
+
+- Jieli-Tech/WeChat-Mini-Program-OTA:
+  <https://github.com/Jieli-Tech/WeChat-Mini-Program-OTA>
+- File referenced: `jl_auth_2.0.0.js`
+- Upstream license: Apache License 2.0
+
+`JlAuthCrypto` 中的设备认证算法（`btcon`）、默认 link key 与查找表移植自该 SDK，用于在
+杰理 RCSP 命令前完成设备认证。移植结果以 SDK 自带向量逐字节校验（见
+`JlAuthCryptoTest`）；HyperEars 不随 APK 分发该 SDK 的文件、示例或品牌资源，仅在协议层
+保留必要的算法常量与实现，许可证原文以该仓库为准。
+
 ## HyperRose / ROSESELSA protocol profiles
 
 - DOHEX/HyperRose: <https://github.com/DOHEX/HyperRose>
