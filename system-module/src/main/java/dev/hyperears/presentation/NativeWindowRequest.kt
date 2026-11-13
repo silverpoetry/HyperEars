@@ -18,6 +18,7 @@ internal data class NativeWindowRequest(
     val session: String,
     val metadata: NativePresentationMetadata,
     val producer: IBinder,
+    val kind: NativeWindowKind = NativeWindowKind.AIRPODS,
 ) {
     fun forBinding(
         latest: NativeWindowRequest?,
@@ -29,7 +30,7 @@ internal data class NativeWindowRequest(
             return null
         }
         if (latest == null) return this
-        if (latest.producer != producer || latest.state.address != state.address) return null
+        if (latest.producer != producer || latest.state.address != state.address || latest.kind != kind) return null
         // Native ownership is sticky for this physical connection, including an older snapshot.
         if (latest.metadata.connection == metadata.connection &&
             latest.metadata.admission == NativeAdmission.SYSTEM) return null
@@ -55,27 +56,12 @@ internal data class NativeWindowRequest(
         return if (state.revision > this.state.revision) copy(state = state, metadata = metadata) else this
     }
 
-    fun stateArray(): Array<String> {
-        val p = requireNotNull(NativeHeadsetProjection.from(state))
-        return arrayOf(
-            p.left.percent?.toString() ?: "-",
-            p.right.percent?.toString() ?: "-",
-            p.chargingCase.percent?.toString() ?: "-",
-            "false",
-            "false",
-            p.left.charging.toString(),
-            p.right.charging.toString(),
-            p.chargingCase.charging.toString(),
-            p.address,
-            "2",
-            p.name,
-        )
-    }
-
     companion object {
         const val ACTIVITY = "com.android.bluetooth.ble.app.fastconnect.MiuiFastConnectActivity"
         private const val PAYLOAD = "dev.hyperears.native_snapshot"
         private const val DEADLINE = "dev.hyperears.native_deadline"
+        private const val ADDRESS = "dev.hyperears.native_address"
+        private const val KIND = "dev.hyperears.native_window_kind"
 
         fun launch(context: Context, request: NativeWindowRequest, device: android.bluetooth.BluetoothDevice) {
             val projection = requireNotNull(NativeHeadsetProjection.from(request.state))
@@ -89,10 +75,17 @@ internal data class NativeWindowRequest(
                 .putExtra(NativePresentationContract.EXTRA_WINDOW, request.id)
                 .putExtra(PAYLOAD, payload)
                 .putExtra(DEADLINE, SystemClock.elapsedRealtime() + 5_000)
+                .putExtra(ADDRESS, projection.address)
+                .putExtra(KIND, request.kind.name)
                 .putExtra("android.bluetooth.device.extra.DEVICE", device)
                 .putExtra("headset_addresses", projection.address)
                 .putExtra("device_name_over_write", projection.name)
                 .putExtra("headset_extra_data", intArrayOf(0, 0, 0, 16, 0, if (projection.singleBattery) 3 else 0))
+            if (request.kind == NativeWindowKind.LEGACY_XIAOMI) {
+                intent.putExtra("headset_addresses", arrayOf(projection.address, "", projection.name))
+                // No real advertisement or Xiaomi product identity is supplied to this renderer.
+                intent.putExtra("headset_extra_data", intArrayOf(0, 0, 0, 0, 0, 0))
+            }
             context.startActivity(intent, ActivityOptions.makeBasic().setShareIdentityEnabled(true).toBundle())
         }
 
@@ -109,9 +102,11 @@ internal data class NativeWindowRequest(
             val session = with(ModuleContract) { payload.readSessionToken() } ?: return null
             val metadata = NativePresentationContract.metadata(payload) ?: return null
             val producer = NativePresentationContract.producer(payload)?.takeIf { it.isBinderAlive } ?: return null
+            val kind = intent.getStringExtra(KIND)?.let { value -> NativeWindowKind.entries.find { it.name == value } }
+                ?: if (!intent.hasExtra(KIND)) NativeWindowKind.AIRPODS else return null
             if (!state.sessionActive || metadata.admission != NativeAdmission.HYPEREARS ||
-                state.address != intent.getStringExtra("headset_addresses")) return null
-            return NativeWindowRequest(id, state, session, metadata, producer)
+                state.address != (intent.getStringExtra(ADDRESS) ?: intent.getStringExtra("headset_addresses"))) return null
+            return NativeWindowRequest(id, state, session, metadata, producer, kind)
         }
     }
 }

@@ -42,9 +42,7 @@ internal class NativeDetailNotification(
         hookBefore(methods.notificationType) {
             current.get()?.projection?.takeIf { it.singleBattery }?.let { result = "singlebatteryheadset" }
         }
-        val notify = NotificationManager::class.java.getMethod("notify", String::class.java,
-            Int::class.javaPrimitiveType, Notification::class.java)
-        module.hook(notify).intercept { chain ->
+        module.hook(methods.publish).intercept { chain ->
             val publication = current.get()?.publication ?: return@intercept chain.proceed()
             val address = publication.projection.address
             if (chain.args[0] != tag(address) || chain.args[1] != NOTIFICATION_ID) return@intercept chain.proceed()
@@ -64,13 +62,17 @@ internal class NativeDetailNotification(
                         .putExtra(EXTRA_TOKEN, publication.token),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             }
-            chain.proceed(arrayOf(tag(address), NOTIFICATION_ID, owned)).also {
+            // Preserve the native UserHandle argument on notifyAsUser; only replace our payload.
+            val arguments = Array<Any?>(chain.args.size) { chain.args[it] }
+            arguments[2] = owned
+            chain.proceed(arguments).also {
                 registry.posted(publication)
                 ModuleLog.debug(TAG) {
                     "submitted address=${maskBluetoothAddress(address)} " +
                         "single=${publication.projection.singleBattery} " +
                         "left=${publication.projection.left.percent} right=${publication.projection.right.percent} " +
-                        "case=${publication.projection.chargingCase.percent} tag=BTHeadset id=$NOTIFICATION_ID"
+                        "case=${publication.projection.chargingCase.percent} tag=BTHeadset id=$NOTIFICATION_ID " +
+                        "api=${methods.publish.name}"
                 }
             }
         }

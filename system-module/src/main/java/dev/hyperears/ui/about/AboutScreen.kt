@@ -154,8 +154,8 @@ internal val supportBrands = listOf(
         name = "SWARMOO / 贝壳王子",
         entries = listOf(
             SupportEntry(
-                name = "MO3 PRO（维护版待复核）",
-                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                name = "MO3 PRO（双耳使用）",
+                evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.COMPONENT,
                 noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
             ),

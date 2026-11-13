@@ -10,6 +10,7 @@ internal object NativeDetailNotificationResolver {
         val cancel: Method,
         val support: Method,
         val notificationType: Method,
+        val publish: Method,
     )
 
     fun resolve(apk: String, loader: ClassLoader): Methods {
@@ -27,10 +28,9 @@ internal object NativeDetailNotificationResolver {
                         "com.android.bluetooth.headset.click.detail_notification")
                 }
             }.single()
-            require(createData.invokes.any {
-                it.declaredClassName == "android.app.NotificationManager" && it.name == "notify" &&
-                    it.paramTypeNames == listOf("java.lang.String", "int", "android.app.Notification")
-            }) { "Native detail publication boundary unavailable" }
+            val publication = createData.invokes.filter {
+                isNativeDetailPublication(it.declaredClassName, it.name, it.paramTypeNames)
+            }.distinctBy { it.descriptor }.singleNativeContract("native detail publication")
             val create = createData.getMethodInstance(loader).apply { isAccessible = true }
             val owner = create.declaringClass.name
             val cancel = unique(dex.findMethod {
@@ -49,15 +49,17 @@ internal object NativeDetailNotificationResolver {
                     usingEqStrings("feature")
                 }
             })
-            val type = unique(dex.findMethod {
-                searchPackages("com.android.bluetooth.ble.app")
-                matcher {
-                    returnType = "java.lang.String"
-                    paramTypes("java.lang.String", "android.content.Context")
-                    usingEqStrings("getNotifyType deviceId=", "show_new_notification_type")
-                }
-            })
-            Methods(create, cancel, support, type)
+            Methods(create, cancel, support, notificationType(dex, loader),
+                publication.getMethodInstance(loader).apply { isAccessible = true })
         }
     }
+
+    fun notificationType(dex: DexKitBridge, loader: ClassLoader): Method = dex.findMethod {
+        searchPackages("com.android.bluetooth.ble.app")
+        matcher {
+            returnType = "java.lang.String"
+            paramTypes("java.lang.String", "android.content.Context")
+            usingEqStrings("getNotifyType deviceId=", "show_new_notification_type")
+        }
+    }.singleNativeContract("notification type reader").getMethodInstance(loader).apply { isAccessible = true }
 }

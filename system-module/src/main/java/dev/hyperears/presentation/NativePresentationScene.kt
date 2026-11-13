@@ -12,7 +12,13 @@ internal class NativePresentationScene private constructor(private val homeScree
     companion object {
         // This is the explicitly scoped host's feature plugin, not an Android framework API.
         @SuppressLint("PrivateApi")
-        fun resolve(loader: ClassLoader): NativePresentationScene {
+        fun resolve(loader: ClassLoader, legacy: Boolean = false): NativePresentationScene {
+            if (legacy) {
+                val utility = Class.forName("${NativeWindowBridge.PREFIX}.Util", false, loader)
+                val method = utility.getDeclaredMethod("isInLauncher", Context::class.java)
+                require(Modifier.isStatic(method.modifiers) && method.returnType == Boolean::class.javaPrimitiveType)
+                return NativePresentationScene(method.apply { isAccessible = true })
+            }
             val type = Class.forName(
                 "${AirPodsWindowBridge.PREFIX}.airpods.HomeScreenChecker", false, loader,
             )
