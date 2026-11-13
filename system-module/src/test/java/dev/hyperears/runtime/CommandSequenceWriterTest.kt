@@ -28,7 +28,7 @@ class CommandSequenceWriterTest {
     @Test
     fun singleAndEmptySequencesNeverWait() = runBlocking {
         val events = mutableListOf<String>()
-        writeCommandSequence(emptyList(), 120L,
+        writeCommandSequence(emptyList<ByteArray>(), 120L,
             wait = { fail("No wait for an empty sequence") }, write = { fail("No empty write") })
         writeCommandSequence(listOf(byteArrayOf(1)), 120L,
             wait = { fail("No trailing wait") }, write = { events += "write" })

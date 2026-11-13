@@ -1,5 +1,13 @@
 # Third-party notices and research sources
 
+## SWARMOO MO3 PRO device research
+
+[Issue #97](https://github.com/silverpoetry/HyperEars/issues/97) 的 ZaneZhang111 提供模式与电量
+抓包及[传输补充资料](https://github.com/silverpoetry/HyperEars/issues/97#issuecomment-6552135643)。
+HyperEars 根据其中的 UUID、帧格式、状态字段、MTU 与应答行为独立实现互操作协议，未复制
+附件测试程序代码，不分发抓包原件、厂商应用或资源。固件与验证边界见
+[协议说明](docs/swarmoo-mo3-protocol.md)。
+
 HyperEars 的原创代码整体按 GNU GPL-3.0-only 发布。以下项目为协议研究、行为对照或
 架构参考来源；HyperEars 不随 APK 分发它们的应用、反编译产物或品牌资源。
 
@@ -302,6 +310,14 @@ Conastin 在 [PR #90](https://github.com/silverpoetry/HyperEars/pull/90) 提供�
 不分发厂商应用、固件、反编译产物或厂商图片。贡献者补充的实采 App 为流宇
 `com.tytech.theastro.wear` 1.4.3（10）。
 
+## MOONDROP PILL contribution
+
+PILL 的型号信息、GAIA 握手、电量样本与适配实现由
+[kiyonoRin / RIN 在 PR #130](https://github.com/silverpoetry/HyperEars/pull/130) 提供，
+保留原作者提交，按本项目 GNU GPL-3.0-only 许可维护。协议资料来自固件 1.6.0、MOONDROP
+App 2.16.1c-251216ai 的互操作抓包与模块实测，复用既有 ZZZ-ANGELS-OWS 编解码和电量策略；
+不分发原始抓包、厂商 App、反编译代码或厂商资源。验证范围见 [PILL 协议](docs/moondrop-pill-protocol.md)。
+
 ## MOONDROP Link application research
 
 - MOONDROP Link for Android（`com.moondroplab.moondrop.moondrop_app`），官方下载
@@ -325,6 +341,12 @@ Conastin 在 [PR #90](https://github.com/silverpoetry/HyperEars/pull/90) 提供�
 [原生展示设计](docs/native-headset-integration-design.md#25-hyperos-3-静态兼容核对)。
 HyperEars 独立实现解析与接入代码，不分发厂商 APK、反编译代码、图片或其他资源；
 系统组件及相关商标的权利归其各自权利人所有。
+
+Android 15 的追加研究样本为 Redmi K60 官方 OS3.0.5.0.VMNCNXM ROM 中的 BluetoothExtension
+15/35 及内置插件，仅记录缺失接口、存储键与通知调用签名等互操作事实；散列和结论边界见
+[Android 15 定位记录](docs/native-headset-integration-design.md#95-android-15-登记检查定位)。
+旧小米后端根据该样本的控制器、原生连接提示工厂、服务接口和资源表独立接入。弹窗布局、
+电量图标及超级岛格式均在运行时复用已安装系统组件；模块不打包这些厂商资源或反编译实现。
 
 ## OnePlus OPO compatibility research
 
