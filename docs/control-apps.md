@@ -33,6 +33,7 @@ Sony | Headphones Connect。
 | NiceHCK / YuanDao | 原道 | `com.yuandao.nicehck` | 1 |
 | MOONDROP 家族（Pudding / MIRAGE / ZZZ-ANGELS-OWS / PILL） | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
 | TheAstro OpenPro S2 | 流宇 | `com.tytech.theastro.wear` | 1 |
+| SWARMOO MO3 PRO | 轻链智能 | `com.example.tigerlistening` | 1 |
 | QCY | QCY | `com.qcymall.googleearphonesetup` | 1 |
 | QCY | QCY（中国版） | `com.qcymall.earphonesetup` | 2 |
 | Sony | Sony \| Sound Connect | `com.sony.songpal.mdr` | 1 |

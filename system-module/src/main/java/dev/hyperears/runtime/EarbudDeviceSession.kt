@@ -548,9 +548,8 @@ internal class EarbudDeviceSession(
     ) {
         val buffer = ByteArray(READ_BUFFER_SIZE)
         while (true) {
-            val count = read(buffer)
-            if (count < 0) throw IOException("vendor channel ended before protocol handshake")
-            offerAdapterBytes(candidate, buffer.copyOf(count))
+            val packet = read(buffer) ?: throw IOException("vendor channel ended before protocol handshake")
+            offerAdapterBytes(candidate, packet.bytes, packet.route)
             if (lifecycle.protocolReady) return@withIoDeadline
         }
     }
@@ -560,21 +559,21 @@ internal class EarbudDeviceSession(
     ) {
         val buffer = ByteArray(READ_BUFFER_SIZE)
         while (currentCoroutineContext().isActive && !closed.get()) {
-            val count = activeChannel.read(buffer)
-            if (count < 0) return
-            offerAdapterBytes(activeChannel, buffer.copyOf(count))
+            val packet = activeChannel.read(buffer) ?: return
+            offerAdapterBytes(activeChannel, packet.bytes, packet.route)
         }
     }
 
     private suspend fun offerAdapterBytes(
         activeChannel: EarbudChannel,
         bytes: ByteArray,
+        route: String? = null,
     ): AdapterIoResult = transactionMutex.withLock {
         ModuleLog.debug(COMPONENT) {
-            "received endpoint=${activeChannel.endpointId} bytes=${bytes.toHex()}"
+            "received endpoint=${activeChannel.endpointId} route=${route ?: "primary"} bytes=${bytes.toHex()}"
         }
         val receivingAdapter = adapter
-        val result = receivingAdapter.receive(bytes)
+        val result = receivingAdapter.receive(bytes, route)
         if (result.commands.isNotEmpty()) {
             sendCommands(
                 activeChannel = activeChannel,
@@ -752,7 +751,9 @@ internal class EarbudDeviceSession(
         gapMs: Long,
         description: String,
     ) {
-        writeCommandSequence(commands, gapMs) { command ->
+        val writes = adapter.routeCommands(commands)
+        writeCommandSequence(writes, gapMs) { packet ->
+            val (command, route) = packet
             currentCoroutineContext().ensureActive()
             if (closed.get() || channel !== activeChannel) {
                 throw CancellationException("stale vendor-channel writer")
@@ -760,10 +761,18 @@ internal class EarbudDeviceSession(
             if (externalControlApp != null) {
                 throw CancellationException("vendor control owned by external app")
             }
-            activeChannel.write(command)
+            val unconfirmed = writeAdapterCommand(adapter, activeChannel, packet)
+            if (unconfirmed != null) {
+                ModuleLog.debug(
+                    COMPONENT,
+                    "$description unconfirmed GATT status=${unconfirmed.status} route=${route ?: "primary"} " +
+                        "bytes=${command.toHex()}; awaiting protocol report",
+                )
+                return@writeCommandSequence
+            }
             ModuleLog.debug(
                 COMPONENT,
-                "$description wrote bytes=${command.toHex()}",
+                "$description wrote route=${route ?: "primary"} bytes=${command.toHex()}",
             )
         }
     }
