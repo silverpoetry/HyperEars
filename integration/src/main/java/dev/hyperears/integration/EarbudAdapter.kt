@@ -623,7 +623,7 @@ object EarbudAdapterRegistry {
     private val swarmooGroup = GroupMetadata("swarmoo", "SWARMOO / 贝壳王子")
     private val technicsGroup = GroupMetadata("technics", "Technics")
     private val samsungGroup = GroupMetadata("samsung", "Samsung Galaxy Buds")
-    private val jieliGroup = GroupMetadata("jieli", "杰理 / JieLi")
+    private val dailingGroup = GroupMetadata("dailing", "戴灵 / DAILING")
     private val standardGroup = GroupMetadata("standard", "标准蓝牙耳机")
 
     private val initialRegistrations: List<Registration> = buildList {
@@ -682,7 +682,7 @@ object EarbudAdapterRegistry {
         // Apple devices are handled by the platform; keep AAP code available for explicit use,
         // but do not add Apple adapters to HyperEars' default matching chain.
         addAll(SonyAdapterRegistry.factories.map { Registration(sonyGroup, it) })
-        add(Registration(jieliGroup, ::DailingT3Adapter))
+        add(Registration(dailingGroup, ::DailingT3Adapter))
         add(Registration(standardGroup, ::StandardEarbudAdapter))
     }
 

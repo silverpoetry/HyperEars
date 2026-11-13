@@ -51,7 +51,7 @@ internal open class NativeAncToggleMiLinkCardAdapter(
     private val toggles: List<MiLinkToggleSpec>,
 ) : MiLinkCardAdapter {
 
-    open override fun bind(
+    override fun bind(
         root: View,
         address: String,
         environment: MiLinkCardEnvironment,

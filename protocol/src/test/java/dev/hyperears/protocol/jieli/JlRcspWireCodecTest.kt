@@ -2,135 +2,97 @@ package dev.hyperears.protocol.jieli
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JlRcspWireCodecTest {
+    private fun bytes(hex: String) = hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    private fun decode(hex: String) = JlRcspWireCodec.Decoder().offer(bytes(hex)).single()
+    private val battery = "fedcba00c10007000804005a5a00ef"
+    private val transparency = "fedcba8009000d0eff0a0d024000400040004000ef"
 
-    // ── Real frames captured from DaiLing T3 (JL AC697) over SPP ──
-
-    /** Device information response: FE DC BA 00 03 00 7C + 124 data bytes. */
-    private val deviceInfoFrame =
-        "fedcba0003007c000502002005010000000109024b147ae878288e0107040000000000000305000102060a0307980004080001010409000000050a00000000110b6" +
-            "8453979667365583655644b37724668150c6a6c5f73646b5f61633639375f7075626c697368050d0110021c0811004b147ae8782802120003134680051500000000"
-
-    /** Device noise report: opcode 0x09, transparency with the 0x4000 parameter block. */
-    private val noiseTransparencyReport = "fedcba8009000d0eff0a0d024000400040004000"
-
-    /** App noise write captured from the vendor app: transparency. */
-    private val noiseTransparencyWrite = "fedcbac008000d1eff0a0d024000400040004000ef"
-
-    /** App noise write captured from the vendor app: active noise cancelling. */
-    private val noiseAncWrite = "fedcbac008000d20ff0a0d016000600060006000ef"
-
-    /** Battery channel: 04 00 5A 5A -> left 90%, right 90%. */
-    private val batteryFrame = "fedcba00c10007000804005a5a00"
-
-    /** TWS state packet with peer address and both component levels. */
-    private val twsStateFrame = "fedcba80c200130f05d600000000224b147ae87828005a5a0017"
-
-    private fun bytes(hex: String): ByteArray =
-        hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-
-    @Test
-    fun `decodes a device information frame and marks it as a device frame`() {
-        val frames = JlRcspWireCodec.Decoder().offer(bytes(deviceInfoFrame))
-        assertEquals(1, frames.size)
-        val frame = frames[0]
-        assertTrue(frame.fromDevice)
-        assertEquals(JlRcspWireCodec.OP_DEVICE_INFO, frame.opCode)
-        assertEquals(124, frame.data.size)
-        assertTrue(JlRcspWireCodec.isDeviceInfo(frame))
+    @Test fun capturedBatteryAndNoiseReports() {
+        assertEquals(JlRcspWireCodec.BatteryReport(90, 90), JlRcspWireCodec.parseBattery(decode(battery)))
+        assertEquals(JlRcspWireCodec.NoiseState.TRANSPARENCY, JlRcspWireCodec.parseNoiseState(decode(transparency)))
+        assertEquals(JlRcspWireCodec.BatteryReport(90, 90),
+            JlRcspWireCodec.parseBattery(decode("fedcba80c200130f05d60000000022010203040506005a5a0017ef")))
     }
 
-    @Test
-    fun `reassembles a frame split across two transport reads`() {
-        val bytes = bytes(batteryFrame)
+    @Test fun preservesCapturedModeWrites() {
+        assertArrayEquals(bytes("fedcbac008000d20ff0a0d016000600060006000ef"),
+            JlRcspWireCodec.setNoiseMode(JlRcspWireCodec.NoiseState.ANC, 0x20))
+        assertArrayEquals(bytes("fedcbac008000d1eff0a0d024000400040004000ef"),
+            JlRcspWireCodec.setNoiseMode(JlRcspWireCodec.NoiseState.TRANSPARENCY, 0x1E))
+        assertArrayEquals(bytes("fedcbac008000d21ff0a0d000000000000000000ef"),
+            JlRcspWireCodec.setNoiseMode(JlRcspWireCodec.NoiseState.OFF, 0x21))
+        assertArrayEquals(bytes("fedcbac0c300020700ef"), JlRcspWireCodec.queryStatus(7))
+        assertArrayEquals(bytes("fedcbac0c0000408020502ef"), JlRcspWireCodec.setGameMode(8, true))
+    }
+
+    @Test fun allReadBoundariesAndConcatenatedFrames() {
+        val data = bytes(battery)
+        for (split in 0 until data.size) {
+            val decoder = JlRcspWireCodec.Decoder()
+            assertTrue(decoder.offer(data.copyOfRange(0, split)).isEmpty())
+            assertEquals(1, decoder.offer(data.copyOfRange(split, data.size)).size)
+        }
+        assertEquals(2, JlRcspWireCodec.Decoder().offer(data + bytes(transparency)).size)
+    }
+
+    @Test fun missingOrInvalidTrailerDoesNotPublishAndNextFrameRecovers() {
+        val data = bytes(battery)
         val decoder = JlRcspWireCodec.Decoder()
-        assertTrue(decoder.offer(bytes.copyOfRange(0, 5)).isEmpty())
-        val frames = decoder.offer(bytes.copyOfRange(5, bytes.size))
-        assertEquals(1, frames.size)
-        assertEquals(JlRcspWireCodec.OP_NAME_BATTERY, frames[0].opCode)
+        assertTrue(decoder.offer(data.copyOf(data.size - 1)).isEmpty())
+        assertEquals(1, decoder.offer(byteArrayOf(0) + data).size)
     }
 
-    @Test
-    fun `resynchronises after leading noise bytes`() {
-        val noisy = bytes("00ff11aa") + bytes(batteryFrame)
-        val frames = JlRcspWireCodec.Decoder().offer(noisy)
-        assertEquals(1, frames.size)
-        assertEquals(JlRcspWireCodec.OP_NAME_BATTERY, frames[0].opCode)
+    @Test fun boundedDecoderRecoversFromNoiseOversizeAndUnknownFlags() {
+        val decoder = JlRcspWireCodec.Decoder()
+        val malformed = bytes("fedcba00c1ffff") + bytes("fedcbaffc10000ef")
+        assertEquals(1, decoder.offer(ByteArray(100_000) { 0x55 } + malformed + bytes(battery)).size)
+        decoder.offer(bytes(battery).copyOf(6))
+        decoder.reset()
+        assertEquals(1, decoder.offer(bytes(battery)).size)
     }
 
-    @Test
-    fun `parses component battery from the 0xC1 channel`() {
-        val frame = JlRcspWireCodec.Decoder().offer(bytes(batteryFrame)).single()
-        val battery = JlRcspWireCodec.parseBattery(frame)
-        assertNotNull(battery)
-        assertEquals(90, battery!!.leftPercent)
-        assertEquals(90, battery.rightPercent)
+    @Test fun rejectsFailedResponseAndMarkersInsideUnrelatedAttributes() {
+        assertNull(JlRcspWireCodec.parseBattery(decode(battery.replace("000804", "010804"))))
+        assertNull(JlRcspWireCodec.parseBattery(decode("fedcba00c100080008050104005a5aef")))
+        assertNull(JlRcspWireCodec.parseNoiseState(decode(transparency.replace("8009", "8003"))))
+        assertNull(JlRcspWireCodec.parseNoiseState(decode("fedcba800900050eff020d01ef")))
     }
 
-    @Test
-    fun `parses component battery from the 0xC2 TWS state packet`() {
-        val frame = JlRcspWireCodec.Decoder().offer(bytes(twsStateFrame)).single()
-        val battery = JlRcspWireCodec.parseBattery(frame)
-        assertNotNull(battery)
-        assertEquals(90, battery!!.leftPercent)
-        assertEquals(90, battery.rightPercent)
+    @Test fun malformedAndDuplicateLtvAreRejected() {
+        assertNull(JlRcspWireCodec.parseWorkMode(decode("fedcba00c1000400080205ef")))
+        assertNull(JlRcspWireCodec.parseWorkMode(decode("fedcba00c100080008020501020502ef")))
+        assertNull(JlRcspWireCodec.parseWorkMode(decode("fedcba00c10006000802050200ef")))
     }
 
-    @Test
-    fun `parses transparency from the captured device report`() {
-        val frame = JlRcspWireCodec.Decoder().offer(bytes(noiseTransparencyReport)).single()
-        assertEquals(
-            JlRcspWireCodec.NoiseState.TRANSPARENCY,
-            JlRcspWireCodec.parseNoiseState(frame),
-        )
+    @Test fun gameRequiresSuccessfulResponseAndValidWorkMode() {
+        assertEquals(true, JlRcspWireCodec.parseWorkMode(decode("fedcba00c100050008020502ef")))
+        assertEquals(false, JlRcspWireCodec.parseWorkMode(decode("fedcba00c100050008020501ef")))
+        assertNull(JlRcspWireCodec.parseWorkMode(decode("fedcbac0c100050008020502ef")))
+        assertNull(JlRcspWireCodec.parseWorkMode(decode("fedcba00c100050108020502ef")))
+        assertNull(JlRcspWireCodec.parseWorkMode(decode("fedcba00c100050008020503ef")))
     }
 
-    @Test
-    fun `app write frames never confirm battery or noise state`() {
-        val frame = JlRcspWireCodec.Decoder().offer(bytes(noiseAncWrite)).single()
-        assertTrue(!frame.fromDevice)
-        assertNull(JlRcspWireCodec.parseNoiseState(frame))
-        assertNull(JlRcspWireCodec.parseBattery(frame))
+    @Test fun completeUnknownBatteryIsRetainedButInvalidPercentageIsRejected() {
+        assertEquals(JlRcspWireCodec.BatteryReport(null, null),
+            JlRcspWireCodec.parseBattery(decode("fedcba00c100070008040000ff00ef")))
+        assertNull(JlRcspWireCodec.parseBattery(decode("fedcba00c1000700080400655a00ef")))
     }
 
-    @Test
-    fun `noise write reuses the captured app frame shape`() {
-        assertArrayEquals(
-            bytes(noiseAncWrite),
-            JlRcspWireCodec.setNoiseMode(JlRcspWireCodec.NoiseState.ANC, sequence = 0x20),
-        )
-        assertArrayEquals(
-            bytes(noiseTransparencyWrite),
-            JlRcspWireCodec.setNoiseMode(
-                JlRcspWireCodec.NoiseState.TRANSPARENCY,
-                sequence = 0x1E,
-            ),
-        )
+    @Test fun fullNoiseAttributeQueryResponseAndWriteEchoRemainDistinct() {
+        assertEquals(JlRcspWireCodec.NoiseState.ANC,
+            JlRcspWireCodec.parseNoiseState(decode("fedcba0007000e0008ff0a0d016000600060006000ef")))
+        assertNull(JlRcspWireCodec.parseNoiseState(decode("fedcbac008000d20ff0a0d016000600060006000ef")))
     }
 
-    @Test
-    fun `off mode carries the zero parameter block`() {
-        assertArrayEquals(
-            bytes("fedcbac008000d21ff0a0d000000000000000000ef"),
-            JlRcspWireCodec.setNoiseMode(JlRcspWireCodec.NoiseState.OFF, sequence = 0x21),
-        )
-    }
-
-    @Test
-    fun `status query matches the captured app request`() {
-        assertArrayEquals(bytes("fedcbac0c300020700ef"), JlRcspWireCodec.queryStatus())
-    }
-
-    @Test
-    fun `rejects a battery frame with an out of range level`() {
-        val frame = JlRcspWireCodec.Decoder()
-            .offer(bytes("fedcba00c100070008040000ff00"))
-            .single()
-        assertNull(JlRcspWireCodec.parseBattery(frame))
+    @Test fun handshakeNeedsSuccessfulStructuredDeviceInfo() {
+        assertTrue(JlRcspWireCodec.isDeviceInfo(decode("fedcba000300050005020020ef")))
+        assertFalse(JlRcspWireCodec.isDeviceInfo(decode("fedcba000300050105020020ef")))
+        assertFalse(JlRcspWireCodec.isDeviceInfo(decode("fedcba0003000400050200ef")))
     }
 }

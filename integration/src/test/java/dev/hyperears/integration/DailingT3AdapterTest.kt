@@ -3,426 +3,157 @@ package dev.hyperears.integration
 import dev.hyperears.protocol.jieli.JlRcspWireCodec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Adapter tests for the DaiLing T3. Every device frame below is copied from a real HCI capture
- * (see `docs/dailing-t3-protocol.md`).
- */
 class DailingT3AdapterTest {
+    private fun bytes(hex: String) = hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    private val battery = bytes("fedcba00c10007000804005a5000ef")
+    private val noise = bytes("fedcba8009000d0eff0a0d024000400040004000ef")
+    private val game = bytes("fedcba00c100050008020501ef")
+    private fun identity(name: String) = EarbudIdentity(deviceName = name, standardHeadset = true)
 
-    private fun identity(
-        name: String,
-        standardHeadset: Boolean = true,
-        nativeSystemEarbud: Boolean = false,
-        services: Set<String> = setOf(DailingT3Adapter.SPP_UUID),
-    ) = EarbudIdentity(
-        deviceName = name,
-        standardHeadset = standardHeadset,
-        nativeSystemEarbud = nativeSystemEarbud,
-        serviceUuids = services,
-    )
+    private fun authenticate(adapter: DailingT3Adapter) {
+        adapter.beginHandshake()
+        assertEquals(1, adapter.receive(byteArrayOf(0) + ByteArray(16)).commands.size)
+        assertEquals(1, adapter.receive(byteArrayOf(1) + ByteArray(16)).commands.size)
+        assertEquals(5, adapter.receive(bytes("0270617373")).commands.size)
+    }
 
-    @Test
-    fun registryResolvesDailingT3ToModelAdapter() {
-        listOf("DaiLing T3", "戴灵 T3", "DAILING T3").forEach { name ->
-            val adapter = requireNotNull(EarbudAdapterRegistry.resolve(identity(name)))
-            assertTrue(name, adapter is DailingT3Adapter)
-            assertEquals("dailing-t3", adapter.id)
-            assertEquals("戴灵 T3", adapter.displayName)
+    @Test fun exactModelCandidateDoesNotRequireCachedSdpOrMatchOtherBrands() {
+        listOf("DaiLing T3", "戴灵 T3", "DAILING T3").forEach {
+            assertTrue(EarbudAdapterRegistry.resolve(identity(it)) is DailingT3Adapter)
         }
+        assertFalse(DailingT3Adapter().matches(identity("Some TWS").copy(
+            serviceUuids = setOf("00001101-0000-1000-8000-00805f9b34fb"))))
+        assertFalse(DailingT3Adapter().matches(identity("DaiLing T3").copy(nativeSystemEarbud = true)))
+        assertFalse(DailingT3Adapter().matches(identity("DaiLing T3").copy(standardHeadset = false)))
     }
 
-    @Test
-    fun spsServiceAndRetailNameAreBothRequiredForCandidateSelection() {
-        val withoutService = requireNotNull(
-            EarbudAdapterRegistry.resolve(identity("DaiLing T3", services = emptySet())),
-        )
-        assertTrue(withoutService is StandardEarbudAdapter)
-
-        val withoutBrand = requireNotNull(
-            EarbudAdapterRegistry.resolve(identity("Some TWS")),
-        )
-        assertTrue(withoutBrand is StandardEarbudAdapter)
-    }
-
-    @Test
-    fun matchesRejectsNonStandardAndSystemOwnedDevices() {
+    @Test fun initialCapabilitiesAndUnauthenticatedFramesStayLocked() {
         val adapter = DailingT3Adapter()
-        assertFalse(adapter.matches(identity("DaiLing T3", standardHeadset = false)))
-        assertFalse(adapter.matches(identity("DaiLing T3", nativeSystemEarbud = true)))
-    }
-
-    @Test
-    fun initialCapabilitiesStayLockedAndUseSppTransport() {
-        val adapter = DailingT3Adapter()
-        val snapshot = adapter.snapshot()
-
-        assertEquals(AdapterResolution.EXACT_MATCH, snapshot.resolution)
-        assertTrue(adapter.privateProtocolRequired)
-        assertEquals(TransportReadiness.PROTOCOL_HANDSHAKE, adapter.transportReadiness)
-        assertEquals(BatterySource.SYSTEM_AGGREGATE, snapshot.batterySource)
-        assertTrue(snapshot.capabilities.battery)
-        assertTrue(snapshot.capabilities.audioHandoff)
-        assertFalse(snapshot.capabilities.noiseControl)
-        assertTrue(adapter.supportedNoiseModes.isEmpty())
-        assertNull(snapshot.presentationId)
-        assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC)))
-        assertFalse(
-            adapter.supportsControl(DailingControlRequest.SetAncDepth(DailingAncDepth.DEEP)),
-        )
-
-        // The vendor app opens RFCOMM channel 1 insecurely; a secure SPP socket connects but the
-        // headset then ignores every RCSP frame.
-        val primary = adapter.transports.first() as RfcommEndpointSpec.Channel
-        assertEquals(1, primary.number)
-        assertFalse(primary.secure)
-        val fallback = adapter.transports[1] as RfcommEndpointSpec.ServiceUuid
-        assertEquals(DailingT3Adapter.SPP_UUID, fallback.uuid)
-        assertEquals(listOf(ControlAppCatalog.dailing), adapter.controlApps)
-    }
-
-    @Test
-    fun handshakeStartsWithAuthRandomPacket() {
-        val adapter = DailingT3Adapter()
-        val result = adapter.beginHandshake()
-
-        assertEquals(HandshakeResult.AwaitingEvidence, result.handshake)
-        assertEquals(1, result.commands.size)
-        val packet = result.commands.single()
-        // Auth start packet: tag 0x00 followed by 16 random bytes.
-        assertEquals(17, packet.size)
-        assertEquals(0x00, packet[0].toInt() and 0xFF)
-    }
-
-    @Test
-    fun deviceInfoFrameConfirmsHandshakeWithoutOpeningCapabilities() {
-        val adapter = DailingT3Adapter()
-        completeAuth(adapter)
-        val result = adapter.receive(deviceInfoFrame())
-
-        assertEquals(HandshakeResult.Ready, result.handshake)
         assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
         assertFalse(adapter.effectiveCapabilities().noiseControl)
-        assertTrue(adapter.effectiveSupportedNoiseModes().isEmpty())
-    }
-
-    @Test
-    fun batteryFrameOpensPrivateComponentBattery() {
-        val adapter = DailingT3Adapter()
-        completeAuth(adapter)
-        val result = adapter.receive(bytes("fedcba00c10007000804005a5a00"))
-
-        assertEquals(HandshakeResult.Ready, result.handshake)
-        assertEquals(BatterySource.PRIVATE_PROTOCOL, adapter.effectiveBatterySource())
-        val battery = requireNotNull(
-            adapter.runtimeState().features.get<BatteryFeatureState>(),
-        ).battery
-        assertEquals(90, battery.left.percent)
-        assertEquals(90, battery.right.percent)
-        assertFalse(battery.left.charging)
-    }
-
-    @Test
-    fun noiseReportOpensOnlyTheThreeCapturedModes() {
-        val adapter = DailingT3Adapter()
-        completeAuth(adapter)
-        val result = adapter.receive(
-            bytes("fedcba8009000d0eff0a0d024000400040004000"),
-        )
-
-        assertEquals(HandshakeResult.Ready, result.handshake)
-        assertTrue(adapter.effectiveCapabilities().noiseControl)
-        assertEquals(
-            setOf(NoiseMode.ANC, NoiseMode.OFF, NoiseMode.TRANSPARENCY),
-            adapter.effectiveSupportedNoiseModes(),
-        )
-        assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().noiseMode)
-        assertFalse(adapter.supportsControl(StandardControlRequest.SetNoiseMode(NoiseMode.WIND)))
-    }
-
-    @Test
-    fun noiseReportPublishesDepthStateWithoutInventingACurrentLevel() {
-        val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        val feature = requireNotNull(
-            adapter.runtimeState().features.get<DailingAncDepthFeatureState>(),
-        )
-        assertNull(feature.current)
-        assertEquals(DailingAncDepthFeatureState.ALL_DEPTHS, feature.supported)
-        assertTrue(
-            adapter.supportsControl(DailingControlRequest.SetAncDepth(DailingAncDepth.DEEP)),
-        )
-    }
-
-    @Test
-    fun setNoiseModeWritesCapturedAttributeBlock() {
-        val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        val request = StandardControlRequest.SetNoiseMode(NoiseMode.ANC)
-        val result = adapter.executeControl(request)
-        assertTrue(result.accepted)
-        // ANC also re-applies the module-selected depth; the first activation defaults to deep.
-        assertEquals(2, result.commands.size)
-        val write = JlRcspWireCodec.Decoder().offer(result.commands.first()).single()
-        assertEquals(JlRcspWireCodec.FLAG_APP_COMMAND, write.flag)
-        assertEquals(JlRcspWireCodec.OP_ATTRIBUTE_SET, write.opCode)
-        // Payload: sequence + FF 0A 0D 01 60 00 60 00 60 00 60 00
-        assertEquals(
-            "FF 0A 0D 01 60 00 60 00 60 00 60 00",
-            write.data.copyOfRange(1, write.data.size).toHex(),
-        )
-        val depth = JlRcspWireCodec.Decoder().offer(result.commands[1]).single()
-        assertEquals(JlRcspWireCodec.OP_EXT_ATTRIBUTE, depth.opCode)
-        assertEquals("0E 01 00", depth.data.copyOfRange(1, 4).toHex())
-        assertTrue(result.readback.isNotEmpty())
-
-        // Only the device report is authoritative noise state.
-        adapter.receive(bytes("fedcba8009000d0eff0a0d014000400040004000"))
-        assertEquals(NoiseMode.ANC, adapter.runtimeState().noiseMode)
-    }
-
-    @Test
-    fun cardPresentationAppearsOnlyAfterConfirmedDepthFeature() {
-        val adapter = DailingT3Adapter()
         assertNull(adapter.miLinkCardPresentationId)
+        adapter.receive(noise + battery + game)
+        assertFalse(adapter.effectiveCapabilities().noiseControl)
+        assertNull(adapter.runtimeState().features.get<DailingGameModeFeatureState>())
+    }
 
-        openEvidence(adapter)
+    @Test fun authenticationRequiresOrderedStagesAndCompletePassBytes() {
+        val adapter = DailingT3Adapter()
+        adapter.beginHandshake()
+        adapter.receive(byteArrayOf(0) + ByteArray(16))
+        adapter.receive(byteArrayOf(1) + ByteArray(16))
+        assertEquals(HandshakeResult.Rejected, adapter.receive(bytes("026661696c")).handshake)
+        assertTrue(adapter.receive(battery).commands.isEmpty())
+        assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
+        val outOfOrder = DailingT3Adapter()
+        outOfOrder.beginHandshake()
+        assertEquals(HandshakeResult.Rejected, outOfOrder.receive(bytes("0270617373")).handshake)
+    }
 
+    @Test fun fragmentedAuthenticationAndCoalescedFirstFramePreserveData() {
+        val adapter = DailingT3Adapter()
+        adapter.beginHandshake()
+        val challenge = byteArrayOf(0) + ByteArray(16)
+        assertTrue(adapter.receive(challenge.copyOf(8)).commands.isEmpty())
+        assertEquals(1, adapter.receive(challenge.copyOfRange(8, 17)).commands.size)
+        adapter.receive(byteArrayOf(1) + ByteArray(16))
+        val result = adapter.receive(bytes("0270617373") + battery)
+        assertEquals(HandshakeResult.Ready, result.handshake)
+        assertEquals(8, result.commands.size) // five initialization reads, then three feature reads
+        assertEquals(90, adapter.runtimeState().features.get<BatteryFeatureState>()!!.battery.left.percent)
+    }
+
+    @Test fun batteryNoiseAndGameAreIndependentlyConfirmed() {
+        val adapter = DailingT3Adapter()
+        authenticate(adapter)
+        adapter.receive(battery)
+        assertFalse(adapter.effectiveCapabilities().noiseControl)
+        adapter.receive(noise)
+        assertTrue(adapter.effectiveCapabilities().noiseControl)
+        assertNull(adapter.runtimeState().features.get<DailingGameModeFeatureState>())
+        assertFalse(adapter.executeControl(DailingControlRequest.SetGameMode(true)).accepted)
+        assertNull(adapter.miLinkCardPresentationId)
+        adapter.receive(game)
+        assertEquals(false, adapter.runtimeState().features.get<DailingGameModeFeatureState>()?.enabled)
         assertEquals(DailingMiLinkPresentationIds.CARD, adapter.miLinkCardPresentationId)
     }
 
-    @Test
-    fun setAncDepthWritesCapturedDepthCommandAndPublishesState() {
+    @Test fun gameWriteDoesNotPublishSuccessBeforeReadback() {
         val adapter = DailingT3Adapter()
-        openEvidence(adapter)
+        authenticate(adapter)
+        adapter.receive(game)
+        val result = adapter.executeControl(DailingControlRequest.SetGameMode(true))
+        assertTrue(result.accepted)
+        assertEquals(false, adapter.runtimeState().features.get<DailingGameModeFeatureState>()?.enabled)
+        assertEquals(ControlConfirmationPolicy.DEVICE_REPORT,
+            adapter.controlPolicy(DailingControlRequest.SetGameMode(true)).confirmation)
+        val readback = adapter.protocolSession.readback(DailingControlRequest.SetGameMode(true))
+        assertEquals(JlRcspWireCodec.OP_ADV_INFO, JlRcspWireCodec.Decoder().offer(readback.single()).single().opCode)
+        adapter.receive(bytes("fedcba00c100050009020502ef"))
+        assertEquals(true, adapter.runtimeState().features.get<DailingGameModeFeatureState>()?.enabled)
+    }
 
-        val result = adapter.executeControl(
-            DailingControlRequest.SetAncDepth(DailingAncDepth.MIDDLE),
-        )
+    @Test fun standardAncOnlyWritesOneModeFrameAndReadsModeExplicitly() {
+        val adapter = DailingT3Adapter()
+        authenticate(adapter)
+        adapter.receive(noise)
+        val request = StandardControlRequest.SetNoiseMode(NoiseMode.ANC)
+        val result = adapter.executeControl(request)
         assertTrue(result.accepted)
         assertEquals(1, result.commands.size)
-        val write = JlRcspWireCodec.Decoder().offer(result.commands.single()).single()
-        assertEquals(JlRcspWireCodec.FLAG_APP_COMMAND, write.flag)
-        assertEquals(JlRcspWireCodec.OP_EXT_ATTRIBUTE, write.opCode)
-        // Payload: sequence + 0E 01 <level>, middle = 0x02 in the capture.
-        assertEquals("0E 01 02", write.data.copyOfRange(1, 4).toHex())
-
-        val feature = requireNotNull(
-            adapter.runtimeState().features.get<DailingAncDepthFeatureState>(),
-        )
-        assertEquals(DailingAncDepth.MIDDLE, feature.current)
-        assertEquals(DailingAncDepthFeatureState.ALL_DEPTHS, feature.supported)
+        assertEquals(NoiseMode.TRANSPARENCY, adapter.runtimeState().features.get<NoiseModeFeatureState>()?.mode)
+        assertEquals(JlRcspWireCodec.OP_ATTRIBUTE_QUERY,
+            JlRcspWireCodec.Decoder().offer(adapter.protocolSession.readback(request).single()).single().opCode)
     }
 
-    @Test
-    fun firstAncActivationDefaultsToDeepAndKeepsTheUsersChoice() {
+    @Test fun refreshReadsAllThreeFeaturesAndSequenceWraps() {
         val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        adapter.executeControl(DailingControlRequest.SetAncDepth(DailingAncDepth.LIGHT))
-        val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
-
-        val depth = JlRcspWireCodec.Decoder().offer(result.commands[1]).single()
-        assertEquals("0E 01 01", depth.data.copyOfRange(1, 4).toHex())
+        authenticate(adapter)
+        adapter.receive(battery)
+        repeat(100) {
+            val commands = adapter.protocolSession.query(TelemetryQuery.RefreshAll)
+            assertEquals(listOf(0xC3, 7, 0xC1),
+                commands.map { JlRcspWireCodec.Decoder().offer(it).single().opCode })
+        }
+        assertEquals(1, adapter.protocolSession.query(
+            TelemetryQuery.RefreshFeature(DailingGameModeFeatureState.FEATURE_ID)).size)
     }
 
-    @Test
-    fun ancActivationPublishesTheAppliedDepthOnceTheDeviceAnswers() {
+    @Test fun unknownReportClearsPreviousBatteryButDoesNotOpenItInitially() {
         val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
-        val featureBefore = adapter.runtimeState().features.get<DailingAncDepthFeatureState>()
-        assertNull(featureBefore?.current)
-
-        adapter.receive(bytes("fedcba0008000200edef"))
-
-        val featureAfter = requireNotNull(
-            adapter.runtimeState().features.get<DailingAncDepthFeatureState>(),
-        )
-        assertEquals(DailingAncDepth.DEEP, featureAfter.current)
-    }
-
-    @Test
-    fun chosenDepthStaysForTheNextAncActivation() {
-        val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        adapter.executeControl(DailingControlRequest.SetAncDepth(DailingAncDepth.MIDDLE))
-        val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
-
-        val depth = JlRcspWireCodec.Decoder().offer(result.commands[1]).single()
-        assertEquals("0E 01 02", depth.data.copyOfRange(1, 4).toHex())
-    }
-
-    @Test
-    fun storedDepthOverridesTheFirstRunDefault() {
-        val adapter = DailingT3Adapter()
-        adapter.preferredAncDepth = DailingAncDepth.MIDDLE
-        openEvidence(adapter)
-
-        val result = adapter.executeControl(StandardControlRequest.SetNoiseMode(NoiseMode.ANC))
-
-        val depth = JlRcspWireCodec.Decoder().offer(result.commands[1]).single()
-        assertEquals("0E 01 02", depth.data.copyOfRange(1, 4).toHex())
-    }
-
-    @Test
-    fun gameModeUsesTheAdvInfoLtvCommand() {
-        val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        val enable = adapter.executeControl(DailingControlRequest.SetGameMode(true))
-        assertTrue(enable.accepted)
-        val enableFrame = JlRcspWireCodec.Decoder().offer(enable.commands.single()).single()
-        assertEquals(JlRcspWireCodec.OP_SET_ADV_INFO, enableFrame.opCode)
-        assertEquals(
-            listOf(0x02, 0x05, 0x02),
-            enableFrame.data.copyOfRange(1, 4).map { it.toInt() and 0xFF },
-        )
-        assertEquals(
-            true,
-            adapter.runtimeState().features.get<DailingGameModeFeatureState>()?.enabled,
-        )
-
-        val disable = adapter.executeControl(DailingControlRequest.SetGameMode(false))
-        val disableFrame = JlRcspWireCodec.Decoder().offer(disable.commands.single()).single()
-        assertEquals(
-            listOf(0x02, 0x05, 0x01),
-            disableFrame.data.copyOfRange(1, 4).map { it.toInt() and 0xFF },
-        )
-        assertEquals(
-            false,
-            adapter.runtimeState().features.get<DailingGameModeFeatureState>()?.enabled,
-        )
-    }
-
-    @Test
-    fun handshakeAsksForTheDualDeviceState() {
-        val adapter = DailingT3Adapter()
-        completeAuth(adapter)
-        adapter.receive(deviceInfoFrame())
-
-        val queries = adapter.protocolSession.followUpCommands(ProtocolEvent.HandshakeAccepted)
-        val frames = queries.map { JlRcspWireCodec.Decoder().offer(it).single() }
-        assertEquals(
-            true,
-            frames.any { frame ->
-                frame.opCode == JlRcspWireCodec.OP_EXT_ATTRIBUTE &&
-                    frame.data.size >= 3 &&
-                    frame.data[1].toInt() == 0x1A &&
-                    (frame.data[2].toInt() and 0xFF) == 0xFF
-            },
-        )
-    }
-
-    @Test
-    fun deviceReportUpdatesTheDualDeviceState() {
-        val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        // Captured device answer: flag 0xC0, seq 0x36, custom command 1A with value 0.
-        adapter.receive(bytes("fedcbac0ff0003361a00ef"))
-
-        assertEquals(
-            false,
-            adapter.runtimeState().features.get<DailingDualConnectionFeatureState>()?.enabled,
-        )
-    }
-
-    @Test
-    fun dualConnectionUsesTheVendorAiCustomCommand() {
-        val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-        assertNull(
-            adapter.runtimeState().features.get<DailingDualConnectionFeatureState>()?.enabled,
-        )
-
-        val enable = adapter.executeControl(DailingControlRequest.SetDualConnection(true))
-        assertTrue(enable.accepted)
-        val frame = JlRcspWireCodec.Decoder().offer(enable.commands.single()).single()
-        assertEquals(JlRcspWireCodec.OP_EXT_ATTRIBUTE, frame.opCode)
-        assertEquals(
-            listOf(0x1A, 0x01),
-            frame.data.copyOfRange(1, 3).map { it.toInt() and 0xFF },
-        )
-        assertEquals(
-            true,
-            adapter.runtimeState().features.get<DailingDualConnectionFeatureState>()?.enabled,
-        )
-
-        val disable = adapter.executeControl(DailingControlRequest.SetDualConnection(false))
-        val offFrame = JlRcspWireCodec.Decoder().offer(disable.commands.single()).single()
-        assertEquals(
-            listOf(0x1A, 0x00),
-            offFrame.data.copyOfRange(1, 3).map { it.toInt() and 0xFF },
-        )
-    }
-
-    @Test
-    fun protocolResetLocksCapabilitiesAndRestartsInitialization() {
-        val adapter = DailingT3Adapter()
-        openEvidence(adapter)
-
-        adapter.resetProtocolSession()
-
+        authenticate(adapter)
+        val unknown = bytes("fedcba00c100070008040000ff00ef")
+        adapter.receive(unknown)
         assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
-        assertFalse(adapter.effectiveCapabilities().noiseControl)
-        assertTrue(adapter.effectiveSupportedNoiseModes().isEmpty())
-        assertNull(adapter.runtimeState().features.get<DailingAncDepthFeatureState>())
-        val first = adapter.beginHandshake().commands.first()
-        assertEquals(17, first.size)
-        assertEquals(0x00, first[0].toInt() and 0xFF)
+        adapter.receive(battery)
+        adapter.receive(unknown)
+        val state = adapter.runtimeState().features.get<BatteryFeatureState>()!!.battery
+        assertNull(state.left.percent)
+        assertNull(state.right.percent)
     }
 
-    @Test
-    fun eachAdapterInstanceOwnsAnIndependentSession() {
-        val first = requireNotNull(EarbudAdapterRegistry.resolve(identity("DaiLing T3")))
-        val second = requireNotNull(EarbudAdapterRegistry.resolve(identity("DaiLing T3")))
-        assertTrue(first is DailingT3Adapter)
-        assertTrue(second is DailingT3Adapter)
-        assertFalse(first === second)
-        assertFalse(first.protocolSession === second.protocolSession)
-        assertSame(DailingT3Adapter::class.java, first.javaClass)
+    @Test fun resetAndSeparateDevicesDoNotShareConfirmation() {
+        val first = DailingT3Adapter()
+        val second = DailingT3Adapter()
+        authenticate(first)
+        first.receive(battery + noise + game)
+        assertNotSame(first.protocolSession, second.protocolSession)
+        assertNull(second.miLinkCardPresentationId)
+        first.resetProtocolSession()
+        assertFalse(first.effectiveCapabilities().noiseControl)
+        assertNull(first.runtimeState().features.get<DailingGameModeFeatureState>())
+        assertEquals(17, first.beginHandshake().commands.single().size)
     }
 
-    /** Runs the device authentication exchange: `00`+random, `01`+proof, then the `pass` ack. */
-    private fun completeAuth(adapter: DailingT3Adapter) {
-        adapter.receive(bytes("00" + "00112233445566778899aabbccddeeff"))
-        adapter.protocolSession.drainImmediateCommands()
-        adapter.receive(bytes("01" + "ffeeddccbbaa99887766554433221100"))
-        adapter.protocolSession.drainImmediateCommands()
-        adapter.receive(bytes("0270617373"))
-        adapter.protocolSession.drainImmediateCommands()
-    }
-
-    private fun openEvidence(adapter: DailingT3Adapter) {
-        completeAuth(adapter)
-        adapter.receive(deviceInfoFrame())
-        adapter.receive(bytes("fedcba00c10007000804005a5a00"))
-        adapter.receive(bytes("fedcba8009000d0eff0a0d024000400040004000"))
-    }
-
-    private fun deviceInfoFrame(): ByteArray = bytes(DEVICE_INFO_FRAME)
-
-    private fun bytes(hex: String): ByteArray =
-        hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-
-    private fun ByteArray.toHex(): String =
-        toList().joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
-
-    private companion object {
-        /** Captured device-information response: `FE DC BA 00 03 00 7C` + 124 bytes. */
-        const val DEVICE_INFO_FRAME =
-            "fedcba0003007c000502002005010000000109024b147ae878288e0107040000000000000305000102" +
-                "060a0307980004080001010409000000050a00000000110b68453979667365583655644b37724668" +
-                "150c6a6c5f73646b5f61633639375f7075626c697368050d0110021c0811004b147ae87828021200" +
-                "03134680051500000000"
+    @Test fun customRequestUsesExistingEnvelopeWithoutManualRegistration() {
+        val request = DailingControlRequest.SetGameMode(true)
+        assertEquals(request, ControlRequestTransport.decode(ControlRequestTransport.encode(request)))
+        val features = AdapterRuntimeState().features.update(DailingGameModeFeatureState(true))
+        assertEquals(features, FeatureStateTransport.decode(FeatureStateTransport.encode(features)))
     }
 }

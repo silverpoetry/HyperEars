@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Kotlin port contributed by Jgckm; source and bundled license are listed in THIRD_PARTY_NOTICES.md.
 package dev.hyperears.protocol.jieli
 
 /**

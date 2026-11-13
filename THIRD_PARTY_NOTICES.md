@@ -24,13 +24,15 @@ README 声明 GPL-3.0。HyperEars 不随 APK 分发该项目的代码、应用�
 
 - Jieli-Tech/WeChat-Mini-Program-OTA:
   <https://github.com/Jieli-Tech/WeChat-Mini-Program-OTA>
-- File referenced: `jl_auth_2.0.0.js`
+- Reviewed revision: `fbaeecdf9b1eb15bb5cffbe6ea98303948805969` (v2.0.0)
+- File: [libs/jl_auth_2.0.0.js](https://github.com/Jieli-Tech/WeChat-Mini-Program-OTA/blob/fbaeecdf9b1eb15bb5cffbe6ea98303948805969/libs/jl_auth_2.0.0.js)
 - Upstream license: Apache License 2.0
 
-`JlAuthCrypto` 中的设备认证算法（`btcon`）、默认 link key 与查找表移植自该 SDK，用于在
-杰理 RCSP 命令前完成设备认证。移植结果以 SDK 自带向量逐字节校验（见
-`JlAuthCryptoTest`）；HyperEars 不随 APK 分发该 SDK 的文件、示例或品牌资源，仅在协议层
-保留必要的算法常量与实现，许可证原文以该仓库为准。
+`JlAuthCrypto` 的算法、默认 link key 与查找表由 Jgckm 在
+[PR #129](https://github.com/silverpoetry/HyperEars/pull/129) 移植为 Kotlin，维护版保留原提交，
+认证向量由上述 SDK 函数生成并交叉核对。该派生实现遵循 Apache-2.0，许可全文随源码及 APK
+保存在 [JieLi-Apache-2.0.txt](protocol/src/main/resources/META-INF/licenses/JieLi-Apache-2.0.txt)。
+其余型号协议与集成按项目 GPL-3.0-only 维护；不分发厂商 App、抓包原件、示例或品牌资源。
 
 ## HyperRose / ROSESELSA protocol profiles
 

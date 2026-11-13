@@ -1,10 +1,10 @@
 package dev.hyperears.hook
 
 import dev.hyperears.integration.AdapterRuntimeState
-import dev.hyperears.integration.ControlAppSpec
+import dev.hyperears.integration.ControlAppCatalog
 import dev.hyperears.integration.ControlOwnership
-import dev.hyperears.integration.DailingAncDepth
-import dev.hyperears.integration.DailingAncDepthFeatureState
+import dev.hyperears.integration.DailingControlRequest
+import dev.hyperears.integration.DailingGameModeFeatureState
 import dev.hyperears.integration.DailingMiLinkPresentationIds
 import dev.hyperears.integration.DeviceLifecycle
 import dev.hyperears.integration.EarbudState
@@ -21,119 +21,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DailingT3MiLinkCardAdapterTest {
-    @Test
-    fun registryResolvesTheDailingDepthPresentation() {
-        assertSame(
-            DailingT3CardAdapter,
-            MiLinkCardAdapterRegistry.resolve(DailingMiLinkPresentationIds.CARD),
-        )
-        // The native three-state row stays untouched, so no other stock surface is borrowed.
-        assertEquals(MiLinkNativeCardSurface.NONE, DailingT3CardAdapter.nativeSurface)
-        assertNull(
-            DailingT3CardAdapter.nativeSurfaceNoiseMode(
-                connectedState(depth = DailingAncDepth.DEEP),
-            ),
-        )
-    }
-
-    @Test
-    fun confirmedNoiseCapabilityShowsTheRowOnlyWhileAncIsActive() {
-        val anc = connectedState(depth = DailingAncDepth.DEEP, noiseMode = NoiseMode.ANC)
-        val transparency = connectedState(
-            depth = DailingAncDepth.DEEP,
-            noiseMode = NoiseMode.TRANSPARENCY,
-        )
-
-        assertEquals(
-            DailingAncDepthRowPolicy.RowState(
-                visible = true,
-                enabled = true,
-                current = DailingAncDepth.DEEP,
-            ),
-            DailingAncDepthRowPolicy.render(anc),
-        )
-        assertFalse(DailingAncDepthRowPolicy.render(transparency).visible)
-    }
-
-    @Test
-    fun depthStartsUnknownUntilTheModuleWritesALevel() {
-        val state = connectedState(depth = null, noiseMode = NoiseMode.ANC)
-
-        assertTrue(DailingAncDepthRowPolicy.render(state).visible)
-        assertNull(DailingAncDepthRowPolicy.render(state).current)
-        assertEquals(
-            DailingAncDepth.LIGHT,
-            DailingAncDepthRowPolicy.request(state, DailingAncDepth.LIGHT),
-        )
-    }
-
-    @Test
-    fun onlyAConnectedSessionMaySendADepthTransition() {
-        val connected = connectedState(depth = DailingAncDepth.DEEP, noiseMode = NoiseMode.ANC)
-        val disconnected = connected.copy(
-            lifecycle = connected.lifecycle.copy(systemProfile = SystemProfileState.DISCONNECTED),
-        )
-
-        assertEquals(
-            DailingAncDepth.LIGHT,
-            DailingAncDepthRowPolicy.request(connected, DailingAncDepth.LIGHT),
-        )
-        assertNull(
-            DailingAncDepthRowPolicy.request(connected, DailingAncDepth.DEEP),
-        )
-        assertNull(
-            DailingAncDepthRowPolicy.request(disconnected, DailingAncDepth.LIGHT),
-        )
-    }
-
-    @Test
-    fun staleFeatureDuringYieldOrRecoveryCannotEnableTheRow() {
-        val connected = connectedState(depth = DailingAncDepth.DEEP, noiseMode = NoiseMode.ANC)
-        val states = listOf(
-            connected.copy(
-                lifecycle = connected.lifecycle.copy(
-                    controlOwnership = ControlOwnership.EXTERNAL_APP,
-                    externalControlApp = ControlAppSpec("test.controller", "Test controller"),
-                    privateTransport = PrivateTransportState.NOT_REQUIRED,
-                ),
-            ),
-            connected.copy(
-                lifecycle = connected.lifecycle.copy(
-                    privateTransport = PrivateTransportState.IDLE,
-                ),
-            ),
-            connected.copy(
-                lifecycle = connected.lifecycle.copy(
-                    protocolHandshake = ProtocolHandshakeState.PENDING,
-                ),
-            ),
-        )
-        states.forEach { state ->
-            assertFalse(DailingAncDepthRowPolicy.render(state).enabled)
-            assertNull(
-                DailingAncDepthRowPolicy.request(state, DailingAncDepth.LIGHT),
-            )
-        }
-    }
-
-    private fun connectedState(
-        depth: DailingAncDepth?,
-        noiseMode: NoiseMode = NoiseMode.ANC,
-        publishDepthFeature: Boolean = true,
-    ): EarbudState {
-        val runtime = AdapterRuntimeState().let { state ->
-            if (!publishDepthFeature) {
-                state
-            } else {
-                state.copy(
-                    features = state.features.update(
-                        DailingAncDepthFeatureState(
-                            current = depth,
-                            supported = DailingAncDepthFeatureState.ALL_DEPTHS,
-                        ),
-                    ),
-                )
-            }
+    private fun state(enabled: Boolean? = false): EarbudState {
+        val features = AdapterRuntimeState().features.let {
+            if (enabled == null) it else it.update(DailingGameModeFeatureState(enabled))
         }
         return EarbudState(
             lifecycle = DeviceLifecycle(
@@ -141,7 +31,39 @@ class DailingT3MiLinkCardAdapterTest {
                 privateTransport = PrivateTransportState.CONNECTED,
                 protocolHandshake = ProtocolHandshakeState.CONFIRMED,
             ),
-            features = runtime.features.update(NoiseModeFeatureState(noiseMode)),
+            features = features.update(NoiseModeFeatureState(NoiseMode.ANC)),
         )
+    }
+
+    @Test fun registryUsesExistingAncExtension() {
+        assertSame(DailingT3CardAdapter, MiLinkCardAdapterRegistry.resolve(DailingMiLinkPresentationIds.CARD))
+        assertEquals(MiLinkNativeCardSurface.NONE, DailingT3CardAdapter.nativeSurface)
+    }
+
+    @Test fun gameToggleRequiresItsOwnReport() {
+        assertFalse(DailingGameModeToggleSpec.render(state(null)).available)
+        assertNull(DailingGameModeToggleSpec.request(state(null), true))
+        assertEquals(DailingControlRequest.SetGameMode(true), DailingGameModeToggleSpec.request(state(), true))
+        assertNull(DailingGameModeToggleSpec.request(state(true), true))
+    }
+
+    @Test fun connectionAndOwnershipGateClicksWithoutLosingDisplayedState() {
+        val connected = state(true)
+        val paused = listOf(
+            connected.lifecycle.copy(
+                controlOwnership = ControlOwnership.EXTERNAL_APP,
+                externalControlApp = ControlAppCatalog.dailing,
+            ),
+            connected.lifecycle.copy(privateTransport = PrivateTransportState.IDLE),
+            connected.lifecycle.copy(privateTransport = PrivateTransportState.NOT_REQUIRED),
+            connected.lifecycle.copy(protocolHandshake = ProtocolHandshakeState.PENDING),
+            connected.lifecycle.copy(systemProfile = SystemProfileState.DISCONNECTED),
+        )
+        paused.forEach {
+            val current = connected.copy(lifecycle = it)
+            assertTrue(DailingGameModeToggleSpec.render(current).checked)
+            assertFalse(DailingGameModeToggleSpec.render(current).enabled)
+            assertNull(DailingGameModeToggleSpec.request(current, false))
+        }
     }
 }

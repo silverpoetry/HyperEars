@@ -8,9 +8,6 @@ import android.os.SystemClock
 import dev.hyperears.hook.ModuleLog
 import dev.hyperears.hook.maskBluetoothAddress
 import dev.hyperears.integration.ControlRequest
-import dev.hyperears.integration.DailingAncDepth
-import dev.hyperears.integration.DailingT3Adapter
-import dev.hyperears.integration.DailingControlRequest
 import dev.hyperears.integration.StandardControlRequest
 import dev.hyperears.integration.ControlAppSpec
 import dev.hyperears.integration.ControlAppCatalog
@@ -18,7 +15,6 @@ import dev.hyperears.integration.ControlOwnership
 import dev.hyperears.integration.BatterySource
 import dev.hyperears.integration.BatteryFeatureState
 import dev.hyperears.integration.AdapterActivation
-import dev.hyperears.integration.AdapterControlResult
 import dev.hyperears.integration.AdapterEffect
 import dev.hyperears.integration.AdapterIoResult
 import dev.hyperears.integration.AdapterRuntimeState
@@ -143,21 +139,6 @@ internal class EarbudDeviceSession(
         },
         externalControlApp = externalControlApp,
     )
-
-    init {
-        configureModelPreferences(initialAdapter)
-    }
-
-    /**
-     * Injects persisted model preferences and records future selections.
-     *
-     * Model-specific settings stay out of the user-visible settings page; the session owns both
-     * directions so protocol code never reads storage directly.
-     */
-    private fun configureModelPreferences(instance: EarbudAdapter) {
-        if (instance !is DailingT3Adapter) return
-        instance.preferredAncDepth = ModelDepthPreferences.dailingAncDepth
-    }
 
     fun snapshot(): Snapshot {
         val currentAdapter = adapter
@@ -322,7 +303,6 @@ internal class EarbudDeviceSession(
             runCatching {
                 transactionMutex.withLock {
                     val result = adapter.executeControl(request)
-                    rememberModelPreference(request, result)
                     if (!result.accepted) return@withLock
                     val writeStartedAt = SystemClock.elapsedRealtime()
                     sendCommands(
@@ -677,18 +657,6 @@ internal class EarbudDeviceSession(
         result
     }
 
-    /** Stores model choices once the Adapter accepted the corresponding write. */
-    private fun rememberModelPreference(request: ControlRequest, result: AdapterControlResult) {
-        if (!result.accepted) return
-        val depth = (request as? DailingControlRequest.SetAncDepth)?.depth ?: return
-        val persisted = ModelDepthPreferences.setDailingAncDepth(depth)
-        ModuleLog.debug(
-            COMPONENT,
-            "dailing depth persisted=$persisted depth=${depth.name} " +
-                "address=${maskBluetoothAddress(address)}",
-        )
-    }
-
     private fun applyReplacement(
         replacement: HandshakeResult.Replace,
         activeChannel: EarbudChannel,
@@ -696,7 +664,6 @@ internal class EarbudDeviceSession(
         if (channel !== activeChannel) throw CancellationException("stale adapter replacement")
         stateRequests.cancelAll("adapter replaced")
         adapter = replacement.adapter
-        configureModelPreferences(adapter)
         ControlAppCatalog.activeOwner(adapter.controlApps, activeControlAppPackages)
             ?.takeIf { externalControlEnabled }
             ?.let { owner ->

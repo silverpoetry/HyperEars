@@ -8,6 +8,17 @@ import org.junit.Test
 
 class ControlAppArbitrationTest {
     @Test
+    fun dailingControllerBelongsToTheExactModelAndParticipatesInYielding() {
+        val adapter = DailingT3Adapter()
+        assertEquals(listOf(ControlAppCatalog.dailing), adapter.controlApps)
+        assertEquals(ControlAppCatalog.dailing, ControlAppCatalog.find("com.dailing.audio"))
+        assertEquals(ControlAppCatalog.dailing,
+            ControlAppCatalog.activeOwner(adapter.controlApps, setOf("com.dailing.audio")))
+        assertNull(ControlAppCatalog.activeOwner(adapter.controlApps, setOf("com.dailing.audio.clone")))
+        assertNull(ControlAppCatalog.activeOwner(StandardEarbudAdapter().controlApps, setOf("com.dailing.audio")))
+    }
+
+    @Test
     fun theAstroControllerBelongsOnlyToTheVerifiedBrandVariant() {
         val adapter = TheAstroOpenProS2Adapter()
         assertEquals(listOf(ControlAppCatalog.theAstro), adapter.controlApps)
