@@ -477,12 +477,26 @@ data class GattTransportSpec(
     val writeMode: GattWriteMode = GattWriteMode.WITH_RESPONSE,
     val notificationsRequired: Boolean = false,
     val peerSelection: GattPeerSelection = GattPeerSelection.SessionDevice,
+    /** Opt-in routes in the same service; existing single-characteristic transports are unchanged. */
+    val additionalRoutes: List<GattRouteSpec> = emptyList(),
+    /** Require this negotiated MTU before probing. Null preserves the platform default. */
+    val minimumMtu: Int? = null,
+    /** Minimum interval between write submissions, including separate query/control batches. */
+    val minimumWriteIntervalMs: Long = 0L,
     override val id: String,
 ) : EarbudTransportSpec {
     init {
         require(serviceUuid == null || serviceUuid.isNotBlank())
         require(writeCharacteristicUuid.isNotBlank())
         require(notifyCharacteristicUuid.isNotBlank())
+        require(additionalRoutes.map { it.id }.distinct().size == additionalRoutes.size)
+        require(additionalRoutes.isEmpty() || serviceUuid != null) { "Additional GATT routes require a service boundary" }
+        val notificationUuids = listOf(notifyCharacteristicUuid) + additionalRoutes.map { it.notifyCharacteristicUuid }
+        require(notificationUuids.map(String::lowercase).distinct().size == notificationUuids.size) {
+            "GATT notification routes must be unambiguous"
+        }
+        require(minimumMtu == null || minimumMtu in 23..517)
+        require(minimumWriteIntervalMs >= 0L)
     }
 }
 
@@ -660,5 +674,13 @@ interface ProtocolSession {
     fun readback(request: ControlRequest): List<ByteArray> = emptyList()
 
     fun offer(bytes: ByteArray): List<ProtocolEvent>
+
+    /** Logical destinations for a command. All existing sessions use the primary route only. */
+    fun commandRoutes(command: ByteArray): List<String?> = listOf(null)
+
+    /** Routed GATT datagrams retain their boundary; stream protocols keep the original decoder. */
+    fun offer(bytes: ByteArray, route: String?): List<ProtocolEvent> =
+        if (route == null) offer(bytes) else emptyList()
+
     fun reset()
 }

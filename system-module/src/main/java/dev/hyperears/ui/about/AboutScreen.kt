@@ -151,6 +151,23 @@ internal val supportBrands = listOf(
         ),
     ),
     SupportBrand(
+        name = "SWARMOO / 贝壳王子",
+        entries = listOf(
+            SupportEntry(
+                name = "MO3 PRO（双耳使用）",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "降噪 / 关闭 / 通透 / 抗风噪",
+            ),
+            SupportEntry(
+                name = "其他 SWARMOO 耳机",
+                evidence = EvidenceLevel.STANDARD_FALLBACK,
+                battery = BatteryCapability.SYSTEM,
+                noiseControl = "无",
+            ),
+        ),
+    ),
+    SupportBrand(
         name = "Bose",
         entries = listOf(
             SupportEntry(

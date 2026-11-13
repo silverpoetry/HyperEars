@@ -107,6 +107,11 @@ object ControlAppCatalog {
         displayName = "流宇",
     )
 
+    val tigerListening = ControlAppSpec(
+        packageName = "com.example.tigerlistening",
+        displayName = "轻链智能",
+    )
+
     val galaxyWearable = ControlAppSpec(
         packageName = "com.samsung.android.app.watchmanager",
         displayName = "Galaxy Wearable",
@@ -177,6 +182,7 @@ object ControlAppCatalog {
         huaweiAiLife,
         moondrop,
         theAstro,
+        tigerListening,
         galaxyWearable,
         galaxyBuds2ProManager,
         galaxyBuds2Manager,
