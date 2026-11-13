@@ -20,6 +20,20 @@ HyperEars 的原创代码整体按 GNU GPL-3.0-only 发布。以下项目为协�
 README 声明 GPL-3.0。HyperEars 不随 APK 分发该项目的代码、应用或资源；本项目许可证
 及其与外部资料的关系以各自仓库中的许可证原文为准。
 
+## JieLi RCSP authentication SDK
+
+- Jieli-Tech/WeChat-Mini-Program-OTA:
+  <https://github.com/Jieli-Tech/WeChat-Mini-Program-OTA>
+- Reviewed revision: `fbaeecdf9b1eb15bb5cffbe6ea98303948805969` (v2.0.0)
+- File: [libs/jl_auth_2.0.0.js](https://github.com/Jieli-Tech/WeChat-Mini-Program-OTA/blob/fbaeecdf9b1eb15bb5cffbe6ea98303948805969/libs/jl_auth_2.0.0.js)
+- Upstream license: Apache License 2.0
+
+`JlAuthCrypto` 的算法、默认 link key 与查找表由 Jgckm 在
+[PR #129](https://github.com/silverpoetry/HyperEars/pull/129) 移植为 Kotlin，维护版保留原提交，
+认证向量由上述 SDK 函数生成并交叉核对。该派生实现遵循 Apache-2.0，许可全文随源码及 APK
+保存在 [JieLi-Apache-2.0.txt](protocol/src/main/resources/META-INF/licenses/JieLi-Apache-2.0.txt)。
+其余型号协议与集成按项目 GPL-3.0-only 维护；不分发厂商 App、抓包原件、示例或品牌资源。
+
 ## HyperRose / ROSESELSA protocol profiles
 
 - DOHEX/HyperRose: <https://github.com/DOHEX/HyperRose>

@@ -151,6 +151,17 @@ internal val supportBrands = listOf(
         ),
     ),
     SupportBrand(
+        name = "戴灵 / DAILING",
+        entries = listOf(
+            SupportEntry(
+                name = "T3（维护版待复核）",
+                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                battery = BatteryCapability.LEFT_RIGHT,
+                noiseControl = "降噪 / 关闭 / 通透；游戏模式",
+            ),
+        ),
+    ),
+    SupportBrand(
         name = "SWARMOO / 贝壳王子",
         entries = listOf(
             SupportEntry(

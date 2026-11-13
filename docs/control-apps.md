@@ -32,6 +32,7 @@ Sony | Headphones Connect。
 | StarRing / 籁特易耳 | LightYear | `cn.lightyeartech.android` | 1 |
 | NiceHCK / YuanDao | 原道 | `com.yuandao.nicehck` | 1 |
 | MOONDROP 家族（Pudding / MIRAGE / ZZZ-ANGELS-OWS / PILL） | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
+| 戴灵 T3 | 戴灵耳机 | `com.dailing.audio` | 1 |
 | TheAstro OpenPro S2 | 流宇 | `com.tytech.theastro.wear` | 1 |
 | SWARMOO MO3 PRO | 轻链智能 | `com.example.tigerlistening` | 1 |
 | QCY | QCY | `com.qcymall.googleearphonesetup` | 1 |
@@ -62,6 +63,9 @@ Sony | Headphones Connect。
 | Samsung Galaxy Buds4 / Buds4 Pro | Galaxy Buds | `com.samsung.accessory.budsunitemgr` | 2 |
 | 其余已配置的 Samsung Galaxy Buds 具体型号 | Galaxy Buds | `com.samsung.accessory.budsunitemgr` | 3 |
 | Samsung Galaxy Buds（共享服务回退） | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
+
+戴灵耳机（`com.dailing.audio`）已在实机上确认安装、包名解析，以及启用运行时退避后由该
+App 取得耳机私有通道；“更多设置”跳转待在最终维护包上复核。
 
 流宇包名由 [PR #90 实机记录](https://github.com/silverpoetry/HyperEars/pull/90#issuecomment-6481315378)
 确认，版本 1.4.3（10）；当前仅为 TheAstro 具体型号登记。贡献者于 2026-11-05 确认最终维护包
