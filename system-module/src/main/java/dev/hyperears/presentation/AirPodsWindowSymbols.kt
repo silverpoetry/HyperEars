@@ -6,25 +6,26 @@ import android.content.ServiceConnection
 import android.graphics.drawable.Drawable
 
 /** Shared preflight for both host processes. Resolution does not start services or protocols. */
-internal class AirPodsWindowSymbols(private val loader: ClassLoader) {
+internal class AirPodsWindowSymbols(private val loader: ClassLoader) : NativeWindowSymbols {
     private fun type(name: String): Class<*> = Class.forName(name, false, loader)
-    val controller = type(AirPodsWindowBridge.CONTROLLER)
-    val service = type("com.android.bluetooth.ble.app.IFastConnectService")
-    val callback = type("com.android.bluetooth.ble.app.IFastConnectClientCallBack")
-    val create = NativeMembers.method(controller, "onActivityCreate")
-    val destroy = NativeMembers.method(controller, "onActivityDestroy")
-    val createDialog = NativeMembers.method(controller, "setConnectDeviceDialog", Int::class.javaPrimitiveType!!)
+    override val kind = NativeWindowKind.AIRPODS
+    override val controller = type(AirPodsWindowBridge.CONTROLLER)
+    override val service = type("com.android.bluetooth.ble.app.IFastConnectService")
+    override val callback = type("com.android.bluetooth.ble.app.IFastConnectClientCallBack")
+    override val create = NativeMembers.method(controller, "onActivityCreate")
+    override val destroy = NativeMembers.method(controller, "onActivityDestroy")
+    override val contentReady = NativeMembers.method(controller, "setConnectDeviceDialog", Int::class.javaPrimitiveType!!)
     val read = NativeMembers.method(controller, "getAirPodsState", String::class.java)
     val build = NativeMembers.method(type("${AirPodsWindowBridge.PREFIX}.airpods.AirPodsInfo"),
         "buildPodsStatus", String::class.java)
-    val load = NativeMembers.method(controller, "loadDynamicPicture", String::class.java)
-    val init = NativeMembers.method(controller, "initParameter")
+    override val load = NativeMembers.method(controller, "loadDynamicPicture", String::class.java)
+    override val init = NativeMembers.method(controller, "initParameter")
     val batteryLayout = NativePopupBatteryLayout.resolve(controller, loader)
-    val resourceInit = NativeMembers.method(type("${AirPodsWindowBridge.PREFIX}.MiuiFastConnectResource"),
+    override val resourceInit = NativeMembers.method(type("${NativeWindowBridge.PREFIX}.MiuiFastConnectResource"),
         "initParameter", String::class.java, String::class.java, Boolean::class.javaPrimitiveType!!,
         *Array(10) { Int::class.javaPrimitiveType!! },
         Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!)
-    val dynamic = type("${AirPodsWindowBridge.PREFIX}.Constants")
+    override val dynamic = type("${NativeWindowBridge.PREFIX}.Constants")
         .getDeclaredField("ENABLE_DYNAMIC_RESOURCE").apply { isAccessible = true }
 
     init {

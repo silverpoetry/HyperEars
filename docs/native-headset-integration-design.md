@@ -672,6 +672,84 @@ vivo TWS 4 的整机电量到组件电量切换、弹窗重复出现、通知更
 展示契约另有静态核对。正式版只调整版本号、更新说明和复核记录，不改动已确认的展示实现。
 其他机型、官方设备共存、多设备并发及不同宿主版本继续按第 9.3 节验收。
 
+### 9.5 Android 15 登记检查定位
+
+Android 15 的后续定位记录：Issue #102 于 2026-11-07 收到 OPPO Enco Air4 Pro / SDK 35 的
+3.2.1 日志。协议已回报左右耳 100%、盒 90% 及关闭模式，MiLink 收到状态；展示宿主持续
+返回 `UNKNOWN` / `OWNERSHIP_UNAVAILABLE`。该片段没有宿主初始化结果或失败堆栈，不能据此
+断定是哪条指纹、存储访问或初始化前置条件失败。现有 APK 静态样本为 SDK 36/37，不能替代
+目标 SDK 35 构建的验证。
+
+维护分支保留当前初始化结果，在详细日志启用和失败预览时报告原始错误，分别标明登记读取、
+流转入口和提示入口是否就绪。解析仍要求唯一匹配，登记未知仍不授权展示；当前方案不加入
+周期重试或不经确认的回退。诊断完成不代表展示已修复。
+
+2026-11-08，[反馈者的定位包日志](https://github.com/silverpoetry/HyperEars/issues/102#issuecomment-6721098064)
+确认宿主为 `com.xiaomi.bluetooth` 15/35，系统 `OS3.0.5.0.VMNCNXM` / SDK 35；初始化时已解锁，
+流转入口就绪，Apple 登记和 AirPods 状态两个唯一指纹均为 0 匹配，通知发布边界也不匹配。
+
+从小米官方 ROM `mondrian-ota_full-OS3.0.5.0.VMNCNXM-user-15.0-d9db2e6dd9.zip` 的 system_ext
+分区按范围提取宿主与内置插件，校验读取的 payload 操作散列及宿主 APK 签名，得到：
+
+| 样本 | SHA-256 |
+|---|---|
+| BluetoothExtension 15/35 | `5d6945fbbed73be58ad0408097fc10bb1266083f8ad79fe1baa3ab88f5145a72` |
+| 内置 preloadedFeature 插件 | `d817a82f933951b21413b5c4477bddc636766e154d580bda7941af97adc69a3b` |
+
+静态结果与日志一致：
+
+- 宿主保留小米设备的 `DeviceIdCached` / `HEADSET_DEVICE_ID_INFO` 读取和流转记录。
+- 宿主及内置插件缺少当前实现使用的 AirPods 登记/状态读取、`showConnectToastForAirPods`、
+  `MiuiAirPodsFastConnectController` 及对应 AirPods Binder 回调；不能将它们视为单纯混淆改名。
+- 电量通知构造器仍存在，使用 `notifyAsUser(String, int, Notification, UserHandle)`，3.2.1 后端
+  只验证和拦截 `notify(String, int, Notification)`，所以独立的通知发布契约也不兼容。
+- 旧小米弹窗 `MiuiFastConnectController` 仍存在；其 `initParameter(): boolean`、无参
+  `goToSuitableDialog()`、`MiuiHeadsetInfo` 与服务绑定均不同于当前 AirPods 路径。
+
+上述结果限定为 AirPods 专用路径缺失。继续核对发现，这份宿主仍有小米通用的原生连接提示工厂
+及渲染器，已包含 `MiuiHeadsetIslandParam`。维护版据此接入旧后端，见下节；不能外推为所有
+Android 15 / HyperOS 3 都有相同接口。
+
+### 9.6 Android 15 维护实现
+
+**范围。** `LegacyNativeHostContract` 仅在 SDK 35、宿主版本码 35 且 APK SHA-256 与第 9.5 节
+样本一致时确认旧登记结构；仍用唯一 DEX 指纹验证小米登记读取。其他构建缺少 Apple 读取器时
+继续返回检查不可用。所有原生登记字段保持只读；耳机身份、协议能力及 Apple 排除策略不变。
+
+**连接提示。** `LegacyNativeConnectionHint` 使用原生 `getParams` 和原生 Handler 的已连接渲染分支。
+传入已接受电量与原生文字参数，由宿主构造、序列化并发送普通提示及超级岛参数。代码不生成
+焦点通知 JSON，也不写入产品身份或连接管理记录。原生主用户检查、设备连接检查、窗口占用、
+五秒展示与节流继续执行。队列任务在宿主 Handler 上重核会话、生产者、设置及最新原生归属，
+最多等待五秒；实例的地址和资源选择只在同步渲染调用内设置，随后恢复。
+
+智能模式在旧插件中调用 `Util.isInLauncher(Context)`，新插件保留 HomeScreenChecker；显式
+“仅弹窗”“仅超级岛”仍按用户选择处理。提交日志区分入队与实际调用原生状态栏入口，提交不
+等于已经观察到 SystemUI 像素结果。
+
+**弹窗。** `NativeWindowBridge` 统一来源验证、一次性窗口票据、设备/会话校验、本地服务绑定、
+更新、导航和关闭。`AirPodsWindowBridge` 保留现有状态 ABI；`LegacyXiaomiWindowBridge` 将同一
+投影交给旧 `MiuiControllerCommon`。窗口类型与会话授权分别校验，设备 Adapter 不感知宿主差异。
+
+旧控制器中的广播解析、配对入口、原生遥测广播注册和型号/云资源初始化，仅对模块授权实例
+由本地投影和静态资源初始化替代。生命周期退出只清理该实例的资源、Handler 与本地绑定，
+不进入原控制器会配对或清理共享 Auracast 状态的分支。未知服务操作结束该窗口；不建立真实
+FastConnect Binder 连接或私有蓝牙通道。
+
+旧插件裁剪了 `R` 类，但资源表与布局名称可验证。维护版从原生窗口的实际资源命名空间读取
+已核对的 ID，在 `groupConnectSuccess` 中一次性复用原生单电量布局的 `headsetBatteryInfo` 行。
+左右耳、充电盒及整机电量只切换这些已绑定区域，保留原 Dialog、View、关闭和点击状态；不按
+大小或位置寻找控件。图片继续由 Adapter 的 `artwork` 提供。未知电量显示 `-`，未知盒隐藏，
+零电量保留 0%；避免旧原生 setter 把 127 夹成 100%。
+
+**电量通知。** 根据原生构造器实际调用关系，唯一匹配 `NotificationManager.notify` 或
+`notifyAsUser` 的带 tag 重载。拦截只替换模块当前调用的 Notification，保留 tag、ID 与
+`UserHandle`。原生取消方法、用户清除、连接令牌和统一设置跳转沿用现有通知注册表。
+
+**验证。** 宿主及插件的方法、字段、服务声明、新旧两套弹窗布局、命名资源与颜色已静态核对。
+本地原生展示定向测试及 Release Lint 通过，覆盖构建限定、未知电量、窗口类型隔离、会话/生产者
+撤销、无第二蓝牙身份的本地服务，以及通知发布边界。最终签名维护包仍需 #102 反馈者验证
+自动连接、三种展示选项、预览、组件电量补齐、关闭、重连、通知更新/删除及点击设置后才可收尾。
+
 ## 10. 来源与引用
 
 - [当前状态与控制架构](system-module-architecture.md)。

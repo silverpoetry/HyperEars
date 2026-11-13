@@ -18,6 +18,17 @@ import org.junit.Test
 import java.lang.reflect.Proxy
 
 class NativeWindowRequestTest {
+    @Test
+    fun windowKindsShareAuthorityButCannotReuseEachOthersTickets() {
+        val initial = request(70).copy(kind = NativeWindowKind.LEGACY_XIAOMI)
+        val newest = request(80, revision = 2).copy(kind = NativeWindowKind.LEGACY_XIAOMI)
+        val accepted = requireNotNull(initial.forBinding(newest, producer))
+        assertEquals(NativeWindowKind.LEGACY_XIAOMI, accepted.kind)
+        assertEquals(2L, accepted.state.revision)
+        assertNull(initial.forBinding(newest.copy(kind = NativeWindowKind.AIRPODS), producer))
+        assertNull(initial.forBinding(newest.copy(metadata = metadata.copy(admission = NativeAdmission.SYSTEM)), producer))
+        assertNull(initial.forBinding(newest.copy(producer = binder()), producer))
+    }
     private val producer = binder()
     private val metadata =
         NativePresentationMetadata(
@@ -50,7 +61,7 @@ class NativeWindowRequestTest {
         val bound = requireNotNull(launched.forBinding(accepted, producer))
 
         assertEquals(100, requireNotNull(NativeHeadsetProjection.from(bound.state)).left.percent)
-        assertEquals("100", bound.stateArray()[0])
+        assertEquals("100", requireNotNull(NativeHeadsetProjection.from(bound.state)).airPodsStateArray()[0])
         assertEquals(2L, bound.state.revision)
         assertEquals("window-1", bound.id)
     }
@@ -198,7 +209,7 @@ class NativeWindowRequestTest {
                     beforeCallback.producer,
                 ),
             )
-        assertEquals("0", readable.stateArray()[0])
+        assertEquals("0", readable.airPodsStateArray()[0])
 
         val afterDisplay = request(75, revision = 4)
         val displayed =
@@ -210,7 +221,7 @@ class NativeWindowRequestTest {
                     afterDisplay.producer,
                 ),
             )
-        assertEquals("75", displayed.stateArray()[0])
+        assertEquals("75", displayed.airPodsStateArray()[0])
         assertSame(
             displayed,
             displayed.updated(
@@ -237,7 +248,7 @@ class NativeWindowRequestTest {
                     producer,
                 ),
             )
-        assertEquals("100", bound.stateArray()[0])
+        assertEquals("100", bound.airPodsStateArray()[0])
 
         val reconnected =
             request(0, revision = 4).copy(
@@ -255,8 +266,8 @@ class NativeWindowRequestTest {
             val launched = request(null)
             val latest = request(percent, revision = 2)
             val bound = requireNotNull(launched.forBinding(latest, producer))
-            assertEquals(listOf(expected, "-", "-"), bound.stateArray().take(3))
-            assertEquals(listOf("false", "false", "false"), bound.stateArray().slice(5..7))
+            assertEquals(listOf(expected, "-", "-"), bound.airPodsStateArray().take(3))
+            assertEquals(listOf("false", "false", "false"), bound.airPodsStateArray().slice(5..7))
             assertEquals(percent != null, requireNotNull(NativeHeadsetProjection.from(bound.state)).canShowConnectionHint)
         }
     }
@@ -291,7 +302,7 @@ class NativeWindowRequestTest {
         assertEquals("window-1", bound.id)
         assertEquals(
             listOf("0", "100", "-", "false", "false", "true", "false", "false"),
-            bound.stateArray().take(8),
+            bound.airPodsStateArray().take(8),
         )
         assertEquals(battery, bound.state.battery)
 
@@ -302,7 +313,7 @@ class NativeWindowRequestTest {
         val updated = requireNotNull(bound.updated(caseKnown, bound.session, bound.metadata, producer))
         assertEquals(
             listOf("0", "100", "0", "false", "false", "true", "false", "true"),
-            updated.stateArray().take(8),
+            updated.airPodsStateArray().take(8),
         )
     }
 
@@ -321,14 +332,16 @@ class NativeWindowRequestTest {
         val updated = requireNotNull(launched.updated(components.state, launched.session, metadata, producer))
         for (window in listOf(bound, updated)) {
             assertEquals(launched.id, window.id)
-            assertEquals(listOf("92", "89", "72"), window.stateArray().take(3))
+            assertEquals(listOf("92", "89", "72"), window.airPodsStateArray().take(3))
             assertEquals(false, requireNotNull(NativeHeadsetProjection.from(window.state)).singleBattery)
         }
         val fallback = request(80, revision = 3)
         val restored = requireNotNull(updated.updated(fallback.state, launched.session, metadata, producer))
         assertEquals(launched.id, restored.id)
-        assertEquals(listOf("80", "-", "-"), restored.stateArray().take(3))
+        assertEquals(listOf("80", "-", "-"), restored.airPodsStateArray().take(3))
     }
+
+    private fun NativeWindowRequest.airPodsStateArray() = requireNotNull(NativeHeadsetProjection.from(state)).airPodsStateArray()
 
     private fun binder(): IBinder =
         Proxy.newProxyInstance(

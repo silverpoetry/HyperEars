@@ -267,6 +267,12 @@ MiLink 子进程在收到系统认领前可以消费相同的活动候选快照�
 同地址适配。任一路径确认系统所有权后，后到的模块许可均不能覆盖它。具体存储与失败边界见
 [原生接管检查](native-headset-integration-design.md#41-原生接管检查独立于-milink)。
 
+维护分支将原生窗口的授权、绑定和生命周期集中在 `NativeWindowBridge`，分别由 AirPods 与
+旧小米后端适应各自的状态 ABI；设备 Adapter 继续只提供统一状态及 `artwork`。旧 SDK 35
+宿主须先通过已核对构建与登记读取检查，再使用本地展示服务，窗口不接管真实 FastConnect
+协议。连接提示调用原生参数工厂和渲染器，通知按实际 `notify` / `notifyAsUser` 边界接入。
+验证范围和实机待复核项见 [Android 15 维护实现](native-headset-integration-design.md#96-android-15-维护实现)。
+
 需要私有协议的 Adapter 在会话第一阶段执行只读确认。结果只有四种：
 
 - `AwaitingEvidence`：初始请求已写入，等待有效响应；
