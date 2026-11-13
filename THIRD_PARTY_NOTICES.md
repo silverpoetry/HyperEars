@@ -290,6 +290,14 @@ Conastin 在 [PR #90](https://github.com/silverpoetry/HyperEars/pull/90) 提供�
 不分发厂商应用、固件、反编译产物或厂商图片。贡献者补充的实采 App 为流宇
 `com.tytech.theastro.wear` 1.4.3（10）。
 
+## MOONDROP PILL contribution
+
+PILL 的型号信息、GAIA 握手、电量样本与适配实现由
+[kiyonoRin / RIN 在 PR #130](https://github.com/silverpoetry/HyperEars/pull/130) 提供，
+保留原作者提交，按本项目 GNU GPL-3.0-only 许可维护。协议资料来自固件 1.6.0、MOONDROP
+App 2.16.1c-251216ai 的互操作抓包与模块实测，复用既有 ZZZ-ANGELS-OWS 编解码和电量策略；
+不分发原始抓包、厂商 App、反编译代码或厂商资源。验证范围见 [PILL 协议](docs/moondrop-pill-protocol.md)。
+
 ## MOONDROP Link application research
 
 - MOONDROP Link for Android（`com.moondroplab.moondrop.moondrop_app`），官方下载

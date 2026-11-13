@@ -31,7 +31,7 @@ Sony | Headphones Connect。
 | ROSESELSA / 弱水时砂 | ROSELINK | `cn.ikaile.ruoshui.client` | 1 |
 | StarRing / 籁特易耳 | LightYear | `cn.lightyeartech.android` | 1 |
 | NiceHCK / YuanDao | 原道 | `com.yuandao.nicehck` | 1 |
-| MOONDROP 家族（Pudding / MIRAGE / ZZZ-ANGELS-OWS） | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
+| MOONDROP 家族（Pudding / MIRAGE / ZZZ-ANGELS-OWS / PILL） | MOONDROP | `com.moondroplab.moondrop.moondrop_app` | 1 |
 | TheAstro OpenPro S2 | 流宇 | `com.tytech.theastro.wear` | 1 |
 | QCY | QCY | `com.qcymall.googleearphonesetup` | 1 |
 | QCY | QCY（中国版） | `com.qcymall.earphonesetup` | 2 |
@@ -63,7 +63,8 @@ Sony | Headphones Connect。
 | Samsung Galaxy Buds（共享服务回退） | Galaxy Wearable | `com.samsung.android.app.watchmanager` | 1 |
 
 流宇包名由 [PR #90 实机记录](https://github.com/silverpoetry/HyperEars/pull/90#issuecomment-6481315378)
-确认，版本 1.4.3（10）；当前仅为 TheAstro 具体型号登记，导航与退避待最终维护包复核。
+确认，版本 1.4.3（10）；当前仅为 TheAstro 具体型号登记。贡献者于 2026-11-05 确认最终维护包
+`2f804558` 的导航与退避恢复正常。
 Dreame 变体的候选包名未获安装验证，暂不登记。
 
 三星新增控制器包名与显示名已于 2026-10-03 核对 Samsung 发布的

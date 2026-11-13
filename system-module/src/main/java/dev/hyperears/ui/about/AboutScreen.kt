@@ -319,7 +319,13 @@ internal val supportBrands = listOf(
             ),
             SupportEntry(
                 name = "ZZZ-ANGELS-OWS（妄想天使）",
-                evidence = EvidenceLevel.REFERENCE_PROTOCOL,
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.LEFT_RIGHT,
+                noiseControl = "无",
+            ),
+            SupportEntry(
+                name = "PILL",
+                evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.LEFT_RIGHT,
                 noiseControl = "无",
             ),
