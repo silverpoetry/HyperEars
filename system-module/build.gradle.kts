@@ -22,8 +22,8 @@ android {
         applicationId = "dev.hyperears"
         minSdk = 35
         targetSdk = 36
-        versionCode = 30201
-        versionName = "3.2.1"
+        versionCode = 30300
+        versionName = "3.3.0"
     }
 
     signingConfigs {
