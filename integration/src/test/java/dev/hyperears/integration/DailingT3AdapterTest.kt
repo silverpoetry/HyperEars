@@ -17,8 +17,8 @@ class DailingT3AdapterTest {
 
     private fun authenticate(adapter: DailingT3Adapter) {
         adapter.beginHandshake()
-        assertEquals(1, adapter.receive(byteArrayOf(0) + ByteArray(16)).commands.size)
         assertEquals(1, adapter.receive(byteArrayOf(1) + ByteArray(16)).commands.size)
+        assertEquals(1, adapter.receive(byteArrayOf(0) + ByteArray(16)).commands.size)
         assertEquals(5, adapter.receive(bytes("0270617373")).commands.size)
     }
 
@@ -45,8 +45,8 @@ class DailingT3AdapterTest {
     @Test fun authenticationRequiresOrderedStagesAndCompletePassBytes() {
         val adapter = DailingT3Adapter()
         adapter.beginHandshake()
-        adapter.receive(byteArrayOf(0) + ByteArray(16))
         adapter.receive(byteArrayOf(1) + ByteArray(16))
+        adapter.receive(byteArrayOf(0) + ByteArray(16))
         assertEquals(HandshakeResult.Rejected, adapter.receive(bytes("026661696c")).handshake)
         assertTrue(adapter.receive(battery).commands.isEmpty())
         assertEquals(BatterySource.SYSTEM_AGGREGATE, adapter.effectiveBatterySource())
@@ -58,10 +58,10 @@ class DailingT3AdapterTest {
     @Test fun fragmentedAuthenticationAndCoalescedFirstFramePreserveData() {
         val adapter = DailingT3Adapter()
         adapter.beginHandshake()
-        val challenge = byteArrayOf(0) + ByteArray(16)
-        assertTrue(adapter.receive(challenge.copyOf(8)).commands.isEmpty())
-        assertEquals(1, adapter.receive(challenge.copyOfRange(8, 17)).commands.size)
-        adapter.receive(byteArrayOf(1) + ByteArray(16))
+        val greeting = byteArrayOf(1) + ByteArray(16)
+        assertTrue(adapter.receive(greeting.copyOf(8)).commands.isEmpty())
+        assertEquals(1, adapter.receive(greeting.copyOfRange(8, 17)).commands.size)
+        adapter.receive(byteArrayOf(0) + ByteArray(16))
         val result = adapter.receive(bytes("0270617373") + battery)
         assertEquals(HandshakeResult.Ready, result.handshake)
         assertEquals(8, result.commands.size) // five initialization reads, then three feature reads
