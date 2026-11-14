@@ -5,15 +5,28 @@ import dev.hyperears.protocol.jieli.JlRcspWireCodec
 
 /** One authenticated RCSP conversation, driven by the existing transport and request events. */
 internal class DailingT3ProtocolSession : ProtocolSession {
+    /**
+     * Observed btcon exchange (vendor app, firmware 1.6.0, HCI capture 2026-11-14):
+     *
+     * 1. app  -> `00` + 16 random bytes;
+     * 2. device -> `01` + 16 bytes;
+     * 3. app  -> `02 'p' 'a' 's' 's'`;
+     * 4. device -> `00` + 16-byte challenge;
+     * 5. app  -> `01` + proof over that challenge;
+     * 6. device -> `02 'p' 'a' 's' 's'`.
+     *
+     * The `01` reply to the opening packet is the device's own greeting, not a rejection:
+     * "pass" is sent before the device issues the challenge that is actually hashed.
+     */
     private enum class AuthStage(val tag: Int, val size: Int) {
-        CHALLENGE(0, 17), PROOF(1, 17), ACK(2, 5), COMPLETE(-1, 0), FAILED(-1, 0),
+        GREETING(0x01, 17), CHALLENGE(0x00, 17), CONFIRM(0x02, 5), COMPLETE(-1, 0), FAILED(-1, 0),
     }
 
     private val decoder = JlRcspWireCodec.Decoder()
     private val pendingCommands = ArrayDeque<ByteArray>()
     private val authPacket = ByteArray(17)
     private var authSize = 0
-    private var authStage = AuthStage.CHALLENGE
+    private var authStage = AuthStage.GREETING
     private var handshakePublished = false
     private var batteryConfirmed = false
     private var sequence = 0
@@ -72,16 +85,17 @@ internal class DailingT3ProtocolSession : ProtocolSession {
             }
             if (authSize != authStage.size) continue
             when (authStage) {
+                AuthStage.GREETING -> {
+                    // The device answers the opening `00` + random with its own `01` packet and
+                    // then waits for "pass" before it sends the challenge that gets hashed.
+                    pendingCommands.addLast(JlAuthCrypto.authOk())
+                    authStage = AuthStage.CHALLENGE
+                }
                 AuthStage.CHALLENGE -> {
                     pendingCommands.addLast(JlAuthCrypto.authResponse(authPacket.copyOfRange(1, 17)))
-                    authStage = AuthStage.PROOF
+                    authStage = AuthStage.CONFIRM
                 }
-                AuthStage.PROOF -> {
-                    // The published JieLi SDK accepts the 17-byte proof before sending "pass".
-                    pendingCommands.addLast(JlAuthCrypto.authOk())
-                    authStage = AuthStage.ACK
-                }
-                AuthStage.ACK -> {
+                AuthStage.CONFIRM -> {
                     if (!authPacket.copyOf(5).contentEquals(JlAuthCrypto.authOk())) {
                         rejectAuthentication()
                         return@buildList
@@ -133,7 +147,7 @@ internal class DailingT3ProtocolSession : ProtocolSession {
         pendingCommands.clear()
         authPacket.fill(0)
         authSize = 0
-        authStage = AuthStage.CHALLENGE
+        authStage = AuthStage.GREETING
         handshakePublished = false
         batteryConfirmed = false
         sequence = 0
