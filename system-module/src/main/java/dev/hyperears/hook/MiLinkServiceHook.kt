@@ -26,6 +26,7 @@ import dev.hyperears.integration.MiLinkStateCodec
 import dev.hyperears.integration.NoiseMode
 import dev.hyperears.integration.NoiseModeFeatureState
 import dev.hyperears.integration.withFeature
+import dev.hyperears.presentation.CaseBatteryReminder
 import dev.hyperears.presentation.NativeAdmission
 import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.ModuleSettingsRuntime
@@ -80,6 +81,9 @@ internal class MiLinkServiceHook : HookContext() {
 
     @Volatile
     private var headsetDetailExtension: MiLinkHeadsetDetailExtension? = null
+
+    @Volatile
+    private var caseBatteryReminder: CaseBatteryReminder? = null
 
     override fun install() {
         settingsSubscription = ModuleSettingsRuntime.observe { updated ->
@@ -710,6 +714,7 @@ internal class MiLinkServiceHook : HookContext() {
             Context.RECEIVER_EXPORTED,
         )
         receiverRegistered = true
+        caseBatteryReminder = CaseBatteryReminder(context ?: candidate)
         flushPendingSystemOwnershipClaims()
         requestState()
         ModuleLog.debug("MiLink", "state receiver registered")
@@ -725,6 +730,7 @@ internal class MiLinkServiceHook : HookContext() {
             pendingStages.clear()
         }
         ProcessStateStore.clear()
+        caseBatteryReminder?.clear()
     }
 
     private fun handleStateChanged(intent: Intent) {
@@ -763,6 +769,9 @@ internal class MiLinkServiceHook : HookContext() {
             // Let the model-specific card adapter render after MiLink has consumed the stock
             // three-state callback; otherwise the host can overwrite an extended mode such as WIND.
             headsetDetailExtension?.onStateChanged(state)
+            // Standardized battery updates are model-agnostic; adapters reporting no case
+            // level stay silent through the capability gate without any per-model code here.
+            caseBatteryReminder?.onStateChanged(state)
         }
     }
 

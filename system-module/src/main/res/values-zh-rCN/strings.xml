@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">HyperEars</string>
+    <string name="xposed_description">面向小米 HyperOS 与 MiLink 的第三方耳机集成。</string>
+    <string name="case_battery_low_title">充电仓电量不足</string>
+    <string name="case_battery_low_title_named">%1$s充电仓电量不足</string>
+    <string name="case_battery_text">充电仓电量 %1$d%%</string>
+    <string name="case_battery_channel_alert">仓电量告警</string>
+</resources>

@@ -32,6 +32,29 @@ enum class HeadsetConnectionPresentation(val title: String) {
     }
 }
 
+/** Which alarm channels of the case-battery reminder stay active. */
+enum class CaseBatteryAlarmMode(val title: String) {
+    CONNECTION_AND_DISCONNECTION("连接断开时告警"),
+    HANDLING("取出放回时告警"),
+    BOTH("两种告警都开"),
+    OFF("不告警"),
+    ;
+
+    /** Whether connection moments (session start and end) alarm. */
+    val alarmsOnConnection: Boolean
+        get() = this == CONNECTION_AND_DISCONNECTION || this == BOTH
+
+    /** Whether handling moments (take-out and put-back) alarm. */
+    val alarmsOnHandling: Boolean
+        get() = this == HANDLING || this == BOTH
+
+    companion object {
+        // Persist names, not menu positions: existing explicit selections survive upgrades.
+        fun fromStoredValue(value: String?): CaseBatteryAlarmMode? =
+            entries.firstOrNull { it.name == value }
+    }
+}
+
 /** User-controlled integration, navigation and diagnostics policy. */
 data class ModuleSettings(
     val moreSettingsTarget: MoreSettingsTarget = MoreSettingsTarget.SYSTEM_SETTINGS,
@@ -42,7 +65,14 @@ data class ModuleSettings(
     val forcedAdapterIds: Map<String, String> = emptyMap(),
     val headsetConnectionPresentation: HeadsetConnectionPresentation = HeadsetConnectionPresentation.SMART,
     val headsetDetailNotification: Boolean = false,
-)
+    val caseBatteryAlarmMode: CaseBatteryAlarmMode = CaseBatteryAlarmMode.CONNECTION_AND_DISCONNECTION,
+    val caseBatteryLowPercent: Int = DEFAULT_CASE_BATTERY_LOW_PERCENT,
+) {
+    companion object {
+        /** Case-battery warning threshold; the policy owns all repeat suppression. */
+        const val DEFAULT_CASE_BATTERY_LOW_PERCENT = 30
+    }
+}
 
 /**
  * Settings shared with injected processes through libxposed RemotePreferences.
@@ -63,6 +93,9 @@ object ModuleSettingsStore {
     private const val FORCED_ADAPTER_IDS = "forced_adapter_ids"
     private const val HEADSET_CONNECTION_PRESENTATION = "headset_connection_presentation"
     private const val HEADSET_DETAIL_NOTIFICATION = "headset_detail_notification"
+    private const val CASE_BATTERY_ALARM_MODE = "case_battery_alarm_mode"
+    private const val LEGACY_CASE_BATTERY_REMINDER_ENABLED = "case_battery_reminder_enabled"
+    private const val CASE_BATTERY_LOW_PERCENT = "case_battery_low_percent"
     private const val REMOTE_MIGRATION_COMPLETE = "remote_migration_complete"
     private const val REMOTE_WRITE_PENDING = "remote_write_pending"
 
@@ -75,6 +108,10 @@ object ModuleSettingsStore {
             preferences.getString(HEADSET_CONNECTION_PRESENTATION, null),
         ),
         headsetDetailNotification = preferences.getBoolean(HEADSET_DETAIL_NOTIFICATION, false),
+        caseBatteryAlarmMode = readCaseBatteryAlarmMode(preferences),
+        caseBatteryLowPercent = preferences
+            .getInt(CASE_BATTERY_LOW_PERCENT, ModuleSettings.DEFAULT_CASE_BATTERY_LOW_PERCENT)
+            .coerceIn(0, 100),
         disabledAdapterIds = preferences
             .getStringSet(DISABLED_ADAPTER_IDS, emptySet())
             .orEmpty()
@@ -98,6 +135,14 @@ object ModuleSettingsStore {
             .putBoolean(DIAGNOSTIC_LOGGING, settings.diagnosticLogging)
             .putString(HEADSET_CONNECTION_PRESENTATION, settings.headsetConnectionPresentation.name)
             .putBoolean(HEADSET_DETAIL_NOTIFICATION, settings.headsetDetailNotification)
+            .putString(CASE_BATTERY_ALARM_MODE, settings.caseBatteryAlarmMode.name)
+            // Keep the former boolean synchronized so a temporary downgrade retains the closest
+            // representable behavior: the legacy build ran both channels or nothing.
+            .putBoolean(
+                LEGACY_CASE_BATTERY_REMINDER_ENABLED,
+                settings.caseBatteryAlarmMode != CaseBatteryAlarmMode.OFF,
+            )
+            .putInt(CASE_BATTERY_LOW_PERCENT, settings.caseBatteryLowPercent.coerceIn(0, 100))
             .putStringSet(DISABLED_ADAPTER_IDS, settings.disabledAdapterIds.toRemotePreferencesSet())
             .putStringSet(FORCED_ADAPTER_IDS,
                 ForcedAdapterSettings.encode(settings.forcedAdapterIds).toRemotePreferencesSet())
@@ -157,6 +202,23 @@ object ModuleSettingsStore {
         return resolveMoreSettingsTarget(stored, legacyPreference)
     }
 
+    private fun readCaseBatteryAlarmMode(preferences: SharedPreferences): CaseBatteryAlarmMode {
+        val stored = runCatching {
+            preferences.getString(CASE_BATTERY_ALARM_MODE, null)
+        }.getOrNull()
+        CaseBatteryAlarmMode.fromStoredValue(stored)?.let { return it }
+        if (preferences.contains(LEGACY_CASE_BATTERY_REMINDER_ENABLED)) {
+            // Legacy boolean: the old build ran both channels or nothing, so only its stored
+            // state carries information beyond the fresh-install default.
+            return if (preferences.getBoolean(LEGACY_CASE_BATTERY_REMINDER_ENABLED, false)) {
+                CaseBatteryAlarmMode.BOTH
+            } else {
+                CaseBatteryAlarmMode.OFF
+            }
+        }
+        return CaseBatteryAlarmMode.CONNECTION_AND_DISCONNECTION
+    }
+
     private val PREFERENCE_KEYS = setOf(
         MORE_SETTINGS_TARGET,
         LEGACY_PREFER_VENDOR_CONTROL_APP,
@@ -167,6 +229,8 @@ object ModuleSettingsStore {
         FORCED_ADAPTER_IDS,
         HEADSET_CONNECTION_PRESENTATION,
         HEADSET_DETAIL_NOTIFICATION,
+        CASE_BATTERY_ALARM_MODE,
+        CASE_BATTERY_LOW_PERCENT,
     )
 }
 
