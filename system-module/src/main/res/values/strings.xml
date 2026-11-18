@@ -38,4 +38,11 @@
         <item>com.samsung.accessory.gemstonemgr</item>
         <item>com.samsung.accessory.budsunitemgr</item>
     </string-array>
+
+    <!-- Case battery alarm. Posted from the MiLink host process via createPackageContext,
+         so the IDs must resolve inside the module APK, not the host. -->
+    <string name="case_battery_low_title">Charging case battery low</string>
+    <string name="case_battery_low_title_named">%1$s charging case battery low</string>
+    <string name="case_battery_text">Case battery %1$d%%</string>
+    <string name="case_battery_channel_alert">Case battery alerts</string>
 </resources>

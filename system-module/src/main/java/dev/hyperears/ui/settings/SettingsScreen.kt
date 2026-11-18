@@ -27,6 +27,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -52,6 +54,7 @@ import dev.hyperears.integration.EarbudAdapterGroup
 import dev.hyperears.integration.EarbudAdapterKind
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
+import dev.hyperears.settings.CaseBatteryAlarmMode
 import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.settings.MoreSettingsTarget
@@ -59,6 +62,7 @@ import dev.hyperears.ui.components.HyperEarsPage
 import dev.hyperears.ui.components.rememberSwitchHaptics
 import dev.hyperears.ui.theme.UiPreferences
 import dev.hyperears.ui.theme.UiStyle
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,6 +136,22 @@ fun SettingsScreen(
                         checked = settings.headsetDetailNotification,
                         onCheckedChange = { onSettingsChanged(settings.copy(headsetDetailNotification = it)) },
                     )
+                    PreferenceDivider()
+                    CaseBatteryAlarmModePreference(
+                        selected = settings.caseBatteryAlarmMode,
+                        onSelected = { mode ->
+                            onSettingsChanged(settings.copy(caseBatteryAlarmMode = mode))
+                        },
+                    )
+                    if (settings.caseBatteryAlarmMode != CaseBatteryAlarmMode.OFF) {
+                        PreferenceDivider()
+                        CaseBatteryThresholdPreference(
+                            lowPercent = settings.caseBatteryLowPercent,
+                            onPercentChanged = { percent ->
+                                onSettingsChanged(settings.copy(caseBatteryLowPercent = percent))
+                            },
+                        )
+                    }
                 }
             }
             item(key = "application-header") {
@@ -242,6 +262,37 @@ private fun HeadsetPresentationPreference(
         )
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             HeadsetConnectionPresentation.entries.forEach { choice ->
+                DropdownMenuItem(text = { Text(choice.title) }, onClick = {
+                    expanded = false
+                    onSelected(choice)
+                })
+            }
+        }
+    }
+}
+
+@Composable
+private fun CaseBatteryAlarmModePreference(
+    selected: CaseBatteryAlarmMode,
+    onSelected: (CaseBatteryAlarmMode) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth()) {
+        ListItem(
+            headlineContent = { Text("仓电量告警", fontWeight = FontWeight.Medium) },
+            supportingContent = {
+                Text("仓电量不高于阈值时告警。需勾选 com.milink.service 作用域。")
+            },
+            trailingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(selected.title)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = "选择仓电量告警方式")
+                }
+            },
+            modifier = Modifier.clickable { expanded = true },
+        )
+        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            CaseBatteryAlarmMode.entries.forEach { choice ->
                 DropdownMenuItem(text = { Text(choice.title) }, onClick = {
                     expanded = false
                     onSelected(choice)
@@ -678,7 +729,6 @@ private fun AdapterListSurface(
 private val AdapterListPosition.endsGroup: Boolean
     get() = this == AdapterListPosition.SINGLE || this == AdapterListPosition.BOTTOM
 
-
 @Composable
 private fun AdapterGroupHeader(
     title: String,
@@ -748,6 +798,40 @@ private fun PreferenceDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 16.dp),
         color = MaterialTheme.colorScheme.outlineVariant,
+    )
+}
+
+@Composable
+private fun CaseBatteryThresholdPreference(
+    lowPercent: Int,
+    onPercentChanged: (Int) -> Unit,
+) {
+    var value by rememberSaveable(lowPercent) { mutableFloatStateOf(lowPercent.toFloat()) }
+    ListItem(
+        headlineContent = {
+            Text(
+                text = "仓电量告警阈值",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+            )
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    text = "仓电量不高于该百分比时告警。当前 ${value.roundToInt()}%。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Slider(
+                    value = value,
+                    onValueChange = { value = it.roundToInt().toFloat() },
+                    onValueChangeFinished = { onPercentChanged(value.roundToInt()) },
+                    valueRange = 1f..99f,
+                    steps = 97,
+                )
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
 }
 

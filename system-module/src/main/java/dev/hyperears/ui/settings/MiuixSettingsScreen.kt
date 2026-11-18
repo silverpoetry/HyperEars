@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,12 +24,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import dev.hyperears.integration.EarbudAdapterGroup
 import dev.hyperears.root.RootAction
 import dev.hyperears.root.RootActionState
+import dev.hyperears.settings.CaseBatteryAlarmMode
 import dev.hyperears.settings.ModuleSettings
 import dev.hyperears.settings.HeadsetConnectionPresentation
 import dev.hyperears.settings.MoreSettingsTarget
@@ -36,10 +37,13 @@ import dev.hyperears.ui.components.MiuixHyperEarsPage
 import dev.hyperears.ui.components.rememberSwitchHaptics
 import dev.hyperears.ui.theme.UiPreferences
 import dev.hyperears.ui.theme.UiStyle
+import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.SliderDefaults
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.preference.ArrowPreference
@@ -122,6 +126,25 @@ fun MiuixSettingsScreen(
                         checked = settings.headsetDetailNotification,
                         onCheckedChange = { onSettingsChanged(settings.copy(headsetDetailNotification = it)) },
                     )
+                    WindowSpinnerPreference(
+                        items = CaseBatteryAlarmMode.entries.map { DropdownItem(text = it.title) },
+                        selectedIndex = CaseBatteryAlarmMode.entries.indexOf(settings.caseBatteryAlarmMode),
+                        title = "仓电量告警",
+                        summary = "仓电量不高于阈值时告警。需勾选 com.milink.service 作用域。",
+                        onSelectedIndexChange = { index ->
+                            CaseBatteryAlarmMode.entries.getOrNull(index)?.let { mode ->
+                                onSettingsChanged(settings.copy(caseBatteryAlarmMode = mode))
+                            }
+                        },
+                    )
+                    if (settings.caseBatteryAlarmMode != CaseBatteryAlarmMode.OFF) {
+                        MiuixCaseBatteryThresholdPreference(
+                            lowPercent = settings.caseBatteryLowPercent,
+                            onPercentChanged = { percent ->
+                                onSettingsChanged(settings.copy(caseBatteryLowPercent = percent))
+                            },
+                        )
+                    }
                 }
             }
             item(key = "application-header") {
@@ -398,6 +421,33 @@ private fun MiuixSwitchPreference(
         onCheckedChange = { updated ->
             haptics.perform(updated)
             onCheckedChange(updated)
+        },
+    )
+}
+
+@Composable
+private fun MiuixCaseBatteryThresholdPreference(
+    lowPercent: Int,
+    onPercentChanged: (Int) -> Unit,
+) {
+    var value by rememberSaveable(lowPercent) { mutableFloatStateOf(lowPercent.toFloat()) }
+    BasicComponent(
+        title = "仓电量告警阈值",
+        summary = "仓电量不高于该百分比时告警。",
+        endActions = {
+            Text(
+                text = "${value.roundToInt()}%",
+                color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+            )
+        },
+        bottomAction = {
+            Slider(
+                value = value,
+                onValueChange = { value = it.roundToInt().toFloat() },
+                onValueChangeFinished = { onPercentChanged(value.roundToInt()) },
+                valueRange = 1f..99f,
+                hapticEffect = SliderDefaults.SliderHapticEffect.Step,
+            )
         },
     )
 }
