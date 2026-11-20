@@ -155,6 +155,18 @@ FreeBuds 5i 的抓包记录确认标准模式写入使用同一 `2B 04` 命令�
 - 具体型号使用已确认的 Channel；家族候选由同一 Adapter 依次试探 Channel 1、16。单个
   端点在有限次数内未获得有效响应时进入下一端点，全部失败后保持标准耳机回退。
 
+## FreeClip（一代，开放式夹耳）
+
+FreeClip 一代没有降噪、通透或档位硬件。2026-11-20 的实机日志与 HCI 抓包
+（Xiaomi 25019PNF3C，HyperOS 4.0）确认其使用 `5A` SPP 帧协议与 RFCOMM Channel 1，
+`01 27` / `01 08` 返回左右耳与充电盒组件电量。固件会对 `2B 04` 写入回显模式状态
+（`2B 2A`），但该回显不构成声学能力证据：
+
+- 握手与刷新只发送 `01 08`，不发送 `2B 2A`。
+- 收到 CRC、结构与字段均合法的电量帧后开放组件电量并确认协议。
+- 不查询、不发布、不接受任何噪声模式；`2B 04` / `2B 03` 均不建模。
+- 固定 Channel 1，不再由家族候选额外试探 Channel 16。
+
 ## FreeClip 2（开放式夹耳）
 
 FreeClip 2 使用 `5A` SPP 帧协议与 RFCOMM Channel 1，但无降噪、通透或档位：
@@ -167,8 +179,8 @@ FreeClip 2 使用 `5A` SPP 帧协议与 RFCOMM Channel 1，但无降噪、通透
 因此按规范化名称 `huaweifreeclip2` / `freeclip2` 精确选择候选，再进入协议确认；RFCOMM
 连接确认使用 SCN 1（标准 SPP UUID `00001101-0000-1000-8000-00805f9b34fb`），电量读取
 与组件电量显示已验证。
-原版 FreeClip 继续使用华为家族候选，未在缺少同等实机证据时声明为 FreeClip 2 的同协议
-精确型号。
+FreeClip 一代使用独立精确画像 `huawei-freeclip`（固定 Channel 1、电量专用），不与 FreeClip 2
+共享型号声明；FreeLace 等其余产品线继续使用华为家族候选。
 
 ## 已观察但尚未建模
 

@@ -387,6 +387,12 @@ internal val supportBrands = listOf(
                 noiseControl = "降噪 / 关闭",
             ),
             SupportEntry(
+                name = "HUAWEI FreeClip",
+                evidence = EvidenceLevel.VERIFIED,
+                battery = BatteryCapability.COMPONENT,
+                noiseControl = "无",
+            ),
+            SupportEntry(
                 name = "HUAWEI FreeClip 2",
                 evidence = EvidenceLevel.VERIFIED,
                 battery = BatteryCapability.COMPONENT,

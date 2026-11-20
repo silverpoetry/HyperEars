@@ -83,7 +83,7 @@ GATT、RFCOMM 或 BR/EDR L2CAP 控制通道只为需要协议遥测的适配器�
 | NiceHCK / YuanDao | OriG in 公开实现；其他标准回退 | 协议确认后私有组件电量；回退设备使用系统整机电量 | OriG in 支持降噪、关闭、通透、抗风噪 |
 | MOONDROP / 水月雨 | Robin 公开协议；Pudding、MIRAGE、ZZZ-ANGELS-OWS 维护版实机复核通过；PILL 贡献者实测；其他标准回退 | Robin、ZZZ-ANGELS-OWS、PILL 左右耳；Pudding / MIRAGE 左右耳与盒；按有效响应开放，回退使用系统整机电量 | Robin / MIRAGE 三态；Pudding 增加抗风噪；ZZZ-ANGELS-OWS / PILL 无降噪 |
 | 荣耀 | X5s Pro 实机验证；其他标准回退 | X5s Pro 协议确认后提供私有组件电量；回退设备使用系统整机电量 | X5s Pro 协议确认后支持降噪、关闭、通透 |
-| 华为 | FreeBuds 5i、FreeBuds Pro 3 实机验证；FreeBuds 4 公开实现；FreeBuds / FreeClip / FreeLace 家族探测；其余标准回退 | 合法协议响应后提供私有组件或整机电量；回退设备使用系统整机电量 | 5i、Pro 3 支持三态；Pro 3 另有型号专属档位；FreeBuds 4 支持降噪、关闭；家族候选在协议确认后支持三态，不开放档位 |
+| 华为 | FreeBuds 5i、FreeBuds Pro 3、FreeClip 2 实机验证；FreeBuds 4 公开实现；FreeClip 一代实机验证、维护版待复核；FreeBuds / FreeLace 家族探测；其余标准回退 | 合法协议响应后提供私有组件或整机电量；回退设备使用系统整机电量 | 5i、Pro 3 支持三态；Pro 3 另有型号专属档位；FreeBuds 4 支持降噪、关闭；FreeClip 无降噪；家族候选在协议确认后支持三态，不开放档位 |
 | QCY | Crossky C50S 公开协议；同协议家族探测；其余标准回退 | 协议确认后提供私有组件电量；回退设备使用系统整机电量 | 协议确认后支持降噪、关闭、通透 |
 | Dreame / TheAstro（FloS2 运动耳机） | OpenPro S2 维护版实机复核通过；Dreame Flo S2 家族外推 | 协议确认后提供私有整机电量（10% 一档量化）；未确认时使用系统整机电量 | 无；音效切换为型号专属控制 |
 | SWARMOO / 贝壳王子 | MO3 PRO 双耳使用实机复核通过；其他标准回退 | 协议确认后提供左右耳与已知盒电量 | 降噪、关闭、通透、抗风噪；单耳控制继续跟踪 |
