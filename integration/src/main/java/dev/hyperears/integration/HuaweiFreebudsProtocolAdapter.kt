@@ -100,6 +100,34 @@ internal class HuaweiFreeBuds4Adapter : HuaweiFreebudsProtocolAdapter(
     }
 }
 
+/**
+ * HUAWEI FreeClip (first generation): open-ear clip TWS without noise control.
+ *
+ * Verified from on-device logs (Xiaomi 25019PNF3C, HyperOS 4.0, 2026-11-20): the device
+ * answers on RFCOMM Channel 1 and reports component battery through `01 27` / `01 08`.
+ * Its firmware also mirrors `2B 04` / `2B 2A` mode state even though this model has no
+ * cancellation or transparency hardware. The battery-only profile therefore never queries,
+ * publishes, nor accepts noise modes; the firmware echo is not capability evidence.
+ */
+internal class HuaweiFreeClipAdapter : HuaweiFreebudsProtocolAdapter(
+    endpointPrefix = "huawei-freeclip",
+    channelNumbers = listOf(1),
+    profile = FREECLIP_PROFILE,
+) {
+    override val id: String = ID
+    override val displayName: String = "HUAWEI FreeClip"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+
+    override fun matches(identity: EarbudIdentity): Boolean =
+        super.matches(identity) &&
+            normalizeDeviceName(identity.deviceName.orEmpty()) in MODEL_NAMES
+
+    companion object {
+        const val ID = "huawei-freeclip"
+        private val MODEL_NAMES = setOf("huaweifreeclip", "freeclip")
+    }
+}
+
 /** HUAWEI FreeClip 2: hardware-verified component battery without noise control. */
 internal class HuaweiFreeClip2Adapter : HuaweiFreebudsProtocolAdapter(
     endpointPrefix = "huawei-freeclip-2",

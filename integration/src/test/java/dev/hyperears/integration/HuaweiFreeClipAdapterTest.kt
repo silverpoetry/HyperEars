@@ -21,10 +21,14 @@ class HuaweiFreeClipAdapterTest {
         )
         assertTrue(
             EarbudAdapterRegistry.resolve(identity("HUAWEI FreeClip")) is
-                HuaweiFreebudsFamilyAdapter,
+                HuaweiFreeClipAdapter,
         )
         assertTrue(
-            EarbudAdapterRegistry.resolve(identity("FreeClip")) is HuaweiFreebudsFamilyAdapter,
+            EarbudAdapterRegistry.resolve(identity("FreeClip")) is HuaweiFreeClipAdapter,
+        )
+        assertFalse(
+            EarbudAdapterRegistry.resolve(identity("HUAWEI FreeClip 2")) is
+                HuaweiFreeClipAdapter,
         )
         assertFalse(
             EarbudAdapterRegistry.resolve(identity("HUAWEI FreeBuds Pro 3")) is
