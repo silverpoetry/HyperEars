@@ -220,3 +220,44 @@ display uses a dash for missing readings and includes readable case telemetry.
     evidence is confirmed, HyperEars exposes WIND as a switch beside that native section. The same
     CardAdapter recognizes both the original ANC row and HyperOS 4's select-card row; the switch is
     rendered from authoritative Adapter state and keeps no duplicate UI state.
+
+## W820NB V1 dialect (bleVersion = 1, confirmed by RFCOMM capture)
+
+The W820NB headphone line is not a BES v2 device. It answers the older V1 framing:
+
+```text
+Send:    [0xAA][LEN][CMD_INDEX][PAYLOAD...][CRC_H][CRC_L]
+Receive: [0xBB][LEN][CMD_INDEX][PAYLOAD...][CRC_H][CRC_L]   (older firmware replies 0xCC)
+```
+
+- `LEN` = `payload.size + 1`; the command byte is counted and no separate length field follows.
+- Payloads are plaintext; there is no XOR `0xA5` step.
+- `CRC16 = (8217 + sum of all preceding bytes) & 0xFFFF`, transmitted big-endian.
+
+A retail `EDIFIER W820NB` session captured while HyperEars 3.3.0 was connected shows the mismatch
+directly: every BES v2 query (`AA EC D0 00 00 66`, `AA EC CC 00 00 62`, `AA EC D8 00 00 6E`) on
+the `EDF00000-…` RFCOMM channel is ignored, while the headset pushes a V1 frame on its own:
+
+```text
+BB 02 C3 03 21 9C      A2DP state push, 8217 + BB + 02 + C3 + 03 = 0x219C
+```
+
+| Command | Index | Verified frame |
+|---|---|---|
+| battery_query | `0xD0` | `AA 01 D0 21 94` → `BB 02 D0 35 21 DB`, payload `0x35` = 53% |
+| anc_query | `0xCC` | `AA 01 CC 21 90` → `BB 03 CC 02 06 21 AB`, payload `[mode][level]` |
+| anc_set | `0xC1` | `AA 02 C1 02 21 88` (mode) or `AA 03 C1 03 06 21 90` (mode + level) |
+| device_function_query | `0xD8` | `AA 01 D8 21 9C` → capability payload |
+| version_query | `0xC6` | `AA 01 C6 21 8A` |
+| name_query | `0xC9` | `AA 01 C9 21 8D` |
+| a2dp_state (device) | `0xC3` | `BB 02 C3 03 21 9C` |
+| game_state_query | `0x08` | `AA 01 08 20 CC` → `BB 02 08 00 20 DE` |
+
+Verified noise dialect: `1 = 标准` (projects to OFF), `2 = 降噪` (ANC), `3 = 通透`
+(TRANSPARENCY, optional level byte). There is no 抗风噪 slot and no separate "off" mode, so the
+adapter exposes exactly ANC / TRANSPARENCY / OFF and refuses WIND writes.
+
+The retail Bluetooth name is `EDIFIER W820NB` for both the standard and 双金标 units, so the
+adapter matches the normalized name without the later `plus` / `pro` suffixes; those revisions
+keep the family (v2) candidate. The captured session is the authoritative evidence for this
+dialect; a BES v2 probe is never sent to a matched W820NB.

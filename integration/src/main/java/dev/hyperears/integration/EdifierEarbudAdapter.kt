@@ -101,6 +101,38 @@ open class EdifierHeadphonesAdapter : EdifierEarbudAdapter() {
 }
 
 /**
+ * Concrete model adapter for the Edifier W820NB headphone line (both certifications).
+ *
+ * The retail Bluetooth name is `EDIFIER W820NB` for the standard and 双金标 units, and the model
+ * answers the V1 (`bleVersion = 1`) framing instead of the family's BES v2 framing: `0xAA/0xBB`
+ * header, one length byte, plaintext payload and an 8217-seeded big-endian CRC16. A live session
+ * capture shows the headset pushing `BB 02 C3 03 21 9C` while every BES v2 query (`AA EC ...`)
+ * is ignored, which leaves the v2 handshake permanently unconfirmed.
+ *
+ * Matching is by normalized name without the later `plus`/`pro` revisions, so those keep the
+ * family candidate and its v2 probing.
+ */
+class EdifierW820NBAdapter : EdifierHeadphonesAdapter() {
+    override val id: String = ID
+    override val displayName: String = "Edifier W820NB"
+    override val resolution: AdapterResolution = AdapterResolution.EXACT_MATCH
+    override fun createProtocolSession(): ProtocolSession = EdifierV1ProtocolSession()
+
+    override fun matches(identity: EarbudIdentity): Boolean {
+        if (!super.matches(identity)) return false
+        val name = normalizeDeviceName(identity.deviceName.orEmpty())
+        val suffix = name.substringAfter(W820NB_NAME, missingDelimiterValue = "")
+        return name.contains(W820NB_NAME) && LATER_REVISIONS.none(suffix::startsWith)
+    }
+
+    companion object {
+        const val ID = "edifier-w820nb"
+        private const val W820NB_NAME = "w820nb"
+        private val LATER_REVISIONS = setOf("plus", "pro", "2")
+    }
+}
+
+/**
  * Concrete model adapter for Edifier W860NB PRO.
  *
  * Selected by exact normalized Bluetooth name match. The private protocol queries
